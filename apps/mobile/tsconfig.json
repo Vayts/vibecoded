@@ -1,0 +1,22 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@acme/shared": ["../../packages/shared/src/index.ts"]
+    },
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "app",
+    "components",
+    "lib",
+    "stores",
+    "constants",
+    "*.ts",
+    "*.tsx",
+    "nativewind-env.d.ts",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="600" height="120">
+  <!--
+    Acme Wordmark — Geist-inspired geometric sans-serif
+    Letters constructed as clean SVG paths for full portability.
+    When importing to Figma, replace with actual Geist Sans Semibold if preferred.
+  -->
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@600&amp;display=swap');
+    </style>
+  </defs>
+
+  <!-- Wordmark text using Inter 600 as closest web-safe match to Geist -->
+  <text
+    x="300" y="82"
+    text-anchor="middle"
+    font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    font-weight="600"
+    font-size="80"
+    letter-spacing="-2"
+    fill="#1F2937"
+  >Acme</text>
+</svg>

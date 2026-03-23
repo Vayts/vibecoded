@@ -1,0 +1,3 @@
+# Acme
+
+In order to start using this project, provide your comprehensive idea description here and ask the most powerful model available to scan the project and fill in the required documents. Use TASKS.md to track your backlog, and fill in .github/copilot-instructions.md and CLAUDE.md files with guidelines for the AI assistants to work effectively in this project. CODING_GUIDELINES.md should contain all the coding standards and practices you want to enforce across the codebase. BUILDING.md should have detailed instructions on how to build and run the project locally. CONCEPT.md is where you can elaborate on your app idea, its features, target audience, and any other relevant information that will guide the development process.

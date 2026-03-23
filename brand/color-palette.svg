@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" width="960" height="720">
+  <!--
+    Acme Color Palette Reference Sheet
+    Import into Figma to extract color styles.
+  -->
+  <style>
+    text { font-family: 'Geist', 'Inter', -apple-system, sans-serif; }
+    .title { font-size: 28px; font-weight: 700; fill: #111827; }
+    .section { font-size: 16px; font-weight: 600; fill: #374151; }
+    .label { font-size: 11px; font-weight: 600; fill: #1F2937; }
+    .hex { font-size: 10px; fill: #6B7280; font-family: 'Geist Mono', 'SF Mono', monospace; }
+  </style>
+
+  <!-- Background -->
+  <rect width="960" height="720" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="40" y="48" class="title">Acme — Color System</text>
+
+  <!-- PRIMARY COLORS -->
+  <text x="40" y="100" class="section">Primary</text>
+
+  <!-- Acme Blue -->
+  <rect x="40" y="116" width="120" height="80" rx="12" fill="#2563EB"/>
+  <text x="100" y="220" class="label" text-anchor="middle">Acme Blue</text>
+  <text x="100" y="236" class="hex" text-anchor="middle">#2563EB</text>
+
+  <!-- Deep Blue -->
+  <rect x="180" y="116" width="120" height="80" rx="12" fill="#1D4ED8"/>
+  <text x="240" y="220" class="label" text-anchor="middle">Deep Blue</text>
+  <text x="240" y="236" class="hex" text-anchor="middle">#1D4ED8</text>
+
+  <!-- Light Blue -->
+  <rect x="320" y="116" width="120" height="80" rx="12" fill="#DBEAFE" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="380" y="220" class="label" text-anchor="middle">Light Blue</text>
+  <text x="380" y="236" class="hex" text-anchor="middle">#DBEAFE</text>
+
+  <!-- NEUTRAL COLORS -->
+  <text x="40" y="290" class="section">Neutrals</text>
+
+  <rect x="40" y="306" width="80" height="64" rx="10" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="80" y="392" class="label" text-anchor="middle">White</text>
+  <text x="80" y="406" class="hex" text-anchor="middle">#FFFFFF</text>
+
+  <rect x="136" y="306" width="80" height="64" rx="10" fill="#F9FAFB" stroke="#E5E7EB" stroke-width="1"/>
+  <text x="176" y="392" class="label" text-anchor="middle">Gray 50</text>
+  <text x="176" y="406" class="hex" text-anchor="middle">#F9FAFB</text>
+
+  <rect x="232" y="306" width="80" height="64" rx="10" fill="#E5E7EB"/>
+  <text x="272" y="392" class="label" text-anchor="middle">Gray 200</text>
+  <text x="272" y="406" class="hex" text-anchor="middle">#E5E7EB</text>
+
+  <rect x="328" y="306" width="80" height="64" rx="10" fill="#6B7280"/>
+  <text x="368" y="392" class="label" text-anchor="middle">Gray 500</text>
+  <text x="368" y="406" class="hex" text-anchor="middle">#6B7280</text>
+
+  <rect x="424" y="306" width="80" height="64" rx="10" fill="#1F2937"/>
+  <text x="464" y="392" class="label" text-anchor="middle">Gray 800</text>
+  <text x="464" y="406" class="hex" text-anchor="middle">#1F2937</text>
+
+  <rect x="520" y="306" width="80" height="64" rx="10" fill="#111827"/>
+  <text x="560" y="392" class="label" text-anchor="middle">Gray 900</text>
+  <text x="560" y="406" class="hex" text-anchor="middle">#111827</text>
+
+  <!-- ACCENT COLORS -->
+  <text x="40" y="460" class="section">Accents</text>
+
+  <rect x="40" y="476" width="120" height="80" rx="12" fill="#16A34A"/>
+  <text x="100" y="580" class="label" text-anchor="middle">Green</text>
+  <text x="100" y="596" class="hex" text-anchor="middle">#16A34A</text>
+
+  <rect x="180" y="476" width="120" height="80" rx="12" fill="#DC2626"/>
+  <text x="240" y="580" class="label" text-anchor="middle">Red</text>
+  <text x="240" y="596" class="hex" text-anchor="middle">#DC2626</text>
+
+  <rect x="320" y="476" width="120" height="80" rx="12" fill="#D97706"/>
+  <text x="380" y="580" class="label" text-anchor="middle">Amber</text>
+  <text x="380" y="596" class="hex" text-anchor="middle">#D97706</text>
+
+  <rect x="460" y="476" width="120" height="80" rx="12" fill="#7C3AED"/>
+  <text x="520" y="580" class="label" text-anchor="middle">Purple</text>
+  <text x="520" y="596" class="hex" text-anchor="middle">#7C3AED</text>
+
+  <!-- SPARKLE ACCENT -->
+  <text x="40" y="642" class="section">AI Sparkle</text>
+
+  <rect x="40" y="658" width="120" height="48" rx="10" fill="#FBBF24"/>
+  <text x="100" y="728" class="label" text-anchor="middle">Sparkle Gold</text>
+  <text x="100" y="742" class="hex" text-anchor="middle">#FBBF24</text>
+
+  <rect x="180" y="658" width="120" height="48" rx="10" fill="#F59E0B"/>
+  <text x="240" y="728" class="label" text-anchor="middle">Sparkle Amber</text>
+  <text x="240" y="742" class="hex" text-anchor="middle">#F59E0B</text>
+
+  <!-- Usage note -->
+  <text x="560" y="100" class="section">Usage Notes</text>
+  <text x="560" y="126" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Primary Blue → CTAs, links, active states</text>
+  <text x="560" y="146" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Deep Blue → Pressed / hover states</text>
+  <text x="560" y="166" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Light Blue → Backgrounds, badges</text>
+  <text x="560" y="196" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Green → Success, correct answers</text>
+  <text x="560" y="216" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Red → Errors, destructive, "Again"</text>
+  <text x="560" y="236" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Amber → Warnings, trial prompts</text>
+  <text x="560" y="256" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Purple → Pro / premium badge</text>
+  <text x="560" y="286" font-size="12" fill="#6B7280" font-family="'Geist', 'Inter', sans-serif">Gold → AI sparkle accent</text>
+</svg>

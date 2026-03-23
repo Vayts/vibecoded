@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+  <!--
+    Acme Typography Scale Reference
+    Primary: Geist Sans | Fallback: Inter, SF Pro
+    Import into Figma — replace font family with Geist if installed.
+  -->
+  <style>
+    text { font-family: 'Geist', 'Inter', -apple-system, sans-serif; }
+    .meta { font-size: 11px; fill: #9CA3AF; font-family: 'Geist Mono', 'SF Mono', monospace; }
+  </style>
+
+  <rect width="800" height="600" fill="#FFFFFF"/>
+
+  <!-- Title -->
+  <text x="40" y="48" font-size="24" font-weight="700" fill="#111827">Acme — Typography Scale</text>
+  <text x="40" y="72" font-size="13" fill="#6B7280">Font: Geist Sans · Fallback: Inter, SF Pro · iOS: System (SF Pro)</text>
+
+  <!-- Divider -->
+  <line x1="40" y1="90" x2="760" y2="90" stroke="#E5E7EB" stroke-width="1"/>
+
+  <!-- Large Title -->
+  <text x="40" y="148" font-size="34" font-weight="700" fill="#111827">Large Title</text>
+  <text x="400" y="138" class="meta">34pt · Bold · #111827</text>
+  <text x="400" y="154" class="meta">NativeWind: text-3xl font-bold</text>
+
+  <!-- Title -->
+  <text x="40" y="208" font-size="28" font-weight="700" fill="#111827">Title</text>
+  <text x="400" y="198" class="meta">28pt · Bold · #111827</text>
+  <text x="400" y="214" class="meta">NativeWind: text-2xl font-bold</text>
+
+  <!-- Section Header -->
+  <text x="40" y="264" font-size="20" font-weight="600" fill="#111827">Section Header</text>
+  <text x="400" y="254" class="meta">20pt · Semibold · #111827</text>
+  <text x="400" y="270" class="meta">NativeWind: text-lg font-semibold</text>
+
+  <!-- Body -->
+  <text x="40" y="318" font-size="17" font-weight="400" fill="#1F2937">Body text — The quick brown fox jumps over the lazy dog.</text>
+  <text x="400" y="338" class="meta">17pt · Regular · #1F2937</text>
+  <text x="400" y="354" class="meta">NativeWind: text-base</text>
+
+  <!-- Caption -->
+  <text x="40" y="398" font-size="13" font-weight="400" fill="#6B7280">Caption — Secondary info, timestamps, hints</text>
+  <text x="400" y="392" class="meta">13pt · Regular · #6B7280</text>
+  <text x="400" y="408" class="meta">NativeWind: text-sm text-gray-500</text>
+
+  <!-- Button -->
+  <rect x="40" y="440" width="160" height="48" rx="12" fill="#2563EB"/>
+  <text x="120" y="470" font-size="17" font-weight="600" fill="#FFFFFF" text-anchor="middle">Button Label</text>
+  <text x="400" y="458" class="meta">17pt · Semibold · White on Primary</text>
+  <text x="400" y="474" class="meta">NativeWind: text-base font-semibold</text>
+
+  <!-- Divider -->
+  <line x1="40" y1="510" x2="760" y2="510" stroke="#E5E7EB" stroke-width="1"/>
+
+  <!-- Font stack note -->
+  <text x="40" y="542" font-size="13" font-weight="600" fill="#374151">Font Stack</text>
+  <text x="40" y="564" font-size="12" fill="#6B7280" font-family="'Geist Mono', 'SF Mono', monospace">'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif</text>
+  <text x="40" y="586" font-size="12" fill="#6B7280" font-family="'Geist Mono', 'SF Mono', monospace">Mono: 'Geist Mono', 'SF Mono', 'Fira Code', monospace</text>
+</svg>

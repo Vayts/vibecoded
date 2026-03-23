@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acme Brand Assets Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #F9FAFB; color: #1F2937; padding: 40px; }
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { color: #6B7280; margin-bottom: 40px; }
+  .section { margin-bottom: 48px; }
+  .section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #374151; border-bottom: 1px solid #E5E7EB; padding-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  .card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #E5E7EB; }
+  .card.dark { background: #1F2937; }
+  .card.blue { background: linear-gradient(135deg, #2563EB, #1D4ED8); }
+  .card h3 { font-size: 13px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+  .card.dark h3, .card.blue h3 { color: rgba(255,255,255,0.6); }
+  .card img, .card object { width: 100%; height: auto; display: block; }
+  .full-width { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+  <h1>Acme Brand Assets</h1>
+  <p class="subtitle">All files are SVG — ready for Figma import.</p>
+
+  <div class="section">
+    <h2>Logo Mark</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Full Color</h3>
+        <img src="logo-mark.svg" alt="Logo mark full color">
+      </div>
+      <div class="card">
+        <h3>Monochrome</h3>
+        <img src="logo-mark-mono.svg" alt="Logo mark monochrome">
+      </div>
+      <div class="card blue">
+        <h3>White on Blue</h3>
+        <img src="logo-mark-white.svg" alt="Logo mark white on blue">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Wordmark</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Dark</h3>
+        <img src="wordmark.svg" alt="Wordmark dark">
+      </div>
+      <div class="card dark">
+        <h3>White</h3>
+        <img src="wordmark-white.svg" alt="Wordmark white">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Combined Logo</h2>
+    <div class="grid">
+      <div class="card full-width">
+        <h3>Mark + Wordmark</h3>
+        <img src="logo-combined.svg" alt="Combined logo">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>App Icon</h2>
+    <div class="grid">
+      <div class="card" style="max-width: 320px;">
+        <h3>1024×1024 Master</h3>
+        <img src="app-icon.svg" alt="App icon" style="border-radius: 22%; overflow: hidden;">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Color Palette</h2>
+    <div class="grid">
+      <div class="card full-width">
+        <img src="color-palette.svg" alt="Color palette">
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Typography Scale</h2>
+    <div class="grid">
+      <div class="card full-width">
+        <img src="typography.svg" alt="Typography scale">
+      </div>
+    </div>
+  </div>
+</body>
+</html>

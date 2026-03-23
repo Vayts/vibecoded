@@ -1,0 +1,54 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './app/**/*.{js,jsx,ts,tsx}',
+    './components/**/*.{js,jsx,ts,tsx}',
+    './modules/**/*.{js,jsx,ts,tsx}',
+    './shared/**/*.{js,jsx,ts,tsx}',
+    './lib/**/*.{js,jsx,ts,tsx}',
+    './stores/**/*.{js,jsx,ts,tsx}',
+  ],
+  presets: [require('nativewind/preset')],
+  theme: {
+    // Override default fontSize to strip Tailwind's coupled lineHeight values.
+    // React Native treats lineHeight as a fixed line-box height which clips
+    // descenders (g, y, p, q, j). Omitting lineHeight lets RN calculate it
+    // from actual font metrics, preventing clipping. Use `leading-*` utilities
+    // when explicit lineHeight is needed.
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      '2xl': '1.5rem',
+      '3xl': '1.875rem',
+      '4xl': '2.25rem',
+      '5xl': '3rem',
+      '6xl': '3.75rem',
+      '7xl': '4.5rem',
+      '8xl': '6rem',
+      '9xl': '8rem',
+    },
+    extend: {
+      colors: {
+        brand: {
+          DEFAULT: '#2563EB', // Acme Blue (blue-600)
+          light: '#DBEAFE', // Light Blue (blue-100)
+          dark: '#1D4ED8', // Deep Blue (blue-700)
+        },
+        accent: {
+          green: '#16A34A', // Success / correct (green-600)
+          red: '#DC2626', // Error / destructive (red-600)
+          amber: '#D97706', // Warning / trial (amber-600)
+          purple: '#7C3AED', // Pro badge (violet-600)
+        },
+        sparkle: {
+          DEFAULT: '#FBBF24', // AI sparkle gold
+          dark: '#F59E0B', // AI sparkle amber
+        },
+      },
+    },
+  },
+  plugins: [],
+};

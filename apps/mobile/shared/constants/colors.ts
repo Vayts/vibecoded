@@ -1,0 +1,48 @@
+/**
+ * Central color palette for the Acme mobile app.
+ *
+ * Aligned with the Acme Brand Guide (docs/BRANDING.md).
+ *
+ * Use these constants instead of raw hex literals throughout the codebase.
+ * Tailwind/NativeWind class names are preferred for layout; use COLORS for
+ * props that only accept a string (e.g. icon `color`, `ActivityIndicator color`,
+ * `placeholderTextColor`, `tintColor`, JS StyleSheet values).
+ */
+export const COLORS = {
+  // ── Brand ─────────────────────────────────────────────
+  primary: '#2563EB', // Acme Blue (blue-600) — CTAs, links, active states
+  primaryDark: '#1D4ED8', // Deep Blue (blue-700) — pressed / hover
+  primaryLight: '#DBEAFE', // Light Blue (blue-100) — subtle backgrounds, badges
+
+  // ── Semantic ──────────────────────────────────────────
+  success: '#16A34A', // green-600 — correct answers, streaks
+  warning: '#D97706', // amber-600 — warnings, trial/upgrade prompts
+  danger: '#DC2626', // red-600 — errors, destructive actions, "Again" rating
+
+  // ── Accent ────────────────────────────────────────────
+  purple: '#7C3AED', // violet-600 — Pro / premium badge
+  emerald: '#16A34A', // green-600 — success accent (alias)
+  amber: '#D97706', // amber-600 — warning accent (alias)
+
+  // ── AI Sparkle ────────────────────────────────────────
+  sparkle: '#FBBF24', // gold — AI sparkle accent
+  sparkleDark: '#F59E0B', // amber — AI sparkle gradient end
+
+  // ── Neutrals ──────────────────────────────────────────
+  white: '#FFFFFF',
+  black: '#000000',
+
+  gray50: '#F9FAFB', // card backgrounds, grouped rows
+  gray100: '#F3F4F6',
+  gray200: '#E5E7EB', // borders, dividers
+  gray300: '#D1D5DB', // icon placeholder / muted
+  gray400: '#9CA3AF', // secondary text / inactive
+  gray500: '#6B7280', // captions, secondary text
+  gray700: '#374151', // body primary (dark on white)
+  gray800: '#1F2937', // primary text
+  gray900: '#111827', // headings
+
+  // ── Special ───────────────────────────────────────────
+  transparent: 'transparent',
+  overlay: 'rgba(0,0,0,0.4)', // modal backdrop
+} as const;

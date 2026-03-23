@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Acme Logo Mark — Monochrome dark (v3 final)
+    Same card geometry as approved logo, single dark color.
+  -->
+  <defs>
+    <filter id="mSh" x="-10%" y="-10%" width="130%" height="135%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Card 3 (back) -->
+  <path opacity="0.25" d="M275.795 117.938L122.319 186.27C114.247 189.864 110.616 199.321 114.21 207.394L215.081 433.953C218.675 442.026 228.133 445.656 236.205 442.062L389.681 373.731C397.754 370.136 401.384 360.679 397.79 352.606L296.919 126.047C293.325 117.974 283.867 114.344 275.795 117.938Z" fill="#1F2937" filter="url(#mSh)"/>
+
+  <!-- Card 2 (middle) -->
+  <path opacity="0.45" d="M309.057 113.595L144.728 148.524C136.085 150.362 130.567 158.858 132.404 167.501L183.966 410.082C185.804 418.725 194.3 424.243 202.943 422.406L367.272 387.477C375.916 385.639 381.433 377.143 379.596 368.5L328.034 125.919C326.197 117.276 317.7 111.758 309.057 113.595Z" fill="#1F2937" filter="url(#mSh)"/>
+
+  <!-- Card 1 (front) -->
+  <g filter="url(#mSh)">
+    <rect x="156" y="116" width="200" height="280" rx="16" fill="#1F2937"/>
+    <rect x="192" y="166" width="96" height="8" rx="4" fill="white" opacity="0.45"/>
+    <rect x="192" y="188" width="69" height="6" rx="3" fill="white" opacity="0.28"/>
+    <rect x="192" y="206" width="85" height="6" rx="3" fill="white" opacity="0.28"/>
+    <line x1="184" y1="236" x2="328" y2="236" stroke="white" stroke-opacity="0.18" stroke-width="1.5"/>
+    <rect x="192" y="256" width="77" height="6" rx="3" fill="white" opacity="0.2"/>
+    <rect x="192" y="274" width="53" height="6" rx="3" fill="white" opacity="0.2"/>
+  </g>
+
+  <!-- Sparkles — monochrome -->
+  <path d="M370 73C374 93 382 101 402 105C382 109 374 117 370 137C366 117 358 109 338 105C358 101 366 93 370 73Z" fill="#1F2937" opacity="0.5"/>
+  <path opacity="0.35" d="M400 69C402 76 405 79 412 81C405 83 402 86 400 93C398 86 395 83 388 81C395 79 398 76 400 69Z" fill="#1F2937"/>
+  <path opacity="0.25" d="M350 68C351 72 353 74 357 75C353 76 351 78 350 82C349 78 347 76 343 75C347 74 349 72 350 68Z" fill="#1F2937"/>
+</svg>
