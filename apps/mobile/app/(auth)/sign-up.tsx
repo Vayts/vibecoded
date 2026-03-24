@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { Typography } from '../../shared/components/Typography';
 import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +19,7 @@ export default function SignUpScreen() {
     clearError();
     try {
       await signUp(name.trim(), email.trim(), password);
+      router.replace('/');
     } catch {
       return;
     }

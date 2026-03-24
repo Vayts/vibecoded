@@ -1,5 +1,6 @@
 import { View, Image } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { Typography } from '../../shared/components/Typography';
 import { Button } from '../../shared/components/Button';
@@ -18,16 +19,19 @@ GoogleSignin.configure({
 });
 
 export default function SignInScreen() {
+  const router = useRouter();
   const { signInWithGoogle, signInWithApple, isLoading, error, clearError } = useAuthStore();
 
   async function handleGoogleSignIn() {
     clearError();
     await signInWithGoogle();
+    router.replace('/');
   }
 
   async function handleAppleSignIn() {
     clearError();
     await signInWithApple();
+    router.replace('/');
   }
 
   useEffect(() => {

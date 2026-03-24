@@ -34,8 +34,81 @@ model User {
   // Relations
   sessions      Session[]
   accounts      Account[]
+  profile       UserProfile?
 
   @@map("users")
+}
+
+enum DietType {
+  NONE
+  KETO
+  VEGAN
+  VEGETARIAN
+  PALEO
+  LOW_CARB
+  GLUTEN_FREE
+  DAIRY_FREE
+}
+
+enum MainGoal {
+  GENERAL_HEALTH
+  WEIGHT_LOSS
+  DIABETES_CONTROL
+  PREGNANCY
+  MUSCLE_GAIN
+}
+
+enum Restriction {
+  VEGAN
+  VEGETARIAN
+  KETO
+  PALEO
+  GLUTEN_FREE
+  DAIRY_FREE
+  HALAL
+  KOSHER
+  NUT_FREE
+}
+
+enum Allergy {
+  PEANUTS
+  TREE_NUTS
+  GLUTEN
+  DAIRY
+  SOY
+  EGGS
+  SHELLFISH
+  SESAME
+  OTHER
+}
+
+enum NutritionPriority {
+  HIGH_PROTEIN
+  LOW_SUGAR
+  LOW_SODIUM
+  LOW_CARB
+  HIGH_FIBER
+}
+
+model UserProfile {
+  id                  String                @id @default(cuid())
+  userId              String                @unique
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legacyDietType      DietType?             @map("dietType")
+  mainGoal            MainGoal?
+  restrictions        Restriction[]         @default([])
+  allergies           Allergy[]             @default([])
+  otherAllergiesText  String?
+  nutritionPriorities NutritionPriority[]   @default([])
+  calorieGoal         Int?
+  proteinGoal         Int?
+  carbGoal            Int?
+  fatGoal             Int?
+  onboardingCompleted Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@map("user_profiles")
 }
 
 model Session {
