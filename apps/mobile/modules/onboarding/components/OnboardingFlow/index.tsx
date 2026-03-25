@@ -110,7 +110,7 @@ export function OnboardingFlow() {
             <Animated.View
               key={step}
               entering={FadeInDown.duration(240)}
-              className="mt-6 flex-1 rounded-[28px] border border-gray-100 bg-white px-5 py-6"
+              className="mt-6 flex-1 rounded-xl border border-gray-100 bg-white px-5 py-6"
             >
               <StepContent step={step} />
             </Animated.View>

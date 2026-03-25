@@ -14,7 +14,7 @@ export function SelectableChip({ label, description, selected, onPress }: Select
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      className={`rounded-2xl border px-4 py-4 ${selected ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`}
+      className={`rounded-xl border px-4 py-4 ${selected ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'}`}
       onPress={onPress}
     >
       <View className="flex-row items-start gap-3">

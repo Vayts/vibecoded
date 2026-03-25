@@ -1,5 +1,7 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
+import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerResultSheet';
+import type { ScannerResultSheetPayload } from '../../../modules/scanner/types/scanner';
 import { SheetsEnum } from '../../types/sheets';
 import ExampleSheet from './BottomSheets/ExampleSheet';
 
@@ -8,6 +10,7 @@ import ExampleSheet from './BottomSheets/ExampleSheet';
 declare module 'react-native-actions-sheet' {
   interface Sheets {
     [SheetsEnum.ExampleSheet]: SheetDefinition;
+    [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
   }
 }
 
@@ -16,6 +19,7 @@ export const Sheets = () => {
     <SheetRegister
       sheets={{
         [SheetsEnum.ExampleSheet]: ExampleSheet,
+        [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
       }}
     />
   );

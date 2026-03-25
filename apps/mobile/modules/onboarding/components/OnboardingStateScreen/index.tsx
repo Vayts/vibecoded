@@ -21,8 +21,8 @@ export function OnboardingStateScreen({
 }: OnboardingStateScreenProps) {
   return (
     <View className="flex-1 justify-center bg-white px-6">
-      <View className="rounded-[28px] border border-gray-100 bg-white px-6 py-8 shadow-sm">
-        <View className="mb-5 h-14 w-14 items-center justify-center self-center rounded-2xl bg-blue-50">
+      <View className="rounded-xl border border-gray-100 bg-white px-6 py-8 shadow-sm">
+        <View className="mb-5 h-14 w-14 items-center justify-center self-center rounded-xl bg-blue-50">
           {loading ? (
             <ActivityIndicator color={COLORS.primary} size="small" />
           ) : (

@@ -13,12 +13,13 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
+    "@acme/shared": "workspace:*",
     "@better-auth/expo": "^1.5.4",
     "@hono/node-server": "^1.13.7",
     "@langchain/core": "^1.1.29",
     "@langchain/openai": "^1.2.11",
+    "@openfoodfacts/openfoodfacts-nodejs": "2.0.0-alpha.29",
     "@prisma/client": "^5.22.0",
-    "@acme/shared": "workspace:*",
     "better-auth": "^1.5.4",
     "dotenv": "^17.3.1",
     "hono": "^4.6.20",

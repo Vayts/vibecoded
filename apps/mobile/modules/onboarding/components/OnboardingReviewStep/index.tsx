@@ -10,7 +10,7 @@ import {
 } from '../options';
 
 const SummaryCard = ({ title, value }: { title: string; value: string }) => (
-  <View className="rounded-2xl bg-gray-50 px-4 py-4">
+  <View className="rounded-xl bg-gray-50 px-4 py-4">
     <Typography variant="fieldLabel">{title}</Typography>
     <Typography variant="body" className="mt-2 font-semibold text-gray-900">
       {value}

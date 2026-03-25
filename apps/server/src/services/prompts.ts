@@ -11,7 +11,7 @@ export const AI_MODELS = {
   /** Vision model for OCR / image understanding */
   vision: 'gpt-4.1',
   /** Fast model for text-to-cards and structured output */
-  mini: 'gpt-4.1-mini',
+  mini: 'gpt-4o-mini',
 } as const;
 
 // ---------------------------------------------------------------------------
