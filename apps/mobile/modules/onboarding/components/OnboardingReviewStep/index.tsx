@@ -29,14 +29,6 @@ export function OnboardingReviewStep() {
   const prioritySummary = draft.nutritionPriorities.length
     ? draft.nutritionPriorities.map((priority) => NUTRITION_PRIORITY_LABELS[priority]).join(', ')
     : 'No specific priorities';
-  const macroSummary = [
-    draft.calorieGoal ? `${draft.calorieGoal} cal` : null,
-    draft.proteinGoal ? `${draft.proteinGoal}g protein` : null,
-    draft.carbGoal ? `${draft.carbGoal}g carbs` : null,
-    draft.fatGoal ? `${draft.fatGoal}g fat` : null,
-  ]
-    .filter(Boolean)
-    .join(' • ');
 
   return (
     <View>
@@ -56,7 +48,6 @@ export function OnboardingReviewStep() {
           <SummaryCard title="Other details" value={draft.otherAllergiesText.trim()} />
         ) : null}
         <SummaryCard title="Preferences" value={prioritySummary} />
-        <SummaryCard title="Macro targets" value={macroSummary || 'No macro targets added'} />
       </View>
     </View>
   );

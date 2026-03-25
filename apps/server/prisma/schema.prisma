@@ -100,10 +100,6 @@ model UserProfile {
   allergies           Allergy[]             @default([])
   otherAllergiesText  String?
   nutritionPriorities NutritionPriority[]   @default([])
-  calorieGoal         Int?
-  proteinGoal         Int?
-  carbGoal            Int?
-  fatGoal             Int?
   onboardingCompleted Boolean               @default(false)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt

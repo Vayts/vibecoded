@@ -16,6 +16,7 @@ interface AuthActions {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
+  setUser: (user: AuthUser | null) => void;
   clearError: () => void;
 }
 
@@ -98,6 +99,8 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       set({ isLoading: false });
     }
   },
+
+  setUser: (user) => set({ user }),
 
   clearError: () => set({ error: null }),
 }));

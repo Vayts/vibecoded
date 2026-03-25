@@ -4,7 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
-import { ADVANCED_GOALS_STEP_INDEX, REVIEW_STEP_INDEX } from '../../stores/onboarding/types';
+import { REVIEW_STEP_INDEX } from '../../stores/onboarding/types';
 import {
   normalizeDraftToPayload,
   selectCurrentStepValid,
@@ -17,7 +17,6 @@ import { MainGoalStep } from '../MainGoalStep';
 import { RestrictionsStep } from '../RestrictionsStep';
 import { AllergiesStep } from '../AllergiesStep';
 import { PreferencesStep } from '../PreferencesStep';
-import { GoalsAdvancedStep } from '../GoalsAdvancedStep';
 import { OnboardingReviewStep } from '../OnboardingReviewStep';
 import { useSubmitOnboardingMutation } from '../../hooks/useCompleteOnboarding';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +32,7 @@ const StepContent = ({ step }: { step: number }) => {
     case 3:
       return <PreferencesStep />;
     case 4:
-      return <GoalsAdvancedStep />;
+      return <OnboardingReviewStep />;
     default:
       return <OnboardingReviewStep />;
   }
@@ -71,7 +70,6 @@ export function OnboardingFlow() {
   };
 
   const isReviewStep = step === REVIEW_STEP_INDEX;
-  const isAdvancedGoalsStep = step === ADVANCED_GOALS_STEP_INDEX;
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
@@ -135,25 +133,6 @@ export function OnboardingFlow() {
                     void handleSubmit();
                   }}
                 />
-              ) : isAdvancedGoalsStep ? (
-                <View className="flex-row gap-3">
-                  <View className="flex-1">
-                    <Button
-                      fullWidth
-                      label="Skip for now"
-                      onPress={handleContinue}
-                      variant="secondary"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Button
-                      fullWidth
-                      disabled={!isCurrentStepValid}
-                      label="Continue"
-                      onPress={handleContinue}
-                    />
-                  </View>
-                </View>
               ) : (
                 <Button
                   fullWidth

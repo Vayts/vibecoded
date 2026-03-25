@@ -11,10 +11,6 @@ export interface OnboardingDraft {
   allergies: Allergy[];
   otherAllergiesText: string;
   nutritionPriorities: NutritionPriority[];
-  calorieGoal: string;
-  proteinGoal: string;
-  carbGoal: string;
-  fatGoal: string;
 }
 
 export interface OnboardingStore {
@@ -28,17 +24,12 @@ export interface OnboardingStore {
   toggleAllergy: (value: Allergy) => void;
   setOtherAllergiesText: (value: string) => void;
   toggleNutritionPriority: (value: NutritionPriority) => void;
-  setCalorieGoal: (value: string) => void;
-  setProteinGoal: (value: string) => void;
-  setCarbGoal: (value: string) => void;
-  setFatGoal: (value: string) => void;
   hydrateFromServer: (data: OnboardingResponse) => void;
   resetOnboardingDraft: () => void;
 }
 
-export const ONBOARDING_STEP_COUNT = 6;
-export const ADVANCED_GOALS_STEP_INDEX = 4;
-export const REVIEW_STEP_INDEX = 5;
+export const ONBOARDING_STEP_COUNT = 5;
+export const REVIEW_STEP_INDEX = 4;
 
 export const createInitialOnboardingDraft = (): OnboardingDraft => ({
   mainGoal: null,
@@ -46,8 +37,4 @@ export const createInitialOnboardingDraft = (): OnboardingDraft => ({
   allergies: [],
   otherAllergiesText: '',
   nutritionPriorities: [],
-  calorieGoal: '',
-  proteinGoal: '',
-  carbGoal: '',
-  fatGoal: '',
 });

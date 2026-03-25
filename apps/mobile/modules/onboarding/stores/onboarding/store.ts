@@ -57,11 +57,6 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
       };
     }),
 
-  setCalorieGoal: (value) => set((state) => ({ draft: { ...state.draft, calorieGoal: value } })),
-  setProteinGoal: (value) => set((state) => ({ draft: { ...state.draft, proteinGoal: value } })),
-  setCarbGoal: (value) => set((state) => ({ draft: { ...state.draft, carbGoal: value } })),
-  setFatGoal: (value) => set((state) => ({ draft: { ...state.draft, fatGoal: value } })),
-
   hydrateFromServer: (data) =>
     set({
       step: 0,
@@ -71,10 +66,6 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         allergies: data.allergies,
         otherAllergiesText: data.otherAllergiesText ?? '',
         nutritionPriorities: data.nutritionPriorities,
-        calorieGoal: data.calorieGoal?.toString() ?? '',
-        proteinGoal: data.proteinGoal?.toString() ?? '',
-        carbGoal: data.carbGoal?.toString() ?? '',
-        fatGoal: data.fatGoal?.toString() ?? '',
       },
     }),
 

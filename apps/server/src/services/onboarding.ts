@@ -49,10 +49,6 @@ const toOnboardingResponse = (profile: UserProfile): OnboardingResponse => ({
   allergies: profile.allergies,
   otherAllergiesText: profile.otherAllergiesText,
   nutritionPriorities: getMergedNutritionPriorities(profile),
-  calorieGoal: profile.calorieGoal,
-  proteinGoal: profile.proteinGoal,
-  carbGoal: profile.carbGoal,
-  fatGoal: profile.fatGoal,
   legacyDietType: profile.legacyDietType,
   onboardingCompleted: profile.onboardingCompleted,
 });
@@ -87,10 +83,6 @@ export const upsertUserOnboarding = async (
       allergies,
       otherAllergiesText: data.otherAllergiesText,
       nutritionPriorities,
-      calorieGoal: data.calorieGoal,
-      proteinGoal: data.proteinGoal,
-      carbGoal: data.carbGoal,
-      fatGoal: data.fatGoal,
       onboardingCompleted: true,
     },
     update: {
@@ -100,10 +92,6 @@ export const upsertUserOnboarding = async (
       allergies,
       otherAllergiesText: data.otherAllergiesText,
       nutritionPriorities,
-      calorieGoal: data.calorieGoal,
-      proteinGoal: data.proteinGoal,
-      carbGoal: data.carbGoal,
-      fatGoal: data.fatGoal,
       onboardingCompleted: true,
     },
   });

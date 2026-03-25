@@ -57,13 +57,6 @@ export const legacyDietTypeSchema = z.enum(LEGACY_DIET_TYPE_VALUES);
 export const allergySchema = z.enum(ALLERGY_VALUES);
 export const nutritionPrioritySchema = z.enum(NUTRITION_PRIORITY_VALUES);
 
-const nullableGoalSchema = z
-  .number()
-  .int()
-  .min(0)
-  .nullable()
-  .optional()
-  .transform((value) => value ?? null);
 const nullableMainGoalSchema = z.union([mainGoalSchema, z.null()]);
 const nullableLegacyDietTypeSchema = z.union([legacyDietTypeSchema, z.null()]);
 
@@ -81,10 +74,6 @@ export const onboardingRequestSchema = z
     allergies: z.array(allergySchema),
     otherAllergiesText: nullableOtherAllergiesTextSchema,
     nutritionPriorities: z.array(nutritionPrioritySchema),
-    calorieGoal: nullableGoalSchema,
-    proteinGoal: nullableGoalSchema,
-    carbGoal: nullableGoalSchema,
-    fatGoal: nullableGoalSchema,
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -106,10 +95,6 @@ export const onboardingResponseSchema = z
     allergies: z.array(allergySchema),
     otherAllergiesText: z.string().nullable(),
     nutritionPriorities: z.array(nutritionPrioritySchema),
-    calorieGoal: z.number().int().min(0).nullable(),
-    proteinGoal: z.number().int().min(0).nullable(),
-    carbGoal: z.number().int().min(0).nullable(),
-    fatGoal: z.number().int().min(0).nullable(),
     legacyDietType: nullableLegacyDietTypeSchema,
     onboardingCompleted: z.boolean(),
   })
@@ -123,10 +108,6 @@ export const DEFAULT_ONBOARDING_RESPONSE: OnboardingResponse = {
   allergies: [],
   otherAllergiesText: null,
   nutritionPriorities: [],
-  calorieGoal: null,
-  proteinGoal: null,
-  carbGoal: null,
-  fatGoal: null,
   legacyDietType: null,
   onboardingCompleted: false,
 };
