@@ -10,6 +10,12 @@ import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { buildProductAnalysisFallback } from './productAnalysisFallback';
 import { dedupeAnalysisItemsByLabel } from './productAnalysisItemDedup';
 import { applyGoalAndPrioritySignals } from './personalProductProfileSignals';
+import {
+  allergyLabels,
+  allergyTokens,
+  limitVisiblePersonalNegatives,
+  limitVisiblePersonalPositives,
+} from './personalProductAnalysisConfig';
 import { getRestrictionConflict } from './personalProductRestrictionRules';
 
 const clampScore = (score: number): number => Math.max(0, Math.min(100, score));
@@ -61,9 +67,14 @@ const getSearchPool = (product: BarcodeLookupProduct): string[] => {
     ...(product.ingredients ?? []),
     ...(product.allergens ?? []),
     ...(product.traces ?? []),
+    ...(product.additives ?? []),
     ...(product.category_tags ?? []),
     product.ingredients_text ?? '',
     product.product_name ?? '',
+    product.brands ?? '',
+    product.categories ?? '',
+    product.quantity ?? '',
+    product.serving_size ?? '',
   ]
     .map((value) => value.toLowerCase())
     .filter(Boolean);
@@ -71,29 +82,6 @@ const getSearchPool = (product: BarcodeLookupProduct): string[] => {
 
 const hasAnyToken = (values: string[], tokens: string[]): boolean => {
   return values.some((value) => tokens.some((token) => value.includes(token)));
-};
-
-const allergyTokens: Record<string, string[]> = {
-  PEANUTS: ['peanut'],
-  TREE_NUTS: ['tree nut', 'hazelnut', 'almond', 'walnut', 'cashew', 'pistachio', 'nut'],
-  GLUTEN: ['gluten', 'wheat', 'barley', 'rye'],
-  DAIRY: ['dairy', 'milk', 'whey', 'butter', 'cheese', 'cream', 'yogurt'],
-  SOY: ['soy'],
-  EGGS: ['egg'],
-  SHELLFISH: ['shellfish', 'shrimp', 'prawn', 'crab'],
-  SESAME: ['sesame'],
-};
-
-const allergyLabels: Record<string, string> = {
-  PEANUTS: 'Peanuts',
-  TREE_NUTS: 'Tree nuts',
-  GLUTEN: 'Gluten',
-  DAIRY: 'Dairy',
-  SOY: 'Soy',
-  EGGS: 'Eggs',
-  SHELLFISH: 'Shellfish',
-  SESAME: 'Sesame',
-  OTHER: 'Other allergen',
 };
 
 export const buildPersonalProductAnalysis = (
@@ -212,11 +200,15 @@ export const buildPersonalProductAnalysis = (
     fitScore,
     fitLabel: getFitLabel(fitScore),
     summary,
-    positives: dedupeAnalysisItemsByLabel(Array.from(positives.values()), {
-      preferredKeys: personalizedPositiveKeys,
-    }),
-    negatives: dedupeAnalysisItemsByLabel(Array.from(negatives.values()), {
-      preferredKeys: personalizedNegativeKeys,
-    }),
+    positives: limitVisiblePersonalPositives(
+      dedupeAnalysisItemsByLabel(Array.from(positives.values()), {
+        preferredKeys: personalizedPositiveKeys,
+      }),
+    ),
+    negatives: limitVisiblePersonalNegatives(
+      dedupeAnalysisItemsByLabel(Array.from(negatives.values()), {
+        preferredKeys: personalizedNegativeKeys,
+      }),
+    ),
   };
 };

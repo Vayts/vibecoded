@@ -5,14 +5,7 @@ import {
   type BarcodeLookupResponse,
 } from '@acme/shared';
 import { apiFetch } from '../../../shared/lib/client/client';
-import type { PhotoCaptureInput, PhotoCaptureResponse } from '../types/scanner';
-
-const MOCK_LATENCY_MS = 900;
-
-const sleep = async (durationMs: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, durationMs);
-  });
+import type { PhotoCaptureInput } from '../types/scanner';
 
 const getErrorMessage = async (response: Response): Promise<string> => {
   const json = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -36,15 +29,25 @@ export const submitBarcodeScan = async (
   return barcodeLookupResponseSchema.parse(json);
 };
 
-export const submitMockPhotoCapture = async (
+export const submitPhotoCapture = async (
   payload: PhotoCaptureInput,
-): Promise<PhotoCaptureResponse> => {
-  await sleep(MOCK_LATENCY_MS);
-  void payload.photoUri;
+): Promise<BarcodeLookupResponse> => {
+  const formData = new FormData();
+  formData.append('photo', {
+    uri: payload.photoUri,
+    name: payload.fileName ?? 'product-photo.jpg',
+    type: payload.mimeType ?? 'image/jpeg',
+  } as unknown as Blob);
 
-  return {
-    success: true,
-    type: 'photo',
-    message: 'Product photo was sent to AI',
-  };
+  const response = await apiFetch('/api/scanner/photo', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  const json = await response.json();
+  return barcodeLookupResponseSchema.parse(json);
 };

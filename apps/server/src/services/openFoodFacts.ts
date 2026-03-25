@@ -1,8 +1,7 @@
 import type { BarcodeLookupNotFoundResponse, BarcodeLookupSuccessResponse } from '@acme/shared';
-import { buildProductAnalysisFallback } from './productAnalysisFallback';
 import { normalizeOpenFoodFactsProduct } from './openFoodFactsNormalizer';
 import type { OpenFoodFactsProduct } from './openFoodFactsTypes';
-import { createPersonalAnalysisJob } from './personalAnalysisJobs';
+import { createScanNotFoundResponse, createScanSuccessResponse } from './scannerLookupResponse';
 
 const OFF_SOURCE = 'openfoodfacts';
 
@@ -49,15 +48,6 @@ const getClient = async (): Promise<OpenFoodFactsClient> => {
   return clientPromise;
 };
 
-const createNotFoundResponse = (barcode: string): BarcodeLookupNotFoundResponse => {
-  return {
-    success: false,
-    barcode,
-    source: OFF_SOURCE,
-    error: 'PRODUCT_NOT_FOUND',
-  };
-};
-
 export const lookupProductByBarcode = async (
   barcode: string,
   userId?: string,
@@ -68,8 +58,6 @@ export const lookupProductByBarcode = async (
 
   try {
     response = await client.getProductV2(barcode);
-
-    console.log(JSON.stringify(response, null, 2));
   } catch {
     throw new OpenFoodFactsLookupError('UPSTREAM_ERROR', 'Unable to fetch product data');
   }
@@ -77,19 +65,10 @@ export const lookupProductByBarcode = async (
   const product = response.data?.product;
 
   if (response.data?.status !== 1 || !product) {
-    return createNotFoundResponse(barcode);
+    return createScanNotFoundResponse(barcode, OFF_SOURCE);
   }
 
   const normalizedProduct = normalizeOpenFoodFactsProduct(barcode, product);
 
-  const personalAnalysis = createPersonalAnalysisJob(normalizedProduct, userId);
-
-  return {
-    success: true,
-    barcode,
-    source: OFF_SOURCE,
-    product: normalizedProduct,
-    evaluation: buildProductAnalysisFallback(normalizedProduct),
-    personalAnalysis,
-  };
+  return createScanSuccessResponse(barcode, OFF_SOURCE, normalizedProduct, userId);
 };

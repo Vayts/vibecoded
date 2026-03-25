@@ -1,45 +1,50 @@
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
-import { Sparkles } from 'lucide-react-native';
 import { View } from 'react-native';
 import { Button } from '../../../../shared/components/Button';
-import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
+import { PhotoScanPendingContent } from './PhotoScanPendingContent';
 import { ProductResultContent } from './ProductResultContent';
-import { isBarcodeLookupResponse, isPhotoCaptureResponse } from './productResultHelpers';
+import { isBarcodeLookupResponse } from './productResultHelpers';
 
 export function ScannerResultSheet() {
   const payload = useSheetPayload(SheetsEnum.ScannerResultSheet);
-  const result = payload?.result;
-  const isPhotoResult = isPhotoCaptureResponse(result);
-  const isBarcodeResult = isBarcodeLookupResponse(result);
+  const { errorMessage, origin, phase, previewImageUri, presentationMode, reset, result } =
+    useScannerResultSheetStore();
+  const resolvedOrigin = payload?.origin === 'photo' ? origin ?? 'photo' : payload?.origin;
+  const resolvedPresentationMode =
+    payload?.origin === 'photo' ? presentationMode : payload?.presentationMode;
+  const resolvedPreviewImageUri = payload?.origin === 'photo' ? previewImageUri : payload?.previewImageUri;
+  const resolvedResult = payload?.origin === 'photo' ? result : payload?.result;
+  const isBarcodeResult = isBarcodeLookupResponse(resolvedResult);
+
+  const handleClose = () => {
+    reset();
+    void SheetManager.hide(SheetsEnum.ScannerResultSheet);
+  };
 
   return (
-    <ActionSheet gestureEnabled>
+    <ActionSheet gestureEnabled onClose={reset}>
       <View className="px-6 pb-8">
-        {isPhotoResult ? (
-          <View className="mt-6 rounded-xl border border-gray-100 bg-gray-50 px-4 py-4">
-            <View className="mb-3 flex-row items-center gap-2">
-              <Sparkles color={COLORS.sparkle} size={18} />
-              <Typography variant="fieldLabel" className="text-gray-500">
-                Photo status
-              </Typography>
-            </View>
-            <Typography variant="body" className="leading-6 text-gray-700">
-              {isPhotoResult ? result.message : 'Product photo was sent to AI'}
-            </Typography>
-          </View>
-        ) : isBarcodeResult ? (
-          <ProductResultContent result={result} />
+        {isBarcodeResult ? (
+          <ProductResultContent
+            result={resolvedResult}
+            previewImageUri={resolvedPreviewImageUri}
+            presentationMode={resolvedPresentationMode}
+            origin={resolvedOrigin}
+          />
+        ) : payload?.origin === 'photo' && phase !== 'idle' ? (
+          <PhotoScanPendingContent
+            previewImageUri={resolvedPreviewImageUri}
+            errorMessage={phase === 'error' ? errorMessage : null}
+          />
         ) : null}
 
         <View className="mt-6">
           <Button
             fullWidth
             label="Close"
-            onPress={() => {
-              void SheetManager.hide(SheetsEnum.ScannerResultSheet);
-            }}
+            onPress={handleClose}
           />
         </View>
       </View>

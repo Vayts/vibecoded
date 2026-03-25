@@ -1,6 +1,6 @@
 import type { BarcodeLookupProduct, BarcodeLookupResponse } from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
-import type { PhotoCaptureResponse, ScannerMutationResponse } from '../../types/scanner';
+import type { ScannerMutationResponse } from '../../types/scanner';
 
 type GradeKey = 'a' | 'b' | 'c' | 'd' | 'e';
 
@@ -16,12 +16,6 @@ const GRADE_TONES: Record<GradeKey, GradeTone> = {
   c: { backgroundColor: COLORS.sparkle, textColor: COLORS.gray900, borderColor: COLORS.sparkle },
   d: { backgroundColor: COLORS.warning, textColor: COLORS.white, borderColor: COLORS.warning },
   e: { backgroundColor: COLORS.danger, textColor: COLORS.white, borderColor: COLORS.danger },
-};
-
-export const isPhotoCaptureResponse = (
-  result: ScannerMutationResponse | undefined,
-): result is PhotoCaptureResponse => {
-  return Boolean(result && 'type' in result && result.type === 'photo');
 };
 
 export const isBarcodeLookupResponse = (
@@ -58,8 +52,11 @@ export const formatGrade = (grade: string | null | undefined): string => {
   return grade ? grade.toUpperCase() : 'N/A';
 };
 
-export const getProductImageUri = (product: BarcodeLookupProduct): string | null => {
-  return product.images.front_url ?? product.image_url;
+export const getProductImageUri = (
+  product: BarcodeLookupProduct,
+  previewImageUri?: string | null,
+): string | null => {
+  return product.images.front_url ?? product.image_url ?? previewImageUri ?? null;
 };
 
 export const formatLabel = (value: string): string => {

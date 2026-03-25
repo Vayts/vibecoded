@@ -1,5 +1,6 @@
 import type { PersonalAnalysisJobResponse } from '@acme/shared';
 import { View } from 'react-native';
+import { Typography } from '../../../../shared/components/Typography';
 import { mapFitLabelToToneKey } from './evaluationHelpers';
 import { EvaluationSection } from './EvaluationSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
@@ -22,6 +23,13 @@ export function PersonalTabContent({ personalResult, isError, onRetry }: Persona
           label={personalResult.result.fitLabel}
           toneKey={mapFitLabelToToneKey(personalResult.result.fitLabel)}
         />
+        {personalResult.result.summary ? (
+          <View className="mt-4 rounded-xl border border-gray-100 bg-white px-4 py-4">
+            <Typography variant="bodySecondary" className="leading-6 text-gray-700">
+              {personalResult.result.summary}
+            </Typography>
+          </View>
+        ) : null}
         <EvaluationSection
           title="Positives"
           items={personalResult.result.positives}

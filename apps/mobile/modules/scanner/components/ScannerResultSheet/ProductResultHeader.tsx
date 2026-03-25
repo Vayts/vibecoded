@@ -7,10 +7,11 @@ import { getProductImageUri } from './productResultHelpers';
 
 interface ProductResultHeaderProps {
   product: BarcodeLookupProduct;
+  previewImageUri?: string | null;
 }
 
-export function ProductResultHeader({ product }: ProductResultHeaderProps) {
-  const imageUri = getProductImageUri(product);
+export function ProductResultHeader({ product, previewImageUri }: ProductResultHeaderProps) {
+  const imageUri = getProductImageUri(product, previewImageUri);
 
   return (
     <View className="rounded-xl border border-gray-100 bg-white px-4 py-4">

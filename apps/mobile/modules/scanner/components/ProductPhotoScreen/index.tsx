@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Camera } from 'lucide-react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
-import { useMockScanPhotoMutation } from '../../hooks/useScannerMutations';
+import { usePreparedPhotoForUpload } from '../../hooks/usePreparedPhotoForUpload';
+import { useScanPhotoMutation } from '../../hooks/useScannerMutations';
+import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import { ScannerPermissionState } from '../ScannerPermissionState';
 
 interface CaptureButtonProps {
@@ -37,8 +40,39 @@ export function ProductPhotoScreen() {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const photoMutation = useMockScanPhotoMutation();
+  const photoMutation = useScanPhotoMutation();
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const preparePhotoForUpload = usePreparedPhotoForUpload();
+  const showPhotoLoading = useScannerResultSheetStore((state) => state.showPhotoLoading);
+
+  const presentResult = async (photoUri: string, width?: number, height?: number, fileName?: string) => {
+    showPhotoLoading(photoUri);
+    void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+      payload: {
+        previewImageUri: photoUri,
+        presentationMode: 'personalOnly',
+        origin: 'photo',
+      },
+    });
+
+    try {
+      const preparedPhoto = await preparePhotoForUpload({
+        uri: photoUri,
+        width,
+        height,
+        fileName,
+      });
+      const result = await photoMutation.mutateAsync({
+        photoUri: preparedPhoto.uri,
+        fileName: preparedPhoto.fileName,
+        mimeType: preparedPhoto.mimeType,
+      });
+      useScannerResultSheetStore.getState().showPhotoResult(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to analyze photo';
+      useScannerResultSheetStore.getState().showPhotoError(message);
+    }
+  };
 
   const handleCapture = async () => {
     if (!cameraRef.current || photoMutation.isPending) {
@@ -49,16 +83,13 @@ export function ProductPhotoScreen() {
 
     try {
       const picture = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      const result = await photoMutation.mutateAsync({ photoUri: picture.uri });
-      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { result },
-      });
+      await presentResult(picture.uri, picture.width, picture.height, 'product-photo');
     } catch (error) {
       setSubmitMessage(error instanceof Error ? error.message : 'Unable to capture photo');
     }
   };
 
-  const handleMockCapture = async () => {
+  const handlePickPhoto = async () => {
     if (photoMutation.isPending) {
       return;
     }
@@ -66,12 +97,20 @@ export function ProductPhotoScreen() {
     setSubmitMessage(null);
 
     try {
-      const result = await photoMutation.mutateAsync({ photoUri: 'mock://scanner/product-photo' });
-      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { result },
+      const selection = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: false,
+        mediaTypes: ['images'],
+        quality: 0.8,
       });
+
+      if (selection.canceled || selection.assets.length === 0) {
+        return;
+      }
+
+      const asset = selection.assets[0];
+      await presentResult(asset.uri, asset.width, asset.height, asset.fileName ?? 'product-photo');
     } catch (error) {
-      setSubmitMessage(error instanceof Error ? error.message : 'Unable to submit photo');
+      setSubmitMessage(error instanceof Error ? error.message : 'Unable to choose photo');
     }
   };
 
@@ -83,7 +122,7 @@ export function ProductPhotoScreen() {
     return (
       <ScannerPermissionState
         title="Camera access required"
-        description="Allow camera access to take a product photo. The captured image stays in a mocked frontend-only flow and opens a result sheet after submission."
+        description="Allow camera access to take a product photo and send it to the backend for product identification."
         buttonLabel="Allow camera"
         onPress={() => {
           void requestPermission();
@@ -114,38 +153,20 @@ export function ProductPhotoScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            accessibilityLabel="Use mock photo capture"
+            accessibilityLabel="Choose photo from library"
             accessibilityRole="button"
             className="rounded-full bg-black/50 px-4 py-3"
             onPress={() => {
-              void handleMockCapture();
+              void handlePickPhoto();
             }}
           >
             <Typography variant="buttonSmall" className="text-white">
-              Use mock photo
+              Choose photo
             </Typography>
           </TouchableOpacity>
         </View>
 
-        <View className="items-center">
-          <View className="mb-5 rounded-full bg-black/50 px-4 py-2">
-            <Typography variant="bodySecondary" className="text-center text-white">
-              Frame the front of the product, then capture.
-            </Typography>
-          </View>
-          <View className="rounded-xl bg-black/50 px-5 py-4">
-            <View className="mb-2 flex-row items-center gap-2">
-              <Sparkles color={COLORS.sparkle} size={18} />
-              <Typography variant="sectionTitle" className="text-white">
-                Product photo flow
-              </Typography>
-            </View>
-            <Typography variant="bodySecondary" className="leading-6 text-white/80">
-              After capture, a mocked mutation returns a frontend-only message that the photo was
-              sent to AI.
-            </Typography>
-          </View>
-        </View>
+        <View />
 
         <View className="items-center">
           {submitMessage ? (
@@ -154,26 +175,26 @@ export function ProductPhotoScreen() {
             </Typography>
           ) : null}
 
-          <View className="flex-row items-center gap-6">
-            <TouchableOpacity
-              accessibilityLabel="Trigger mock photo capture"
-              accessibilityRole="button"
-              className="rounded-full bg-black/50 px-4 py-3"
-              onPress={() => {
-                void handleMockCapture();
-              }}
-            >
-              <Typography variant="buttonSmall" className="text-white">
-                Demo flow
-              </Typography>
-            </TouchableOpacity>
-
+          <View className="items-center gap-4">
             <CaptureButton
               disabled={photoMutation.isPending}
               onPress={() => {
                 void handleCapture();
               }}
             />
+
+            <TouchableOpacity
+              accessibilityLabel="Choose product photo"
+              accessibilityRole="button"
+              className="rounded-full bg-black/50 px-4 py-3"
+              onPress={() => {
+                void handlePickPhoto();
+              }}
+            >
+              <Typography variant="buttonSmall" className="text-white">
+                Upload photo
+              </Typography>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

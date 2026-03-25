@@ -11,7 +11,9 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   // manually set Cookie header.
   const cookie = getCookieString();
   const headers = new Headers(options.headers ?? {});
-  headers.set('Content-Type', 'application/json');
+  if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (cookie) {
     headers.set('Cookie', cookie);
   }

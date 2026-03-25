@@ -13,6 +13,9 @@ export const barcodeLookupRequestSchema = z.object({
 });
 export type BarcodeLookupRequest = z.infer<typeof barcodeLookupRequestSchema>;
 
+export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'photo']);
+export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
+
 export const barcodeLookupProductSchema = z.object({
   code: z.string(),
   product_name: z.string().nullable(),
@@ -137,7 +140,7 @@ export type PersonalAnalysisJobResponse = z.infer<typeof personalAnalysisJobResp
 export const barcodeLookupSuccessResponseSchema = z.object({
   success: z.literal(true),
   barcode: z.string(),
-  source: z.literal('openfoodfacts'),
+  source: scannerLookupSourceSchema,
   product: barcodeLookupProductSchema,
   evaluation: productAnalysisResultSchema,
   personalAnalysis: personalAnalysisJobSchema,
@@ -147,7 +150,7 @@ export type BarcodeLookupSuccessResponse = z.infer<typeof barcodeLookupSuccessRe
 export const barcodeLookupNotFoundResponseSchema = z.object({
   success: z.literal(false),
   barcode: z.string(),
-  source: z.literal('openfoodfacts'),
+  source: scannerLookupSourceSchema,
   error: z.literal('PRODUCT_NOT_FOUND'),
 });
 export type BarcodeLookupNotFoundResponse = z.infer<typeof barcodeLookupNotFoundResponseSchema>;
@@ -157,6 +160,12 @@ export const barcodeLookupResponseSchema = z.union([
   barcodeLookupNotFoundResponseSchema,
 ]);
 export type BarcodeLookupResponse = z.infer<typeof barcodeLookupResponseSchema>;
+
+export const chatHistoryMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+});
+export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
 
 // ============================================================
 // Error schema

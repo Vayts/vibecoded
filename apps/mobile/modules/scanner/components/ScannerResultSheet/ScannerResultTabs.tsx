@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import type { ScannerResultPresentationMode } from '../../types/scanner';
 
 const PERSONAL_STATUS_SLOT_SIZE = 16;
 
@@ -11,6 +12,7 @@ interface ScannerResultTabsProps {
   onSelectTab: (tab: ScannerResultTabKey) => void;
   isPersonalLoading?: boolean;
   isPersonalReady?: boolean;
+  mode?: ScannerResultPresentationMode;
 }
 
 const TABS: Array<{ key: ScannerResultTabKey; label: string }> = [
@@ -23,11 +25,14 @@ export function ScannerResultTabs({
   onSelectTab,
   isPersonalLoading = false,
   isPersonalReady = false,
+  mode = 'default',
 }: ScannerResultTabsProps) {
+  const tabs = mode === 'personalOnly' ? TABS.filter((tab) => tab.key === 'personal') : TABS;
+
   return (
     <View className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-1">
       <View className="flex-row gap-1">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isSelected = tab.key === selectedTab;
           const isPersonalTab = tab.key === 'personal';
           const showPersonalLoader = isPersonalTab && isPersonalLoading;
