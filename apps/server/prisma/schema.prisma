@@ -154,3 +154,31 @@ model Verification {
 
   @@map("verifications")
 }
+
+model Product {
+  id               String   @id @default(cuid())
+  barcode          String   @unique
+  code             String
+  product_name     String?
+  brands           String?
+  image_url        String?
+  ingredients_text String?
+  nutriscore_grade String?
+  categories       String?
+  quantity         String?
+  serving_size     String?
+  ingredients      String[] @default([])
+  allergens        String[] @default([])
+  additives        String[] @default([])
+  additives_count  Int?
+  traces           String[] @default([])
+  countries        String[] @default([])
+  category_tags    String[] @default([])
+  images           Json
+  nutrition        Json
+  scores           Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("products")
+}

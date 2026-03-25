@@ -1,0 +1,96 @@
+import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
+import { Prisma } from '@prisma/client';
+
+import { prisma } from '../lib/prisma';
+
+const toNormalizedProduct = (product: {
+  code: string;
+  product_name: string | null;
+  brands: string | null;
+  image_url: string | null;
+  ingredients_text: string | null;
+  nutriscore_grade: string | null;
+  categories: string | null;
+  quantity: string | null;
+  serving_size: string | null;
+  ingredients: string[];
+  allergens: string[];
+  additives: string[];
+  additives_count: number | null;
+  traces: string[];
+  countries: string[];
+  category_tags: string[];
+  images: Prisma.JsonValue;
+  nutrition: Prisma.JsonValue;
+  scores: Prisma.JsonValue;
+}): NormalizedProduct => {
+  return normalizedProductSchema.parse({
+    code: product.code,
+    product_name: product.product_name,
+    brands: product.brands,
+    image_url: product.image_url,
+    ingredients_text: product.ingredients_text,
+    nutriscore_grade: product.nutriscore_grade,
+    categories: product.categories,
+    quantity: product.quantity,
+    serving_size: product.serving_size,
+    ingredients: product.ingredients,
+    allergens: product.allergens,
+    additives: product.additives,
+    additives_count: product.additives_count,
+    traces: product.traces,
+    countries: product.countries,
+    category_tags: product.category_tags,
+    images: product.images,
+    nutrition: product.nutrition,
+    scores: product.scores,
+  });
+};
+
+const toProductCreateInput = (product: NormalizedProduct): Prisma.ProductUncheckedCreateInput => {
+  return {
+    barcode: product.code,
+    code: product.code,
+    product_name: product.product_name,
+    brands: product.brands,
+    image_url: product.image_url,
+    ingredients_text: product.ingredients_text,
+    nutriscore_grade: product.nutriscore_grade,
+    categories: product.categories,
+    quantity: product.quantity,
+    serving_size: product.serving_size,
+    ingredients: product.ingredients,
+    allergens: product.allergens,
+    additives: product.additives,
+    additives_count: product.additives_count,
+    traces: product.traces,
+    countries: product.countries,
+    category_tags: product.category_tags,
+    images: product.images as Prisma.InputJsonValue,
+    nutrition: product.nutrition as Prisma.InputJsonValue,
+    scores: product.scores as Prisma.InputJsonValue,
+  };
+};
+
+export const findByBarcode = async (barcode: string): Promise<NormalizedProduct | null> => {
+  const product = await prisma.product.findUnique({
+    where: { barcode },
+  });
+
+  if (!product) {
+    return null;
+  }
+
+  return toNormalizedProduct(product);
+};
+
+export const createProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
+  const data = toProductCreateInput(product);
+  const savedProduct = await prisma.product.upsert({
+    where: { barcode: product.code },
+    create: data,
+    update: data,
+  });
+
+  return toNormalizedProduct(savedProduct);
+};
