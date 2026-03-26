@@ -7,6 +7,7 @@ import type {
 
 import { buildProductAnalysisFallback } from './productAnalysisFallback';
 import { createPersonalAnalysisJob } from './personalAnalysisJobs';
+import { createScan, findProductIdByBarcode, findRecentScanByBarcode } from './scanRepository';
 
 export const createScanNotFoundResponse = (
   lookupId: string,
@@ -20,18 +21,43 @@ export const createScanNotFoundResponse = (
   };
 };
 
-export const createScanSuccessResponse = (
+export const createScanSuccessResponse = async (
   lookupId: string,
   source: ScannerLookupSource,
   product: BarcodeLookupProduct,
   userId?: string,
-): BarcodeLookupSuccessResponse => {
+): Promise<BarcodeLookupSuccessResponse> => {
+  const evaluation = buildProductAnalysisFallback(product);
+
+  let scanId: string | undefined;
+  if (userId) {
+    const existing = await findRecentScanByBarcode(userId, product.code);
+    if (existing) {
+      scanId = existing.id;
+    } else {
+      const productId = await findProductIdByBarcode(product.code);
+      const scan = await createScan({
+        userId,
+        productId: productId ?? undefined,
+        barcode: product.code,
+        source: source === 'openfoodfacts' ? 'barcode' : 'photo',
+        overallScore: evaluation.overallScore,
+        overallRating: evaluation.rating,
+        personalAnalysisStatus: 'pending',
+        evaluation,
+      });
+      scanId = scan.id;
+    }
+  }
+
+  const personalAnalysis = createPersonalAnalysisJob(product, userId, scanId);
+
   return {
     success: true,
     barcode: lookupId,
     source,
     product,
-    evaluation: buildProductAnalysisFallback(product),
-    personalAnalysis: createPersonalAnalysisJob(product, userId),
+    evaluation,
+    personalAnalysis,
   };
 };

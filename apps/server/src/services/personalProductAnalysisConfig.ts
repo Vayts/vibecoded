@@ -50,8 +50,13 @@ const VISIBLE_PERSONAL_NEGATIVE_KEY_PREFIXES = [
   'ingredients',
 ];
 
+const VISIBLE_PERSONAL_POSITIVE_PREFIXES = ['restriction-'];
+
 const isVisiblePersonalPositive = (item: ProductAnalysisItem): boolean => {
-  return VISIBLE_PERSONAL_POSITIVE_KEYS.has(item.key);
+  return (
+    VISIBLE_PERSONAL_POSITIVE_KEYS.has(item.key) ||
+    VISIBLE_PERSONAL_POSITIVE_PREFIXES.some((prefix) => item.key.startsWith(prefix))
+  );
 };
 
 const isVisiblePersonalNegative = (item: ProductAnalysisItem): boolean => {

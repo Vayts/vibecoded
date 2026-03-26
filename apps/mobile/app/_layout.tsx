@@ -26,6 +26,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="scanner" />
+                <Stack.Screen name="scans" />
               </Stack>
               <StatusBar style="auto" />
             </SheetProvider>

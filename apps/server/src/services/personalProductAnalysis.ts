@@ -16,7 +16,12 @@ import {
   limitVisiblePersonalNegatives,
   limitVisiblePersonalPositives,
 } from './personalProductAnalysisConfig';
-import { getRestrictionConflict } from './personalProductRestrictionRules';
+import {
+  getRestrictionConflict,
+  getRestrictionSearchPool,
+  hasAnyToken,
+  RESTRICTION_COMPATIBLE_LABELS,
+} from './personalProductRestrictionRules';
 
 const clampScore = (score: number): number => Math.max(0, Math.min(100, score));
 
@@ -62,28 +67,6 @@ const getFitLabel = (score: number): PersonalAnalysisResult['fitLabel'] => {
   return 'poor_fit';
 };
 
-const getSearchPool = (product: BarcodeLookupProduct): string[] => {
-  return [
-    ...(product.ingredients ?? []),
-    ...(product.allergens ?? []),
-    ...(product.traces ?? []),
-    ...(product.additives ?? []),
-    ...(product.category_tags ?? []),
-    product.ingredients_text ?? '',
-    product.product_name ?? '',
-    product.brands ?? '',
-    product.categories ?? '',
-    product.quantity ?? '',
-    product.serving_size ?? '',
-  ]
-    .map((value) => value.toLowerCase())
-    .filter(Boolean);
-};
-
-const hasAnyToken = (values: string[], tokens: string[]): boolean => {
-  return values.some((value) => tokens.some((token) => value.includes(token)));
-};
-
 export const buildPersonalProductAnalysis = (
   product: BarcodeLookupProduct,
   onboarding: OnboardingResponse = DEFAULT_ONBOARDING_RESPONSE,
@@ -97,7 +80,7 @@ export const buildPersonalProductAnalysis = (
   const negatives = new Map<string, NegativeProductAnalysisItem>(
     overall.negatives.map((item) => [item.key, item]),
   );
-  const searchPool = getSearchPool(product);
+  const searchPool = getRestrictionSearchPool(product);
   let fitScore = overall.overallScore;
   let dealbreakerSummary: string | null = null;
 
@@ -185,6 +168,23 @@ export const buildPersonalProductAnalysis = (
         ),
       );
       personalizedNegativeKeys.add(conflict.key);
+    } else {
+      const compatLabel = RESTRICTION_COMPATIBLE_LABELS[restriction];
+      if (compatLabel) {
+        const key = `restriction-${restriction.toLowerCase()}`;
+        positives.set(
+          key,
+          createPositive(
+            key,
+            compatLabel.label,
+            compatLabel.description,
+            null,
+            null,
+            compatLabel.overview,
+          ),
+        );
+        personalizedPositiveKeys.add(key);
+      }
     }
   }
 

@@ -1,7 +1,4 @@
-import {
-  barcodeLookupProductSchema,
-  type BarcodeLookupResponse,
-} from '@acme/shared';
+import { barcodeLookupProductSchema, type BarcodeLookupResponse } from '@acme/shared';
 import { ChatOpenAI, tools } from '@langchain/openai';
 import { z } from 'zod';
 
@@ -52,7 +49,9 @@ const toBase64 = async (file: File): Promise<string> => {
 const identifyProductFromPhoto = async (imageUrl: string) => {
   // LangChain typing remains too deep for strict TS on structured multimodal output.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const structuredModel = (identificationModel as any).withStructuredOutput(photoIdentificationSchema);
+  const structuredModel = (identificationModel as any).withStructuredOutput(
+    photoIdentificationSchema,
+  );
 
   return structuredModel.invoke([
     {
@@ -149,5 +148,10 @@ export const lookupProductByPhoto = async (
   }
 
   const normalizedProduct = toNormalizedProduct(enrichedProduct);
-  return createScanSuccessResponse(normalizedProduct.code, PHOTO_SOURCE, normalizedProduct, userId);
+  return await createScanSuccessResponse(
+    normalizedProduct.code,
+    PHOTO_SOURCE,
+    normalizedProduct,
+    userId,
+  );
 };

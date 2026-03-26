@@ -56,7 +56,7 @@ export const lookupProductByBarcode = async (
   const cachedProduct = await findByBarcode(barcode);
 
   if (cachedProduct) {
-    return createScanSuccessResponse(barcode, OFF_SOURCE, cachedProduct, userId);
+    return await createScanSuccessResponse(barcode, OFF_SOURCE, cachedProduct, userId);
   }
 
   const client = await getClient();
@@ -78,5 +78,5 @@ export const lookupProductByBarcode = async (
   const normalizedProduct = normalizeOpenFoodFactsProduct(barcode, product);
   const cachedNormalizedProduct = await createProduct(normalizedProduct);
 
-  return createScanSuccessResponse(barcode, OFF_SOURCE, cachedNormalizedProduct, userId);
+  return await createScanSuccessResponse(barcode, OFF_SOURCE, cachedNormalizedProduct, userId);
 };

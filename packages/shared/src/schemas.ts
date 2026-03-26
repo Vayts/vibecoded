@@ -168,6 +168,54 @@ export const chatHistoryMessageSchema = z.object({
 export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
 
 // ============================================================
+// Scan history schemas
+// ============================================================
+
+export const scanSourceSchema = z.enum(['barcode', 'photo']);
+export type ScanSource = z.infer<typeof scanSourceSchema>;
+
+export const scanHistoryItemSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  source: scanSourceSchema,
+  overallScore: z.number().nullable(),
+  overallRating: z.string().nullable(),
+  personalScore: z.number().nullable(),
+  personalRating: personalFitLabelSchema.nullable(),
+  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  product: z
+    .object({
+      id: z.string(),
+      barcode: z.string(),
+      product_name: z.string().nullable(),
+      brands: z.string().nullable(),
+      image_url: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
+
+export const scanHistoryResponseSchema = z.object({
+  items: z.array(scanHistoryItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
+
+export const scanDetailResponseSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  source: scanSourceSchema,
+  overallScore: z.number().nullable(),
+  overallRating: z.string().nullable(),
+  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  barcode: z.string().nullable(),
+  product: barcodeLookupProductSchema.nullable(),
+  evaluation: productAnalysisResultSchema.nullable(),
+  personalResult: personalAnalysisResultSchema.nullable(),
+});
+export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
+
+// ============================================================
 // Error schema
 // ============================================================
 

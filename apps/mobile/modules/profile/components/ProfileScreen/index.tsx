@@ -38,56 +38,59 @@ export function ProfileScreen() {
       className="flex-1 bg-white"
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
-        paddingTop: insets.top + 12,
+        paddingTop: insets.top,
         paddingBottom: insets.bottom + 24,
-        paddingHorizontal: 20,
       }}
     >
-      <Typography variant="pageTitle" className="mb-5 text-gray-900">
-        Profile
-      </Typography>
-
-      <ProfileHeaderCard
-        name={user.name || 'Your account'}
-        email={user.email}
-        statusText={onboardingQuery.data?.onboardingCompleted ? 'Health profile saved' : null}
-      />
-
-      <ProfileMenuSection title="Account">
-        <ProfileMenuRow
-          label="Edit profile"
-          subtitle="Update your display name"
-          onPress={() => {
-            router.push('/(tabs)/profile/edit-account');
-          }}
-        />
-      </ProfileMenuSection>
-
-      <ProfileMenuSection title="Preferences">
-        <ProfileMenuRow
-          label="Health profile"
-          subtitle={getHealthSummary(onboardingQuery.data)}
-          onPress={() => {
-            router.push('/(tabs)/profile/edit-health');
-          }}
-        />
-      </ProfileMenuSection>
-
-      <ProfileMenuSection title="Session">
-        <ProfileMenuRow
-          label="Log out"
-          subtitle={isLoading ? 'Signing you out...' : 'End the current session on this device'}
-          destructive
-          onPress={() => {
-            void signOut();
-          }}
-        />
-      </ProfileMenuSection>
-
-      <View className="mt-6 px-1">
-        <Typography variant="caption" className="text-gray-400">
-          Keep your preferences up to date so product analysis stays relevant.
+      <View className="px-4 pb-2 pt-4">
+        <Typography variant="hero" className="text-gray-900">
+          Profile
         </Typography>
+      </View>
+
+      <View className="px-4">
+        <ProfileHeaderCard
+          name={user.name || 'Your account'}
+          email={user.email}
+          statusText={onboardingQuery.data?.onboardingCompleted ? 'Health profile saved' : null}
+        />
+
+        <ProfileMenuSection title="Account">
+          <ProfileMenuRow
+            label="Edit profile"
+            subtitle="Update your display name"
+            onPress={() => {
+              router.push('/(tabs)/profile/edit-account');
+            }}
+          />
+        </ProfileMenuSection>
+
+        <ProfileMenuSection title="Preferences">
+          <ProfileMenuRow
+            label="Health profile"
+            subtitle={getHealthSummary(onboardingQuery.data)}
+            onPress={() => {
+              router.push('/(tabs)/profile/edit-health');
+            }}
+          />
+        </ProfileMenuSection>
+
+        <ProfileMenuSection title="Session">
+          <ProfileMenuRow
+            label="Log out"
+            subtitle={isLoading ? 'Signing you out...' : 'End the current session on this device'}
+            destructive
+            onPress={() => {
+              void signOut();
+            }}
+          />
+        </ProfileMenuSection>
+
+        <View className="mt-6 px-1">
+          <Typography variant="caption" className="text-gray-400">
+            Keep your preferences up to date so product analysis stays relevant.
+          </Typography>
+        </View>
       </View>
     </ScrollView>
   );

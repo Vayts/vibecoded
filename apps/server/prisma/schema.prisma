@@ -35,6 +35,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   profile       UserProfile?
+  scans         Scan[]
 
   @@map("users")
 }
@@ -176,5 +177,38 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  scans            Scan[]
+
   @@map("products")
+}
+
+enum ScanSource {
+  barcode
+  photo
+}
+
+enum PersonalAnalysisStatus {
+  pending
+  completed
+  failed
+}
+
+model Scan {
+  id                      String                  @id @default(cuid())
+  userId                  String
+  user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId               String?
+  product                 Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  barcode                 String?
+  source                  ScanSource
+  overallScore            Int?
+  overallRating           String?
+  personalAnalysisStatus  PersonalAnalysisStatus?
+  personalAnalysisJobId   String?
+  evaluation              Json?
+  personalResult          Json?
+  createdAt               DateTime                @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("scans")
 }

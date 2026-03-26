@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Home, ScanLine, User } from 'lucide-react-native';
+import { ClipboardList, ScanLine, User } from 'lucide-react-native';
 import { ScreenSpinner } from '../../shared/components/ScreenSpinner';
 import { COLORS } from '../../shared/constants/colors';
 import { useAuthStore } from '../../shared/stores/authStore';
@@ -31,8 +31,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Home',
-            tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+            href: null,
           }}
         />
         <Tabs.Screen
@@ -40,6 +39,13 @@ export default function TabsLayout() {
           options={{
             title: 'Scanner',
             tabBarIcon: ({ color, size }) => <ScanLine size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="scans"
+          options={{
+            title: 'Scans',
+            tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
           }}
         />
         <Tabs.Screen

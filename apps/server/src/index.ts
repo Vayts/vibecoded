@@ -7,6 +7,7 @@ import { analyticsRoute } from './routes/analytics';
 import { healthRoute } from './routes/health';
 import { meRoute } from './routes/me';
 import { scannerRoute } from './routes/scanner';
+import { scansRoute } from './routes/scans';
 import { userRoute } from './routes/user';
 import dotenv from 'dotenv';
 import http from 'http';
@@ -31,6 +32,7 @@ app.route('/api/auth', authRoute);
 app.route('/api/analytics', analyticsRoute);
 app.route('/api/me', meRoute);
 app.route('/api/scanner', scannerRoute);
+app.route('/api/scans', scansRoute);
 app.route('/api/user', userRoute);
 
 app.notFound((c) => c.json({ error: 'Not found', code: 'NOT_FOUND' }, 404));

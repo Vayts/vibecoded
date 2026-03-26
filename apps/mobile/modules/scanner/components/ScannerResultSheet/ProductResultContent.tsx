@@ -46,8 +46,6 @@ export function ProductResultContent({
   const isPersonalLoading = !isPersonalReady && !personalQuery.isError;
   const isPersonalOnly = presentationMode === 'personalOnly';
 
-    console.log(JSON.stringify(personalResult, null, 2));
-
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="max-h-[560px]">
       <ProductResultHeader product={product} previewImageUri={previewImageUri} />
