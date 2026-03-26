@@ -55,6 +55,11 @@ export const usePersonalAnalysisQuery = (
         return attempts >= MAX_POLL_ATTEMPTS ? false : POLLING_INTERVAL_MS;
       }
 
+      // Status is completed but full result not yet fetched (e.g. initialData from cached scan)
+      if (!data?.result) {
+        return POLLING_INTERVAL_MS;
+      }
+
       // Personal analysis completed — continue polling if ingredient analysis is pending
       const ingredientStatus = data?.ingredientAnalysisStatus;
       if (ingredientStatus === 'pending') {

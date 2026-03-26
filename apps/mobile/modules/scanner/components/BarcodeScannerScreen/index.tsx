@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
 import { ScanBarcode } from 'lucide-react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,7 +16,6 @@ const SAMPLE_BARCODE = '5901234123457';
 const RESCAN_COOLDOWN_MS = 1500;
 
 export function BarcodeScannerScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const barcodeMutation = useScanBarcodeMutation();

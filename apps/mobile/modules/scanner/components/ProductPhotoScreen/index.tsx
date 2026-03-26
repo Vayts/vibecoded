@@ -2,7 +2,6 @@ import { useRef, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { Camera } from 'lucide-react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,7 +36,6 @@ function CaptureButton({ disabled, onPress }: CaptureButtonProps) {
 }
 
 export function ProductPhotoScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
@@ -46,7 +44,12 @@ export function ProductPhotoScreen() {
   const preparePhotoForUpload = usePreparedPhotoForUpload();
   const showPhotoLoading = useScannerResultSheetStore((state) => state.showPhotoLoading);
 
-  const presentResult = async (photoUri: string, width?: number, height?: number, fileName?: string) => {
+  const presentResult = async (
+    photoUri: string,
+    width?: number,
+    height?: number,
+    fileName?: string,
+  ) => {
     showPhotoLoading(photoUri);
     void SheetManager.show(SheetsEnum.ScannerResultSheet, {
       payload: {

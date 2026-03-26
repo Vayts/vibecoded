@@ -1,6 +1,5 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
 import { ImagePlus } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
@@ -20,7 +19,6 @@ const RESCAN_COOLDOWN_MS = 1500;
 
 export function ScannerHomeScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const barcodeMutation = useScanBarcodeMutation();
   const photoMutation = useScanPhotoMutation();
