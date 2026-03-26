@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, View } from 'react-native';
 
 import { Button } from '../../../../shared/components/Button';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { OnboardingStateScreen } from '../../../onboarding/components/OnboardingStateScreen';
@@ -27,7 +24,6 @@ export function HealthPreferenceEditorScreen({
   children,
 }: HealthPreferenceEditorScreenProps) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const onboardingQuery = useOnboardingQuery(user?.id);
   const hydrateFromServer = useOnboardingStore((state) => state.hydrateFromServer);
@@ -44,7 +40,7 @@ export function HealthPreferenceEditorScreen({
   const handleSave = async () => {
     setSubmitMessage(null);
 
-    try {
+    try { 
       await submitMutation.mutateAsync(normalizeDraftToPayload(draft));
       router.back();
     } catch (error) {
@@ -75,23 +71,11 @@ export function HealthPreferenceEditorScreen({
         className="flex-1"
         contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{
-          paddingTop: insets.top + 12,
           paddingBottom: 30,
-          paddingHorizontal: 20,
+          paddingHorizontal: 16,
         }}
       >
-        <TouchableOpacity
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-          className="h-11 w-11 items-center justify-center rounded-full bg-gray-100"
-          onPress={() => {
-            router.back();
-          }}
-        >
-          <ArrowLeft color={COLORS.gray900} size={20} />
-        </TouchableOpacity>
-
-        <View className="mt-6">
+        <View className="mt-2">
           <Typography variant="pageTitle">{title}</Typography>
           <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
             {description}
@@ -109,7 +93,7 @@ export function HealthPreferenceEditorScreen({
         ) : null}
       </ScrollView>
 
-      <View className="border-t border-gray-100 px-5 pt-3 pb-4">
+      <View className="border-t border-gray-100 px-4 pt-3 pb-8">
         <Button
           fullWidth
           label="Save changes"

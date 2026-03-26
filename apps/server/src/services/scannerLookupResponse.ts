@@ -2,12 +2,16 @@ import type {
   BarcodeLookupNotFoundResponse,
   BarcodeLookupProduct,
   BarcodeLookupSuccessResponse,
+  PersonalAnalysisResult,
   ScannerLookupSource,
 } from '@acme/shared';
+import { personalAnalysisResultSchema } from '@acme/shared';
 
 import { buildProductAnalysisFallback } from './productAnalysisFallback';
-import { createPersonalAnalysisJob } from './personalAnalysisJobs';
+import { createPersonalAnalysisJob, createCachedPersonalAnalysisJob } from './personalAnalysisJobs';
 import { createScan, findProductIdByBarcode, findRecentScanByBarcode } from './scanRepository';
+
+const RESULT_CACHE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export const createScanNotFoundResponse = (
   lookupId: string,
@@ -30,10 +34,26 @@ export const createScanSuccessResponse = async (
   const evaluation = buildProductAnalysisFallback(product);
 
   let scanId: string | undefined;
+  let cachedPersonalResult: PersonalAnalysisResult | undefined;
+
   if (userId) {
+    // 4h window: don't create a new scan for the same product
     const existing = await findRecentScanByBarcode(userId, product.code);
     if (existing) {
       scanId = existing.id;
+
+      // 2h window: reuse cached personal analysis result
+      const scanAge = Date.now() - existing.createdAt.getTime();
+      if (
+        scanAge < RESULT_CACHE_MS &&
+        existing.personalAnalysisStatus === 'completed' &&
+        existing.personalResult
+      ) {
+        const parsed = personalAnalysisResultSchema.safeParse(existing.personalResult);
+        if (parsed.success) {
+          cachedPersonalResult = parsed.data;
+        }
+      }
     } else {
       const productId = await findProductIdByBarcode(product.code);
       const scan = await createScan({
@@ -50,7 +70,9 @@ export const createScanSuccessResponse = async (
     }
   }
 
-  const personalAnalysis = createPersonalAnalysisJob(product, userId, scanId);
+  const personalAnalysis = cachedPersonalResult
+    ? createCachedPersonalAnalysisJob(cachedPersonalResult)
+    : createPersonalAnalysisJob(product, userId, scanId);
 
   return {
     success: true,

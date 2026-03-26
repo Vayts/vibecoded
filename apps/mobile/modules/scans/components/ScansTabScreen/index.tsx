@@ -10,7 +10,7 @@ export function ScansTabScreen() {
   const router = useRouter();
 
   const handleScanPress = (item: ScanHistoryItem) => {
-    router.push(`/scans/${item.id}`);
+    router.push(`/(tabs)/scans/${item.id}`);
   };
 
   return (

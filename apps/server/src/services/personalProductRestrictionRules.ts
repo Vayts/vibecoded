@@ -1,4 +1,5 @@
 import type { BarcodeLookupProduct, OnboardingResponse } from '@acme/shared';
+import { RESTRICTION_RULE_TOKENS } from './restrictionTokens';
 
 interface RestrictionConflict {
   key: string;
@@ -13,8 +14,8 @@ interface RestrictionRule {
   label: string;
   description: string;
   overview: string;
-  tokens: string[];
-  excludePatterns: RegExp[];
+  tokens: readonly string[];
+  excludePatterns: readonly RegExp[];
   forceZero: boolean;
 }
 
@@ -54,12 +55,6 @@ export const RESTRICTION_COMPATIBLE_LABELS: Partial<
   },
 };
 
-const PLANT_BASED_DAIRY_EXCLUDE = [
-  /\b(?:cocoa|shea|peanut|almond|cashew|mango|avocado|kokum|sal)\s+butter/i,
-  /\b(?:coconut|almond|oat|soy|rice|hemp|cashew|hazelnut)\s+(?:milk|cream|yogurt|cheese)/i,
-  /\bbutterscotch\b/i,
-];
-
 const RESTRICTION_RULES: Partial<
   Record<OnboardingResponse['restrictions'][number], RestrictionRule>
 > = {
@@ -68,29 +63,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains animal-derived ingredients or meat that conflict with your vegan diet',
     overview:
       'This product directly breaks your vegan diet, so the personal fit score is forced to 0.',
-    tokens: [
-      'meat',
-      'beef',
-      'chicken',
-      'pork',
-      'fish',
-      'tuna',
-      'salmon',
-      'shellfish',
-      'shrimp',
-      'crab',
-      'dairy',
-      'milk',
-      'whey',
-      'butter',
-      'cheese',
-      'cream',
-      'yogurt',
-      'egg',
-      'honey',
-      'gelatin',
-    ],
-    excludePatterns: PLANT_BASED_DAIRY_EXCLUDE,
+    ...RESTRICTION_RULE_TOKENS.VEGAN,
     forceZero: true,
   },
   VEGETARIAN: {
@@ -98,20 +71,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains meat or seafood that conflict with your vegetarian diet',
     overview:
       'This product directly breaks your vegetarian diet, so the personal fit score is forced to 0.',
-    tokens: [
-      'meat',
-      'beef',
-      'chicken',
-      'pork',
-      'fish',
-      'tuna',
-      'salmon',
-      'shellfish',
-      'shrimp',
-      'crab',
-      'gelatin',
-    ],
-    excludePatterns: [],
+    ...RESTRICTION_RULE_TOKENS.VEGETARIAN,
     forceZero: true,
   },
   GLUTEN_FREE: {
@@ -119,8 +79,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains gluten sources that conflict with your gluten-free diet',
     overview:
       'This product directly breaks your gluten-free diet, so the personal fit score is forced to 0.',
-    tokens: ['gluten', 'wheat', 'barley', 'rye'],
-    excludePatterns: [],
+    ...RESTRICTION_RULE_TOKENS.GLUTEN_FREE,
     forceZero: true,
   },
   DAIRY_FREE: {
@@ -128,8 +87,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains dairy ingredients that conflict with your dairy-free diet',
     overview:
       'This product directly breaks your dairy-free diet, so the personal fit score is forced to 0.',
-    tokens: ['dairy', 'milk', 'whey', 'butter', 'cheese', 'cream', 'yogurt'],
-    excludePatterns: PLANT_BASED_DAIRY_EXCLUDE,
+    ...RESTRICTION_RULE_TOKENS.DAIRY_FREE,
     forceZero: true,
   },
   NUT_FREE: {
@@ -137,8 +95,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains nuts that conflict with your nut-free diet',
     overview:
       'This product directly breaks your nut-free diet, so the personal fit score is forced to 0.',
-    tokens: ['peanut', 'tree nut', 'hazelnut', 'almond', 'walnut', 'cashew', 'pistachio', 'nut'],
-    excludePatterns: [],
+    ...RESTRICTION_RULE_TOKENS.NUT_FREE,
     forceZero: true,
   },
   HALAL: {
@@ -146,8 +103,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains ingredients that directly conflict with your halal diet',
     overview:
       'This product directly breaks your halal diet, so the personal fit score is forced to 0.',
-    tokens: ['pork', 'bacon', 'ham', 'lard', 'wine', 'beer', 'rum', 'alcohol'],
-    excludePatterns: [],
+    ...RESTRICTION_RULE_TOKENS.HALAL,
     forceZero: true,
   },
   KOSHER: {
@@ -155,8 +111,7 @@ const RESTRICTION_RULES: Partial<
     description: 'Contains ingredients that directly conflict with your kosher diet',
     overview:
       'This product directly breaks your kosher diet, so the personal fit score is forced to 0.',
-    tokens: ['pork', 'bacon', 'ham', 'shellfish', 'shrimp', 'crab', 'lobster'],
-    excludePatterns: [],
+    ...RESTRICTION_RULE_TOKENS.KOSHER,
     forceZero: true,
   },
 };
@@ -167,6 +122,10 @@ export const getRestrictionSearchPool = (product: BarcodeLookupProduct): string[
     ...(product.allergens ?? []),
     ...(product.additives ?? []),
     product.ingredients_text ?? '',
+    product.product_name ?? '',
+    product.brands ?? '',
+    ...(product.category_tags ?? []),
+    product.categories ?? '',
   ]
     .map((value) => value.toLowerCase())
     .filter(Boolean);
@@ -174,21 +133,37 @@ export const getRestrictionSearchPool = (product: BarcodeLookupProduct): string[
 
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-export const hasAnyToken = (values: string[], tokens: string[]): boolean => {
-  const patterns = tokens.map((t) => new RegExp(`\\b${escapeRegExp(t)}s?\\b`, 'i'));
-  return values.some((value) => patterns.some((pattern) => pattern.test(value)));
+const HAS_NON_ASCII = /[^\u0000-\u007F]/;
+
+/**
+ * Build a matcher for a single token.
+ * ASCII tokens use \b word boundaries.
+ * Non-ASCII tokens (Cyrillic, accented, etc.) use simple substring `.includes()`
+ * because JS \b only recognises [a-zA-Z0-9_] as word characters.
+ */
+const buildMatcher = (token: string): ((value: string) => boolean) => {
+  if (HAS_NON_ASCII.test(token)) {
+    const lower = token.toLowerCase();
+    return (value: string) => value.includes(lower);
+  }
+  const pattern = new RegExp(`\\b${escapeRegExp(token)}s?\\b`, 'i');
+  return (value: string) => pattern.test(value);
+};
+
+export const hasAnyToken = (values: string[], tokens: readonly string[]): boolean => {
+  const matchers = tokens.map(buildMatcher);
+  return values.some((value) => matchers.some((m) => m(value)));
 };
 
 const hasAnyTokenWithExclusions = (
   values: string[],
-  tokens: string[],
-  excludePatterns: RegExp[],
+  tokens: readonly string[],
+  excludePatterns: readonly RegExp[],
 ): boolean => {
-  const patterns = tokens.map((t) => new RegExp(`\\b${escapeRegExp(t)}s?\\b`, 'i'));
+  const matchers = tokens.map(buildMatcher);
   return values.some(
     (value) =>
-      patterns.some((pattern) => pattern.test(value)) &&
-      !excludePatterns.some((ex) => ex.test(value)),
+      matchers.some((m) => m(value)) && !excludePatterns.some((ex) => ex.test(value)),
   );
 };
 

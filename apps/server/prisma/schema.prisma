@@ -212,3 +212,16 @@ model Scan {
   @@index([userId, createdAt(sort: Desc)])
   @@map("scans")
 }
+
+/// Caches AI ingredient analysis per product+profile combo to avoid redundant AI calls.
+model ProductIngredientCache {
+  id          String   @id @default(cuid())
+  barcode     String
+  profileHash String   @map("profile_hash")
+  result      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([barcode, profileHash])
+  @@map("product_ingredient_cache")
+}

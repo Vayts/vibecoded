@@ -17,7 +17,7 @@ interface CreateScanInput {
 export const findRecentScanByBarcode = async (
   userId: string,
   barcode: string,
-  withinMs = 60_000,
+  withinMs = 4 * 60 * 60 * 1000,
 ) => {
   const cutoff = new Date(Date.now() - withinMs);
   return prisma.scan.findFirst({

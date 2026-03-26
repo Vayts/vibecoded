@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../../shared/components/Button';
 import { Input } from '../../../../shared/components/Input';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useUpdateProfileName } from '../../hooks/useUpdateProfileName';
 
@@ -43,20 +41,9 @@ export function EditAccountScreen() {
 
   return (
     <View
-      className="flex-1 bg-white px-5"
-      style={{ paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 8) }}
+      className="flex-1 bg-white px-4"
+      style={{ paddingBottom: Math.max(insets.bottom, 8) }}
     >
-      <TouchableOpacity
-        accessibilityLabel="Go back"
-        accessibilityRole="button"
-        className="h-11 w-11 items-center justify-center rounded-full bg-gray-100"
-        onPress={() => {
-          router.back();
-        }}
-      >
-        <ArrowLeft color={COLORS.gray900} size={20} />
-      </TouchableOpacity>
-
       <View className="mt-6">
         <Typography variant="pageTitle">Edit profile</Typography>
         <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">

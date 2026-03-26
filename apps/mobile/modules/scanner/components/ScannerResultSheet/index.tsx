@@ -25,7 +25,7 @@ export function ScannerResultSheet() {
 
   return (
     <ActionSheet gestureEnabled onClose={reset}>
-      <View className="px-6 pb-8">
+      <View className="px-6 pb-2">
         {isBarcodeResult ? (
           <ProductResultContent
             result={resolvedResult}
@@ -40,7 +40,7 @@ export function ScannerResultSheet() {
           />
         ) : null}
 
-        <View className="mt-6">
+        <View className="border-t border-gray-100 pt-4 mt-2">
           <Button
             fullWidth
             label="Close"

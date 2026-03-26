@@ -1,8 +1,10 @@
 import type { PersonalAnalysisJobResponse } from '@acme/shared';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
 import { mapFitLabelToToneKey } from './evaluationHelpers';
 import { EvaluationSection } from './EvaluationSection';
+import { IngredientsSection } from './IngredientsSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
 import { PersonalAnalysisLoader } from './PersonalAnalysisLoader';
 import { ScoreSummary } from './ScoreSummary';
@@ -15,6 +17,8 @@ interface PersonalTabContentProps {
 
 export function PersonalTabContent({ personalResult, isError, onRetry }: PersonalTabContentProps) {
   if (personalResult?.status === 'completed' && personalResult.result) {
+    const ingredientStatus = personalResult.ingredientAnalysisStatus;
+
     return (
       <View>
         <ScoreSummary
@@ -40,6 +44,16 @@ export function PersonalTabContent({ personalResult, isError, onRetry }: Persona
           items={personalResult.result.negatives}
           rightLabel="For you"
         />
+        {personalResult.result.ingredientAnalysis ? (
+          <IngredientsSection ingredientAnalysis={personalResult.result.ingredientAnalysis} />
+        ) : ingredientStatus === 'pending' ? (
+          <View className="mt-5 items-center rounded-[12px] border border-gray-100 bg-white py-4">
+            <ActivityIndicator size="small" color={COLORS.primary} />
+            <Typography variant="bodySecondary" className="mt-2">
+              Analyzing ingredients…
+            </Typography>
+          </View>
+        ) : null}
       </View>
     );
   }

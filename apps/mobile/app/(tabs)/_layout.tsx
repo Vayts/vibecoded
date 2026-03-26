@@ -1,9 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ClipboardList, ScanLine, User } from 'lucide-react-native';
+import { ClipboardList, User } from 'lucide-react-native';
 import { ScreenSpinner } from '../../shared/components/ScreenSpinner';
-import { COLORS } from '../../shared/constants/colors';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { OnboardingGate } from '../../modules/onboarding/components/OnboardingGate';
+import { CustomTabBar } from '../../shared/components/CustomTabBar';
 
 export default function TabsLayout() {
   const { user, isInitialized } = useAuthStore();
@@ -21,12 +21,8 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: COLORS.primary,
-          tabBarInactiveTintColor: COLORS.gray400,
-          tabBarStyle: {
-            borderTopColor: COLORS.gray200,
-          },
         }}
+        tabBar={(props) => <CustomTabBar {...props} />}
       >
         <Tabs.Screen
           name="index"
@@ -35,30 +31,23 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="scanner/index"
+          name="tab-two"
           options={{
-            title: 'Scanner',
-            tabBarIcon: ({ color, size }) => <ScanLine size={size} color={color} />,
+            href: null,
           }}
         />
         <Tabs.Screen
           name="scans"
           options={{
-            title: 'Scans',
+            title: 'Discover',
             tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'Profile',
+            title: 'Account',
             tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="tab-two"
-          options={{
-            href: null,
           }}
         />
       </Tabs>

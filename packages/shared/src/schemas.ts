@@ -112,12 +112,39 @@ export type ProductAnalysisResult = z.infer<typeof productAnalysisResultSchema>;
 export const personalFitLabelSchema = z.enum(['great_fit', 'good_fit', 'neutral', 'poor_fit']);
 export type PersonalFitLabel = z.infer<typeof personalFitLabelSchema>;
 
+// ============================================================
+// Ingredient analysis schemas
+// ============================================================
+
+export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
+export type IngredientStatus = z.infer<typeof ingredientStatusSchema>;
+
+export const ingredientAnalysisItemSchema = z.object({
+  original: z.string().describe('Raw ingredient string from source'),
+  normalized: z.string().describe('Normalized/translated canonical English form'),
+  label: z.string().describe('UI-friendly display label'),
+  status: ingredientStatusSchema.describe('How frontend should highlight the ingredient'),
+  reason: z.string().describe('Short explanation, 1 sentence max'),
+  matchesUserPreference: z
+    .boolean()
+    .nullable()
+    .describe('Whether it clearly matches/conflicts with profile'),
+});
+export type IngredientAnalysisItem = z.infer<typeof ingredientAnalysisItemSchema>;
+
+export const ingredientAnalysisResultSchema = z.object({
+  ingredients: z.array(ingredientAnalysisItemSchema),
+  summary: z.string().nullable(),
+});
+export type IngredientAnalysisResult = z.infer<typeof ingredientAnalysisResultSchema>;
+
 export const personalAnalysisResultSchema = z.object({
   fitScore: z.number().min(0).max(100),
   fitLabel: personalFitLabelSchema,
   summary: z.string().optional(),
   positives: z.array(positiveProductAnalysisItemSchema),
   negatives: z.array(negativeProductAnalysisItemSchema),
+  ingredientAnalysis: ingredientAnalysisResultSchema.nullable().optional(),
 });
 export type PersonalAnalysisResult = z.infer<typeof personalAnalysisResultSchema>;
 
@@ -130,10 +157,14 @@ export const personalAnalysisJobSchema = z.object({
 });
 export type PersonalAnalysisJob = z.infer<typeof personalAnalysisJobSchema>;
 
+export const ingredientAnalysisStatusSchema = z.enum(['pending', 'completed', 'skipped']);
+export type IngredientAnalysisStatus = z.infer<typeof ingredientAnalysisStatusSchema>;
+
 export const personalAnalysisJobResponseSchema = z.object({
   jobId: z.string(),
   status: personalAnalysisJobStatusSchema,
   result: personalAnalysisResultSchema.optional(),
+  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
 });
 export type PersonalAnalysisJobResponse = z.infer<typeof personalAnalysisJobResponseSchema>;
 

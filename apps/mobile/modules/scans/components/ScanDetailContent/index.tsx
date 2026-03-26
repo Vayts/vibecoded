@@ -11,6 +11,7 @@ import { OverallTabContent } from '../../../scanner/components/ScannerResultShee
 import { Typography } from '../../../../shared/components/Typography';
 import { ScoreSummary } from '../../../scanner/components/ScannerResultSheet/ScoreSummary';
 import { EvaluationSection } from '../../../scanner/components/ScannerResultSheet/EvaluationSection';
+import { IngredientsSection } from '../../../scanner/components/ScannerResultSheet/IngredientsSection';
 import { mapFitLabelToToneKey } from '../../../scanner/components/ScannerResultSheet/evaluationHelpers';
 
 interface ScanDetailContentProps {
@@ -110,6 +111,9 @@ function PersonalResultFromScan({
           items={personalResult.negatives}
           rightLabel="For you"
         />
+        {personalResult.ingredientAnalysis ? (
+          <IngredientsSection ingredientAnalysis={personalResult.ingredientAnalysis} />
+        ) : null}
       </View>
     );
   }

@@ -3,9 +3,10 @@ import { TouchableOpacity, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Camera } from 'lucide-react-native';
+import { Camera } from 'lucide-react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '../../../../shared/components/BackButton';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
@@ -141,16 +142,7 @@ export function ProductPhotoScreen() {
         style={{ paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) }}
       >
         <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
-            className="h-11 w-11 items-center justify-center rounded-full bg-black/50"
-            onPress={() => {
-              router.back();
-            }}
-          >
-            <ArrowLeft color={COLORS.white} size={20} />
-          </TouchableOpacity>
+          <BackButton variant="dark" />
 
           <TouchableOpacity
             accessibilityLabel="Choose photo from library"
