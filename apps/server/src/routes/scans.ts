@@ -3,7 +3,7 @@ import type { ScanDetailResponse, ScanHistoryItem } from '@acme/shared';
 import { auth } from '../lib/auth';
 import { findScanById, findScansByUserId } from '../services/scanRepository';
 import { normalizedProductSchema } from '@acme/shared';
-import { productAnalysisResultSchema, personalAnalysisResultSchema } from '@acme/shared';
+import { productAnalysisResultSchema, personalAnalysisResultSchema, multiProfilePersonalAnalysisResultSchema } from '@acme/shared';
 import { getFavouriteProductIds, isFavourite } from '../services/favoriteRepository';
 
 export const scansRoute = new Hono();
@@ -108,6 +108,14 @@ scansRoute.get('/:id', async (c) => {
     }
   }
 
+  let multiProfileResult = null;
+  if (scan.multiProfileResult && scan.multiProfileResult !== null) {
+    const parsed = multiProfilePersonalAnalysisResultSchema.safeParse(scan.multiProfileResult);
+    if (parsed.success) {
+      multiProfileResult = parsed.data;
+    }
+  }
+
   const isFav = scan.productId
     ? await isFavourite(session.user.id, scan.productId)
     : false;
@@ -125,6 +133,7 @@ scansRoute.get('/:id', async (c) => {
     product,
     evaluation,
     personalResult,
+    multiProfileResult,
   };
 
   return c.json(response);

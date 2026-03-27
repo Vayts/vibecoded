@@ -37,6 +37,7 @@ model User {
   profile       UserProfile?
   scans         Scan[]
   favorites     Favorite[]
+  familyMembers FamilyMember[]
 
   @@map("users")
 }
@@ -209,6 +210,7 @@ model Scan {
   personalAnalysisJobId   String?
   evaluation              Json?
   personalResult          Json?
+  multiProfileResult      Json?
   createdAt               DateTime                @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
@@ -239,4 +241,21 @@ model ProductIngredientCache {
 
   @@unique([barcode, profileHash])
   @@map("product_ingredient_cache")
+}
+
+model FamilyMember {
+  id                  String              @id @default(cuid())
+  userId              String
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  mainGoal            MainGoal?
+  restrictions        Restriction[]       @default([])
+  allergies           Allergy[]           @default([])
+  otherAllergiesText  String?
+  nutritionPriorities NutritionPriority[] @default([])
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([userId])
+  @@map("family_members")
 }

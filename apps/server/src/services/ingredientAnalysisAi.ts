@@ -7,10 +7,16 @@ import type {
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 
 import { AI_MODELS } from './prompts';
-import { ingredientAnalysisResultSchema } from './ingredientAnalysisSchema';
+import {
+  ingredientAnalysisResultSchema,
+  multiProfileIngredientResultSchema,
+} from './ingredientAnalysisSchema';
 import {
   INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
+  MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
   buildIngredientAnalysisPrompt,
+  buildMultiProfileIngredientAnalysisPrompt,
+  type ProfileForPrompt,
 } from './ingredientAnalysisPrompts';
 import { extractIngredients } from './ingredientExtraction';
 
@@ -74,6 +80,65 @@ export class IngredientAnalysisAiService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Ingredient analysis AI failed: ${message}`);
       return null;
+    }
+  }
+
+  /**
+   * Analyze ingredients for multiple profiles in a SINGLE AI request.
+   * Returns a Map from profile label → IngredientAnalysisResult.
+   */
+  async analyzeProductMultiProfile(
+    product: BarcodeLookupProduct,
+    profiles: ProfileForPrompt[],
+  ): Promise<Map<string, IngredientAnalysisResult>> {
+    const resultMap = new Map<string, IngredientAnalysisResult>();
+
+    if (!process.env.OPENAI_API_KEY || profiles.length === 0) {
+      return resultMap;
+    }
+
+    const rawIngredients = extractIngredients(product);
+    if (!rawIngredients || rawIngredients.length === 0) {
+      return resultMap;
+    }
+
+    const ingredients = rawIngredients.slice(0, MAX_INGREDIENTS);
+
+    try {
+      const userMessage = buildMultiProfileIngredientAnalysisPrompt(product, ingredients, profiles);
+      console.log('[IngredientAnalysis] Multi-profile prompt:\n', userMessage);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const structuredModel = (this.model as any).withStructuredOutput(
+        multiProfileIngredientResultSchema,
+      );
+
+      const result = await structuredModel.invoke([
+        { role: 'system', content: MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ]);
+
+      const parsed = multiProfileIngredientResultSchema.parse(result);
+
+      for (const entry of parsed.profiles) {
+        const profileResult: IngredientAnalysisResult = {
+          ingredients: entry.ingredients,
+          summary: entry.summary,
+        };
+        const validated = ingredientAnalysisResultSchema.safeParse(profileResult);
+        if (validated.success && validated.data.ingredients.length > 0) {
+          resultMap.set(entry.profileLabel, validated.data);
+        }
+      }
+
+      console.log(
+        `[IngredientAnalysis] Multi-profile result: ${resultMap.size}/${profiles.length} profiles`,
+      );
+      return resultMap;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Multi-profile ingredient analysis AI failed: ${message}`);
+      return resultMap;
     }
   }
 }

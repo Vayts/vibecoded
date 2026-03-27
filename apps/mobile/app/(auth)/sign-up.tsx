@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { Typography } from '../../shared/components/Typography';
@@ -30,6 +30,7 @@ export default function SignUpScreen() {
       className="flex-1 bg-white"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
       <View className="flex-1 justify-center px-6">
         <Typography variant="hero" className="mb-2">
           Create account
@@ -102,6 +103,7 @@ export default function SignUpScreen() {
           </Link>
         </View>
       </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }

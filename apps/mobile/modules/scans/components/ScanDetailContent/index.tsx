@@ -8,6 +8,7 @@ import {
   type ScannerResultTabKey,
 } from '../../../scanner/components/ScannerResultSheet/ScannerResultTabs';
 import { OverallTabContent } from '../../../scanner/components/ScannerResultSheet/OverallTabContent';
+import { PersonalTabContent } from '../../../scanner/components/ScannerResultSheet/PersonalTabContent';
 import { Typography } from '../../../../shared/components/Typography';
 import { ScoreSummary } from '../../../scanner/components/ScannerResultSheet/ScoreSummary';
 import { EvaluationSection } from '../../../scanner/components/ScannerResultSheet/EvaluationSection';
@@ -64,12 +65,25 @@ export function ScanDetailContent({ scan }: ScanDetailContentProps) {
             </Typography>
           </View>
         ) : selectedTab === 'personal' ? (
-          <PersonalResultFromScan
-            hasResult={hasPersonalResult}
-            isPending={isPersonalPending}
-            isFailed={isPersonalFailed}
-            personalResult={scan.personalResult}
-          />
+          scan.multiProfileResult ? (
+            <PersonalTabContent
+              personalResult={{
+                jobId: scan.id,
+                status: scan.personalAnalysisStatus === 'completed' ? 'completed' : 'failed',
+                result: scan.multiProfileResult,
+                ingredientAnalysisStatus: 'completed',
+              }}
+              isError={isPersonalFailed}
+              onRetry={() => {}}
+            />
+          ) : (
+            <PersonalResultFromScan
+              hasResult={hasPersonalResult}
+              isPending={isPersonalPending}
+              isFailed={isPersonalFailed}
+              personalResult={scan.personalResult}
+            />
+          )
         ) : null}
       </View>
     </View>

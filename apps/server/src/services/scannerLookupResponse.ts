@@ -2,10 +2,11 @@ import type {
   BarcodeLookupNotFoundResponse,
   BarcodeLookupProduct,
   BarcodeLookupSuccessResponse,
+  MultiProfilePersonalAnalysisResult,
   PersonalAnalysisResult,
   ScannerLookupSource,
 } from '@acme/shared';
-import { personalAnalysisResultSchema } from '@acme/shared';
+import { multiProfilePersonalAnalysisResultSchema, personalAnalysisResultSchema } from '@acme/shared';
 
 import { buildProductAnalysisFallback } from './productAnalysisFallback';
 import { createPersonalAnalysisJob, createCachedPersonalAnalysisJob } from './personalAnalysisJobs';
@@ -35,6 +36,7 @@ export const createScanSuccessResponse = async (
 
   let scanId: string | undefined;
   let cachedPersonalResult: PersonalAnalysisResult | undefined;
+  let cachedMultiProfileResult: MultiProfilePersonalAnalysisResult | undefined;
 
   if (userId) {
     // 4h window: don't create a new scan for the same product
@@ -52,6 +54,15 @@ export const createScanSuccessResponse = async (
         const parsed = personalAnalysisResultSchema.safeParse(existing.personalResult);
         if (parsed.success) {
           cachedPersonalResult = parsed.data;
+        }
+        // Also restore multi-profile result (includes family members)
+        if (existing.multiProfileResult) {
+          const multiParsed = multiProfilePersonalAnalysisResultSchema.safeParse(
+            existing.multiProfileResult,
+          );
+          if (multiParsed.success) {
+            cachedMultiProfileResult = multiParsed.data;
+          }
         }
       }
     } else {
@@ -71,7 +82,7 @@ export const createScanSuccessResponse = async (
   }
 
   const personalAnalysis = cachedPersonalResult
-    ? createCachedPersonalAnalysisJob(cachedPersonalResult)
+    ? createCachedPersonalAnalysisJob(cachedPersonalResult, cachedMultiProfileResult)
     : createPersonalAnalysisJob(product, userId, scanId);
 
   return {

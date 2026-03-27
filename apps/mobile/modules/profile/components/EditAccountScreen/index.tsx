@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../../shared/components/Button';
@@ -40,8 +40,13 @@ export function EditAccountScreen() {
   };
 
   return (
-    <View
-      className="flex-1 bg-white px-4"
+    <KeyboardAvoidingView
+      className="flex-1 bg-white"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+    <Pressable
+      className="flex-1 px-4"
+      onPress={Keyboard.dismiss}
       style={{ paddingBottom: Math.max(insets.bottom, 8) }}
     >
       <View className="mt-6">
@@ -73,6 +78,7 @@ export function EditAccountScreen() {
           }}
         />
       </View>
-    </View>
+    </Pressable>
+    </KeyboardAvoidingView>
   );
 }

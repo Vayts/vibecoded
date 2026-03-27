@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  mainGoalSchema,
+  restrictionSchema,
+  allergySchema,
+  nutritionPrioritySchema,
+} from './onboarding';
 
 // ============================================================
 // Scanner schemas
@@ -235,6 +241,39 @@ export const scanHistoryResponseSchema = z.object({
 });
 export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
 
+// ============================================================
+// Multi-profile personal analysis schemas
+// ============================================================
+
+export const profileFitChipSchema = z.object({
+  profileId: z.string(),
+  profileName: z.string(),
+  fitScore: z.number().min(0).max(100),
+  fitLabel: personalFitLabelSchema,
+});
+export type ProfileFitChip = z.infer<typeof profileFitChipSchema>;
+
+export const profileAnalysisDetailSchema = personalAnalysisResultSchema;
+export type ProfileAnalysisDetail = z.infer<typeof profileAnalysisDetailSchema>;
+
+export const multiProfilePersonalAnalysisResultSchema = z.object({
+  profiles: z.array(profileFitChipSchema),
+  detailsByProfile: z.record(z.string(), personalAnalysisResultSchema),
+});
+export type MultiProfilePersonalAnalysisResult = z.infer<
+  typeof multiProfilePersonalAnalysisResultSchema
+>;
+
+export const multiProfilePersonalAnalysisJobResponseSchema = z.object({
+  jobId: z.string(),
+  status: personalAnalysisJobStatusSchema,
+  result: multiProfilePersonalAnalysisResultSchema.optional(),
+  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
+});
+export type MultiProfilePersonalAnalysisJobResponse = z.infer<
+  typeof multiProfilePersonalAnalysisJobResponseSchema
+>;
+
 export const scanDetailResponseSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
@@ -248,6 +287,7 @@ export const scanDetailResponseSchema = z.object({
   product: barcodeLookupProductSchema.nullable(),
   evaluation: productAnalysisResultSchema.nullable(),
   personalResult: personalAnalysisResultSchema.nullable(),
+  multiProfileResult: multiProfilePersonalAnalysisResultSchema.nullable().optional(),
 });
 export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
 
@@ -285,3 +325,38 @@ export const favouriteStatusResponseSchema = z.object({
   isFavourite: z.boolean(),
 });
 export type FavouriteStatusResponse = z.infer<typeof favouriteStatusResponseSchema>;
+
+// ============================================================
+// Family member schemas
+// ============================================================
+
+export const familyMemberSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(50),
+  mainGoal: mainGoalSchema.nullable(),
+  restrictions: z.array(restrictionSchema),
+  allergies: z.array(allergySchema),
+  otherAllergiesText: z.string().nullable(),
+  nutritionPriorities: z.array(nutritionPrioritySchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type FamilyMember = z.infer<typeof familyMemberSchema>;
+
+export const createFamilyMemberRequestSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
+  mainGoal: mainGoalSchema.nullable().optional(),
+  restrictions: z.array(restrictionSchema).optional().default([]),
+  allergies: z.array(allergySchema).optional().default([]),
+  otherAllergiesText: z.string().nullable().optional(),
+  nutritionPriorities: z.array(nutritionPrioritySchema).optional().default([]),
+});
+export type CreateFamilyMemberRequest = z.infer<typeof createFamilyMemberRequestSchema>;
+
+export const updateFamilyMemberRequestSchema = createFamilyMemberRequestSchema.partial();
+export type UpdateFamilyMemberRequest = z.infer<typeof updateFamilyMemberRequestSchema>;
+
+export const familyMembersResponseSchema = z.object({
+  items: z.array(familyMemberSchema),
+});
+export type FamilyMembersResponse = z.infer<typeof familyMembersResponseSchema>;

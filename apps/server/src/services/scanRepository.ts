@@ -1,4 +1,4 @@
-import type { ProductAnalysisResult, PersonalAnalysisResult } from '@acme/shared';
+import type { ProductAnalysisResult, PersonalAnalysisResult, MultiProfilePersonalAnalysisResult } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 import type { ScanSource, PersonalAnalysisStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -46,12 +46,16 @@ export const updateScanPersonalResult = async (
   scanId: string,
   status: PersonalAnalysisStatus,
   result?: PersonalAnalysisResult,
+  multiProfile?: MultiProfilePersonalAnalysisResult,
 ) => {
   return prisma.scan.update({
     where: { id: scanId },
     data: {
       personalAnalysisStatus: status,
       personalResult: result ? (result as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      multiProfileResult: multiProfile
+        ? (multiProfile as unknown as Prisma.InputJsonValue)
+        : undefined,
     },
   });
 };

@@ -7,6 +7,7 @@ import { Typography } from '../../../../shared/components/Typography';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
+import { FamilyMemberList } from '../../../family/components/FamilyMemberList';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
 import { ProfileMenuRow } from '../ProfileMenuRow';
 import { ProfileMenuSection } from '../ProfileMenuSection';
@@ -71,6 +72,20 @@ export function ProfileScreen() {
             subtitle={getHealthSummary(onboardingQuery.data)}
             onPress={() => {
               router.push('/(tabs)/profile/edit-health');
+            }}
+          />
+        </ProfileMenuSection>
+
+        <ProfileMenuSection title="Family members">
+          <FamilyMemberList
+            onAdd={() => {
+              router.push('/(tabs)/profile/add-family-member');
+            }}
+            onEdit={(member) => {
+              router.push({
+                pathname: '/(tabs)/profile/edit-family-member',
+                params: { id: member.id },
+              });
             }}
           />
         </ProfileMenuSection>

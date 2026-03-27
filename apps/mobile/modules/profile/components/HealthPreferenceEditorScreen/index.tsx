@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, View } from 'react-native';
 
 import { Button } from '../../../../shared/components/Button';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
@@ -67,6 +67,7 @@ export function HealthPreferenceEditorScreen({
 
   return (
     <View className="flex-1 bg-white">
+      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
       <ScrollView
         className="flex-1"
         contentInsetAdjustmentBehavior="never"
@@ -74,6 +75,7 @@ export function HealthPreferenceEditorScreen({
           paddingBottom: 30,
           paddingHorizontal: 16,
         }}
+        keyboardShouldPersistTaps="handled"
       >
         <View className="mt-2">
           <Typography variant="pageTitle">{title}</Typography>
@@ -92,6 +94,7 @@ export function HealthPreferenceEditorScreen({
           </Typography>
         ) : null}
       </ScrollView>
+      </Pressable>
 
       <View className="border-t border-gray-100 px-4 pt-3 pb-8">
         <Button

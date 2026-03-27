@@ -1,4 +1,7 @@
-import { personalAnalysisJobResponseSchema, type PersonalAnalysisJobResponse } from '@acme/shared';
+import {
+  multiProfilePersonalAnalysisJobResponseSchema,
+  type MultiProfilePersonalAnalysisJobResponse,
+} from '@acme/shared';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../../shared/lib/client/client';
 
@@ -11,7 +14,9 @@ const getErrorMessage = async (response: Response): Promise<string> => {
   return json?.error ?? 'Unable to load personal analysis';
 };
 
-const fetchPersonalAnalysisJob = async (jobId: string): Promise<PersonalAnalysisJobResponse> => {
+const fetchPersonalAnalysisJob = async (
+  jobId: string,
+): Promise<MultiProfilePersonalAnalysisJobResponse> => {
   const response = await apiFetch(`/api/scanner/personal-analysis/${jobId}`);
 
   if (!response.ok) {
@@ -19,7 +24,7 @@ const fetchPersonalAnalysisJob = async (jobId: string): Promise<PersonalAnalysis
   }
 
   const json = await response.json();
-  return personalAnalysisJobResponseSchema.parse(json);
+  return multiProfilePersonalAnalysisJobResponseSchema.parse(json);
 };
 
 export const getPersonalAnalysisQueryKey = (jobId?: string) => {
@@ -28,7 +33,7 @@ export const getPersonalAnalysisQueryKey = (jobId?: string) => {
 
 export const usePersonalAnalysisQuery = (
   jobId?: string,
-  initialStatus?: PersonalAnalysisJobResponse['status'],
+  initialStatus?: MultiProfilePersonalAnalysisJobResponse['status'],
 ) => {
   return useQuery({
     queryKey: getPersonalAnalysisQueryKey(jobId),

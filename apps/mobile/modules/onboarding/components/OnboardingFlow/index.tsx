@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Button } from '../../../../shared/components/Button';
@@ -89,6 +89,7 @@ export function OnboardingFlow() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1"
       >
+        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
         <ScrollView
           ref={scrollViewRef}
           automaticallyAdjustContentInsets={false}
@@ -144,6 +145,7 @@ export function OnboardingFlow() {
             </View>
           </View>
         </ScrollView>
+        </Pressable>
       </KeyboardAvoidingView>
     </View>
   );
