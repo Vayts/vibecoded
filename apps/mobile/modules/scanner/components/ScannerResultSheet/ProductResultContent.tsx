@@ -48,7 +48,12 @@ export function ProductResultContent({
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="max-h-[560px]">
-      <ProductResultHeader product={product} previewImageUri={previewImageUri} />
+      <ProductResultHeader
+        product={product}
+        previewImageUri={previewImageUri}
+        productId={result.productId}
+        isFavourite={result.isFavourite}
+      />
 
       {isPersonalOnly ? null : <NutriScoreBlock grade={product.scores.nutriscore_grade} />}
 

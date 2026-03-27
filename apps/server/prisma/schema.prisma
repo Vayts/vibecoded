@@ -36,6 +36,7 @@ model User {
   accounts      Account[]
   profile       UserProfile?
   scans         Scan[]
+  favorites     Favorite[]
 
   @@map("users")
 }
@@ -178,6 +179,7 @@ model Product {
   updatedAt        DateTime @updatedAt
 
   scans            Scan[]
+  favorites        Favorite[]
 
   @@map("products")
 }
@@ -211,6 +213,19 @@ model Scan {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("scans")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("favorites")
 }
 
 /// Caches AI ingredient analysis per product+profile combo to avoid redundant AI calls.

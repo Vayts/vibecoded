@@ -39,7 +39,11 @@ export function ScanDetailContent({ scan }: ScanDetailContentProps) {
 
   return (
     <View>
-      <ProductResultHeader product={scan.product} />
+      <ProductResultHeader
+        product={scan.product}
+        productId={scan.productId}
+        isFavourite={scan.isFavourite}
+      />
 
       <NutriScoreBlock grade={scan.product.scores.nutriscore_grade} />
 

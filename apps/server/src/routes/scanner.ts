@@ -4,6 +4,8 @@ import { auth } from '../lib/auth';
 import { lookupProductByBarcode, OpenFoodFactsLookupError } from '../services/openFoodFacts';
 import { getPersonalAnalysisJob } from '../services/personalAnalysisJobs';
 import { lookupProductByPhoto, ProductPhotoLookupError } from '../services/productPhotoLookup';
+import { isFavouriteByBarcode } from '../services/favoriteRepository';
+import { findProductIdByBarcode } from '../services/scanRepository';
 
 export const scannerRoute = new Hono();
 
@@ -29,6 +31,20 @@ scannerRoute.post('/barcode', async (c) => {
   try {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     const response = await lookupProductByBarcode(parsed.data.barcode, session?.user?.id);
+
+    if (response.success && session?.user?.id) {
+      const [isFav, productId] = await Promise.all([
+        isFavouriteByBarcode(session.user.id, response.barcode),
+        findProductIdByBarcode(response.barcode),
+      ]);
+      return c.json({ ...response, isFavourite: isFav, productId: productId ?? undefined });
+    }
+
+    if (response.success) {
+      const productId = await findProductIdByBarcode(response.barcode);
+      return c.json({ ...response, productId: productId ?? undefined });
+    }
+
     return c.json(response);
   } catch (error) {
     if (error instanceof OpenFoodFactsLookupError) {
@@ -57,6 +73,20 @@ scannerRoute.post('/photo', async (c) => {
   try {
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     const response = await lookupProductByPhoto(upload, session?.user?.id);
+
+    if (response.success && session?.user?.id) {
+      const [isFav, productId] = await Promise.all([
+        isFavouriteByBarcode(session.user.id, response.barcode),
+        findProductIdByBarcode(response.barcode),
+      ]);
+      return c.json({ ...response, isFavourite: isFav, productId: productId ?? undefined });
+    }
+
+    if (response.success) {
+      const productId = await findProductIdByBarcode(response.barcode);
+      return c.json({ ...response, productId: productId ?? undefined });
+    }
+
     return c.json(response);
   } catch (error) {
     if (error instanceof ProductPhotoLookupError) {

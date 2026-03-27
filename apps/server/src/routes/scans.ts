@@ -4,6 +4,7 @@ import { auth } from '../lib/auth';
 import { findScanById, findScansByUserId } from '../services/scanRepository';
 import { normalizedProductSchema } from '@acme/shared';
 import { productAnalysisResultSchema, personalAnalysisResultSchema } from '@acme/shared';
+import { getFavouriteProductIds, isFavourite } from '../services/favoriteRepository';
 
 export const scansRoute = new Hono();
 
@@ -18,6 +19,11 @@ scansRoute.get('/history', async (c) => {
 
   const { items, nextCursor } = await findScansByUserId(session.user.id, cursor, limit);
 
+  const productIds = items
+    .map((s) => s.product?.id)
+    .filter((id): id is string => id != null);
+  const favouriteSet = await getFavouriteProductIds(session.user.id, productIds);
+
   const historyItems: ScanHistoryItem[] = items.map((scan) => {
     const personal = scan.personalResult as { fitScore?: number; fitLabel?: string } | null;
     return {
@@ -29,6 +35,7 @@ scansRoute.get('/history', async (c) => {
       personalScore: personal?.fitScore ?? null,
       personalRating: (personal?.fitLabel as ScanHistoryItem['personalRating']) ?? null,
       personalAnalysisStatus: scan.personalAnalysisStatus,
+      isFavourite: scan.product ? favouriteSet.has(scan.product.id) : false,
       product: scan.product
         ? {
             id: scan.product.id,
@@ -101,6 +108,10 @@ scansRoute.get('/:id', async (c) => {
     }
   }
 
+  const isFav = scan.productId
+    ? await isFavourite(session.user.id, scan.productId)
+    : false;
+
   const response: ScanDetailResponse = {
     id: scan.id,
     createdAt: scan.createdAt.toISOString(),
@@ -109,6 +120,8 @@ scansRoute.get('/:id', async (c) => {
     overallRating: scan.overallRating,
     personalAnalysisStatus: scan.personalAnalysisStatus,
     barcode: scan.barcode,
+    productId: scan.productId ?? null,
+    isFavourite: isFav,
     product,
     evaluation,
     personalResult,

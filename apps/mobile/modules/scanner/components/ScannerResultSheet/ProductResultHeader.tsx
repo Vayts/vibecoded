@@ -4,17 +4,30 @@ import { Image, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { getProductImageUri } from './productResultHelpers';
+import { FavouriteButton } from './FavouriteButton';
 
 interface ProductResultHeaderProps {
   product: BarcodeLookupProduct;
   previewImageUri?: string | null;
+  productId?: string | null;
+  isFavourite?: boolean;
 }
 
-export function ProductResultHeader({ product, previewImageUri }: ProductResultHeaderProps) {
+export function ProductResultHeader({
+  product,
+  previewImageUri,
+  productId,
+  isFavourite,
+}: ProductResultHeaderProps) {
   const imageUri = getProductImageUri(product, previewImageUri);
 
   return (
     <View className="rounded-xl border border-gray-100 bg-white px-4 py-4">
+      {productId ? (
+        <View className="absolute right-2 top-2 z-10">
+          <FavouriteButton productId={productId} initialIsFavourite={isFavourite ?? false} />
+        </View>
+      ) : null}
       <View className="flex-row gap-4">
         {imageUri ? (
           <Image
@@ -28,7 +41,7 @@ export function ProductResultHeader({ product, previewImageUri }: ProductResultH
           </View>
         )}
 
-        <View className="flex-1 justify-center">
+        <View className="mr-8 flex-1 justify-center">
           <Typography variant="sectionTitle" className="text-gray-900">
             {product.product_name ?? 'Unknown product'}
           </Typography>

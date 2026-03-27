@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { authRoute } from './routes/auth';
 import { analyticsRoute } from './routes/analytics';
+import { favouritesRoute } from './routes/favourites';
 import { healthRoute } from './routes/health';
 import { meRoute } from './routes/me';
 import { scannerRoute } from './routes/scanner';
@@ -30,6 +31,7 @@ app.use(
 app.route('/health', healthRoute);
 app.route('/api/auth', authRoute);
 app.route('/api/analytics', analyticsRoute);
+app.route('/api/favourites', favouritesRoute);
 app.route('/api/me', meRoute);
 app.route('/api/scanner', scannerRoute);
 app.route('/api/scans', scansRoute);

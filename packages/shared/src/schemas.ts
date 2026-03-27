@@ -175,6 +175,8 @@ export const barcodeLookupSuccessResponseSchema = z.object({
   product: barcodeLookupProductSchema,
   evaluation: productAnalysisResultSchema,
   personalAnalysis: personalAnalysisJobSchema,
+  productId: z.string().optional(),
+  isFavourite: z.boolean().optional(),
 });
 export type BarcodeLookupSuccessResponse = z.infer<typeof barcodeLookupSuccessResponseSchema>;
 
@@ -214,6 +216,7 @@ export const scanHistoryItemSchema = z.object({
   personalScore: z.number().nullable(),
   personalRating: personalFitLabelSchema.nullable(),
   personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  isFavourite: z.boolean().optional(),
   product: z
     .object({
       id: z.string(),
@@ -240,6 +243,8 @@ export const scanDetailResponseSchema = z.object({
   overallRating: z.string().nullable(),
   personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
   barcode: z.string().nullable(),
+  productId: z.string().nullable().optional(),
+  isFavourite: z.boolean().optional(),
   product: barcodeLookupProductSchema.nullable(),
   evaluation: productAnalysisResultSchema.nullable(),
   personalResult: personalAnalysisResultSchema.nullable(),
@@ -255,3 +260,28 @@ export const errorResponseSchema = z.object({
   code: z.string(),
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+// ============================================================
+// Favorites schemas
+// ============================================================
+
+export const addFavouriteRequestSchema = z.object({
+  productId: z.string().min(1, 'Product ID is required'),
+});
+export type AddFavouriteRequest = z.infer<typeof addFavouriteRequestSchema>;
+
+export const favouriteItemSchema = scanHistoryItemSchema.extend({
+  favouriteId: z.string(),
+});
+export type FavouriteItem = z.infer<typeof favouriteItemSchema>;
+
+export const favouritesResponseSchema = z.object({
+  items: z.array(favouriteItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type FavouritesResponse = z.infer<typeof favouritesResponseSchema>;
+
+export const favouriteStatusResponseSchema = z.object({
+  isFavourite: z.boolean(),
+});
+export type FavouriteStatusResponse = z.infer<typeof favouriteStatusResponseSchema>;
