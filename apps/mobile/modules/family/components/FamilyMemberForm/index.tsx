@@ -11,6 +11,7 @@ import {
   FAMILY_MEMBER_STEP_COUNT,
 } from '../../stores/familyMemberFormStore';
 import { FamilyMemberStepContent } from './steps';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 const STEP_TITLES = ['Name', 'Main goal', 'Restrictions', 'Allergies', 'Nutrition priorities'];
 
@@ -85,12 +86,12 @@ export function FamilyMemberForm({
         className="flex-1"
       >
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-          <ScrollView
-            ref={scrollViewRef}
+          <KeyboardAwareScrollView
+            bottomOffset={200}
             automaticallyAdjustContentInsets={false}
             automaticallyAdjustsScrollIndicatorInsets={false}
             contentInsetAdjustmentBehavior="never"
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -126,11 +127,7 @@ export function FamilyMemberForm({
                 </Typography>
               ) : null}
 
-              <View className="mt-6 gap-3">
-                {step > 0 ? (
-                  <Button fullWidth label="Back" onPress={prevStep} variant="ghost" />
-                ) : null}
-
+              <View className="mt-6 gap-1">
                 {isLastStep ? (
                   <Button
                     fullWidth
@@ -148,9 +145,13 @@ export function FamilyMemberForm({
                     onPress={handleContinue}
                   />
                 )}
+
+                {step > 0 ? (
+                  <Button fullWidth label="Back" onPress={prevStep} variant="ghost" />
+                ) : null}
               </View>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </Pressable>
       </KeyboardAvoidingView>
     </View>

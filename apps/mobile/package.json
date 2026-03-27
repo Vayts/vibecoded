@@ -60,6 +60,7 @@
     "@babel/core": "^7.25.2",
     "@babel/runtime": "^7.25.0",
     "@types/react": "~19.1.10",
+    "react-native-svg-transformer": "^1.5.3",
     "typescript": "^5.7.3"
   }
 }

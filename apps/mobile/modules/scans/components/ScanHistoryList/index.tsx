@@ -6,7 +6,7 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useScanHistoryQuery } from '../../hooks/useScanHistoryQuery';
 import { Button } from '../../../../shared/components/Button';
-import { ScanLine } from 'lucide-react-native';
+import ScanningArrow from '../../../../assets/scanning_arrow.svg';
 
 interface ScanHistoryListProps {
   onScanPress: (item: ScanHistoryItem) => void;
@@ -15,15 +15,20 @@ interface ScanHistoryListProps {
 function EmptyState() {
   return (
     <View className="flex-1 items-center justify-center px-8 py-20">
-      <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-        <ScanLine color={COLORS.primary} size={28} />
+      
+      <View
+        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
+      />
+
+      <Typography variant="hero" className="text-center">
+        Start scanning your products
+      </Typography>
+      <Typography className="text-center mt-4 px-4">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+      </Typography>
+      <View className="mb-4 mt-8">
+        <ScanningArrow width={80} height={160} />
       </View>
-      <Typography variant="sectionTitle" className="text-center">
-        No scans yet
-      </Typography>
-      <Typography variant="bodySecondary" className="mt-2 text-center">
-        Your recent scanned products will appear here.
-      </Typography>
     </View>
   );
 }
@@ -107,7 +112,7 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : undefined}
+      contentContainerStyle={items.length === 0 ? { flex: 1 } : {paddingBottom: 60}}
     />
   );
 }

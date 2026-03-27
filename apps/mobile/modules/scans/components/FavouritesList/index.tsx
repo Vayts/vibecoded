@@ -107,7 +107,7 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : undefined}
+      contentContainerStyle={items.length === 0 ? { flex: 1 } : {paddingBottom: 60}}
     />
   );
 }

@@ -2,11 +2,15 @@ import type { BarcodeLookupProduct } from '@acme/shared';
 
 export const INGREDIENT_ANALYSIS_SYSTEM_PROMPT = `You classify food ingredients for a specific user. Return JSON only.
 
+DEFAULT RULE (MOST IMPORTANT):
+- The DEFAULT status for every ingredient is "neutral". Only change it if you can cite a SPECIFIC conflict or benefit from the user's profile.
+- If the user has NO dietary restrictions and NO allergies, almost ALL ingredients should be "neutral". Do NOT flag common food ingredients as "warning" or "bad" without a concrete reason tied to the user's profile.
+
 CLASSIFICATION RULES:
-- bad: ingredient clearly conflicts with user diet, allergies, or restrictions
-- warning: ingredient may be concerning for user's goals
-- neutral: ingredient has no strong relevance to user profile
-- good: ingredient is clearly beneficial for user's specific goals (use sparingly)
+- bad: ingredient DIRECTLY conflicts with a specific diet restriction or allergy listed in the user profile. You MUST name which restriction or allergy in the reason.
+- warning: ingredient is a known concern for a specific nutrition priority or goal listed in the user profile. You MUST name which priority or goal in the reason.
+- neutral: ingredient has no conflict with the user's restrictions, allergies, priorities, or goals. THIS IS THE DEFAULT.
+- good: ingredient directly supports a specific nutrition priority or goal listed in the user profile. Use sparingly. You MUST name which priority or goal in the reason.
 
 DIET ENFORCEMENT (CRITICAL — NEVER IGNORE):
 - If user diet is VEGAN: pork, beef, chicken, turkey, fish, seafood, shrimp, lamb, duck, bacon, ham, sausage, salami, gelatin, lard, tallow, suet, bone, collagen, whey, casein, lactose, milk, cream, butter, cheese, yogurt, egg, honey, carmine, shellac, lanolin, anchovy, and ALL animal-derived ingredients → status MUST be "bad"
@@ -16,23 +20,36 @@ DIET ENFORCEMENT (CRITICAL — NEVER IGNORE):
 
 ALLERGEN ENFORCEMENT (CRITICAL):
 - If an ingredient matches ANY of the user's listed allergies → status MUST be "bad"
+- If the user has NO allergies listed, do NOT flag ingredients as allergens
 
 NUTRITION CROSS-CHECK:
 - If nutrition data shows 0g for a substance, the related ingredient is present in negligible amounts → status should be "neutral" not "warning"
 
+REASON FORMAT:
+- Each reason MUST reference the specific profile attribute (restriction, allergy, priority, or goal) that justifies the status
+- For "neutral" ingredients, reason should be "No conflict with profile"
+- For "bad": e.g. "Contains gluten — conflicts with GLUTEN-FREE diet"
+- For "warning": e.g. "High sodium — conflicts with LOW_SODIUM priority"
+- For "good": e.g. "High fiber — supports WEIGHT_LOSS goal"
+- Max 12 words
+
 OTHER RULES:
 - Normalize each ingredient name to canonical English
 - Do NOT invent ingredients not in the list
-- Reasons: max 8 words
-- Summary: one short sentence about overall compatibility`;
+- Summary: one short sentence about overall compatibility
+- When in doubt, use "neutral" — do NOT guess or assume conflicts`;
 
 export const MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT = `You classify food ingredients for MULTIPLE user profiles in a single response. Return JSON only.
 
+DEFAULT RULE (MOST IMPORTANT):
+- The DEFAULT status for every ingredient is "neutral". Only change it if you can cite a SPECIFIC conflict or benefit from THAT profile's attributes.
+- If a profile has NO dietary restrictions and NO allergies, almost ALL ingredients should be "neutral" for that profile. Do NOT flag common food ingredients without a concrete reason tied to that profile.
+
 CLASSIFICATION RULES (apply per profile independently):
-- bad: ingredient clearly conflicts with that profile's diet, allergies, or restrictions
-- warning: ingredient may be concerning for that profile's goals
-- neutral: ingredient has no strong relevance to that profile
-- good: ingredient is clearly beneficial for that profile's specific goals (use sparingly)
+- bad: ingredient DIRECTLY conflicts with a specific diet restriction or allergy listed in THAT profile. You MUST name which restriction or allergy in the reason.
+- warning: ingredient is a known concern for a specific nutrition priority or goal listed in THAT profile. You MUST name which priority or goal in the reason.
+- neutral: ingredient has no conflict with that profile's restrictions, allergies, priorities, or goals. THIS IS THE DEFAULT.
+- good: ingredient directly supports a specific nutrition priority or goal listed in THAT profile. Use sparingly. You MUST name which priority or goal in the reason.
 
 DIET ENFORCEMENT (CRITICAL — NEVER IGNORE — apply per profile):
 - If profile diet is VEGAN: pork, beef, chicken, turkey, fish, seafood, shrimp, lamb, duck, bacon, ham, sausage, salami, gelatin, lard, tallow, suet, bone, collagen, whey, casein, lactose, milk, cream, butter, cheese, yogurt, egg, honey, carmine, shellac, lanolin, anchovy, and ALL animal-derived ingredients → status MUST be "bad"
@@ -42,17 +59,26 @@ DIET ENFORCEMENT (CRITICAL — NEVER IGNORE — apply per profile):
 
 ALLERGEN ENFORCEMENT (CRITICAL — apply per profile):
 - If an ingredient matches ANY of that profile's listed allergies → status MUST be "bad"
+- If the profile has NO allergies listed, do NOT flag ingredients as allergens
 
 NUTRITION CROSS-CHECK:
 - If nutrition data shows 0g for a substance, the related ingredient is present in negligible amounts → status should be "neutral" not "warning"
+
+REASON FORMAT:
+- Each reason MUST reference the specific profile attribute (restriction, allergy, priority, or goal) that justifies the status
+- For "neutral" ingredients, reason should be "No conflict with profile"
+- For "bad": e.g. "Contains gluten — conflicts with GLUTEN-FREE diet"
+- For "warning": e.g. "High sodium — conflicts with LOW_SODIUM priority"
+- For "good": e.g. "High fiber — supports WEIGHT_LOSS goal"
+- Max 12 words
 
 OTHER RULES:
 - Analyze the SAME ingredient list for EACH profile independently
 - Normalize each ingredient name to canonical English
 - Do NOT invent ingredients not in the list
-- Reasons: max 8 words
 - Summary: one short sentence about overall compatibility for that specific profile
-- Return results for ALL profiles listed in the prompt`;
+- Return results for ALL profiles listed in the prompt
+- When in doubt, use "neutral" — do NOT guess or assume conflicts`;
 
 const RESTRICTION_LABELS: Record<string, string> = {
   VEGAN: 'VEGAN (no animal products at all)',

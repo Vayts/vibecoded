@@ -25,9 +25,9 @@ export function DiscoverTabChips({ selected, onSelect }: DiscoverTabChipsProps) 
             onPress={() => onSelect(tab.key)}
             accessibilityRole="button"
             accessibilityLabel={`${tab.label} tab`}
-            className="rounded-full px-4 py-2"
+            className="rounded-full px-4 py-4"
             style={{
-              backgroundColor: isSelected ? COLORS.primary : COLORS.gray100,
+              backgroundColor: isSelected ? COLORS.primary : COLORS.neutrals200,
             }}
           >
             <Typography

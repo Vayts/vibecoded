@@ -19,9 +19,6 @@ export function ScansTabScreen() {
 
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      <View className="px-4 pb-2 pt-4">
-        <Typography variant="hero">Discover</Typography>
-      </View>
       <DiscoverTabChips selected={activeTab} onSelect={setActiveTab} />
       {activeTab === 'history' ? (
         <ScanHistoryList onScanPress={handleScanPress} />

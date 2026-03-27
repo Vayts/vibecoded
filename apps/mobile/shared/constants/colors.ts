@@ -10,10 +10,15 @@
  */
 export const COLORS = {
   // ── Brand ─────────────────────────────────────────────
-  primary: '#2563EB', // Acme Blue (blue-600) — CTAs, links, active states
+  primary: '#205B23', // Acme Blue (blue-600) — CTAs, links, active states
   primaryDark: '#1D4ED8', // Deep Blue (blue-700) — pressed / hover
   primaryLight: '#DBEAFE', // Light Blue (blue-100) — subtle backgrounds, badges
   primaryBorder: '#93C5FD',
+
+  accent: '#E28200', // violet-600 — Pro / premium badge
+
+  neutrals900: '#1A1A1A',
+  neutrals200: '#E6E6E6',
 
   // ── Semantic ──────────────────────────────────────────
   success: '#16A34A', // green-600 — correct answers, streaks

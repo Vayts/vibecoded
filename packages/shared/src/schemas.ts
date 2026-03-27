@@ -130,7 +130,7 @@ export const ingredientAnalysisItemSchema = z.object({
   normalized: z.string().describe('Normalized/translated canonical English form'),
   label: z.string().describe('UI-friendly display label'),
   status: ingredientStatusSchema.describe('How frontend should highlight the ingredient'),
-  reason: z.string().describe('Short explanation, 1 sentence max'),
+  reason: z.string().describe('Why this status was assigned — must reference the specific profile attribute (restriction, allergy, priority, or goal). Max 12 words.'),
   matchesUserPreference: z
     .boolean()
     .nullable()
