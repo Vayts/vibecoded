@@ -4,8 +4,8 @@ import { auth } from '../lib/auth';
 import { lookupProductByBarcode, OpenFoodFactsLookupError } from '../services/openFoodFacts';
 import { getPersonalAnalysisJob } from '../services/personalAnalysisJobs';
 import { lookupProductByPhoto, ProductPhotoLookupError } from '../services/productPhotoLookup';
-import { isFavouriteByBarcode } from '../services/favoriteRepository';
-import { findProductIdByBarcode } from '../services/scanRepository';
+import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
+import { findProductIdByBarcode } from '../repositories/scanRepository';
 
 export const scannerRoute = new Hono();
 

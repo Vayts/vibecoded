@@ -1,5 +1,5 @@
 import { lookupProductByBarcode } from './openFoodFacts';
-import { photoIdentificationSchema } from './productPhotoLookupSchema';
+import { photoIdentificationSchema } from '../domain/photo-lookup/schema';
 
 interface SearchHit {
   code?: unknown;

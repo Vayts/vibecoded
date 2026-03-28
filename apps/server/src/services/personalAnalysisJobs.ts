@@ -9,9 +9,9 @@ import type {
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { randomUUID } from 'node:crypto';
 
-import { buildPersonalProductAnalysis } from './personalProductAnalysis';
-import { updateScanPersonalResult } from './scanRepository';
-import { extractIngredients } from './ingredientExtraction';
+import { buildPersonalProductAnalysis } from '../domain/personal-analysis/build-personal-analysis';
+import { updateScanPersonalResult } from '../repositories/scanRepository';
+import { extractIngredients } from '../domain/ingredient-analysis/extraction';
 import { runIngredientAnalysisAsync } from './ingredientAnalysisRunner';
 import { getProfileInputs, type ProfileInput } from './profileInputs';
 

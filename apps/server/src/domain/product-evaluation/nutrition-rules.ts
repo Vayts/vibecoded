@@ -1,6 +1,6 @@
 import type { BarcodeLookupProduct } from '@acme/shared';
 
-import { createItem, type EvaluatorResult } from './productEvaluationShared';
+import { createItem, type EvaluatorResult } from './shared';
 
 export const evaluateSugar = (product: BarcodeLookupProduct): EvaluatorResult => {
   const sugar = product.nutrition.sugars_100g;

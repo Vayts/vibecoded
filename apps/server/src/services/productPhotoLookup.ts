@@ -2,8 +2,8 @@ import { barcodeLookupProductSchema, type BarcodeLookupResponse } from '@acme/sh
 import { ChatOpenAI, tools } from '@langchain/openai';
 import { z } from 'zod';
 
-import { enrichPhotoProduct } from './productPhotoEnrichment';
-import { getPhotoIdentificationPrompt, getPhotoResearchPrompt } from './productPhotoPrompts';
+import { enrichPhotoProduct } from '../domain/photo-lookup/enrichment';
+import { getPhotoIdentificationPrompt, getPhotoResearchPrompt } from '../domain/photo-lookup/prompts';
 import {
   extractJsonObject,
   getResponseText,
@@ -15,8 +15,8 @@ import {
   photoIdentificationSchema,
   PHOTO_SOURCE,
   researchedProductSchema,
-} from './productPhotoLookupSchema';
-import { AI_MODELS } from './prompts';
+} from '../domain/photo-lookup/schema';
+import { AI_MODELS } from '../domain/flashcards/prompts';
 import { createScanNotFoundResponse, createScanSuccessResponse } from './scannerLookupResponse';
 
 export class ProductPhotoLookupError extends Error {

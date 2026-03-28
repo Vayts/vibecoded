@@ -1,17 +1,17 @@
 import type { BarcodeLookupProduct, ProductEvaluation } from '@acme/shared';
 
-import { BASE_SCORE, clampScore, getRating } from './productEvaluationShared';
+import { BASE_SCORE, clampScore, getRating } from './shared';
 import {
   evaluateCalorieCoverage,
   evaluateFiberCoverage,
   evaluateProteinCoverage,
   evaluateSaltCoverage,
-} from './productEvaluationCoverageRules';
+} from './coverage-rules';
 import {
   evaluateAdditives,
   evaluateIngredients,
   evaluateNutriScore,
-} from './productEvaluationHeuristics';
+} from './heuristic-rules';
 import {
   evaluateCalories,
   evaluateFat,
@@ -19,7 +19,7 @@ import {
   evaluateProtein,
   evaluateSalt,
   evaluateSugar,
-} from './productEvaluationNutritionRules';
+} from './nutrition-rules';
 
 export const evaluateProduct = (product: BarcodeLookupProduct): ProductEvaluation => {
   const results = [

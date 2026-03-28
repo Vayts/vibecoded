@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import type { ScanDetailResponse, ScanHistoryItem } from '@acme/shared';
 import { auth } from '../lib/auth';
-import { findScanById, findScansByUserId } from '../services/scanRepository';
+import { findScanById, findScansByUserId } from '../repositories/scanRepository';
 import { normalizedProductSchema } from '@acme/shared';
 import { productAnalysisResultSchema, personalAnalysisResultSchema, multiProfilePersonalAnalysisResultSchema } from '@acme/shared';
-import { getFavouriteProductIds, isFavourite } from '../services/favoriteRepository';
+import { getFavouriteProductIds, isFavourite } from '../repositories/favoriteRepository';
 
 export const scansRoute = new Hono();
 

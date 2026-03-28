@@ -1,7 +1,7 @@
 import { barcodeLookupProductSchema } from '@acme/shared';
 
-import type { ResearchedProduct } from './productPhotoLookupSchema';
-import { photoIdentificationSchema } from './productPhotoLookupSchema';
+import type { ResearchedProduct } from './schema';
+import { photoIdentificationSchema } from './schema';
 
 const splitDelimitedValues = (value: string | null): string[] => {
   if (!value) {

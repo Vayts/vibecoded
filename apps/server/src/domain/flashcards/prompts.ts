@@ -12,6 +12,8 @@ export const AI_MODELS = {
   vision: 'gpt-4.1',
   /** Fast model for text-to-cards and structured output */
   mini: 'gpt-4o-mini',
+  /** Reasoning model for complex problem solving */
+  reason: 'gpt-5-mini'
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import type { BarcodeLookupProduct, OnboardingResponse } from '@acme/shared';
-import { RESTRICTION_RULE_TOKENS } from './restrictionTokens';
+import { RESTRICTION_RULE_TOKENS } from './restriction-tokens';
 
 interface RestrictionConflict {
   key: string;

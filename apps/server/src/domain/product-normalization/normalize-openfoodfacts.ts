@@ -4,7 +4,7 @@ import type {
   OpenFoodFactsNutriments,
   OpenFoodFactsProduct,
   OpenFoodFactsSelectedImages,
-} from './openFoodFactsTypes';
+} from './openfoodfacts-types';
 
 const normalizeNullableString = (value: unknown): string | null => {
   if (typeof value !== 'string') {

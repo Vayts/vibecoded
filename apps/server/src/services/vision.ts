@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { AI_MODELS } from './prompts';
+import { AI_MODELS } from '../domain/flashcards/prompts';
 
 /**
  * Extracts plain text from an image using GPT-4o vision.

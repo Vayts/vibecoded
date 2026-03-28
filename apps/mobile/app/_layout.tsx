@@ -11,15 +11,45 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toasts } from '@backpackapp-io/react-native-toast';
 import { queryClient } from '../shared/lib/query/queryClient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useSessionBootstrap();
+
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <KeyboardProvider>
-          <GestureHandlerRootView style={styles.container}>
+          <GestureHandlerRootView style={styles.container} className="font-sans">
             <SheetProvider>
               <Sheets />
               <Stack screenOptions={{ headerShown: false }}>

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { IngredientAnalysisResult, OnboardingResponse } from '@acme/shared';
-import { ingredientAnalysisResultSchema } from './ingredientAnalysisSchema';
+import { ingredientAnalysisResultSchema } from '../domain/ingredient-analysis/schema';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 

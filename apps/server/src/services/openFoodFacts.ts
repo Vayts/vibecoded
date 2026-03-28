@@ -1,7 +1,7 @@
 import type { BarcodeLookupNotFoundResponse, BarcodeLookupSuccessResponse } from '@acme/shared';
-import { normalizeOpenFoodFactsProduct } from './openFoodFactsNormalizer';
-import type { OpenFoodFactsProduct } from './openFoodFactsTypes';
-import { createProduct, findByBarcode } from './productRepository';
+import { normalizeOpenFoodFactsProduct } from '../domain/product-normalization/normalize-openfoodfacts';
+import type { OpenFoodFactsProduct } from '../domain/product-normalization/openfoodfacts-types';
+import { createProduct, findByBarcode } from '../repositories/productRepository';
 import { createScanNotFoundResponse, createScanSuccessResponse } from './scannerLookupResponse';
 
 const OFF_SOURCE = 'openfoodfacts';

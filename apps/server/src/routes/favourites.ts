@@ -8,7 +8,7 @@ import {
   findFavouritesByUserId,
   findLatestScansForProducts,
   isFavourite,
-} from '../services/favoriteRepository';
+} from '../repositories/favoriteRepository';
 
 export const favouritesRoute = new Hono();
 

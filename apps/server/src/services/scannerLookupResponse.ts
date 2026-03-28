@@ -8,9 +8,9 @@ import type {
 } from '@acme/shared';
 import { multiProfilePersonalAnalysisResultSchema, personalAnalysisResultSchema } from '@acme/shared';
 
-import { buildProductAnalysisFallback } from './productAnalysisFallback';
+import { buildProductAnalysisFallback } from '../domain/product-analysis/build-fallback-analysis';
 import { createPersonalAnalysisJob, createCachedPersonalAnalysisJob } from './personalAnalysisJobs';
-import { createScan, findProductIdByBarcode, findRecentScanByBarcode } from './scanRepository';
+import { createScan, findProductIdByBarcode, findRecentScanByBarcode } from '../repositories/scanRepository';
 
 const RESULT_CACHE_MS = 2 * 60 * 60 * 1000; // 2 hours
 

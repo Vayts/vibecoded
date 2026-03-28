@@ -16,7 +16,7 @@ const TABS: Array<{ key: DiscoverTab; label: string }> = [
 
 export function DiscoverTabChips({ selected, onSelect }: DiscoverTabChipsProps) {
   return (
-    <View className="flex-row gap-2 px-4 pb-3">
+    <View className="flex-row mt-4 gap-2 px-4 pb-3">
       {TABS.map((tab) => {
         const isSelected = tab.key === selected;
         return (

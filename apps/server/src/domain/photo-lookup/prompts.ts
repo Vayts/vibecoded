@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-import { photoIdentificationSchema } from './productPhotoLookupSchema';
+import { photoIdentificationSchema } from './schema';
 
 export const getPhotoIdentificationPrompt = () => {
   return `Analyze this packaged product photo conservatively.

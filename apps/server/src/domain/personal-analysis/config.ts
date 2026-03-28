@@ -4,29 +4,6 @@ import type {
   ProductAnalysisItem,
 } from '@acme/shared';
 
-export const allergyTokens: Record<string, string[]> = {
-  PEANUTS: ['peanut'],
-  TREE_NUTS: ['tree nut', 'hazelnut', 'almond', 'walnut', 'cashew', 'pistachio', 'nut'],
-  GLUTEN: ['gluten', 'wheat', 'barley', 'rye'],
-  DAIRY: ['dairy', 'milk', 'whey', 'butter', 'cheese', 'cream', 'yogurt'],
-  SOY: ['soy'],
-  EGGS: ['egg'],
-  SHELLFISH: ['shellfish', 'shrimp', 'prawn', 'crab'],
-  SESAME: ['sesame'],
-};
-
-export const allergyLabels: Record<string, string> = {
-  PEANUTS: 'Peanuts',
-  TREE_NUTS: 'Tree nuts',
-  GLUTEN: 'Gluten',
-  DAIRY: 'Dairy',
-  SOY: 'Soy',
-  EGGS: 'Eggs',
-  SHELLFISH: 'Shellfish',
-  SESAME: 'Sesame',
-  OTHER: 'Other allergen',
-};
-
 const MAX_VISIBLE_PERSONAL_REASONS = 4;
 const VISIBLE_PERSONAL_POSITIVE_KEYS = new Set([
   'protein',

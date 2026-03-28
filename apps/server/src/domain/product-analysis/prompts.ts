@@ -1,4 +1,4 @@
-import type { NormalizedProduct } from './productAnalysisTypes';
+import type { NormalizedProduct } from './types';
 
 export const PRODUCT_ANALYSIS_SYSTEM_PROMPT = `You are a strict food product analysis engine.
 
@@ -10,7 +10,6 @@ Rules:
 - Evaluate only sugar, salt, calories, protein, fiber, saturated fat, ingredient simplicity, and nutriscore if present.
 - Each metric may appear at most once.
 - A metric must be either positive or negative, never both.
-- Return no more than 4 positives and 4 negatives.
 - Keep labels, descriptions, and overviews concise and UI-friendly.
 - Use warnings for missing or limited data only when justified by the input.
 - Rating mapping must follow the overallScore:

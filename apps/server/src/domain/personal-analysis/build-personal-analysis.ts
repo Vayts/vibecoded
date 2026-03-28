@@ -7,21 +7,18 @@ import type {
 } from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 
-import { buildProductAnalysisFallback } from './productAnalysisFallback';
-import { dedupeAnalysisItemsByLabel } from './productAnalysisItemDedup';
-import { applyGoalAndPrioritySignals } from './personalProductProfileSignals';
+import { buildProductAnalysisFallback } from '../product-analysis/build-fallback-analysis';
+import { dedupeAnalysisItemsByLabel } from '../product-analysis/item-dedup';
+import { applyGoalAndPrioritySignals } from './profile-signals';
 import {
-  allergyLabels,
-  allergyTokens,
   limitVisiblePersonalNegatives,
   limitVisiblePersonalPositives,
-} from './personalProductAnalysisConfig';
+} from './config';
 import {
   getRestrictionConflict,
   getRestrictionSearchPool,
-  hasAnyToken,
   RESTRICTION_COMPATIBLE_LABELS,
-} from './personalProductRestrictionRules';
+} from './restriction-rules';
 
 const clampScore = (score: number): number => Math.max(0, Math.min(100, score));
 
@@ -67,6 +64,9 @@ const getFitLabel = (score: number): PersonalAnalysisResult['fitLabel'] => {
   return 'poor_fit';
 };
 
+/** Exported for use in Phase 2 AI runners that update fitScore after heuristic analysis. */
+export const getFitLabelFromScore = getFitLabel;
+
 export const buildPersonalProductAnalysis = (
   product: BarcodeLookupProduct,
   onboarding: OnboardingResponse = DEFAULT_ONBOARDING_RESPONSE,
@@ -94,55 +94,10 @@ export const buildPersonalProductAnalysis = (
     { createPositive, createNegative },
   );
 
-  for (const allergy of onboarding.allergies) {
-    const tokens = allergyTokens[allergy] ?? [];
-    const allergyLabel = allergyLabels[allergy] ?? allergy;
-    if (tokens.length === 0) continue;
-
-    if (
-      hasAnyToken(
-        product.allergens.map((value) => value.toLowerCase()),
-        tokens,
-      )
-    ) {
-      fitScore -= 40;
-      negatives.set(
-        `allergy-${allergy.toLowerCase()}`,
-        createNegative(
-          `allergy-${allergy.toLowerCase()}`,
-          `${allergyLabel} allergy`,
-          `Contains ${allergyLabel.toLowerCase()} from your allergy list`,
-          null,
-          null,
-          `This product explicitly lists ${allergyLabel.toLowerCase()} as an allergen.`,
-          'bad',
-        ),
-      );
-      personalizedNegativeKeys.add(`allergy-${allergy.toLowerCase()}`);
-      continue;
-    }
-
-    if (
-      hasAnyToken(
-        product.traces.map((value) => value.toLowerCase()),
-        tokens,
-      )
-    ) {
-      fitScore -= 16;
-      negatives.set(
-        `trace-${allergy.toLowerCase()}`,
-        createNegative(
-          `trace-${allergy.toLowerCase()}`,
-          `${allergyLabel} trace`,
-          `May contain traces of ${allergyLabel.toLowerCase()}`,
-          null,
-          null,
-          `This product lists possible traces of ${allergyLabel.toLowerCase()}.`,
-        ),
-      );
-      personalizedNegativeKeys.add(`trace-${allergy.toLowerCase()}`);
-    }
-  }
+  // NOTE: Allergen detection is intentionally omitted from Phase 1.
+  // The ingredient analysis AI (Phase 2) handles allergens by flagging
+  // each conflicting ingredient as 'bad'. The runner applies score
+  // penalties and adds negatives after Phase 2 completes.
 
   for (const restriction of onboarding.restrictions) {
     const conflict = getRestrictionConflict(restriction, searchPool);

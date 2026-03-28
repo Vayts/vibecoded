@@ -39,6 +39,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="scans"
           options={{
+            title: "Discovery",
             tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
           }}
         />

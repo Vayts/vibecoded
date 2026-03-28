@@ -7,8 +7,8 @@ import type {
   ProductAnalysisResult,
 } from '@acme/shared';
 
-import { evaluateProduct } from './productEvaluation';
-import { dedupeAnalysisItemsByLabel } from './productAnalysisItemDedup';
+import { evaluateProduct } from '../product-evaluation/evaluate-product';
+import { dedupeAnalysisItemsByLabel } from './item-dedup';
 
 const HIDDEN_ANALYSIS_KEYS = new Set(['ingredients', 'nutriscore']);
 

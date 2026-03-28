@@ -6,19 +6,19 @@ import type {
 } from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 
-import { AI_MODELS } from './prompts';
+import { AI_MODELS } from '../domain/flashcards/prompts';
 import {
   ingredientAnalysisResultSchema,
   multiProfileIngredientResultSchema,
-} from './ingredientAnalysisSchema';
+} from '../domain/ingredient-analysis/schema';
 import {
   INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
   MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
   buildIngredientAnalysisPrompt,
   buildMultiProfileIngredientAnalysisPrompt,
   type ProfileForPrompt,
-} from './ingredientAnalysisPrompts';
-import { extractIngredients } from './ingredientExtraction';
+} from '../domain/ingredient-analysis/prompts';
+import { extractIngredients } from '../domain/ingredient-analysis/extraction';
 
 const MAX_INGREDIENTS = 30;
 

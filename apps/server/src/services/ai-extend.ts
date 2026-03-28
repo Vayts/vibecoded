@@ -5,7 +5,7 @@ import {
   SUGGEST_SYSTEM_PROMPT,
   EXPAND_SYSTEM_PROMPT,
   ADDITIONAL_FROM_TEXT_SYSTEM_PROMPT,
-} from './prompts';
+} from '../domain/flashcards/prompts';
 import { extractTextFromImage } from './vision';
 import { sanitizeCards } from '../lib/mathSanitizer';
 

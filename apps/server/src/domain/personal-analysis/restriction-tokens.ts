@@ -5,9 +5,11 @@
  */
 
 const PLANT_BASED_DAIRY_EXCLUDE = [
-  /\b(?:cocoa|shea|peanut|almond|cashew|mango|avocado|kokum|sal)\s+butter/i,
-  /\b(?:coconut|almond|oat|soy|rice|hemp|cashew|hazelnut)\s+(?:milk|cream|yogurt|cheese)/i,
+  /\b(?:cocoa|shea|peanut|almond|cashew|mango|avocado|kokum|sal)[-\s]+butter/i,
+  /\b(?:coconut|almond|oat|soy|rice|hemp|cashew|hazelnut)[-\s]+(?:milk|cream|yogurt|cheese)/i,
   /\bbutterscotch\b/i,
+  // Hyphenated category tags from OpenFoodFacts: "peanut-butters", "nut-butters", "almond-butter"
+  /\b(?:peanut|nut|almond|cashew|hazelnut|coconut|sunflower|seed)[-]butter/i,
 ];
 
 const VEGAN_TOKENS = [
