@@ -1,20 +1,21 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Typography } from '../../../../shared/components/Typography';
+import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ScanHistoryList } from '../ScanHistoryList';
 import { FavouritesList } from '../FavouritesList';
 import { DiscoverTabChips, type DiscoverTab } from '../DiscoverTabChips';
 
 export function ScansTabScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<DiscoverTab>('history');
 
   const handleScanPress = (item: ScanHistoryItem) => {
-    router.push(`/(tabs)/scans/${item.id}`);
+    void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+      payload: { scanId: item.id },
+    });
   };
 
   return (

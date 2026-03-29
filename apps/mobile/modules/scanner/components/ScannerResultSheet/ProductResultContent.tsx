@@ -1,4 +1,8 @@
-import type { BarcodeLookupProduct, BarcodeLookupResponse } from '@acme/shared';
+import type {
+  BarcodeLookupProduct,
+  BarcodeLookupResponse,
+  MultiProfilePersonalAnalysisJobResponse,
+} from '@acme/shared';
 import { View } from 'react-native';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
 import { hasProductResult } from './productResultHelpers';
@@ -10,12 +14,23 @@ import { NutriScoreBlock } from './NutriScoreBlock';
 
 interface ProductResultContentProps {
   result: BarcodeLookupResponse;
+  resolvedPersonalResult?: MultiProfilePersonalAnalysisJobResponse;
 }
 
-export function ProductResultContent({ result }: ProductResultContentProps) {
-  const personalJobId = hasProductResult(result) ? result.personalAnalysis.jobId : undefined;
-  const personalJobStatus = hasProductResult(result) ? result.personalAnalysis.status : undefined;
+export function ProductResultContent({ result, resolvedPersonalResult }: ProductResultContentProps) {
+  const personalJobId =
+    !resolvedPersonalResult && hasProductResult(result)
+      ? result.personalAnalysis.jobId
+      : undefined;
+  const personalJobStatus =
+    !resolvedPersonalResult && hasProductResult(result)
+      ? result.personalAnalysis.status
+      : undefined;
   const personalQuery = usePersonalAnalysisQuery(personalJobId, personalJobStatus);
+
+  const personalData = resolvedPersonalResult ?? personalQuery.data;
+  const personalError = resolvedPersonalResult ? false : personalQuery.isError;
+  const personalRetry = resolvedPersonalResult ? () => {} : () => void personalQuery.refetch();
 
   if (!hasProductResult(result)) {
     return <NotFoundContent result={result} />;
@@ -35,9 +50,9 @@ export function ProductResultContent({ result }: ProductResultContentProps) {
 
       <View>
         <PersonalTabContent
-          personalResult={personalQuery.data}
-          isError={personalQuery.isError}
-          onRetry={() => void personalQuery.refetch()}
+          personalResult={personalData}
+          isError={personalError}
+          onRetry={personalRetry}
         />
       </View>
     </ScrollView>
