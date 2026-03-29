@@ -151,9 +151,9 @@ function ProfileDetail({ detail, profileName, ingredientStatus }: ProfileDetailP
       {detail.ingredientAnalysis ? (
         <IngredientsSection ingredientAnalysis={detail.ingredientAnalysis} />
       ) : ingredientStatus === 'pending' ? (
-        <View className="mt-5 items-center rounded-[12px] border border-gray-100 bg-white py-4">
+        <View className="mt-5 flex-row items-center gap-3 rounded-[12px] border border-gray-100 bg-white px-4 py-4">
           <ActivityIndicator size="small" color={COLORS.primary} />
-          <Typography variant="bodySecondary" className="mt-2">
+          <Typography variant="bodySecondary" className="text-gray-500">
             Analyzing ingredients…
           </Typography>
         </View>

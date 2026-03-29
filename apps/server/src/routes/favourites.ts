@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { FavouriteItem } from '@acme/shared';
-import { addFavouriteRequestSchema } from '@acme/shared';
+import { addFavouriteRequestSchema, profileFitChipSchema } from '@acme/shared';
 import { auth } from '../lib/auth';
 import {
   addFavourite,
@@ -37,6 +37,18 @@ favouritesRoute.get('/', async (c) => {
     const scan = fav.product ? scanMap.get(fav.product.id) : undefined;
     const personal = scan?.personalResult as { fitScore?: number; fitLabel?: string } | null;
 
+    let profileChips: FavouriteItem['profileChips'] = undefined;
+    if (scan?.multiProfileResult && typeof scan.multiProfileResult === 'object') {
+      const multi = scan.multiProfileResult as { profiles?: unknown[] };
+      if (Array.isArray(multi.profiles)) {
+        const parsed = multi.profiles
+          .map((p) => profileFitChipSchema.safeParse(p))
+          .filter((r) => r.success)
+          .map((r) => r.data!);
+        if (parsed.length > 0) profileChips = parsed;
+      }
+    }
+
     return {
       favouriteId: fav.id,
       id: scan?.id ?? fav.id,
@@ -49,6 +61,7 @@ favouritesRoute.get('/', async (c) => {
       personalAnalysisStatus:
         (scan?.personalAnalysisStatus as FavouriteItem['personalAnalysisStatus']) ?? null,
       isFavourite: true,
+      profileChips,
       product: fav.product
         ? {
             id: fav.product.id,

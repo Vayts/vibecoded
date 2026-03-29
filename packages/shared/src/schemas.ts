@@ -19,7 +19,7 @@ export const barcodeLookupRequestSchema = z.object({
 });
 export type BarcodeLookupRequest = z.infer<typeof barcodeLookupRequestSchema>;
 
-export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'photo']);
+export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'websearch']);
 export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
 
 export const barcodeLookupProductSchema = z.object({
@@ -90,7 +90,9 @@ export const productAnalysisItemSchema = z.object({
   description: z.string(),
   value: z.number().nullable(),
   unit: z.string().nullable(),
+  per: z.enum(['100g']).nullable(),
   severity: z.enum(['good', 'neutral', 'warning', 'bad']),
+  category: z.enum(['nutrition', 'diet', 'ingredients', 'restriction']),
   overview: z.string(),
 });
 export type ProductAnalysisItem = z.infer<typeof productAnalysisItemSchema>;
@@ -163,7 +165,7 @@ export const personalAnalysisJobSchema = z.object({
 });
 export type PersonalAnalysisJob = z.infer<typeof personalAnalysisJobSchema>;
 
-export const ingredientAnalysisStatusSchema = z.enum(['pending', 'completed', 'skipped']);
+export const ingredientAnalysisStatusSchema = z.enum(['pending', 'completed', 'skipped', 'failed']);
 export type IngredientAnalysisStatus = z.infer<typeof ingredientAnalysisStatusSchema>;
 
 export const personalAnalysisJobResponseSchema = z.object({
@@ -179,7 +181,7 @@ export const barcodeLookupSuccessResponseSchema = z.object({
   barcode: z.string(),
   source: scannerLookupSourceSchema,
   product: barcodeLookupProductSchema,
-  evaluation: productAnalysisResultSchema,
+  evaluation: productAnalysisResultSchema.optional(),
   personalAnalysis: personalAnalysisJobSchema,
   productId: z.string().optional(),
   isFavourite: z.boolean().optional(),
@@ -205,41 +207,6 @@ export const chatHistoryMessageSchema = z.object({
   content: z.string(),
 });
 export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
-
-// ============================================================
-// Scan history schemas
-// ============================================================
-
-export const scanSourceSchema = z.enum(['barcode', 'photo']);
-export type ScanSource = z.infer<typeof scanSourceSchema>;
-
-export const scanHistoryItemSchema = z.object({
-  id: z.string(),
-  createdAt: z.string(),
-  source: scanSourceSchema,
-  overallScore: z.number().nullable(),
-  overallRating: z.string().nullable(),
-  personalScore: z.number().nullable(),
-  personalRating: personalFitLabelSchema.nullable(),
-  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
-  isFavourite: z.boolean().optional(),
-  product: z
-    .object({
-      id: z.string(),
-      barcode: z.string(),
-      product_name: z.string().nullable(),
-      brands: z.string().nullable(),
-      image_url: z.string().nullable(),
-    })
-    .nullable(),
-});
-export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
-
-export const scanHistoryResponseSchema = z.object({
-  items: z.array(scanHistoryItemSchema),
-  nextCursor: z.string().nullable(),
-});
-export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
 
 // ============================================================
 // Multi-profile personal analysis schemas
@@ -273,6 +240,42 @@ export const multiProfilePersonalAnalysisJobResponseSchema = z.object({
 export type MultiProfilePersonalAnalysisJobResponse = z.infer<
   typeof multiProfilePersonalAnalysisJobResponseSchema
 >;
+
+// ============================================================
+// Scan history schemas
+// ============================================================
+
+export const scanSourceSchema = z.enum(['barcode', 'photo']);
+export type ScanSource = z.infer<typeof scanSourceSchema>;
+
+export const scanHistoryItemSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  source: scanSourceSchema,
+  overallScore: z.number().nullable(),
+  overallRating: z.string().nullable(),
+  personalScore: z.number().nullable(),
+  personalRating: personalFitLabelSchema.nullable(),
+  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  isFavourite: z.boolean().optional(),
+  profileChips: z.array(profileFitChipSchema).optional(),
+  product: z
+    .object({
+      id: z.string(),
+      barcode: z.string(),
+      product_name: z.string().nullable(),
+      brands: z.string().nullable(),
+      image_url: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
+
+export const scanHistoryResponseSchema = z.object({
+  items: z.array(scanHistoryItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
 
 export const scanDetailResponseSchema = z.object({
   id: z.string(),

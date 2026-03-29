@@ -29,13 +29,17 @@ const createPositive = (
   value: number | null,
   unit: string | null,
   overview: string,
+  per: '100g' | null = '100g',
+  category: 'nutrition' | 'diet' | 'ingredients' | 'restriction' = 'nutrition',
 ): PositiveProductAnalysisItem => ({
   key,
   label,
   description,
   value,
   unit,
+  per,
   severity: 'good',
+  category,
   overview,
 });
 
@@ -47,13 +51,17 @@ const createNegative = (
   unit: string | null,
   overview: string,
   severity: NegativeProductAnalysisItem['severity'] = 'warning',
+  per: '100g' | null = '100g',
+  category: 'nutrition' | 'diet' | 'ingredients' | 'restriction' = 'nutrition',
 ): NegativeProductAnalysisItem => ({
   key,
   label,
   description,
   value,
   unit,
+  per,
   severity,
+  category,
   overview,
 });
 
@@ -120,6 +128,8 @@ export const buildPersonalProductAnalysis = (
           null,
           conflict.overview,
           conflict.severity,
+          null,
+          'restriction',
         ),
       );
       personalizedNegativeKeys.add(conflict.key);
@@ -136,6 +146,8 @@ export const buildPersonalProductAnalysis = (
             null,
             null,
             compatLabel.overview,
+            null,
+            'restriction',
           ),
         );
         personalizedPositiveKeys.add(key);

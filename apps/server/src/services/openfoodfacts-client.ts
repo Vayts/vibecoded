@@ -1,10 +1,6 @@
-import type { BarcodeLookupNotFoundResponse, BarcodeLookupSuccessResponse } from '@acme/shared';
+import type { NormalizedProduct } from '@acme/shared';
 import { normalizeOpenFoodFactsProduct } from '../domain/product-normalization/normalize-openfoodfacts';
 import type { OpenFoodFactsProduct } from '../domain/product-normalization/openfoodfacts-types';
-import { createProduct, findByBarcode } from '../repositories/productRepository';
-import { createScanNotFoundResponse, createScanSuccessResponse } from './scannerLookupResponse';
-
-const OFF_SOURCE = 'openfoodfacts';
 
 interface OpenFoodFactsBarcodeResponse {
   data?: {
@@ -49,16 +45,11 @@ const getClient = async (): Promise<OpenFoodFactsClient> => {
   return clientPromise;
 };
 
-export const lookupProductByBarcode = async (
-  barcode: string,
-  userId?: string,
-): Promise<BarcodeLookupSuccessResponse | BarcodeLookupNotFoundResponse> => {
-  const cachedProduct = await findByBarcode(barcode);
-
-  if (cachedProduct) {
-    return await createScanSuccessResponse(barcode, OFF_SOURCE, cachedProduct, userId);
-  }
-
+/**
+ * Look up a product by barcode on OpenFoodFacts.
+ * Returns the normalized product or null if not found.
+ */
+export const lookupBarcode = async (barcode: string): Promise<NormalizedProduct | null> => {
   const client = await getClient();
 
   let response: OpenFoodFactsBarcodeResponse;
@@ -72,11 +63,8 @@ export const lookupProductByBarcode = async (
   const product = response.data?.product;
 
   if (response.data?.status !== 1 || !product) {
-    return createScanNotFoundResponse(barcode, OFF_SOURCE);
+    return null;
   }
 
-  const normalizedProduct = normalizeOpenFoodFactsProduct(barcode, product);
-  const cachedNormalizedProduct = await createProduct(normalizedProduct);
-
-  return await createScanSuccessResponse(barcode, OFF_SOURCE, cachedNormalizedProduct, userId);
+  return normalizeOpenFoodFactsProduct(barcode, product);
 };

@@ -17,10 +17,14 @@ import { mapFitLabelToToneKey } from '../../../scanner/components/ScannerResultS
 
 interface ScanDetailContentProps {
   scan: ScanDetailResponse;
+  ingredientPollingDone?: boolean;
 }
 
-export function ScanDetailContent({ scan }: ScanDetailContentProps) {
-  const [selectedTab, setSelectedTab] = useState<ScannerResultTabKey>('overall');
+export function ScanDetailContent({ scan, ingredientPollingDone = false }: ScanDetailContentProps) {
+  const hasEvaluation = scan.evaluation != null;
+  const [selectedTab, setSelectedTab] = useState<ScannerResultTabKey>(
+    hasEvaluation ? 'overall' : 'personal',
+  );
 
   if (!scan.product) {
     return (
@@ -37,6 +41,17 @@ export function ScanDetailContent({ scan }: ScanDetailContentProps) {
     scan.personalAnalysisStatus === 'completed' && scan.personalResult != null;
   const isPersonalPending = scan.personalAnalysisStatus === 'pending';
   const isPersonalFailed = scan.personalAnalysisStatus === 'failed';
+
+  const ingredientAnalysisStatus: 'pending' | 'completed' | 'skipped' = (() => {
+    if (!scan.multiProfileResult) return 'skipped';
+    const hasIngredients = Object.values(scan.multiProfileResult.detailsByProfile).some(
+      (d) => d.ingredientAnalysis != null,
+    );
+    if (hasIngredients) return 'completed';
+    // Polling window exhausted with no ingredients found — stop showing spinner
+    if (ingredientPollingDone) return 'skipped';
+    return 'pending';
+  })();
 
   return (
     <View>
@@ -71,7 +86,7 @@ export function ScanDetailContent({ scan }: ScanDetailContentProps) {
                 jobId: scan.id,
                 status: scan.personalAnalysisStatus === 'completed' ? 'completed' : 'failed',
                 result: scan.multiProfileResult,
-                ingredientAnalysisStatus: 'completed',
+                ingredientAnalysisStatus,
               }}
               isError={isPersonalFailed}
               onRetry={() => {}}

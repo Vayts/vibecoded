@@ -84,12 +84,24 @@ const buildOverview = (product: BarcodeLookupProduct, item: EvaluationItem): str
   return item.description;
 };
 
+const NUTRITION_KEYS = new Set(['sugar', 'salt', 'protein', 'fiber', 'calories', 'saturated-fat']);
+const INGREDIENT_KEYS = new Set(['ingredients', 'additives']);
+
+const getItemCategory = (key: string): 'nutrition' | 'diet' | 'ingredients' | 'restriction' => {
+  if (NUTRITION_KEYS.has(key) || key === 'nutriscore') return 'nutrition';
+  if (INGREDIENT_KEYS.has(key)) return 'ingredients';
+  return 'nutrition';
+};
+
 const toAnalysisItem = (
   product: BarcodeLookupProduct,
   item: EvaluationItem,
 ): ProductAnalysisItem => {
+  const category = getItemCategory(item.key);
   return {
     ...item,
+    per: NUTRITION_KEYS.has(item.key) ? '100g' : null,
+    category,
     overview: buildOverview(product, item),
   };
 };

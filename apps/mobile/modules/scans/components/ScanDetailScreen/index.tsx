@@ -8,7 +8,7 @@ import { ScanDetailContent } from '../ScanDetailContent';
 
 export function ScanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data, isLoading, isError, error, refetch } = useScanDetailQuery(id);
+  const { data, isLoading, isError, error, refetch, ingredientPollingDone } = useScanDetailQuery(id);
 
   return (
     <View className="flex-1 bg-white">
@@ -31,7 +31,7 @@ export function ScanDetailScreen() {
         </View>
       ) : data ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="px-4 pb-8">
-          <ScanDetailContent scan={data} />
+          <ScanDetailContent scan={data} ingredientPollingDone={ingredientPollingDone} />
         </ScrollView>
       ) : null}
     </View>

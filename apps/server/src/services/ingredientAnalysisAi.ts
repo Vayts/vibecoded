@@ -1,10 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-import type {
-  BarcodeLookupProduct,
-  IngredientAnalysisResult,
-  OnboardingResponse,
-} from '@acme/shared';
-import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
+import type { BarcodeLookupProduct, IngredientAnalysisResult } from '@acme/shared';
 
 import { AI_MODELS } from '../domain/flashcards/prompts';
 import {
@@ -12,9 +7,7 @@ import {
   multiProfileIngredientResultSchema,
 } from '../domain/ingredient-analysis/schema';
 import {
-  INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
   MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
-  buildIngredientAnalysisPrompt,
   buildMultiProfileIngredientAnalysisPrompt,
   type ProfileForPrompt,
 } from '../domain/ingredient-analysis/prompts';
@@ -32,61 +25,10 @@ export class IngredientAnalysisAiService {
         model: AI_MODELS.mini,
         temperature: 0,
         apiKey: process.env.OPENAI_API_KEY,
+        maxRetries: 3,
       });
   }
 
-  async analyzeProduct(
-    product: BarcodeLookupProduct,
-    onboarding: OnboardingResponse = DEFAULT_ONBOARDING_RESPONSE,
-  ): Promise<IngredientAnalysisResult | null> {
-    if (!process.env.OPENAI_API_KEY) {
-      return null;
-    }
-
-    const rawIngredients = extractIngredients(product);
-    if (!rawIngredients || rawIngredients.length === 0) {
-      return null;
-    }
-
-    const ingredients = rawIngredients.slice(0, MAX_INGREDIENTS);
-
-    const userProfile = {
-      restrictions: onboarding.restrictions,
-      allergies: onboarding.allergies,
-      nutritionPriorities: onboarding.nutritionPriorities,
-      mainGoal: onboarding.mainGoal,
-    };
-
-    try {
-      const userMessage = buildIngredientAnalysisPrompt(product, ingredients, userProfile);
-      console.log('[IngredientAnalysis] Prompt:\n', userMessage);
-
-      // LangChain typing for withStructuredOutput remains too deep for strict TS here.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const structuredModel = (this.model as any).withStructuredOutput(
-        ingredientAnalysisResultSchema,
-      );
-
-      const result = (await structuredModel.invoke([
-        { role: 'system', content: INGREDIENT_ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ])) as IngredientAnalysisResult;
-
-      console.log('[IngredientAnalysis] Result:', JSON.stringify(result, null, 2));
-
-      const parsed = ingredientAnalysisResultSchema.parse(result);
-      return parsed.ingredients.length > 0 ? parsed : null;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Ingredient analysis AI failed: ${message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Analyze ingredients for multiple profiles in a SINGLE AI request.
-   * Returns a Map from profile label → IngredientAnalysisResult.
-   */
   async analyzeProductMultiProfile(
     product: BarcodeLookupProduct,
     profiles: ProfileForPrompt[],
@@ -101,7 +43,6 @@ export class IngredientAnalysisAiService {
     if (!rawIngredients || rawIngredients.length === 0) {
       return resultMap;
     }
-
     const ingredients = rawIngredients.slice(0, MAX_INGREDIENTS);
 
     try {
@@ -137,8 +78,10 @@ export class IngredientAnalysisAiService {
       return resultMap;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Multi-profile ingredient analysis AI failed: ${message}`);
-      return resultMap;
+      const stack = error instanceof Error ? error.stack : undefined;
+      const extra = error instanceof Error ? JSON.stringify(error, Object.getOwnPropertyNames(error)) : String(error);
+      console.error(`Multi-profile ingredient analysis AI failed: ${message}\nStack: ${stack}\nDetails: ${extra}`);
+      throw error;
     }
   }
 }

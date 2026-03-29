@@ -1,8 +1,10 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { Barcode } from 'lucide-react-native';
+import { Barcode, Heart } from 'lucide-react-native';
+import { useState } from 'react';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
 
 interface ScanHistoryRowProps {
   item: ScanHistoryItem;
@@ -33,12 +35,51 @@ const formatRelativeTime = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString();
 };
 
+const truncateName = (name: string, maxLen = 8): string =>
+  name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
+
+function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['profileChips']> }) {
+  return (
+    <View className="flex-row flex-wrap justify-end gap-1">
+      {chips.map((chip) => {
+        const color = getScoreColor(chip.fitScore);
+        return (
+          <View
+            key={chip.profileId}
+            className="flex-row items-center rounded-md px-1.5 py-0.5 border"
+            style={{ borderColor: color + '1A' }}
+          >
+            <Typography
+              variant="caption"
+              style={{ color, fontSize: 11, lineHeight: 14 }}
+              numberOfLines={1}
+            >
+              {truncateName(chip.profileName)} {chip.fitScore}
+            </Typography>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
   const imageUri = item.product?.image_url ?? null;
   const productName = item.product?.product_name ?? 'Unknown product';
   const brands = item.product?.brands ?? null;
   const score = item.personalScore ?? item.overallScore;
   const isPersonalScore = item.personalScore != null;
+  const hasProfileChips = item.profileChips && item.profileChips.length > 0;
+
+  const productId = item.product?.id ?? null;
+  const [isFavourite, setIsFavourite] = useState(item.isFavourite ?? false);
+  const { toggle } = useToggleFavouriteMutation();
+
+  const handleToggleFavourite = () => {
+    if (!productId) return;
+    setIsFavourite((prev) => !prev);
+    toggle(productId, isFavourite);
+  };
 
   return (
     <TouchableOpacity
@@ -51,11 +92,11 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
       {imageUri ? (
         <Image
           source={{ uri: imageUri }}
-          className="h-12 w-12 rounded-xl bg-gray-100"
+          className="h-14 w-14 rounded-xl bg-gray-100 self-start"
           resizeMode="cover"
         />
       ) : (
-        <View className="h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+        <View className="h-14 w-14 items-center justify-center rounded-xl bg-blue-50">
           <Barcode color={COLORS.primary} size={20} />
         </View>
       )}
@@ -69,16 +110,14 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
             {brands}
           </Typography>
         ) : null}
-        <Typography variant="caption" className="mt-0.5">
-          {formatRelativeTime(item.createdAt)}
-        </Typography>
-      </View>
 
-      <View className="ml-3 items-end">
-        {score != null ? (
+        <View className="mt-2 items-start">
+        {hasProfileChips ? (
+          <ProfileScoreChips chips={item.profileChips!} />
+        ) : score != null ? (
           <View
             className="min-w-[40px] items-center rounded-lg px-2 py-1"
-            style={{ backgroundColor: getScoreColor(score) + '1A' }}
+
           >
             <Typography variant="buttonSmall" style={{ color: getScoreColor(score) }}>
               {score}
@@ -87,12 +126,33 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
         ) : (
           <Typography variant="caption">—</Typography>
         )}
-        {!isPersonalScore && item.personalAnalysisStatus === 'pending' ? (
+        {!isPersonalScore && !hasProfileChips && item.personalAnalysisStatus === 'pending' ? (
           <Typography variant="caption" className="mt-0.5 text-amber-600">
             Analyzing…
           </Typography>
         ) : null}
+        <Typography variant="caption" className="mt-0.5">
+          {formatRelativeTime(item.createdAt)}
+        </Typography>
+        </View>
       </View>
+
+      {productId ? (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleToggleFavourite}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          className="ml-2 h-11 w-11 items-center self-start justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+        >
+          <Heart
+            size={20}
+            color={isFavourite ? COLORS.accent500 : '#D1D5DB'}
+            fill={isFavourite ? COLORS.accent500 : 'none'}
+          />
+        </TouchableOpacity>
+      ) : null}
     </TouchableOpacity>
   );
 }

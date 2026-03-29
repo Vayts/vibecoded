@@ -1,6 +1,4 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
-import { ImagePlus } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
@@ -9,9 +7,7 @@ import { BackButton } from '../../../../shared/components/BackButton';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
-import { usePreparedPhotoForUpload } from '../../hooks/usePreparedPhotoForUpload';
-import { useScanBarcodeMutation, useScanPhotoMutation } from '../../hooks/useScannerMutations';
-import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
+import { useScanBarcodeMutation } from '../../hooks/useScannerMutations';
 import { ScannerPermissionState } from '../ScannerPermissionState';
 
 const SAMPLE_BARCODE = '5901234123457';
@@ -21,9 +17,6 @@ export function ScannerHomeScreen() {
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const barcodeMutation = useScanBarcodeMutation();
-  const photoMutation = useScanPhotoMutation();
-  const preparePhotoForUpload = usePreparedPhotoForUpload();
-  const showPhotoLoading = useScannerResultSheetStore((s) => s.showPhotoLoading);
 
   const scanLockRef = useRef(false);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
@@ -59,44 +52,6 @@ export function ScannerHomeScreen() {
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
     await submitBarcode(data);
-  };
-
-  const handleUploadPhoto = async () => {
-    if (photoMutation.isPending) return;
-    setSubmitMessage(null);
-
-    try {
-      const selection = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: false,
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
-
-      if (selection.canceled || selection.assets.length === 0) return;
-
-      const asset = selection.assets[0];
-      showPhotoLoading(asset.uri);
-      void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { previewImageUri: asset.uri, presentationMode: 'personalOnly', origin: 'photo' },
-      });
-
-      const prepared = await preparePhotoForUpload({
-        uri: asset.uri,
-        width: asset.width,
-        height: asset.height,
-        fileName: asset.fileName ?? 'product-photo',
-      });
-
-      const result = await photoMutation.mutateAsync({
-        photoUri: prepared.uri,
-        fileName: prepared.fileName,
-        mimeType: prepared.mimeType,
-      });
-      useScannerResultSheetStore.getState().showPhotoResult(result);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to analyze photo';
-      useScannerResultSheetStore.getState().showPhotoError(message);
-    }
   };
 
   if (!permission) return <View className="flex-1 bg-black" />;
@@ -175,21 +130,6 @@ export function ScannerHomeScreen() {
               {submitMessage}
             </Typography>
           ) : null}
-
-          <TouchableOpacity
-            accessibilityLabel="Upload photo"
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            className="flex-row items-center gap-2 rounded-full bg-white/20 px-5 py-3"
-            onPress={() => {
-              void handleUploadPhoto();
-            }}
-          >
-            <ImagePlus color={COLORS.white} size={20} />
-            <Typography variant="buttonSmall" className="text-white">
-              Upload Photo
-            </Typography>
-          </TouchableOpacity>
         </View>
       </View>
     </View>

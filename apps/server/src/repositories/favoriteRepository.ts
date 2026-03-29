@@ -98,6 +98,7 @@ export const findLatestScansForProducts = async (
     overallRating: string | null;
     personalAnalysisStatus: string | null;
     personalResult: unknown;
+    multiProfileResult: unknown;
     createdAt: Date;
   }>();
 
@@ -116,6 +117,7 @@ export const findLatestScansForProducts = async (
       overallRating: true,
       personalAnalysisStatus: true,
       personalResult: true,
+      multiProfileResult: true,
       createdAt: true,
     },
   });

@@ -1,16 +1,10 @@
 import type { BarcodeLookupResponse } from '@acme/shared';
 
-export interface PhotoCaptureInput {
-  photoUri: string;
-  fileName?: string;
-  mimeType?: string;
-}
-
 export type ScannerMutationResponse = BarcodeLookupResponse;
 
 export type ScannerResultPresentationMode = 'default' | 'personalOnly';
 
-export type ScannerResultOrigin = 'barcode' | 'photo';
+export type ScannerResultOrigin = 'barcode';
 
 export interface ScannerResultSheetPayload {
   result?: ScannerMutationResponse;

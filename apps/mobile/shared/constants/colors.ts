@@ -16,6 +16,7 @@ export const COLORS = {
   primaryBorder: '#93C5FD',
 
   accent: '#E28200', // violet-600 — Pro / premium badge
+  accent500: '#FFAA00',
 
   neutrals900: '#1A1A1A',
   neutrals200: '#E6E6E6',
