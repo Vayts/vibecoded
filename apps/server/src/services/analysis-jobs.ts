@@ -14,6 +14,7 @@ import { runIngredientAnalysisAsync } from './ingredientAnalysisRunner';
 import { updateScanPersonalResult } from '../repositories/scanRepository';
 import { extractIngredients } from '../domain/ingredient-analysis/extraction';
 import { getProfileInputs, type ProfileInput } from './profileInputs';
+import { buildNutritionFallback } from '../domain/personal-analysis/nutrition-fallback';
 
 const JOB_TTL_MS = 10 * 60 * 1000;
 const jobs = new Map<string, MultiProfilePersonalAnalysisJobResponse>();
@@ -39,6 +40,10 @@ const runAnalysisJob = async (
   userId?: string,
   scanId?: string,
 ): Promise<void> => {
+  const productName = product.product_name ?? product.code ?? 'unknown';
+  console.log(`\n[Job:${jobId}] ▶ START  product="${productName}"  userId=${userId ?? 'anon'}`);
+  const jobStart = Date.now();
+
   try {
     const profiles = userId ? await getProfileInputs(userId) : [];
     const productHasIngredients = hasIngredientData(product);
@@ -53,13 +58,19 @@ const runAnalysisJob = async (
       });
     }
 
+    const profileNames = profiles.map((p) => `"${p.profileName}"`).join(', ');
+    console.log(`[Job:${jobId}] 👤 Profiles (${profiles.length}): ${profileNames}  hasIngredients=${productHasIngredients}`);
+
     // Phase 1: Run personal analysis (positives/negatives)
+    console.log(`[Job:${jobId}] 🤖 Phase 1 — Personal analysis (AI)...`);
+    const phase1Start = Date.now();
     const personalResults = await analyzeProductForProfiles(product, profiles).catch(
       (error) => {
-        console.error('[AnalysisJob] Personal analysis failed:', error);
+        console.error(`[Job:${jobId}] ❌ Phase 1 failed:`, error);
         return new Map<string, PersonalAnalysisResult>();
       },
     );
+    console.log(`[Job:${jobId}] ✅ Phase 1 done  ${Date.now() - phase1Start}ms  results=${personalResults.size}/${profiles.length}`);
 
     // Build multi-profile result from AI personal analysis
     const profileChips: ProfileFitChip[] = [];
@@ -75,21 +86,16 @@ const runAnalysisJob = async (
           fitLabel: aiResult.fitLabel,
         });
         detailsByProfile[profile.profileId] = aiResult;
+        console.log(`[Job:${jobId}]   "${profile.profileName}" → score=${aiResult.fitScore} (${aiResult.fitLabel})  +${aiResult.positives.length}✓ -${aiResult.negatives.length}✗`);
       } else {
-        // Fallback: create a neutral result if AI didn't return this profile
-        const fallback: PersonalAnalysisResult = {
-          fitScore: 50,
-          fitLabel: 'neutral',
-          summary: 'Unable to analyze for this profile',
-          positives: [],
-          negatives: [],
-          ingredientAnalysis: null,
-        };
+        // Fallback: build deterministic nutrition-based result when AI didn't return this profile
+        console.warn(`[Job:${jobId}] ⚠️  AI did not return result for profile "${profile.profileName}" (${profile.profileId}), using nutrition fallback`);
+        const fallback = buildNutritionFallback(product);
         profileChips.push({
           profileId: profile.profileId,
           profileName: profile.profileName,
-          fitScore: 50,
-          fitLabel: 'neutral',
+          fitScore: fallback.fitScore,
+          fitLabel: fallback.fitLabel,
         });
         detailsByProfile[profile.profileId] = fallback;
       }
@@ -109,10 +115,13 @@ const runAnalysisJob = async (
 
     // Phase 2: Run ingredient analysis in background (does not block main result)
     if (productHasIngredients) {
+      console.log(`[Job:${jobId}] 🧪 Phase 2 — Ingredient analysis (background)...`);
       void runIngredientAnalysisForJob(job, product, profiles, scanId).catch((error) => {
-        console.error('[AnalysisJob] Ingredient analysis failed:', error);
+        console.error(`[Job:${jobId}] ❌ Phase 2 failed:`, error);
         job.ingredientAnalysisStatus = 'failed';
       });
+    } else {
+      console.log(`[Job:${jobId}] ⏭  Phase 2 skipped — no ingredients data`);
     }
 
     // Persist to database (initial save without ingredient analysis)
@@ -122,7 +131,10 @@ const runAnalysisJob = async (
         () => {},
       );
     }
-  } catch {
+
+    console.log(`[Job:${jobId}] 🏁 Job completed  total=${Date.now() - jobStart}ms`);
+  } catch (err) {
+    console.error(`[Job:${jobId}] ❌ Job failed:`, err);
     jobs.set(jobId, { jobId, status: 'failed' });
     if (scanId) {
       await updateScanPersonalResult(scanId, 'failed').catch(() => {});
@@ -141,6 +153,9 @@ const runIngredientAnalysisForJob = async (
   profiles: ProfileInput[],
   scanId?: string,
 ): Promise<void> => {
+  const jobId = job.jobId;
+  const start = Date.now();
+
   // Initialize ingredient analysis slots in existing result
   if (job.result) {
     for (const profile of profiles) {
@@ -154,6 +169,7 @@ const runIngredientAnalysisForJob = async (
   job.ingredientAnalysisStatus = 'pending';
   await runIngredientAnalysisAsync(job, product, profiles);
   job.ingredientAnalysisStatus = 'completed';
+  console.log(`[Job:${jobId}] ✅ Phase 2 done  ${Date.now() - start}ms`);
 
   // Re-persist with ingredient data
   if (scanId && job.result) {

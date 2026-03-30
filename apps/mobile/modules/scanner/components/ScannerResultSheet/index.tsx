@@ -14,6 +14,7 @@ import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import { ProductResultContent } from './ProductResultContent';
 import { isBarcodeLookupResponse } from './productResultHelpers';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function buildResultFromScanDetail(scan: ScanDetailResponse): {
   result: BarcodeLookupResponse;
@@ -102,17 +103,13 @@ export function ScannerResultSheet() {
   };
 
   return (
-    <ActionSheet gestureEnabled onClose={reset}>
-      <View className="px-6 pb-2">
+    <ActionSheet gestureEnabled useBottomSafeAreaPadding={false} onClose={reset}>
+      <View className="px-6">
         {scanId ? (
           <ScanDetailLoader scanId={scanId} />
         ) : isBarcodeResult ? (
           <ProductResultContent result={resolvedResult} />
         ) : null}
-
-        <View className="mt-2 border-t border-gray-100 pt-4">
-          <Button fullWidth label="Close" onPress={handleClose} />
-        </View>
       </View>
     </ActionSheet>
   );

@@ -363,3 +363,63 @@ export const familyMembersResponseSchema = z.object({
   items: z.array(familyMemberSchema),
 });
 export type FamilyMembersResponse = z.infer<typeof familyMembersResponseSchema>;
+
+// ============================================================
+// Product lookup (lightweight, no analysis)
+// ============================================================
+
+export const productLookupRequestSchema = z.object({
+  barcode: z.string().min(1, 'Barcode is required'),
+});
+export type ProductLookupRequest = z.infer<typeof productLookupRequestSchema>;
+
+export const productPreviewSchema = z.object({
+  productId: z.string(),
+  barcode: z.string(),
+  product_name: z.string().nullable(),
+  brands: z.string().nullable(),
+  image_url: z.string().nullable(),
+});
+export type ProductPreview = z.infer<typeof productPreviewSchema>;
+
+export const productLookupResponseSchema = z.object({
+  success: z.literal(true),
+  product: productPreviewSchema,
+});
+export type ProductLookupResponse = z.infer<typeof productLookupResponseSchema>;
+
+// ============================================================
+// Product comparison schemas
+// ============================================================
+
+export const productComparisonItemSchema = z.object({
+  positives: z.array(z.string()),
+  negatives: z.array(z.string()),
+});
+export type ProductComparisonItem = z.infer<typeof productComparisonItemSchema>;
+
+export const profileComparisonResultSchema = z.object({
+  profileId: z.string(),
+  profileName: z.string(),
+  product1: productComparisonItemSchema,
+  product2: productComparisonItemSchema,
+  winner: z.enum(['product1', 'product2', 'tie']),
+  conclusion: z.string(),
+});
+export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
+
+export const productComparisonResultSchema = z.object({
+  product1: productPreviewSchema,
+  product2: productPreviewSchema,
+  profiles: z.array(profileComparisonResultSchema),
+});
+export type ProductComparisonResult = z.infer<typeof productComparisonResultSchema>;
+
+export const compareProductsRequestSchema = z.object({
+  barcode1: z.string().min(1, 'First barcode is required'),
+  barcode2: z.string().min(1, 'Second barcode is required'),
+});
+export type CompareProductsRequest = z.infer<typeof compareProductsRequestSchema>;
+
+export const compareProductsResponseSchema = productComparisonResultSchema;
+export type CompareProductsResponse = z.infer<typeof compareProductsResponseSchema>;

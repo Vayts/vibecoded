@@ -11,6 +11,7 @@ import { ScrollView } from 'react-native-actions-sheet';
 import { PersonalTabContent } from './PersonalTabContent';
 import { ProductResultHeader } from './ProductResultHeader';
 import { NutriScoreBlock } from './NutriScoreBlock';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ProductResultContentProps {
   result: BarcodeLookupResponse;
@@ -18,6 +19,7 @@ interface ProductResultContentProps {
 }
 
 export function ProductResultContent({ result, resolvedPersonalResult }: ProductResultContentProps) {
+  const insets = useSafeAreaInsets();
   const personalJobId =
     !resolvedPersonalResult && hasProductResult(result)
       ? result.personalAnalysis.jobId
@@ -39,8 +41,9 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
   const product: BarcodeLookupProduct = result.product;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="max-h-[560px]">
-      <ProductResultHeader
+    <ScrollView showsVerticalScrollIndicator={false} className="max-h-[660px]" contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
+      <View>
+        <ProductResultHeader
         product={product}
         productId={result.productId}
         isFavourite={result.isFavourite}
@@ -54,6 +57,7 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
           isError={personalError}
           onRetry={personalRetry}
         />
+      </View>
       </View>
     </ScrollView>
   );

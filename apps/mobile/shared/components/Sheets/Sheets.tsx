@@ -1,7 +1,13 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
+import { ComparisonResultSheet } from '../../../modules/scanner/components/ComparisonResultSheet';
+import { ProductDecisionSheet } from '../../../modules/scanner/components/ProductDecisionSheet';
 import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerResultSheet';
-import type { ScannerResultSheetPayload } from '../../../modules/scanner/types/scanner';
+import type {
+  ComparisonResultSheetPayload,
+  ProductDecisionSheetPayload,
+  ScannerResultSheetPayload,
+} from '../../../modules/scanner/types/scanner';
 import { SheetsEnum } from '../../types/sheets';
 import ExampleSheet from './BottomSheets/ExampleSheet';
 
@@ -11,6 +17,8 @@ declare module 'react-native-actions-sheet' {
   interface Sheets {
     [SheetsEnum.ExampleSheet]: SheetDefinition;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
+    [SheetsEnum.ProductDecisionSheet]: SheetDefinition<{ payload: ProductDecisionSheetPayload }>;
+    [SheetsEnum.ComparisonResultSheet]: SheetDefinition<{ payload: ComparisonResultSheetPayload }>;
   }
 }
 
@@ -20,6 +28,8 @@ export const Sheets = () => {
       sheets={{
         [SheetsEnum.ExampleSheet]: ExampleSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
+        [SheetsEnum.ProductDecisionSheet]: ProductDecisionSheet,
+        [SheetsEnum.ComparisonResultSheet]: ComparisonResultSheet,
       }}
     />
   );

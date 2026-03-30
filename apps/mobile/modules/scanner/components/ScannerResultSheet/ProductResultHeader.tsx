@@ -22,9 +22,9 @@ export function ProductResultHeader({
   const imageUri = getProductImageUri(product, previewImageUri);
 
   return (
-    <View className="rounded-xl border border-gray-100 bg-white px-4 py-4">
+    <View className="rounded-xl bg-white pt-4">
       {productId ? (
-        <View className="absolute right-2 top-2 z-10">
+        <View className="absolute right-0 top-2 z-10">
           <FavouriteButton productId={productId} initialIsFavourite={isFavourite ?? false} />
         </View>
       ) : null}
@@ -41,12 +41,12 @@ export function ProductResultHeader({
           </View>
         )}
 
-        <View className="mr-8 flex-1 justify-center">
-          <Typography variant="sectionTitle" className="text-gray-900">
+        <View className="mr-12 flex-1">
+          <Typography variant="sectionTitle" className="text-neutrals-900 pr-5">
             {product.product_name ?? 'Unknown product'}
           </Typography>
           {product.brands ? (
-            <Typography variant="bodySecondary" className="mt-1 text-gray-600">
+            <Typography variant="bodySecondary" className="mt-1 text-neutrals-900">
               {product.brands}
             </Typography>
           ) : null}

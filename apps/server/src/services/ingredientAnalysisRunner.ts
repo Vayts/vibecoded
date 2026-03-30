@@ -21,7 +21,11 @@ export const runIngredientAnalysisAsync = async (
   product: NormalizedProduct,
   profiles: ProfileInput[],
 ): Promise<void> => {
+  const jobId = job.jobId;
+  const productName = product.product_name ?? product.code ?? 'unknown';
+
   // Phase 1: check cache for all profiles in parallel
+  console.log(`[IngredientAnalysis:${jobId}] 🔍 Checking cache for ${profiles.length} profile(s)...`);
   const cacheCheckResults = await Promise.all(
     profiles.map(async (profile, i) => {
       const profileHash = computeProfileHash(profile.onboarding);
@@ -35,11 +39,13 @@ export const runIngredientAnalysisAsync = async (
 
   for (const check of cacheCheckResults) {
     if (check.cached) {
+      console.log(`[IngredientAnalysis:${jobId}]   "${check.profile.profileName}" → cache HIT`);
       cachedResults.set(check.profile.profileId, {
         profileId: check.profile.profileId,
         result: check.cached,
       });
     } else {
+      console.log(`[IngredientAnalysis:${jobId}]   "${check.profile.profileName}" → cache MISS`);
       uncachedProfiles.push({ profile: check.profile, profileHash: check.profileHash, label: check.label });
     }
   }
@@ -48,6 +54,10 @@ export const runIngredientAnalysisAsync = async (
   const aiResults = new Map<string, { profileId: string; profileHash: string; result: NonNullable<Awaited<ReturnType<typeof findCachedIngredientAnalysis>>> }>();
 
   if (uncachedProfiles.length > 0) {
+    const uncachedNames = uncachedProfiles.map((p) => `"${p.profile.profileName}"`).join(', ');
+    console.log(`[IngredientAnalysis:${jobId}] 🤖 Invoking AI for ${uncachedProfiles.length} uncached profile(s): ${uncachedNames}  product="${productName}"`);
+    const t0 = Date.now();
+
     const profilesForPrompt = uncachedProfiles.map((p) => ({
       label: p.label,
       name: p.profile.profileName,
@@ -61,18 +71,24 @@ export const runIngredientAnalysisAsync = async (
       product,
       profilesForPrompt,
     );
+    console.log(`[IngredientAnalysis:${jobId}] ✅ AI responded  ${Date.now() - t0}ms  results=${multiResult.size}/${uncachedProfiles.length}`);
 
     for (const uncached of uncachedProfiles) {
       const result = multiResult.get(uncached.label);
       if (result) {
+        console.log(`[IngredientAnalysis:${jobId}]   "${uncached.profile.profileName}" → ${result.ingredients.length} ingredients  summary="${result.summary}"`);
         aiResults.set(uncached.profile.profileId, {
           profileId: uncached.profile.profileId,
           profileHash: uncached.profileHash,
           result,
         });
         await upsertCachedIngredientAnalysis(product.code, uncached.profileHash, result).catch(() => {});
+      } else {
+        console.warn(`[IngredientAnalysis:${jobId}] ⚠️  No result for "${uncached.profile.profileName}"`);
       }
     }
+  } else {
+    console.log(`[IngredientAnalysis:${jobId}] ⏭  All profiles served from cache`);
   }
 
   // Phase 3: attach all results (cached + AI) to job

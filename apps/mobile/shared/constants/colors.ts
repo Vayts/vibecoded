@@ -11,8 +11,8 @@
 export const COLORS = {
   // ── Brand ─────────────────────────────────────────────
   primary: '#205B23', // Acme Blue (blue-600) — CTAs, links, active states
-  primaryDark: '#1D4ED8', // Deep Blue (blue-700) — pressed / hover
-  primaryLight: '#DBEAFE', // Light Blue (blue-100) — subtle backgrounds, badges
+  primaryDark: '#205B23', // Deep Blue (blue-700) — pressed / hover
+  primaryLight: '#C3EFC4', // Light Blue (blue-100) — subtle backgrounds, badges
   primaryBorder: '#93C5FD',
 
   accent: '#E28200', // violet-600 — Pro / premium badge
@@ -20,8 +20,12 @@ export const COLORS = {
 
   neutrals900: '#1A1A1A',
   neutrals200: '#E6E6E6',
+  neutrals500: '#767676',
 
   // ── Semantic ──────────────────────────────────────────
+  blue: '#2563EB', // blue-600 — good match rating
+  blueSoft: '#EFF6FF', // blue-50
+  blueBorder: '#BFDBFE', // blue-200
   success: '#16A34A', // green-600 — correct answers, streaks
   successSoft: '#EAF7EE',
   successBorder: '#CDEBD6',

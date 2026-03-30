@@ -1,5 +1,5 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { Barcode, Heart } from 'lucide-react-native';
+import { Barcode, ClockFading, Heart } from 'lucide-react-native';
 import { useState } from 'react';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
@@ -131,9 +131,12 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
             Analyzing…
           </Typography>
         ) : null}
-        <Typography variant="caption" className="mt-0.5">
-          {formatRelativeTime(item.createdAt)}
-        </Typography>
+        <View className="mt-2 flex-row items-center gap-1">
+          <ClockFading size={16} color={COLORS.neutrals500} strokeWidth={1.5}/>
+          <Typography className="text-neutrals-500 text-[13px]">
+            {formatRelativeTime(item.createdAt)}
+          </Typography>
+        </View>
         </View>
       </View>
 

@@ -25,7 +25,7 @@ const variantClasses: Record<
   { container: string; text: string; indicator: string }
 > = {
   primary: {
-    container: 'bg-blue-600 rounded-xl',
+    container: 'bg-primary-900 rounded-xl',
     text: 'text-white font-semibold text-base',
     indicator: 'white',
   },

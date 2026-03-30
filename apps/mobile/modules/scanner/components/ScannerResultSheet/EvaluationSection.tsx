@@ -21,8 +21,8 @@ export function EvaluationSection({
   }
 
   return (
-    <View className="mt-5 overflow-hidden rounded-[12px] border border-gray-100 bg-white">
-      <View className="flex-row items-center justify-between px-4 py-3">
+    <View className="mt-5">
+      <View className="mb-3 flex-row items-center justify-between">
         <Typography variant="sectionTitle" className="text-gray-900">
           {title}
         </Typography>
@@ -33,17 +33,11 @@ export function EvaluationSection({
         ) : null}
       </View>
 
-      <View className="border-t border-gray-200">
+      <View className="gap-2">
         {items.length > 0 ? (
-          items.map((item, index) => (
-            <EvaluationRow
-              key={`${title}-${item.key}`}
-              item={item}
-              isLast={index === items.length - 1}
-            />
-          ))
+          items.map((item) => <EvaluationRow key={`${title}-${item.key}`} item={item} />)
         ) : (
-          <View className="px-4 py-3">
+          <View className="rounded-xl border border-gray-100 bg-white px-4 py-3">
             <Typography variant="bodySecondary" className="leading-6 text-gray-600">
               {emptyMessage}
             </Typography>

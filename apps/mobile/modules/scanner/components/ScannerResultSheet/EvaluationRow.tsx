@@ -10,10 +10,9 @@ import { EvaluationRowIcon } from './EvaluationRowIcon';
 
 interface EvaluationRowProps {
   item: ProductAnalysisItem;
-  isLast: boolean;
 }
 
-export function EvaluationRow({ item, isLast }: EvaluationRowProps) {
+export function EvaluationRow({ item }: EvaluationRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const tone = getSeverityTone(item.severity);
   const formattedValue = formatEvaluationValue(item);
@@ -23,35 +22,41 @@ export function EvaluationRow({ item, isLast }: EvaluationRowProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${item.label} details`}
-      className={`bg-white px-4 py-3 ${isLast ? '' : 'border-b border-gray-200'}`}
+      className="rounded-xl border border-gray-100 bg-white px-4 py-3"
       onPress={() => {
         setIsExpanded((current) => !current);
       }}
     >
-      <View className="flex-row items-start gap-3">
-        <EvaluationRowIcon item={item} />
+      <View className="flex-row items-center gap-4">
+        <View className="flex-row flex-1 items-center gap-1">
+          <EvaluationRowIcon/>
 
-        <View className="flex-1">
-          <Typography variant="body" className="text-gray-900">
-            {item.label}
-          </Typography>
-          <Typography variant="bodySecondary" className="mt-1 leading-5 text-gray-600">
-            {item.description}
-          </Typography>
-        </View>
-
-        <View className="min-w-[76px] items-end justify-start">
-          {formattedValue ? (
-            <Typography variant="body" className="text-gray-900">
-              {formattedValue}
+          <View className="flex-1">
+            <Typography variant="body" className="font-semibold text-gray-900">
+              {item.label}
             </Typography>
-          ) : null}
-
-          <View className="mt-1 flex-row items-center gap-2">
-            <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tone.dotColor }} />
-            <ChevronIcon color={COLORS.gray500} size={16} />
+            <Typography variant="bodySecondary" className="leading-5 text-gray-500">
+              {item.description}
+            </Typography>
           </View>
         </View>
+
+        {formattedValue ? (
+          <View
+            className="rounded-full border px-2.5 py-1"
+            style={{ backgroundColor: tone.badgeBackgroundColor, borderColor: tone.borderColor }}
+          >
+            <Typography
+              variant="caption"
+              className="font-semibold"
+              style={{ color: tone.textColor }}
+            >
+              {formattedValue}
+            </Typography>
+          </View>
+        ) : null}
+
+        <ChevronIcon color={COLORS.gray400} size={18} />
       </View>
 
       {isExpanded ? <EvaluationRowDetails item={item} /> : null}

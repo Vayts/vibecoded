@@ -3,16 +3,21 @@ import {
   barcodeLookupRequestSchema,
   personalAnalysisResultSchema,
   multiProfilePersonalAnalysisResultSchema,
+  productLookupRequestSchema,
+  compareProductsRequestSchema,
   type BarcodeLookupSuccessResponse,
   type BarcodeLookupNotFoundResponse,
   type ScannerLookupSource,
   type NormalizedProduct,
+  type ProductPreview,
+  type ProductComparisonResult,
 } from '@acme/shared';
 import { auth } from '../lib/auth';
 import { lookupBarcode, OpenFoodFactsLookupError } from '../services/openfoodfacts-client';
 import { searchProductByBarcode } from '../services/websearch-fallback';
 import { isFoodProduct } from '../services/is-food-product';
 import { createAnalysisJob, getAnalysisJob, createCachedAnalysisJob } from '../services/analysis-jobs';
+import { compareProductsForProfiles } from '../services/comparison-ai';
 import { findByBarcode, createProduct } from '../repositories/productRepository';
 import {
   createScan,
@@ -20,6 +25,7 @@ import {
   findProductIdByBarcode,
 } from '../repositories/scanRepository';
 import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
+import { getProfileInputs } from '../services/profileInputs';
 
 export const scannerRoute = new Hono();
 
@@ -181,4 +187,164 @@ scannerRoute.get('/personal-analysis/:jobId', (c) => {
   }
 
   return c.json(job);
+});
+
+/**
+ * Resolve a product by barcode: DB → OpenFoodFacts → WebSearch → save.
+ * Shared helper used by lookup and compare endpoints.
+ */
+const resolveProduct = async (
+  barcode: string,
+): Promise<{ product: NormalizedProduct; productId: string } | null> => {
+  let product: NormalizedProduct | null = await findByBarcode(barcode);
+
+  if (!product) {
+    product = await lookupBarcode(barcode);
+  }
+
+  if (!product) {
+    product = await searchProductByBarcode(barcode);
+  }
+
+  if (!product || !isFoodProduct(product)) {
+    return null;
+  }
+
+  const saved = await createProduct(product);
+  const productId = await findProductIdByBarcode(saved.code);
+  return { product: saved, productId: productId! };
+};
+
+const toProductPreview = (product: NormalizedProduct, productId: string): ProductPreview => ({
+  productId,
+  barcode: product.code,
+  product_name: product.product_name,
+  brands: product.brands,
+  image_url: product.image_url,
+});
+
+/**
+ * POST /api/scanner/lookup
+ * Lightweight product lookup — resolves by barcode without triggering analysis.
+ */
+scannerRoute.post('/lookup', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  const parsed = productLookupRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return c.json(
+      { error: issue?.message ?? 'Invalid barcode payload', code: 'VALIDATION_ERROR' },
+      400,
+    );
+  }
+
+  const { barcode } = parsed.data;
+  console.log(`🔍 [lookup] barcode=${barcode}`);
+  const t0 = Date.now();
+
+  try {
+    const cached = await findByBarcode(barcode);
+    if (cached) {
+      console.log(`✅ [lookup] cache hit — "${cached.product_name}" (${Date.now() - t0}ms)`);
+      const productId = await findProductIdByBarcode(barcode);
+      return c.json({ success: true, product: toProductPreview(cached, productId!) });
+    }
+
+    console.log(`⬇️  [lookup] not in DB, fetching OpenFoodFacts…`);
+    let product = await lookupBarcode(barcode);
+
+    if (!product) {
+      console.log(`⬇️  [lookup] OFF miss, trying web search fallback…`);
+      product = await searchProductByBarcode(barcode);
+    }
+
+    if (!product || !isFoodProduct(product)) {
+      console.log(`❌ [lookup] product not found or not food — barcode=${barcode} (${Date.now() - t0}ms)`);
+      return c.json({ error: 'Product not found', code: 'PRODUCT_NOT_FOUND' }, 404);
+    }
+
+    const saved = await createProduct(product);
+    const productId = await findProductIdByBarcode(saved.code);
+    console.log(`✅ [lookup] resolved "${saved.product_name}" (${Date.now() - t0}ms)`);
+
+    return c.json({
+      success: true,
+      product: toProductPreview(saved, productId!),
+    });
+  } catch (error) {
+    if (error instanceof OpenFoodFactsLookupError) {
+      console.log(`❌ [lookup] OpenFoodFacts error — ${error.code}: ${error.message}`);
+      return c.json({ error: error.message, code: error.code }, 502);
+    }
+    throw error;
+  }
+});
+
+/**
+ * POST /api/scanner/compare
+ * Compare two products for all user profiles using AI.
+ */
+scannerRoute.post('/compare', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  const parsed = compareProductsRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return c.json(
+      { error: issue?.message ?? 'Invalid comparison payload', code: 'VALIDATION_ERROR' },
+      400,
+    );
+  }
+
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const userId = session?.user?.id;
+  if (!userId) {
+    return c.json({ error: 'Authentication required', code: 'UNAUTHORIZED' }, 401);
+  }
+
+  try {
+    const [resolved1, resolved2] = await Promise.all([
+      resolveProduct(parsed.data.barcode1),
+      resolveProduct(parsed.data.barcode2),
+    ]);
+
+    if (!resolved1) {
+      return c.json({ error: 'First product not found', code: 'PRODUCT_NOT_FOUND' }, 404);
+    }
+    if (!resolved2) {
+      return c.json({ error: 'Second product not found', code: 'PRODUCT_NOT_FOUND' }, 404);
+    }
+
+    const profiles = await getProfileInputs(userId);
+
+    const comparisonResult = await compareProductsForProfiles(
+      resolved1.product,
+      resolved2.product,
+      profiles,
+    );
+
+    const result: ProductComparisonResult = {
+      product1: toProductPreview(resolved1.product, resolved1.productId),
+      product2: toProductPreview(resolved2.product, resolved2.productId),
+      profiles: comparisonResult,
+    };
+
+    return c.json(result);
+  } catch (error) {
+    if (error instanceof OpenFoodFactsLookupError) {
+      return c.json({ error: error.message, code: error.code }, 502);
+    }
+    throw error;
+  }
 });

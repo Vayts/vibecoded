@@ -28,11 +28,11 @@ const RATING_TONES: Record<RatingKey, RatingTone> = {
     badgeColor: COLORS.primary,
   },
   good: {
-    backgroundColor: COLORS.successSoft,
-    borderColor: COLORS.success,
-    textColor: COLORS.success,
-    mutedTextColor: COLORS.success,
-    badgeColor: COLORS.success,
+    backgroundColor: COLORS.blueSoft,
+    borderColor: COLORS.blueBorder,
+    textColor: COLORS.blue,
+    mutedTextColor: COLORS.blue,
+    badgeColor: COLORS.blue,
   },
   average: {
     backgroundColor: COLORS.warningSoft,
@@ -132,5 +132,10 @@ export const formatEvaluationValue = (item: ProductAnalysisItem): string | null 
     return null;
   }
 
-  return item.unit ? `${item.value}${item.unit}` : `${item.value}`;
+  const formatted =
+    typeof item.value === 'number'
+      ? parseFloat(item.value.toFixed(2)).toString()
+      : `${item.value}`;
+
+  return item.unit ? `${formatted}${item.unit}` : formatted;
 };

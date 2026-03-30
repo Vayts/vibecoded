@@ -40,9 +40,9 @@ module.exports = {
       },
       colors: {
         brand: {
-          DEFAULT: '#2563EB', // Acme Blue (blue-600)
-          light: '#DBEAFE', // Light Blue (blue-100)
-          dark: '#1D4ED8', // Deep Blue (blue-700)
+          DEFAULT: '#205B23', // Acme Blue (blue-600)
+          light: '#C3EFC4', // Light Blue (blue-100)
+          dark: '#205B23', // Deep Blue (blue-700)
         },
         accent: {
           green: '#16A34A', // Success / correct (green-600)
@@ -54,6 +54,14 @@ module.exports = {
           DEFAULT: '#FBBF24', // AI sparkle gold
           dark: '#F59E0B', // AI sparkle amber
         },
+        neutrals: {
+          100: '#F1F1F1',
+          500: '#767676',
+          900: '#1A1A1A',
+        },
+        primary: {
+          900: '#205B23'
+        }
       },
     },
   },

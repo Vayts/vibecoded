@@ -1,10 +1,10 @@
 import { ChatOpenAI } from '@langchain/openai';
-import type { BarcodeLookupProduct, IngredientAnalysisResult } from '@acme/shared';
+import type { BarcodeLookupProduct, IngredientAnalysisResult, IngredientAnalysisItem } from '@acme/shared';
 
 import { AI_MODELS } from '../domain/flashcards/prompts';
 import {
   ingredientAnalysisResultSchema,
-  multiProfileIngredientResultSchema,
+  compactMultiProfileResultSchema,
 } from '../domain/ingredient-analysis/schema';
 import {
   MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT,
@@ -12,6 +12,7 @@ import {
   type ProfileForPrompt,
 } from '../domain/ingredient-analysis/prompts';
 import { extractIngredients } from '../domain/ingredient-analysis/extraction';
+import { isFalseDietViolation } from '../domain/personal-analysis/restriction-filter';
 
 const MAX_INGREDIENTS = 30;
 
@@ -22,7 +23,7 @@ export class IngredientAnalysisAiService {
     this.model =
       model ??
       new ChatOpenAI({
-        model: AI_MODELS.mini,
+        model: AI_MODELS.reason,
         temperature: 0,
         apiKey: process.env.OPENAI_API_KEY,
         maxRetries: 3,
@@ -51,7 +52,7 @@ export class IngredientAnalysisAiService {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const structuredModel = (this.model as any).withStructuredOutput(
-        multiProfileIngredientResultSchema,
+        compactMultiProfileResultSchema,
       );
 
       const result = await structuredModel.invoke([
@@ -59,16 +60,40 @@ export class IngredientAnalysisAiService {
         { role: 'user', content: userMessage },
       ]);
 
-      const parsed = multiProfileIngredientResultSchema.parse(result);
+      const parsed = compactMultiProfileResultSchema.parse(result);
 
       for (const entry of parsed.profiles) {
+        // Start with all ingredients as neutral
+        const fullIngredients: IngredientAnalysisItem[] = ingredients.map((ing) => ({
+          original: ing.original,
+          normalized: ing.original,
+          label: ing.original,
+          status: 'neutral' as const,
+          reason: 'No conflict with profile',
+          matchesUserPreference: null,
+        }));
+
+        // Override flagged (non-neutral) ingredients, filtering false diet violations
+        for (const flagged of entry.flagged) {
+          if (flagged.i >= 0 && flagged.i < fullIngredients.length) {
+            // Skip if reason mentions a diet but no definitely-banned ingredient
+            if (flagged.s === 'bad' && isFalseDietViolation(flagged.r)) {
+              console.log(`[IngredientAnalysis] ❌ Filtered false diet violation: [${flagged.i}] "${fullIngredients[flagged.i].original}" reason="${flagged.r}"`);
+              continue;
+            }
+            fullIngredients[flagged.i].status = flagged.s;
+            fullIngredients[flagged.i].reason = flagged.r;
+            fullIngredients[flagged.i].matchesUserPreference = flagged.s === 'good' ? true : false;
+          }
+        }
+
         const profileResult: IngredientAnalysisResult = {
-          ingredients: entry.ingredients,
+          ingredients: fullIngredients,
           summary: entry.summary,
         };
         const validated = ingredientAnalysisResultSchema.safeParse(profileResult);
         if (validated.success && validated.data.ingredients.length > 0) {
-          resultMap.set(entry.profileLabel, validated.data);
+          resultMap.set(entry.p, validated.data);
         }
       }
 

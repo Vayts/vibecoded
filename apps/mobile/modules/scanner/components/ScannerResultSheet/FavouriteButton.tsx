@@ -29,9 +29,10 @@ export function FavouriteButton({ productId, initialIsFavourite }: FavouriteButt
       className="h-11 w-11 items-center justify-center rounded-full"
     >
       <Heart
-        size={24}
-        color={isFavourite ? COLORS.danger : COLORS.gray400}
-        fill={isFavourite ? COLORS.danger : 'none'}
+        size={20}
+        strokeWidth={1.5}
+        color={isFavourite ? COLORS.accent : COLORS.neutrals500}
+        fill={isFavourite ? COLORS.accent : 'none'}
       />
     </TouchableOpacity>
   );
