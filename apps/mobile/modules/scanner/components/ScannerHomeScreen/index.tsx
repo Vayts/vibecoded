@@ -1,6 +1,6 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -11,10 +11,11 @@ import {
   useProductLookupMutation,
   useCompareProductsMutation,
 } from '../../hooks/useScannerMutations';
+import { usePhotoCapture } from '../../hooks/usePhotoCapture';
 import { useCompareStore } from '../../stores/compareStore';
+import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerPermissionState } from '../ScannerPermissionState';
 
-const SAMPLE_BARCODE = '5901234123457';
 const RESCAN_COOLDOWN_MS = 1500;
 
 export function ScannerHomeScreen() {
@@ -33,13 +34,31 @@ export function ScannerHomeScreen() {
   const [isScannerPaused, setIsScannerPaused] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  const isPending = lookupMutation.isPending || compareMutation.isPending;
-
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
     setIsLocked(false);
     setIsScannerPaused(false);
   }, []);
+
+  const { capturePhoto, isPending: isPhotoPending } = usePhotoCapture();
+
+  const handlePhotoPress = useCallback(async () => {
+    if (scanLockRef.current || isCompareMode) return;
+    scanLockRef.current = true;
+    setIsLocked(true);
+    setIsScannerPaused(true);
+    setSubmitMessage(null);
+    try {
+      const result = await capturePhoto();
+      if (!result) { resumeScanner(); return; }
+      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
+        payload: { result }, onClose: resumeScanner,
+      });
+    } catch (error) {
+      setSubmitMessage(error instanceof Error ? error.message : 'Unable to identify product');
+      resumeScanner();
+    }
+  }, [capturePhoto, isCompareMode, resumeScanner]);
 
   const submitBarcode = useCallback(async (barcode: string) => {
     const normalized = barcode.trim();
@@ -104,11 +123,13 @@ export function ScannerHomeScreen() {
     );
   }
 
-  const statusMessage = isPending
-    ? isCompareMode
+  const statusMessage = isPhotoPending
+    ? 'Identifying product\u2026'
+    : compareMutation.isPending
       ? 'Comparing products\u2026'
-      : 'Looking up product\u2026'
-    : 'Preparing next scan\u2026';
+      : lookupMutation.isPending
+        ? 'Looking up product\u2026'
+        : 'Processing\u2026';
 
   return (
     <View className="flex-1 bg-black">
@@ -159,26 +180,13 @@ export function ScannerHomeScreen() {
           <View className="h-64 w-full max-w-[320px] rounded-[32px] border-2 border-white/80" />
         </View>
 
-        <View className="items-center gap-3">
-          {isCompareMode ? (
-            <TouchableOpacity
-              accessibilityLabel="Cancel comparison"
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              className="rounded-full bg-black/50 px-4 py-3"
-              onPress={() => resetCompare()}
-            >
-              <Typography variant="buttonSmall" className="text-white">
-                Cancel comparison
-              </Typography>
-            </TouchableOpacity>
-          ) : null}
-          {submitMessage ? (
-            <Typography variant="bodySecondary" className="text-center text-red-300">
-              {submitMessage}
-            </Typography>
-          ) : null}
-        </View>
+        <ScannerBottomBar
+          isCompareMode={isCompareMode}
+          isLocked={isLocked}
+          submitMessage={submitMessage}
+          onPhotoPress={() => void handlePhotoPress()}
+          onCancelCompare={() => resetCompare()}
+        />
       </View>
     </View>
   );

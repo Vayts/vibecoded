@@ -1,6 +1,7 @@
 import type {
   BarcodeLookupRequest,
   BarcodeLookupResponse,
+  BarcodeLookupSuccessResponse,
   ProductLookupRequest,
   ProductLookupResponse,
   CompareProductsRequest,
@@ -11,6 +12,8 @@ import {
   submitBarcodeScan,
   lookupProduct,
   compareProducts,
+  submitPhotoScan,
+  type PhotoScanRequest,
 } from '../api/scannerMutations';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
@@ -34,6 +37,16 @@ export const useCompareProductsMutation = () => {
   const queryClient = useQueryClient();
   return useMutation<CompareProductsResponse, Error, CompareProductsRequest>({
     mutationFn: compareProducts,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
+    },
+  });
+};
+
+export const usePhotoScanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation<BarcodeLookupSuccessResponse, Error, PhotoScanRequest>({
+    mutationFn: submitPhotoScan,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     },

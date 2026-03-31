@@ -9,6 +9,7 @@ import { favouritesRoute } from './routes/favourites';
 import { healthRoute } from './routes/health';
 import { meRoute } from './routes/me';
 import { scannerRoute } from './routes/scanner';
+import { scannerPhotoRoute } from './routes/scanner-photo';
 import { scansRoute } from './routes/scans';
 import { userRoute } from './routes/user';
 import dotenv from 'dotenv';
@@ -36,6 +37,7 @@ app.route('/api/family-members', familyMembersRoute);
 app.route('/api/favourites', favouritesRoute);
 app.route('/api/me', meRoute);
 app.route('/api/scanner', scannerRoute);
+app.route('/api/scanner', scannerPhotoRoute);
 app.route('/api/scans', scansRoute);
 app.route('/api/user', userRoute);
 

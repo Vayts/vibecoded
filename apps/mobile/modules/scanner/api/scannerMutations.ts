@@ -5,8 +5,10 @@ import {
   productLookupResponseSchema,
   compareProductsRequestSchema,
   compareProductsResponseSchema,
+  barcodeLookupSuccessResponseSchema,
   type BarcodeLookupRequest,
   type BarcodeLookupResponse,
+  type BarcodeLookupSuccessResponse,
   type ProductLookupRequest,
   type ProductLookupResponse,
   type CompareProductsRequest,
@@ -68,4 +70,24 @@ export const compareProducts = async (
 
   const json = await response.json();
   return compareProductsResponseSchema.parse(json);
+};
+
+export interface PhotoScanRequest {
+  imageBase64: string;
+}
+
+export const submitPhotoScan = async (
+  payload: PhotoScanRequest,
+): Promise<BarcodeLookupSuccessResponse> => {
+  const response = await apiFetch('/api/scanner/photo', {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64: payload.imageBase64 }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  const json = await response.json();
+  return barcodeLookupSuccessResponseSchema.parse(json);
 };

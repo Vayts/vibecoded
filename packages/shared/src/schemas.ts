@@ -19,7 +19,7 @@ export const barcodeLookupRequestSchema = z.object({
 });
 export type BarcodeLookupRequest = z.infer<typeof barcodeLookupRequestSchema>;
 
-export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'websearch']);
+export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'websearch', 'photo']);
 export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
 
 export const barcodeLookupProductSchema = z.object({

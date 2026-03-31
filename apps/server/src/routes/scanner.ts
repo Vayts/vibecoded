@@ -1,97 +1,30 @@
 import { Hono } from 'hono';
 import {
   barcodeLookupRequestSchema,
-  personalAnalysisResultSchema,
-  multiProfilePersonalAnalysisResultSchema,
   productLookupRequestSchema,
   compareProductsRequestSchema,
-  type BarcodeLookupSuccessResponse,
-  type BarcodeLookupNotFoundResponse,
   type ScannerLookupSource,
   type NormalizedProduct,
-  type ProductPreview,
   type ProductComparisonResult,
 } from '@acme/shared';
 import { auth } from '../lib/auth';
 import { lookupBarcode, OpenFoodFactsLookupError } from '../services/openfoodfacts-client';
 import { searchProductByBarcode } from '../services/websearch-fallback';
 import { isFoodProduct } from '../services/is-food-product';
-import { createAnalysisJob, getAnalysisJob, createCachedAnalysisJob } from '../services/analysis-jobs';
+import { getAnalysisJob } from '../services/analysis-jobs';
 import { compareProductsForProfiles } from '../services/comparison-ai';
 import { findByBarcode, createProduct } from '../repositories/productRepository';
-import {
-  createScan,
-  findRecentScanByBarcode,
-  findProductIdByBarcode,
-} from '../repositories/scanRepository';
+import { findProductIdByBarcode } from '../repositories/scanRepository';
 import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
 import { getProfileInputs } from '../services/profileInputs';
+import {
+  buildSuccessResponse,
+  createNotFoundResponse,
+  resolveProduct,
+  toProductPreview,
+} from './scanner-helpers';
 
 export const scannerRoute = new Hono();
-
-const RESULT_CACHE_MS = 2 * 60 * 60 * 1000; // 2 hours
-
-const createNotFoundResponse = (
-  barcode: string,
-  source: ScannerLookupSource,
-): BarcodeLookupNotFoundResponse => ({
-  success: false,
-  barcode,
-  source,
-  error: 'PRODUCT_NOT_FOUND',
-});
-
-const buildSuccessResponse = async (
-  barcode: string,
-  source: ScannerLookupSource,
-  product: NormalizedProduct,
-  userId?: string,
-): Promise<BarcodeLookupSuccessResponse> => {
-  let scanId: string | undefined;
-
-  if (userId) {
-    const existing = await findRecentScanByBarcode(userId, barcode);
-    if (existing) {
-      scanId = existing.id;
-
-      const scanAge = Date.now() - existing.createdAt.getTime();
-      if (
-        scanAge < RESULT_CACHE_MS &&
-        existing.personalAnalysisStatus === 'completed' &&
-        existing.personalResult
-      ) {
-        const parsed = personalAnalysisResultSchema.safeParse(existing.personalResult);
-        if (parsed.success) {
-          let cachedMultiProfile;
-          if (existing.multiProfileResult) {
-            const multiParsed = multiProfilePersonalAnalysisResultSchema.safeParse(
-              existing.multiProfileResult,
-            );
-            if (multiParsed.success) {
-              cachedMultiProfile = multiParsed.data;
-            }
-          }
-          const personalAnalysis = createCachedAnalysisJob(parsed.data, cachedMultiProfile);
-          return { success: true, barcode, source, product, personalAnalysis };
-        }
-      }
-    } else {
-      const productId = await findProductIdByBarcode(product.code);
-      const scan = await createScan({
-        userId,
-        productId: productId ?? undefined,
-        barcode: product.code,
-        source: 'barcode',
-        personalAnalysisStatus: 'pending',
-      });
-      scanId = scan.id;
-    }
-  }
-
-  const personalAnalysis = createAnalysisJob(product, userId, scanId);
-
-  return { success: true, barcode, source, product, personalAnalysis };
-};
 
 /**
  * POST /api/scanner/barcode
@@ -187,40 +120,6 @@ scannerRoute.get('/personal-analysis/:jobId', (c) => {
   }
 
   return c.json(job);
-});
-
-/**
- * Resolve a product by barcode: DB → OpenFoodFacts → WebSearch → save.
- * Shared helper used by lookup and compare endpoints.
- */
-const resolveProduct = async (
-  barcode: string,
-): Promise<{ product: NormalizedProduct; productId: string } | null> => {
-  let product: NormalizedProduct | null = await findByBarcode(barcode);
-
-  if (!product) {
-    product = await lookupBarcode(barcode);
-  }
-
-  if (!product) {
-    product = await searchProductByBarcode(barcode);
-  }
-
-  if (!product || !isFoodProduct(product)) {
-    return null;
-  }
-
-  const saved = await createProduct(product);
-  const productId = await findProductIdByBarcode(saved.code);
-  return { product: saved, productId: productId! };
-};
-
-const toProductPreview = (product: NormalizedProduct, productId: string): ProductPreview => ({
-  productId,
-  barcode: product.code,
-  product_name: product.product_name,
-  brands: product.brands,
-  image_url: product.image_url,
 });
 
 /**
