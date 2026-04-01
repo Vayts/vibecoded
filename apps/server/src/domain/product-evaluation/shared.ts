@@ -1,4 +1,4 @@
-import type { BarcodeLookupProduct, EvaluationItem, ProductEvaluation } from '@acme/shared';
+import type { EvaluationItem, ProductEvaluation } from '@acme/shared';
 
 type EvaluationSeverity = EvaluationItem['severity'];
 type EvaluationRating = ProductEvaluation['rating'];
@@ -46,5 +46,3 @@ export const getRating = (overallScore: number): EvaluationRating => {
 
   return 'bad';
 };
-
-export type ProductEvaluator = (product: BarcodeLookupProduct) => EvaluatorResult;

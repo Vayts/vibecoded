@@ -1,44 +1,5 @@
 import type { BarcodeLookupProduct } from '@acme/shared';
 
-export const INGREDIENT_ANALYSIS_SYSTEM_PROMPT = `You classify food ingredients for a specific user. Return JSON only.
-
-DEFAULT RULE (MOST IMPORTANT):
-- The DEFAULT status for every ingredient is "neutral". Only change it if you can cite a SPECIFIC conflict or benefit from the user's profile.
-- If the user has NO dietary restrictions and NO allergies, almost ALL ingredients should be "neutral". Do NOT flag common food ingredients as "warning" or "bad" without a concrete reason tied to the user's profile.
-
-CLASSIFICATION RULES:
-- bad: ingredient DIRECTLY conflicts with a specific diet restriction or allergy listed in the user profile. You MUST name which restriction or allergy in the reason.
-- warning: ingredient is a known concern for a specific nutrition priority or goal listed in the user profile. You MUST name which priority or goal in the reason.
-- neutral: ingredient has no conflict with the user's restrictions, allergies, priorities, or goals. THIS IS THE DEFAULT.
-- good: ingredient directly supports a specific nutrition priority or goal listed in the user profile. Use sparingly. You MUST name which priority or goal in the reason.
-
-DIET ENFORCEMENT (CRITICAL — NEVER IGNORE):
-- ONLY check ingredients against the restrictions explicitly listed in the user's "Diet:" line.
-- If the user has NO "Diet:" line (or it says "No specific dietary restrictions"), do NOT apply ANY diet-based flags. Every ingredient should be "neutral" from a diet perspective.
-- Do NOT assume or infer dietary restrictions that are not explicitly stated in the profile.
-- Example: pork is only "bad" if the profile's Diet includes HALAL, KOSHER, VEGAN, or VEGETARIAN. If the profile has no such restriction, pork is "neutral".
-
-ALLERGEN ENFORCEMENT (CRITICAL):
-- If an ingredient matches ANY of the user's listed allergies → status MUST be "bad"
-- If the user has NO allergies listed, do NOT flag ingredients as allergens
-
-NUTRITION CROSS-CHECK:
-- If nutrition data shows 0g for a substance, the related ingredient is present in negligible amounts → status should be "neutral" not "warning"
-
-REASON FORMAT:
-- Each reason MUST reference the specific profile attribute (restriction, allergy, priority, or goal) that justifies the status
-- For "neutral" ingredients, reason should be "No conflict with profile"
-- For "bad": e.g. "Contains gluten — conflicts with GLUTEN-FREE diet"
-- For "warning": e.g. "High sodium — conflicts with LOW_SODIUM priority"
-- For "good": e.g. "High fiber — supports WEIGHT_LOSS goal"
-- Max 12 words
-
-OTHER RULES:
-- Normalize each ingredient name to canonical English
-- Do NOT invent ingredients not in the list
-- Summary: one short sentence about overall compatibility
-- When in doubt, use "neutral" — do NOT guess or assume conflicts`;
-
 export const MULTI_PROFILE_INGREDIENT_ANALYSIS_SYSTEM_PROMPT = `Classify food ingredients for multiple user profiles. Return JSON.
 
 ONLY return ingredients that are NOT neutral. Omit neutral ingredients entirely.
@@ -86,62 +47,6 @@ const ALLERGY_LABELS: Record<string, string> = {
   SESAME: 'sesame',
 };
 
-export const buildIngredientAnalysisPrompt = (
-  product: BarcodeLookupProduct,
-  ingredients: { original: string }[],
-  userProfile: {
-    restrictions: string[];
-    allergies: string[];
-    nutritionPriorities: string[];
-    mainGoal: string | null;
-  },
-): string => {
-  const parts: string[] = [];
-
-  // Product context
-  if (product.product_name) {
-    parts.push(`Product: ${product.product_name}`);
-  }
-
-  parts.push(`Ingredients: ${ingredients.map((i) => i.original).join(', ')}`);
-
-  // Nutrition context
-  const nutritionFacts: string[] = [];
-  const n = product.nutrition;
-  if (n.sugars_100g !== null) nutritionFacts.push(`sugar:${n.sugars_100g}g`);
-  if (n.salt_100g !== null) nutritionFacts.push(`salt:${n.salt_100g}g`);
-  if (n.fat_100g !== null) nutritionFacts.push(`fat:${n.fat_100g}g`);
-  if (n.proteins_100g !== null) nutritionFacts.push(`protein:${n.proteins_100g}g`);
-  if (n.fiber_100g !== null) nutritionFacts.push(`fiber:${n.fiber_100g}g`);
-  if (nutritionFacts.length > 0) {
-    parts.push(`Nutrition/100g: ${nutritionFacts.join(', ')}`);
-  }
-
-  // User profile — explicit and human-readable
-  parts.push('');
-  parts.push('USER PROFILE:');
-
-  if (userProfile.restrictions.length > 0) {
-    const labels = userProfile.restrictions.map((r) => RESTRICTION_LABELS[r] ?? r);
-    parts.push(`Diet: ${labels.join(', ')}`);
-  }
-  if (userProfile.allergies.length > 0) {
-    const labels = userProfile.allergies.map((a) => ALLERGY_LABELS[a] ?? a);
-    parts.push(`Allergies: ${labels.join(', ')}`);
-  }
-  if (userProfile.nutritionPriorities.length > 0) {
-    parts.push(`Priorities: ${userProfile.nutritionPriorities.join(', ')}`);
-  }
-  if (userProfile.mainGoal) {
-    parts.push(`Goal: ${userProfile.mainGoal}`);
-  }
-
-  if (userProfile.restrictions.length === 0 && userProfile.allergies.length === 0) {
-    parts.push('No specific dietary restrictions or allergies.');
-  }
-
-  return parts.join('\n');
-};
 
 export interface ProfileForPrompt {
   label: string;

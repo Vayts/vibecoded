@@ -150,11 +150,6 @@ const buildMatcher = (token: string): ((value: string) => boolean) => {
   return (value: string) => pattern.test(value);
 };
 
-export const hasAnyToken = (values: string[], tokens: readonly string[]): boolean => {
-  const matchers = tokens.map(buildMatcher);
-  return values.some((value) => matchers.some((m) => m(value)));
-};
-
 const hasAnyTokenWithExclusions = (
   values: string[],
   tokens: readonly string[],

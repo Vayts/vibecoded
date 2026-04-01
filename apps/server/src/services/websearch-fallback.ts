@@ -1,7 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
-import { AI_MODELS } from '../domain/flashcards/prompts';
+import { AI_MODELS } from '../constants/models';
 
 const websearchProductSchema = z.object({
   found: z.boolean().describe('Whether a specific food product was found for this barcode'),

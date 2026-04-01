@@ -1,7 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import type { BarcodeLookupProduct, IngredientAnalysisResult, IngredientAnalysisItem } from '@acme/shared';
 
-import { AI_MODELS } from '../domain/flashcards/prompts';
+import { AI_MODELS } from '../constants/models';
 import {
   ingredientAnalysisResultSchema,
   compactMultiProfileResultSchema,

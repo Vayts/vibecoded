@@ -3,7 +3,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { AI_MODELS } from '../domain/flashcards/prompts';
+import { AI_MODELS } from '../constants/models';
 import { resolveProduct } from '../routes/scanner-helpers';
 import { findBestVectorMatchedProduct } from './product-vector-search.service';
 import { findByBarcode } from '../repositories/productRepository';

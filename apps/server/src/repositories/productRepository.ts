@@ -85,22 +85,6 @@ export const findByBarcode = async (barcode: string): Promise<NormalizedProduct 
   return toNormalizedProduct(product);
 };
 
-export const findByNameAndBrand = async (
-  productName: string,
-  brand: string,
-): Promise<NormalizedProduct | null> => {
-  const product = await prisma.product.findFirst({
-    where: {
-      product_name: { equals: productName, mode: 'insensitive' },
-      brands: { equals: brand, mode: 'insensitive' },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  if (!product) return null;
-  return toNormalizedProduct(product);
-};
-
 export const createProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
   const startedAt = Date.now();
   console.log(

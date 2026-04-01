@@ -1,7 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import type { NormalizedProduct, ProfileComparisonResult } from '@acme/shared';
-import { AI_MODELS } from '../domain/flashcards/prompts';
+import { AI_MODELS } from '../constants/models';
 import type { ProfileInput } from './profileInputs';
 import { getProfileLabel } from '../domain/personal-analysis/personal-analysis-prompt';
 import { filterComparisonBulletsWithAllergies, filterComparisonPositives } from '../domain/personal-analysis/restriction-filter';
