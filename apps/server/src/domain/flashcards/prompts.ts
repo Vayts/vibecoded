@@ -9,7 +9,7 @@
 
 export const AI_MODELS = {
   /** Vision model for OCR / image understanding */
-  vision: 'gpt-4.1',
+  vision: 'gpt-5.4-nano',
   /** Fast model for text-to-cards and structured output */
   mini: 'gpt-4o-mini',
   /** Reasoning model for complex problem solving */

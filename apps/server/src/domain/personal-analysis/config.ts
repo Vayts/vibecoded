@@ -4,7 +4,7 @@ import type {
   ProductAnalysisItem,
 } from '@acme/shared';
 
-const MAX_VISIBLE_PERSONAL_REASONS = 6;
+const MAX_VISIBLE_PERSONAL_REASONS = 8;
 const VISIBLE_PERSONAL_POSITIVE_KEYS = new Set([
   'protein',
   'fiber',
@@ -12,12 +12,17 @@ const VISIBLE_PERSONAL_POSITIVE_KEYS = new Set([
   'salt',
   'saturated-fat',
   'calories',
+  'ingredients',
+  'additives',
+  'nutriscore',
   'goal',
   'dietary-preference',
 ]);
 const VISIBLE_PERSONAL_NEGATIVE_KEY_PREFIXES = [
   'sugar',
   'salt',
+  'protein',
+  'fiber',
   'saturated-fat',
   'calories',
   'additives',

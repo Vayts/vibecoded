@@ -12,6 +12,7 @@ interface CreateScanInput {
   overallRating?: string;
   personalAnalysisStatus?: PersonalAnalysisStatus;
   evaluation?: ProductAnalysisResult;
+  photoImagePath?: string;
 }
 
 export const findRecentScanByBarcode = async (
@@ -38,6 +39,7 @@ export const createScan = async (input: CreateScanInput) => {
       personalAnalysisStatus: input.personalAnalysisStatus ?? null,
       evaluation: (input.evaluation as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       personalResult: Prisma.JsonNull,
+      photoImagePath: input.photoImagePath ?? null,
     },
   });
 };

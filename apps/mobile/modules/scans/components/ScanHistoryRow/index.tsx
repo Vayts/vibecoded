@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
 
 interface ScanHistoryRowProps {
@@ -64,7 +65,7 @@ function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['prof
 }
 
 export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
-  const imageUri = item.product?.image_url ?? null;
+  const imageUri = resolveStorageUri(item.product?.image_url) ?? null;
   const productName = item.product?.product_name ?? 'Unknown product';
   const brands = item.product?.brands ?? null;
   const score = item.personalScore ?? item.overallScore;

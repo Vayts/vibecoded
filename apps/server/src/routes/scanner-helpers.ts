@@ -20,6 +20,12 @@ import { isFoodProduct } from '../services/is-food-product';
 
 export const RESULT_CACHE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
+export interface ResolvedProductResult {
+  product: NormalizedProduct;
+  productId: string;
+  wasExistingInDb: boolean;
+}
+
 export const createNotFoundResponse = (
   barcode: string,
   source: ScannerLookupSource,
@@ -36,6 +42,7 @@ export const buildSuccessResponse = async (
   product: NormalizedProduct,
   userId?: string,
   scanSource: 'barcode' | 'photo' = 'barcode',
+  photoImagePath?: string,
 ): Promise<BarcodeLookupSuccessResponse> => {
   let scanId: string | undefined;
 
@@ -46,6 +53,7 @@ export const buildSuccessResponse = async (
 
       const scanAge = Date.now() - existing.createdAt.getTime();
       if (
+        scanSource !== 'photo' &&
         scanAge < RESULT_CACHE_MS &&
         existing.personalAnalysisStatus === 'completed' &&
         existing.personalResult
@@ -73,6 +81,7 @@ export const buildSuccessResponse = async (
         barcode: product.code,
         source: scanSource,
         personalAnalysisStatus: 'pending',
+        photoImagePath,
       });
       scanId = scan.id;
     }
@@ -88,8 +97,9 @@ export const buildSuccessResponse = async (
  */
 export const resolveProduct = async (
   barcode: string,
-): Promise<{ product: NormalizedProduct; productId: string } | null> => {
+): Promise<ResolvedProductResult | null> => {
   let product: NormalizedProduct | null = await findByBarcode(barcode);
+  const wasExistingInDb = Boolean(product);
 
   if (!product) {
     product = await lookupBarcode(barcode);
@@ -105,7 +115,7 @@ export const resolveProduct = async (
 
   const saved = await createProduct(product);
   const productId = await findProductIdByBarcode(saved.code);
-  return { product: saved, productId: productId! };
+  return { product: saved, productId: productId!, wasExistingInDb };
 };
 
 export const toProductPreview = (product: NormalizedProduct, productId: string): ProductPreview => ({

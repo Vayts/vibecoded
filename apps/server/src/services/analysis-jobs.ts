@@ -9,12 +9,11 @@ import type {
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { randomUUID } from 'node:crypto';
 
-import { analyzeProductForProfiles } from './personal-analysis-ai';
 import { runIngredientAnalysisAsync } from './ingredientAnalysisRunner';
 import { updateScanPersonalResult } from '../repositories/scanRepository';
 import { extractIngredients } from '../domain/ingredient-analysis/extraction';
 import { getProfileInputs, type ProfileInput } from './profileInputs';
-import { buildNutritionFallback } from '../domain/personal-analysis/nutrition-fallback';
+import { buildPersonalProductAnalysis } from '../domain/personal-analysis/build-personal-analysis';
 
 const JOB_TTL_MS = 10 * 60 * 1000;
 const jobs = new Map<string, MultiProfilePersonalAnalysisJobResponse>();
@@ -31,7 +30,7 @@ const hasIngredientData = (product: NormalizedProduct): boolean => {
 
 /**
  * Run the full analysis pipeline:
- *   1. AI personal analysis (positives/negatives) — completes first, marks job done
+ *   1. Deterministic personal analysis (positives/negatives) — completes first, marks job done
  *   2. AI ingredient analysis — runs in background, updates job in-place
  */
 const runAnalysisJob = async (
@@ -61,18 +60,24 @@ const runAnalysisJob = async (
     const profileNames = profiles.map((p) => `"${p.profileName}"`).join(', ');
     console.log(`[Job:${jobId}] 👤 Profiles (${profiles.length}): ${profileNames}  hasIngredients=${productHasIngredients}`);
 
-    // Phase 1: Run personal analysis (positives/negatives)
-    console.log(`[Job:${jobId}] 🤖 Phase 1 — Personal analysis (AI)...`);
+    // Phase 1: Run deterministic personal analysis (positives/negatives)
+    console.log(`[Job:${jobId}] 🧮 Phase 1 — Personal analysis (deterministic)...`);
     const phase1Start = Date.now();
-    const personalResults = await analyzeProductForProfiles(product, profiles).catch(
-      (error) => {
-        console.error(`[Job:${jobId}] ❌ Phase 1 failed:`, error);
-        return new Map<string, PersonalAnalysisResult>();
-      },
-    );
+    const personalResults = new Map<string, PersonalAnalysisResult>();
+    for (const profile of profiles) {
+      try {
+        const result = buildPersonalProductAnalysis(product, profile.onboarding);
+        personalResults.set(profile.profileId, result);
+      } catch (error) {
+        console.error(
+          `[Job:${jobId}] ❌ Deterministic analysis failed for profile "${profile.profileName}":`,
+          error,
+        );
+      }
+    }
     console.log(`[Job:${jobId}] ✅ Phase 1 done  ${Date.now() - phase1Start}ms  results=${personalResults.size}/${profiles.length}`);
 
-    // Build multi-profile result from AI personal analysis
+    // Build multi-profile result from deterministic personal analysis
     const profileChips: ProfileFitChip[] = [];
     const detailsByProfile: Record<string, PersonalAnalysisResult> = {};
 
@@ -88,9 +93,8 @@ const runAnalysisJob = async (
         detailsByProfile[profile.profileId] = aiResult;
         console.log(`[Job:${jobId}]   "${profile.profileName}" → score=${aiResult.fitScore} (${aiResult.fitLabel})  +${aiResult.positives.length}✓ -${aiResult.negatives.length}✗`);
       } else {
-        // Fallback: build deterministic nutrition-based result when AI didn't return this profile
-        console.warn(`[Job:${jobId}] ⚠️  AI did not return result for profile "${profile.profileName}" (${profile.profileId}), using nutrition fallback`);
-        const fallback = buildNutritionFallback(product);
+        console.warn(`[Job:${jobId}] ⚠️  Deterministic analysis missing for profile "${profile.profileName}" (${profile.profileId}), using baseline fallback`);
+        const fallback = buildPersonalProductAnalysis(product, profile.onboarding);
         profileChips.push({
           profileId: profile.profileId,
           profileName: profile.profileName,

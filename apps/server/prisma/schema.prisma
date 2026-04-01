@@ -161,6 +161,8 @@ model Product {
   product_name     String?
   brands           String?
   image_url        String?
+  embeddingText    String?
+  embeddingVector  Unsupported("vector(1536)")?
   ingredients_text String?
   nutriscore_grade String?
   categories       String?
@@ -211,6 +213,7 @@ model Scan {
   evaluation              Json?
   personalResult          Json?
   multiProfileResult      Json?
+  photoImagePath          String?
   createdAt               DateTime                @default(now())
 
   @@index([userId, createdAt(sort: Desc)])

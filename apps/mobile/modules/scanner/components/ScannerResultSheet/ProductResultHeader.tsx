@@ -19,7 +19,7 @@ export function ProductResultHeader({
   productId,
   isFavourite,
 }: ProductResultHeaderProps) {
-  const imageUri = getProductImageUri(product, previewImageUri);
+  const resolvedImageUrl = getProductImageUri(product, previewImageUri);
 
   return (
     <View className="rounded-xl bg-white pt-4">
@@ -29,9 +29,9 @@ export function ProductResultHeader({
         </View>
       ) : null}
       <View className="flex-row gap-4">
-        {imageUri ? (
+        {resolvedImageUrl ? (
           <Image
-            source={{ uri: imageUri }}
+            source={{ uri: resolvedImageUrl }}
             className="h-20 w-20 rounded-xl bg-gray-100"
             resizeMode="cover"
           />

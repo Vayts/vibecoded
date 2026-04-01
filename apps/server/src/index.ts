@@ -11,6 +11,7 @@ import { meRoute } from './routes/me';
 import { scannerRoute } from './routes/scanner';
 import { scannerPhotoRoute } from './routes/scanner-photo';
 import { scansRoute } from './routes/scans';
+import { storageRoute } from './routes/storage';
 import { userRoute } from './routes/user';
 import dotenv from 'dotenv';
 import http from 'http';
@@ -39,6 +40,7 @@ app.route('/api/me', meRoute);
 app.route('/api/scanner', scannerRoute);
 app.route('/api/scanner', scannerPhotoRoute);
 app.route('/api/scans', scansRoute);
+app.route('/api/storage', storageRoute);
 app.route('/api/user', userRoute);
 
 app.notFound((c) => c.json({ error: 'Not found', code: 'NOT_FOUND' }, 404));

@@ -10,7 +10,7 @@ import type {
 import { evaluateProduct } from '../product-evaluation/evaluate-product';
 import { dedupeAnalysisItemsByLabel } from './item-dedup';
 
-const HIDDEN_ANALYSIS_KEYS = new Set(['ingredients', 'nutriscore']);
+const HIDDEN_ANALYSIS_KEYS = new Set<string>();
 
 const buildAdditiveOverview = (product: BarcodeLookupProduct, item: EvaluationItem): string => {
   const additiveCount = product.additives_count ?? product.additives.length;

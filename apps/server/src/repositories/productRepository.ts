@@ -2,6 +2,7 @@ import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../lib/prisma';
+import { syncProductEmbedding } from '../services/product-embedding.service';
 
 const toNormalizedProduct = (product: {
   code: string;
@@ -101,12 +102,32 @@ export const findByNameAndBrand = async (
 };
 
 export const createProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
+  const startedAt = Date.now();
+  console.log(
+    `[productRepository] upsert start code=${product.code} name="${product.product_name ?? ''}" brand="${product.brands ?? ''}" imageUrl="${product.image_url ?? ''}"`,
+  );
   const data = toProductCreateInput(product);
   const savedProduct = await prisma.product.upsert({
     where: { barcode: product.code },
     create: data,
     update: data,
   });
+
+  console.log(
+    `[productRepository] upsert done id=${savedProduct.id} code=${savedProduct.code} elapsed=${Date.now() - startedAt}ms`,
+  );
+
+  try {
+    await syncProductEmbedding(savedProduct.id, savedProduct.product_name, savedProduct.brands);
+    console.log(
+      `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
+    );
+  } catch (error) {
+    console.error(
+      '[productRepository] Failed to sync product embedding:',
+      error instanceof Error ? error.message : error,
+    );
+  }
 
   return toNormalizedProduct(savedProduct);
 };

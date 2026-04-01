@@ -3,6 +3,7 @@ import { Image, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
+import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useCompareStore } from '../../stores/compareStore';
 import { useScanBarcodeMutation } from '../../hooks/useScannerMutations';
@@ -18,6 +19,8 @@ export function ProductDecisionSheet() {
   const barcodeMutation = useScanBarcodeMutation();
 
   if (!product) return null;
+
+  const resolvedImageUrl = resolveStorageUri(product.image_url);
 
   const handleAnalyze = async () => {
     // Mark that an action is taking ownership of the scanner pause.
@@ -55,9 +58,9 @@ export function ProductDecisionSheet() {
   return (
     <ActionSheet gestureEnabled onClose={handleSheetClose}>
       <View className="items-center px-6 pb-6 pt-2">
-        {product.image_url ? (
+        {resolvedImageUrl ? (
           <Image
-            source={{ uri: product.image_url }}
+            source={{ uri: resolvedImageUrl }}
             className="mb-4 h-32 w-32 rounded-2xl bg-gray-100"
             resizeMode="contain"
             accessibilityLabel={product.product_name ?? 'Product image'}

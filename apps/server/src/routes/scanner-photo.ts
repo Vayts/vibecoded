@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import type { NormalizedProduct } from '@acme/shared';
 import { auth } from '../lib/auth';
 import { identifyProductByPhoto } from '../services/photo-product-identification';
 import { isFoodProduct } from '../services/is-food-product';
@@ -6,10 +7,30 @@ import { createProduct } from '../repositories/productRepository';
 import { findProductIdByBarcode } from '../repositories/scanRepository';
 import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
 import { buildSuccessResponse } from './scanner-helpers';
+import { processProductImage } from '../lib/image-processing';
+import { uploadProductImage } from '../lib/storage';
 
 export const scannerPhotoRoute = new Hono();
 
 const MAX_PHOTO_BASE64_SIZE = 10 * 1024 * 1024; // ~10MB base64 ≈ ~7.5MB binary
+
+const attachPhotoImagePath = (
+  product: NormalizedProduct,
+  photoImagePath: string | null,
+) : NormalizedProduct => {
+  if (!product || !photoImagePath) {
+    return product;
+  }
+
+  return {
+    ...product,
+    image_url: photoImagePath,
+    images: {
+      ...product.images,
+      front_url: photoImagePath,
+    },
+  };
+};
 
 /**
  * POST /api/scanner/photo
@@ -44,11 +65,11 @@ scannerPhotoRoute.post('/photo', async (c) => {
     console.log(`📸 [photo] Starting photo identification for user=${userId}`);
     const t0 = Date.now();
     const elapsed = () => `${Date.now() - t0}ms`;
-    console.log(`📸 [photo-route] 1/5 Received photo scan — user=${userId} base64len=${imageBase64.length}`);
+    console.log(`📸 [photo-route] 1/6 Received photo scan — user=${userId} base64len=${imageBase64.length}`);
 
-    const product = await identifyProductByPhoto(imageBase64);
+    const identification = await identifyProductByPhoto(imageBase64);
 
-    if (!product) {
+    if (!identification) {
       console.log(`❌ [photo-route] AI identification returned null [${elapsed()}]`);
       return c.json(
         { error: 'Could not identify product from photo', code: 'PRODUCT_NOT_FOUND' },
@@ -56,7 +77,11 @@ scannerPhotoRoute.post('/photo', async (c) => {
       );
     }
 
-    console.log(`[photo-route] 2/5 AI identified: "${product.product_name}" (${product.brands}) code=${product.code} [${elapsed()}]`);
+    const product = identification.product;
+
+    console.log(
+      `[photo-route] 2/6 AI identified: "${product.product_name}" (${product.brands}) code=${product.code} source=${identification.source} shouldUploadPhoto=${identification.shouldUploadPhoto} [${elapsed()}]`,
+    );
 
     if (!isFoodProduct(product)) {
       console.log(`❌ [photo-route] isFoodProduct check failed for "${product.product_name}" [${elapsed()}]`);
@@ -66,9 +91,35 @@ scannerPhotoRoute.post('/photo', async (c) => {
       );
     }
 
-    console.log(`[photo-route] 3/5 Food product confirmed — saving to DB... [${elapsed()}]`);
-    const savedProduct = await createProduct(product);
-    console.log(`[photo-route] 4/5 Saved product — building response + analysis job... [${elapsed()}]`);
+    let savedProduct = product;
+    let photoImagePath: string | null = null;
+
+    if (identification.shouldUploadPhoto) {
+      const rawBuffer = Buffer.from(imageBase64, 'base64');
+      console.log(`📸 [photo-route] 3/6 Preparing image upload for new product — bytes=${rawBuffer.length} [${elapsed()}]`);
+
+      try {
+        const processed = await processProductImage(rawBuffer);
+        console.log(`📸 [photo-route] Image processed: ${processed.width}x${processed.height} ${processed.sizeBytes} bytes [${elapsed()}]`);
+        photoImagePath = await uploadProductImage(processed.buffer);
+        console.log(`📸 [photo-route] Image uploaded: ${photoImagePath} [${elapsed()}]`);
+      } catch (err) {
+        console.error('📸 [photo-route] Image processing/upload failed for new product:', err);
+        return c.json({ error: 'Failed to store product image', code: 'IMAGE_UPLOAD_FAILED' }, 502);
+      }
+
+      const productWithImage = attachPhotoImagePath(product, photoImagePath);
+      console.log(
+        `[photo-route] Product image attached image_url=${productWithImage.image_url ?? 'null'} front_url=${productWithImage.images.front_url ?? 'null'} [${elapsed()}]`,
+      );
+
+      console.log(`[photo-route] 4/6 New product identified — saving to DB... [${elapsed()}]`);
+      savedProduct = await createProduct(productWithImage);
+      console.log(`[photo-route] 5/6 Saved new product — building response + analysis job... [${elapsed()}]`);
+    } else {
+      console.log(`[photo-route] 3/6 Existing product matched — skipping image upload and product update [${elapsed()}]`);
+      console.log(`[photo-route] 4/6 Reusing existing product data — building response + analysis job... [${elapsed()}]`);
+    }
 
     const response = await buildSuccessResponse(
       savedProduct.code,
@@ -76,6 +127,10 @@ scannerPhotoRoute.post('/photo', async (c) => {
       savedProduct,
       userId,
       'photo',
+      photoImagePath ?? undefined,
+    );
+    console.log(
+      `[photo-route] 5/6 Response built barcode=${response.barcode} productName="${response.product.product_name ?? ''}" photoImagePath=${photoImagePath ?? 'null'} [${elapsed()}]`,
     );
 
     const [isFav, productId] = await Promise.all([
@@ -83,8 +138,13 @@ scannerPhotoRoute.post('/photo', async (c) => {
       findProductIdByBarcode(response.barcode),
     ]);
 
-    console.log(`✅ [photo-route] 5/5 Done — "${product.product_name}" isFav=${isFav} productId=${productId} [${elapsed()}]`);
-    return c.json({ ...response, isFavourite: isFav, productId: productId ?? undefined });
+    console.log(`✅ [photo-route] 6/6 Done — "${savedProduct.product_name}" isFav=${isFav} productId=${productId} [${elapsed()}]`);
+    return c.json({
+      ...response,
+      isFavourite: isFav,
+      productId: productId ?? undefined,
+      photoImagePath: photoImagePath ?? undefined,
+    });
   } catch (error) {
     console.error('[photo-route] ❌ Uncaught error:', error);
     throw error;

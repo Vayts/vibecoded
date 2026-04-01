@@ -5,7 +5,14 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { AI_MODELS } from '../domain/flashcards/prompts';
 import { resolveProduct } from '../routes/scanner-helpers';
-import { findByNameAndBrand } from '../repositories/productRepository';
+import { findBestVectorMatchedProduct } from './product-vector-search.service';
+import { findByBarcode } from '../repositories/productRepository';
+
+export interface PhotoIdentificationResult {
+  product: NormalizedProduct;
+  shouldUploadPhoto: boolean;
+  source: 'barcode' | 'vector' | 'websearch';
+}
 
 // ---------------------------------------------------------------------------
 // Step 1 — OCR: extract all visible text from the photo
@@ -126,14 +133,6 @@ const MIN_CONFIDENCE = 0.5;
 const roundTo1 = (v: number | null): number | null =>
   v != null ? Math.round(v * 10) / 10 : null;
 
-const getVisionModel = () =>
-  new ChatOpenAI({
-    model: AI_MODELS.vision,
-    temperature: 0,
-    apiKey: process.env.OPENAI_API_KEY,
-    maxRetries: 2,
-  });
-
 const getSearchModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.reason,
@@ -147,7 +146,7 @@ const getSearchModel = () =>
 // ---------------------------------------------------------------------------
 
 const extractTextFromPhoto = async (imageBase64: string): Promise<OcrResult | null> => {
-  const model = (getVisionModel() as any).withStructuredOutput(ocrResultSchema, {
+  const model = (getSearchModel() as any).withStructuredOutput(ocrResultSchema, {
     method: 'jsonSchema',
     name: 'photo_ocr',
   });
@@ -180,12 +179,20 @@ const hasNutritionData = (product: NormalizedProduct): boolean => {
   );
 };
 
-const tryBarcodeResolution = async (barcodes: string[]): Promise<NormalizedProduct | null> => {
+const tryBarcodeResolution = async (
+  barcodes: string[],
+): Promise<PhotoIdentificationResult | null> => {
   for (const barcode of barcodes) {
     const cleaned = barcode.replace(/\D/g, '');
     if (cleaned.length < 8 || cleaned.length > 14) continue;
     const resolved = await resolveProduct(cleaned);
-    if (resolved) return resolved.product;
+    if (resolved) {
+      return {
+        product: resolved.product,
+        shouldUploadPhoto: !resolved.wasExistingInDb,
+        source: 'barcode',
+      };
+    }
   }
   return null;
 };
@@ -254,11 +261,11 @@ Search for: "${searchQuery}"`,
 /**
  * Identify a food product from a photo using a two-step approach:
  * 1. OCR — extract all visible text from the photo (fast vision model)
- * 2. Lookup — try barcode pipeline first, then web-search by extracted text
+ * 2. Lookup — try barcode pipeline first, then DB vector match, then web-search by extracted text
  */
 export const identifyProductByPhoto = async (
   imageBase64: string,
-): Promise<NormalizedProduct | null> => {
+): Promise<PhotoIdentificationResult | null> => {
   const t0 = Date.now();
   const elapsed = () => `${Date.now() - t0}ms`;
 
@@ -290,13 +297,13 @@ export const identifyProductByPhoto = async (
     }
 
     // Step 2a: If barcodes found, try existing pipeline (DB → OpenFoodFacts → WebSearch)
-    let barcodeProduct: NormalizedProduct | null = null;
+    let barcodeProduct: PhotoIdentificationResult | null = null;
     if (ocr.barcodes.length > 0) {
       console.log(`[PhotoID] 3/4 Trying barcode resolution: [${ocr.barcodes.join(', ')}] [${elapsed()}]`);
       barcodeProduct = await tryBarcodeResolution(ocr.barcodes);
-      if (barcodeProduct && hasNutritionData(barcodeProduct)) {
+      if (barcodeProduct && hasNutritionData(barcodeProduct.product)) {
         console.log(
-          `[PhotoID] ✅ Found via barcode (with nutrition) — "${barcodeProduct.product_name}" (${barcodeProduct.brands}) [${elapsed()}]`,
+          `[PhotoID] ✅ Found via barcode (with nutrition) — "${barcodeProduct.product.product_name}" (${barcodeProduct.product.brands}) shouldUploadPhoto=${barcodeProduct.shouldUploadPhoto} [${elapsed()}]`,
         );
         return barcodeProduct;
       }
@@ -309,18 +316,36 @@ export const identifyProductByPhoto = async (
       console.log(`[PhotoID] 3/4 No barcodes detected, using text search [${elapsed()}]`);
     }
 
-    // Step 2b: Check DB cache by product name + brand before doing a web search
-    if (ocr.productName && ocr.brand) {
-      const cached = await findByNameAndBrand(ocr.productName, ocr.brand);
-      if (cached) {
+    // Step 2b: Try vector search in our own product DB before using WebSearch.
+    if (ocr.productName) {
+      console.log(
+        `[PhotoID] 3/4 Trying DB vector match — product="${ocr.productName}" brand="${ocr.brand ?? ''}" [${elapsed()}]`,
+      );
+      const vectorMatch = await findBestVectorMatchedProduct({
+        productName: ocr.productName,
+        brand: ocr.brand,
+      });
+
+      if (vectorMatch) {
         console.log(
-          `[PhotoID] ✅ Found in DB cache — "${cached.product_name}" (${cached.brands}) code=${cached.code} [${elapsed()}]`,
+          `[PhotoID] ✅ Found via DB vector match — "${vectorMatch.product.product_name}" (${vectorMatch.product.brands}) similarity=${vectorMatch.similarity.toFixed(3)} query="${vectorMatch.queryText}" [${elapsed()}]`,
         );
-        return cached;
+        return {
+          product: vectorMatch.product,
+          shouldUploadPhoto: false,
+          source: 'vector',
+        };
       }
+
+      console.log(`[PhotoID] 3/4 No strong DB vector match, falling back to WebSearch [${elapsed()}]`);
+    } else {
+      console.log(`[PhotoID] 3/4 No extracted product name, skipping DB vector match [${elapsed()}]`);
     }
 
     // Step 2c: Search by extracted text (product name, brand, etc.) — retry once on failure
+    console.log(
+      `[PhotoID] 3/4 Trying WebSearch fallback — product="${ocr.productName ?? ''}" brand="${ocr.brand ?? ''}" [${elapsed()}]`,
+    );
     let product = await searchByExtractedText(ocr);
 
     if (!product) {
@@ -340,7 +365,7 @@ export const identifyProductByPhoto = async (
 
     // If barcode pipeline found the product with a real barcode, use that code instead of a synthetic one
     if (barcodeProduct && product.code.startsWith('photo-')) {
-      product = { ...product, code: barcodeProduct.code };
+      product = { ...product, code: barcodeProduct.product.code };
     }
 
     // Post-process: if brands are not in English, re-ask the model for English translation
@@ -368,7 +393,7 @@ export const identifyProductByPhoto = async (
         const match = /Brand:\s*(.+)/i.exec(contentStr);
         if (match) {
           finalProduct = {
-            ...product,
+            ...finalProduct,
             brands: match[1].trim(),
           };
         }
@@ -380,7 +405,24 @@ export const identifyProductByPhoto = async (
     console.log(
       `[PhotoID] ✅ Found via text search — "${finalProduct.product_name}" (${finalProduct.brands}) code=${finalProduct.code} [${elapsed()}]`,
     );
-    return finalProduct;
+
+    const existingProduct = await findByBarcode(finalProduct.code);
+    if (existingProduct) {
+      console.log(
+        `[PhotoID] ♻️ WebSearch resolved to existing DB product — code=${finalProduct.code} name="${existingProduct.product_name}" [${elapsed()}]`,
+      );
+      return {
+        product: existingProduct,
+        shouldUploadPhoto: false,
+        source: 'websearch',
+      };
+    }
+
+    return {
+      product: finalProduct,
+      shouldUploadPhoto: true,
+      source: 'websearch',
+    };
   } catch (error) {
     console.error(
       `[PhotoID] ❌ Uncaught error [${elapsed()}]:`,

@@ -44,10 +44,10 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
     <ScrollView showsVerticalScrollIndicator={false} className="max-h-[660px]" contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
       <View>
         <ProductResultHeader
-        product={product}
-        productId={result.productId}
-        isFavourite={result.isFavourite}
-      />
+          product={product}
+          productId={result.productId}
+          isFavourite={result.isFavourite}
+        />
 
       <NutriScoreBlock grade={product.scores.nutriscore_grade} />
 

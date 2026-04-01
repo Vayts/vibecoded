@@ -2,6 +2,7 @@ import type { ProductPreview } from '@acme/shared';
 import { Image, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 
 function ProductMiniHeader({
   product,
@@ -12,11 +13,13 @@ function ProductMiniHeader({
   label: string;
   isWinner: boolean;
 }) {
+  const resolvedImageUrl = resolveStorageUri(product.image_url);
+
   return (
     <View className="mb-3 flex-row items-center gap-3">
-      {product.image_url ? (
+      {resolvedImageUrl ? (
         <Image
-          source={{ uri: product.image_url }}
+          source={{ uri: resolvedImageUrl }}
           className="h-10 w-10 rounded-lg bg-gray-100"
           resizeMode="contain"
         />

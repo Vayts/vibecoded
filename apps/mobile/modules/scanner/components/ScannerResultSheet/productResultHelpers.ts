@@ -1,5 +1,6 @@
 import type { BarcodeLookupProduct, BarcodeLookupResponse } from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
+import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import type { ScannerMutationResponse } from '../../types/scanner';
 
 type GradeKey = 'a' | 'b' | 'c' | 'd' | 'e';
@@ -56,7 +57,12 @@ export const getProductImageUri = (
   product: BarcodeLookupProduct,
   previewImageUri?: string | null,
 ): string | null => {
-  return product.images.front_url ?? product.image_url ?? previewImageUri ?? null;
+  return (
+    resolveStorageUri(product.images.front_url) ??
+    resolveStorageUri(product.image_url) ??
+    previewImageUri ??
+    null
+  );
 };
 
 export const formatLabel = (value: string): string => {
