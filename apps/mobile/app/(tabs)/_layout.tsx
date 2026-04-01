@@ -1,8 +1,9 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Home, BookOpen, User } from 'lucide-react-native';
+import { ClipboardList, User } from 'lucide-react-native';
 import { ScreenSpinner } from '../../shared/components/ScreenSpinner';
-import { COLORS } from '../../shared/constants/colors';
 import { useAuthStore } from '../../shared/stores/authStore';
+import { OnboardingGate } from '../../modules/onboarding/components/OnboardingGate';
+import { CustomTabBar } from '../../shared/components/CustomTabBar';
 
 export default function TabsLayout() {
   const { user, isInitialized } = useAuthStore();
@@ -16,37 +17,40 @@ export default function TabsLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.gray400,
-        tabBarStyle: {
-          borderTopColor: COLORS.gray200,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tab 1',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+    <OnboardingGate>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
         }}
-      />
-      <Tabs.Screen
-        name="tab-two"
-        options={{
-          title: 'Tab 2',
-          tabBarIcon: ({ color, size }) => <BookOpen size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="tab-three"
-        options={{
-          title: 'Tab 3',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
-        }}
-      />
-    </Tabs>
+        tabBar={(props) => <CustomTabBar {...props} />}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="tab-two"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="scans"
+          options={{
+            title: "Discovery",
+            tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Account',
+            tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          }}
+        />
+      </Tabs>
+    </OnboardingGate>
   );
 }

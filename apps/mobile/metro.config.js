@@ -38,4 +38,12 @@ config.resolver.extraNodeModules = {
 // Required for pnpm: resolve symlinks so Metro can hash files inside node_modules/.pnpm
 config.resolver.unstable_enableSymlinks = true;
 
+// SVG support via react-native-svg-transformer
+config.transformer = {
+  ...config.transformer,
+  babelTransformerPath: require.resolve('react-native-svg-transformer'),
+};
+config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
+
 module.exports = withNativeWind(config, { input: './global.css' });

@@ -5,7 +5,7 @@ import {
   FLASHCARD_SYSTEM_PROMPT,
   CHAT_SYSTEM_PROMPT,
   buildExtendSystemPrompt,
-} from './prompts';
+} from '../domain/flashcards/prompts';
 import { extractTextFromImage } from './vision';
 import { fixMathDelimiters, sanitizeCards } from '../lib/mathSanitizer';
 import type { ChatHistoryMessage } from '@acme/shared';

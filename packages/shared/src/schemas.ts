@@ -1,195 +1,207 @@
 import { z } from 'zod';
-import { MIN_TEXT_INPUT_LENGTH } from './constants';
+import {
+  mainGoalSchema,
+  restrictionSchema,
+  allergySchema,
+  nutritionPrioritySchema,
+} from './onboarding';
 
 // ============================================================
-// Deck schemas
+// Scanner schemas
 // ============================================================
 
-export const createDeckRequestSchema = z.object({
-  title: z.string().min(1).max(200),
+export const barcodeLookupRequestSchema = z.object({
+  barcode: z
+    .string()
+    .trim()
+    .min(1, 'Barcode is required')
+    .regex(/^\d{8,32}$/, 'Barcode must contain 8 to 32 digits'),
 });
-export type CreateDeckRequest = z.infer<typeof createDeckRequestSchema>;
+export type BarcodeLookupRequest = z.infer<typeof barcodeLookupRequestSchema>;
 
-export const deckResponseSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  userId: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  lastStudied: z.string().nullable(),
-  cardCount: z.number(),
-  cardsDue: z.number(),
-});
-export type DeckResponse = z.infer<typeof deckResponseSchema>;
+export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'websearch', 'photo']);
+export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
 
-// ============================================================
-// Card schemas
-// ============================================================
-
-export const cardResponseSchema = z.object({
-  id: z.string(),
-  front: z.string(),
-  back: z.string(),
-  deckId: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  // FSRS fields
-  stability: z.number(),
-  difficulty: z.number(),
-  elapsedDays: z.number(),
-  scheduledDays: z.number(),
-  reps: z.number(),
-  lapses: z.number(),
-  state: z.number(),
-  dueDate: z.string(),
-});
-export type CardResponse = z.infer<typeof cardResponseSchema>;
-
-export const createCardRequestSchema = z.object({
-  front: z.string().min(1).max(1000),
-  back: z.string().min(1).max(1000),
-  deckId: z.string(),
-});
-export type CreateCardRequest = z.infer<typeof createCardRequestSchema>;
-
-export const updateCardRequestSchema = z.object({
-  front: z.string().min(1).max(1000).optional(),
-  back: z.string().min(1).max(1000).optional(),
-});
-export type UpdateCardRequest = z.infer<typeof updateCardRequestSchema>;
-
-// ============================================================
-// Generation schemas
-// ============================================================
-
-export const generateFlashcardsRequestSchema = z.union([
-  z.object({
-    type: z.literal('image'),
-    imageBase64: z.string(),
-    deckTitle: z.string().optional(),
+export const barcodeLookupProductSchema = z.object({
+  code: z.string(),
+  product_name: z.string().nullable(),
+  brands: z.string().nullable(),
+  image_url: z.string().nullable(),
+  ingredients_text: z.string().nullable(),
+  nutriscore_grade: z.string().nullable(),
+  categories: z.string().nullable(),
+  quantity: z.string().nullable(),
+  serving_size: z.string().nullable(),
+  ingredients: z.array(z.string()),
+  allergens: z.array(z.string()),
+  additives: z.array(z.string()),
+  additives_count: z.number().nullable(),
+  traces: z.array(z.string()),
+  countries: z.array(z.string()),
+  category_tags: z.array(z.string()),
+  images: z.object({
+    front_url: z.string().nullable(),
+    ingredients_url: z.string().nullable(),
+    nutrition_url: z.string().nullable(),
   }),
-  z.object({
-    type: z.literal('images'),
-    imagesBase64: z.array(z.string()).min(1).max(5),
-    text: z.string().optional(),
-    deckTitle: z.string().optional(),
+  nutrition: z.object({
+    energy_kcal_100g: z.number().nullable(),
+    proteins_100g: z.number().nullable(),
+    fat_100g: z.number().nullable(),
+    saturated_fat_100g: z.number().nullable(),
+    carbohydrates_100g: z.number().nullable(),
+    sugars_100g: z.number().nullable(),
+    fiber_100g: z.number().nullable(),
+    salt_100g: z.number().nullable(),
+    sodium_100g: z.number().nullable(),
   }),
-  z.object({
-    type: z.literal('text'),
-    text: z.string().min(MIN_TEXT_INPUT_LENGTH),
-    deckTitle: z.string().optional(),
+  scores: z.object({
+    nutriscore_grade: z.string().nullable(),
+    nutriscore_score: z.number().nullable(),
+    ecoscore_grade: z.string().nullable(),
+    ecoscore_score: z.number().nullable(),
   }),
-  z.object({
-    type: z.literal('mixed'),
-    imagesBase64: z.array(z.string()).optional(),
-    text: z.string().optional(),
-    instruction: z.string().optional(),
-    deckTitle: z.string().optional(),
-  }),
+});
+export type BarcodeLookupProduct = z.infer<typeof barcodeLookupProductSchema>;
+export const normalizedProductSchema = barcodeLookupProductSchema;
+export type NormalizedProduct = z.infer<typeof normalizedProductSchema>;
+
+export const evaluationItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string(),
+  value: z.number().nullable(),
+  unit: z.string().nullable(),
+  severity: z.enum(['good', 'neutral', 'warning', 'bad']),
+});
+export type EvaluationItem = z.infer<typeof evaluationItemSchema>;
+
+export const productEvaluationSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  rating: z.enum(['excellent', 'good', 'average', 'bad']),
+  positives: z.array(evaluationItemSchema),
+  negatives: z.array(evaluationItemSchema),
+});
+export type ProductEvaluation = z.infer<typeof productEvaluationSchema>;
+
+export const productAnalysisItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string(),
+  value: z.number().nullable(),
+  unit: z.string().nullable(),
+  per: z.enum(['100g']).nullable(),
+  severity: z.enum(['good', 'neutral', 'warning', 'bad']),
+  category: z.enum(['nutrition', 'diet', 'ingredients', 'restriction']),
+  overview: z.string(),
+  triggerIngredients: z.array(z.string()).optional().describe('Specific ingredient(s) that caused this flag — only for diet/restriction/ingredients categories'),
+});
+export type ProductAnalysisItem = z.infer<typeof productAnalysisItemSchema>;
+
+export const positiveProductAnalysisItemSchema = productAnalysisItemSchema.extend({
+  severity: z.enum(['good', 'neutral']),
+});
+export type PositiveProductAnalysisItem = z.infer<typeof positiveProductAnalysisItemSchema>;
+
+export const negativeProductAnalysisItemSchema = productAnalysisItemSchema.extend({
+  severity: z.enum(['warning', 'bad']),
+});
+export type NegativeProductAnalysisItem = z.infer<typeof negativeProductAnalysisItemSchema>;
+
+export const productAnalysisResultSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  rating: z.enum(['excellent', 'good', 'average', 'bad']),
+  summary: z.string(),
+  positives: z.array(positiveProductAnalysisItemSchema),
+  negatives: z.array(negativeProductAnalysisItemSchema),
+  warnings: z.array(z.string()),
+});
+export type ProductAnalysisResult = z.infer<typeof productAnalysisResultSchema>;
+
+export const personalFitLabelSchema = z.enum(['great_fit', 'good_fit', 'neutral', 'poor_fit']);
+export type PersonalFitLabel = z.infer<typeof personalFitLabelSchema>;
+
+// ============================================================
+// Ingredient analysis schemas
+// ============================================================
+
+export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
+export type IngredientStatus = z.infer<typeof ingredientStatusSchema>;
+
+export const ingredientAnalysisItemSchema = z.object({
+  original: z.string().describe('Raw ingredient string from source'),
+  normalized: z.string().describe('Normalized/translated canonical English form'),
+  label: z.string().describe('UI-friendly display label'),
+  status: ingredientStatusSchema.describe('How frontend should highlight the ingredient'),
+  reason: z.string().describe('Why this status was assigned — must reference the specific profile attribute (restriction, allergy, priority, or goal). Max 12 words.'),
+  matchesUserPreference: z
+    .boolean()
+    .nullable()
+    .describe('Whether it clearly matches/conflicts with profile'),
+});
+export type IngredientAnalysisItem = z.infer<typeof ingredientAnalysisItemSchema>;
+
+export const ingredientAnalysisResultSchema = z.object({
+  ingredients: z.array(ingredientAnalysisItemSchema),
+  summary: z.string().nullable(),
+});
+export type IngredientAnalysisResult = z.infer<typeof ingredientAnalysisResultSchema>;
+
+export const personalAnalysisResultSchema = z.object({
+  fitScore: z.number().min(0).max(100),
+  fitLabel: personalFitLabelSchema,
+  summary: z.string().optional(),
+  positives: z.array(positiveProductAnalysisItemSchema),
+  negatives: z.array(negativeProductAnalysisItemSchema),
+  ingredientAnalysis: ingredientAnalysisResultSchema.nullable().optional(),
+});
+export type PersonalAnalysisResult = z.infer<typeof personalAnalysisResultSchema>;
+
+export const personalAnalysisJobStatusSchema = z.enum(['pending', 'completed', 'failed']);
+export type PersonalAnalysisJobStatus = z.infer<typeof personalAnalysisJobStatusSchema>;
+
+export const personalAnalysisJobSchema = z.object({
+  jobId: z.string(),
+  status: personalAnalysisJobStatusSchema,
+});
+export type PersonalAnalysisJob = z.infer<typeof personalAnalysisJobSchema>;
+
+export const ingredientAnalysisStatusSchema = z.enum(['pending', 'completed', 'skipped', 'failed']);
+export type IngredientAnalysisStatus = z.infer<typeof ingredientAnalysisStatusSchema>;
+
+export const personalAnalysisJobResponseSchema = z.object({
+  jobId: z.string(),
+  status: personalAnalysisJobStatusSchema,
+  result: personalAnalysisResultSchema.optional(),
+  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
+});
+export type PersonalAnalysisJobResponse = z.infer<typeof personalAnalysisJobResponseSchema>;
+
+export const barcodeLookupSuccessResponseSchema = z.object({
+  success: z.literal(true),
+  barcode: z.string(),
+  source: scannerLookupSourceSchema,
+  product: barcodeLookupProductSchema,
+  evaluation: productAnalysisResultSchema.optional(),
+  personalAnalysis: personalAnalysisJobSchema,
+  productId: z.string().optional(),
+  isFavourite: z.boolean().optional(),
+});
+export type BarcodeLookupSuccessResponse = z.infer<typeof barcodeLookupSuccessResponseSchema>;
+
+export const barcodeLookupNotFoundResponseSchema = z.object({
+  success: z.literal(false),
+  barcode: z.string(),
+  source: scannerLookupSourceSchema,
+  error: z.literal('PRODUCT_NOT_FOUND'),
+});
+export type BarcodeLookupNotFoundResponse = z.infer<typeof barcodeLookupNotFoundResponseSchema>;
+
+export const barcodeLookupResponseSchema = z.union([
+  barcodeLookupSuccessResponseSchema,
+  barcodeLookupNotFoundResponseSchema,
 ]);
-export type GenerateFlashcardsRequest = z.infer<typeof generateFlashcardsRequestSchema>;
-
-export const generatedCardSchema = z.object({
-  id: z.string().optional(), // populated in server response after DB save
-  front: z.string(),
-  back: z.string(),
-});
-export type GeneratedCard = z.infer<typeof generatedCardSchema>;
-
-export const generateFlashcardsResponseSchema = z.object({
-  deckId: z.string(),
-  deckTitle: z.string(),
-  cards: z.array(generatedCardSchema),
-  generationsRemaining: z.number(),
-});
-export type GenerateFlashcardsResponse = z.infer<typeof generateFlashcardsResponseSchema>;
-
-// ============================================================
-// Review schemas
-// ============================================================
-
-export const reviewRatingSchema = z.union([
-  z.literal(1), // Again
-  z.literal(2), // Hard
-  z.literal(3), // Good
-  z.literal(4), // Easy
-]);
-export type ReviewRating = z.infer<typeof reviewRatingSchema>;
-
-export const submitReviewRequestSchema = z.object({
-  cardId: z.string(),
-  rating: reviewRatingSchema,
-});
-export type SubmitReviewRequest = z.infer<typeof submitReviewRequestSchema>;
-
-// ============================================================
-// Sync schemas
-// ============================================================
-
-export const syncPullResponseSchema = z.object({
-  decks: z.array(deckResponseSchema),
-  cards: z.array(cardResponseSchema),
-  lastSyncAt: z.string(),
-});
-export type SyncPullResponse = z.infer<typeof syncPullResponseSchema>;
-
-export const syncPushRequestSchema = z.object({
-  updatedCards: z.array(
-    z.object({
-      id: z.string(),
-      stability: z.number(),
-      difficulty: z.number(),
-      elapsedDays: z.number(),
-      scheduledDays: z.number(),
-      reps: z.number(),
-      lapses: z.number(),
-      state: z.number(),
-      dueDate: z.string(),
-      updatedAt: z.string(),
-    }),
-  ),
-  reviewLogs: z.array(
-    z.object({
-      cardId: z.string(),
-      rating: reviewRatingSchema,
-      state: z.number(),
-      dueDate: z.string(),
-      stability: z.number(),
-      difficulty: z.number(),
-      elapsedDays: z.number(),
-      lastElapsedDays: z.number(),
-      scheduledDays: z.number(),
-      review: z.string(),
-    }),
-  ),
-});
-export type SyncPushRequest = z.infer<typeof syncPushRequestSchema>;
-
-// ============================================================
-// Extend deck schemas (V1.0-2: Add more cards to existing deck)
-// ============================================================
-
-export const extendDeckRequestSchema = z.discriminatedUnion('mode', [
-  z.object({ mode: z.literal('suggested') }),
-  z.object({ mode: z.literal('expand') }),
-  z.object({ mode: z.literal('text'), text: z.string().min(MIN_TEXT_INPUT_LENGTH) }),
-  z.object({ mode: z.literal('image'), imageBase64: z.string() }),
-]);
-export type ExtendDeckRequest = z.infer<typeof extendDeckRequestSchema>;
-
-export const extendDeckResponseSchema = z.object({
-  cards: z.array(
-    z.object({
-      front: z.string(),
-      back: z.string(),
-    }),
-  ),
-});
-export type ExtendDeckResponse = z.infer<typeof extendDeckResponseSchema>;
-
-// ============================================================
-// Chat generation schemas (CF-5: Chat-like generation flow)
-// ============================================================
+export type BarcodeLookupResponse = z.infer<typeof barcodeLookupResponseSchema>;
 
 export const chatHistoryMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -197,49 +209,91 @@ export const chatHistoryMessageSchema = z.object({
 });
 export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
 
-export const chatGenerateRequestSchema = z.object({
-  history: z.array(chatHistoryMessageSchema).default([]),
-  imagesBase64: z.array(z.string()).max(5).optional(),
-  text: z.string().optional(),
-  deckTitle: z.string().optional(),
-  existingCards: z
-    .array(z.object({ front: z.string(), back: z.string() }))
-    .max(100)
-    .optional(),
-});
-export type ChatGenerateRequest = z.infer<typeof chatGenerateRequestSchema>;
+// ============================================================
+// Multi-profile personal analysis schemas
+// ============================================================
 
-// Discriminated union: AI may either respond conversationally or generate cards (tool call)
-export const chatGenerateResponseSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('message'), text: z.string() }),
-  z.object({
-    type: z.literal('cards'),
-    cards: z.array(z.object({ front: z.string(), back: z.string() })),
-    suggestedDeckTitle: z.string(),
-    generationsRemaining: z.number(),
-  }),
-]);
-export type ChatGenerateResponse = z.infer<typeof chatGenerateResponseSchema>;
-
-export const saveChatDeckRequestSchema = z.object({
-  title: z.string().min(1).max(200),
-  cards: z
-    .array(
-      z.object({
-        front: z.string().min(1).max(1000),
-        back: z.string().min(1).max(1000),
-      }),
-    )
-    .min(1),
+export const profileFitChipSchema = z.object({
+  profileId: z.string(),
+  profileName: z.string(),
+  fitScore: z.number().min(0).max(100),
+  fitLabel: personalFitLabelSchema,
 });
-export type SaveChatDeckRequest = z.infer<typeof saveChatDeckRequestSchema>;
+export type ProfileFitChip = z.infer<typeof profileFitChipSchema>;
 
-export const saveChatDeckResponseSchema = z.object({
-  deckId: z.string(),
-  deckTitle: z.string(),
-  cardCount: z.number(),
+export const profileAnalysisDetailSchema = personalAnalysisResultSchema;
+export type ProfileAnalysisDetail = z.infer<typeof profileAnalysisDetailSchema>;
+
+export const multiProfilePersonalAnalysisResultSchema = z.object({
+  profiles: z.array(profileFitChipSchema),
+  detailsByProfile: z.record(z.string(), personalAnalysisResultSchema),
 });
-export type SaveChatDeckResponse = z.infer<typeof saveChatDeckResponseSchema>;
+export type MultiProfilePersonalAnalysisResult = z.infer<
+  typeof multiProfilePersonalAnalysisResultSchema
+>;
+
+export const multiProfilePersonalAnalysisJobResponseSchema = z.object({
+  jobId: z.string(),
+  status: personalAnalysisJobStatusSchema,
+  result: multiProfilePersonalAnalysisResultSchema.optional(),
+  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
+});
+export type MultiProfilePersonalAnalysisJobResponse = z.infer<
+  typeof multiProfilePersonalAnalysisJobResponseSchema
+>;
+
+// ============================================================
+// Scan history schemas
+// ============================================================
+
+export const scanSourceSchema = z.enum(['barcode', 'photo']);
+export type ScanSource = z.infer<typeof scanSourceSchema>;
+
+export const scanHistoryItemSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  source: scanSourceSchema,
+  overallScore: z.number().nullable(),
+  overallRating: z.string().nullable(),
+  personalScore: z.number().nullable(),
+  personalRating: personalFitLabelSchema.nullable(),
+  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  isFavourite: z.boolean().optional(),
+  profileChips: z.array(profileFitChipSchema).optional(),
+  product: z
+    .object({
+      id: z.string(),
+      barcode: z.string(),
+      product_name: z.string().nullable(),
+      brands: z.string().nullable(),
+      image_url: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
+
+export const scanHistoryResponseSchema = z.object({
+  items: z.array(scanHistoryItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
+
+export const scanDetailResponseSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  source: scanSourceSchema,
+  overallScore: z.number().nullable(),
+  overallRating: z.string().nullable(),
+  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  barcode: z.string().nullable(),
+  productId: z.string().nullable().optional(),
+  isFavourite: z.boolean().optional(),
+  product: barcodeLookupProductSchema.nullable(),
+  evaluation: productAnalysisResultSchema.nullable(),
+  personalResult: personalAnalysisResultSchema.nullable(),
+  multiProfileResult: multiProfilePersonalAnalysisResultSchema.nullable().optional(),
+});
+export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
 
 // ============================================================
 // Error schema
@@ -250,3 +304,123 @@ export const errorResponseSchema = z.object({
   code: z.string(),
 });
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+// ============================================================
+// Favorites schemas
+// ============================================================
+
+export const addFavouriteRequestSchema = z.object({
+  productId: z.string().min(1, 'Product ID is required'),
+});
+export type AddFavouriteRequest = z.infer<typeof addFavouriteRequestSchema>;
+
+export const favouriteItemSchema = scanHistoryItemSchema.extend({
+  favouriteId: z.string(),
+});
+export type FavouriteItem = z.infer<typeof favouriteItemSchema>;
+
+export const favouritesResponseSchema = z.object({
+  items: z.array(favouriteItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type FavouritesResponse = z.infer<typeof favouritesResponseSchema>;
+
+export const favouriteStatusResponseSchema = z.object({
+  isFavourite: z.boolean(),
+});
+export type FavouriteStatusResponse = z.infer<typeof favouriteStatusResponseSchema>;
+
+// ============================================================
+// Family member schemas
+// ============================================================
+
+export const familyMemberSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(50),
+  mainGoal: mainGoalSchema.nullable(),
+  restrictions: z.array(restrictionSchema),
+  allergies: z.array(allergySchema),
+  otherAllergiesText: z.string().nullable(),
+  nutritionPriorities: z.array(nutritionPrioritySchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type FamilyMember = z.infer<typeof familyMemberSchema>;
+
+export const createFamilyMemberRequestSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
+  mainGoal: mainGoalSchema.nullable().optional(),
+  restrictions: z.array(restrictionSchema).optional().default([]),
+  allergies: z.array(allergySchema).optional().default([]),
+  otherAllergiesText: z.string().nullable().optional(),
+  nutritionPriorities: z.array(nutritionPrioritySchema).optional().default([]),
+});
+export type CreateFamilyMemberRequest = z.infer<typeof createFamilyMemberRequestSchema>;
+
+export const updateFamilyMemberRequestSchema = createFamilyMemberRequestSchema.partial();
+export type UpdateFamilyMemberRequest = z.infer<typeof updateFamilyMemberRequestSchema>;
+
+export const familyMembersResponseSchema = z.object({
+  items: z.array(familyMemberSchema),
+});
+export type FamilyMembersResponse = z.infer<typeof familyMembersResponseSchema>;
+
+// ============================================================
+// Product lookup (lightweight, no analysis)
+// ============================================================
+
+export const productLookupRequestSchema = z.object({
+  barcode: z.string().min(1, 'Barcode is required'),
+});
+export type ProductLookupRequest = z.infer<typeof productLookupRequestSchema>;
+
+export const productPreviewSchema = z.object({
+  productId: z.string(),
+  barcode: z.string(),
+  product_name: z.string().nullable(),
+  brands: z.string().nullable(),
+  image_url: z.string().nullable(),
+});
+export type ProductPreview = z.infer<typeof productPreviewSchema>;
+
+export const productLookupResponseSchema = z.object({
+  success: z.literal(true),
+  product: productPreviewSchema,
+});
+export type ProductLookupResponse = z.infer<typeof productLookupResponseSchema>;
+
+// ============================================================
+// Product comparison schemas
+// ============================================================
+
+export const productComparisonItemSchema = z.object({
+  positives: z.array(z.string()),
+  negatives: z.array(z.string()),
+});
+export type ProductComparisonItem = z.infer<typeof productComparisonItemSchema>;
+
+export const profileComparisonResultSchema = z.object({
+  profileId: z.string(),
+  profileName: z.string(),
+  product1: productComparisonItemSchema,
+  product2: productComparisonItemSchema,
+  winner: z.enum(['product1', 'product2', 'tie']),
+  conclusion: z.string(),
+});
+export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
+
+export const productComparisonResultSchema = z.object({
+  product1: productPreviewSchema,
+  product2: productPreviewSchema,
+  profiles: z.array(profileComparisonResultSchema),
+});
+export type ProductComparisonResult = z.infer<typeof productComparisonResultSchema>;
+
+export const compareProductsRequestSchema = z.object({
+  barcode1: z.string().min(1, 'First barcode is required'),
+  barcode2: z.string().min(1, 'Second barcode is required'),
+});
+export type CompareProductsRequest = z.infer<typeof compareProductsRequestSchema>;
+
+export const compareProductsResponseSchema = productComparisonResultSchema;
+export type CompareProductsResponse = z.infer<typeof compareProductsResponseSchema>;
