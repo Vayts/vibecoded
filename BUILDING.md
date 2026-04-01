@@ -1,3 +1,64 @@
+# Building
+
+## Python Backend (apps/server-py)
+
+### Prerequisites
+
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) — `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Docker + Docker Compose (for PostgreSQL, MinIO, Redis)
+
+### Local development
+
+1. Start infrastructure:
+
+   ```bash
+   docker compose up -d postgres minio redis
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   cd apps/server-py
+   uv sync
+   ```
+
+3. Copy and fill environment variables:
+
+   ```bash
+   cp .env.example .env
+   # fill DATABASE_URL, OPENAI_API_KEY, JWT_SECRET, GCS_*, GOOGLE_CLIENT_ID, etc.
+   ```
+
+4. Run migrations:
+
+   ```bash
+   uv run alembic upgrade head
+   ```
+
+5. Start the server:
+
+   ```bash
+   uv run uvicorn app.api.init_app:app --reload --port 3000
+   ```
+
+   Server runs at `http://localhost:3000`.
+
+### Running with Docker
+
+```bash
+docker compose up --build
+```
+
+### Linting
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+```
+
+---
+
 # Building for iOS
 
 ## Prerequisites

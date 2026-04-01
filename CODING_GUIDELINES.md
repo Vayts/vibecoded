@@ -4,20 +4,22 @@
 
 ### Monorepo
 
-- **pnpm** — package manager (no npm, no yarn)
+- **pnpm** — JS/TS package manager (no npm, no yarn)
+- **uv** — Python package manager (no pip, no poetry)
 - **Turborepo** — build orchestration, caching
 - **Structure:**
   ```
   apps/
     mobile/        # Expo (React Native)
-    server/        # Hono (Node.js backend)
+    server/        # Hono (Node.js backend) — LEGACY, kept as reference
+    server-py/     # FastAPI (Python backend) — ACTIVE
   packages/
-    shared/        # Zod schemas, DTO types, constants
+    shared/        # Zod schemas, DTO types, constants (used by mobile)
   ```
 
 ### Mobile (apps/mobile)
 
-- Expo SDK 52+, New Architecture, Hermes engine
+- Expo SDK 54+, New Architecture, Hermes engine
 - Expo Router v4 (file-based routing)
 - expo-sqlite (local DB for offline)
 - expo-camera + expo-image-picker (camera/photo input)
@@ -25,32 +27,43 @@
 - expo-secure-store (auth token storage)
 - Zustand (state management)
 - NativeWind (Tailwind CSS for React Native)
-- ts-fsrs (FSRS spaced repetition algorithm)
 - Build: `expo prebuild` → Xcode (local builds, no EAS)
 
-### Server (apps/server)
+### Server — Python/FastAPI (apps/server-py) ← ACTIVE
 
-- Node.js 20+
-- Hono (HTTP framework)
-- Prisma (ORM, PostgreSQL)
-- LangChain.js (AI structured output)
-- OpenAI API: gpt-4o (vision), gpt-4o-mini (text-to-cards)
-- BetterAuth + @better-auth/expo (authentication)
-- Zod (request/response validation, shared with mobile)
+- Python 3.13+, uv
+- FastAPI + Uvicorn (ASGI)
+- SQLAlchemy 2.0 async + asyncpg (PostgreSQL)
+- Alembic (migrations)
+- Pydantic v2 + pydantic-settings (validation, config)
+- PyJWT + passlib[bcrypt] (auth — bcrypt for BetterAuth compat)
+- google-auth + python-jose (OAuth verification)
+- LangChain OpenAI + OpenAI SDK (GPT-4o vision, GPT-4o-mini, embeddings)
+- pgvector (product similarity search)
+- minio (S3-compatible storage)
+- Pillow (image processing)
+- openfoodfacts (product lookup)
+- Redis (analysis job queue, caching)
+- Loguru (structured logging)
+- Reference patterns: `/Users/doodko/meduzzen/wine-app/wine-app-backend/`
+
+### Server — TypeScript/Hono (apps/server) ← LEGACY (do not modify)
+
+- Node.js 20+, Hono, Prisma, LangChain.js, BetterAuth
 
 ### Infrastructure (GCP)
 
 - Cloud Run (backend hosting)
-- Cloud SQL (PostgreSQL)
-- GCS (temporary image storage)
-- Cloud Logging (comes with Cloud Run)
-- OAuth 2.0 (Google sign-in)
+- Cloud SQL (PostgreSQL + pgvector)
+- MinIO / GCS (product image storage)
+- Cloud Logging
+- OAuth 2.0 (Google + Apple sign-in)
 
 ### Shared (packages/shared)
 
-- Zod schemas for all DTOs
+- Zod schemas for all DTOs (used by mobile only — server-py has Pydantic equivalents)
 - TypeScript types exported via `z.infer<>`
-- Constants (generation limits, FSRS defaults, etc.)
+- Constants (generation limits, etc.)
 
 ## Code style and tooling
 
@@ -140,40 +153,72 @@ apps/mobile/
   constants/              # App constants
 ```
 
-### Project structure (server)
+### Project structure (server-py — active Python backend)
+
+```
+apps/server-py/
+  app/
+    api/
+      init_app.py         # FastAPI factory, CORS, lifespan
+      main.py             # Uvicorn runner
+      deps.py             # CurrentUserDep, UnitOfWorkDep
+      endpoints/          # One file per route group
+    core/
+      config/             # Pydantic BaseSettings classes
+      exc/                # Custom exception hierarchy
+    models/               # SQLAlchemy ORM models
+    schemas/              # Pydantic request/response DTOs
+    enums/                # String enums (DietType, Restriction, etc.)
+    repositories/         # Generic + specialized SQLAlchemy repos
+    services/             # Business logic layer
+    domain/               # Pure functions (scoring, normalization)
+    utils/                # UnitOfWork, token_service, security, oauth
+    clients/              # OpenAI/LangChain client factory
+    db/
+      postgres.py         # Async engine + session factory
+  migrations/             # Alembic versions
+  pyproject.toml
+  Dockerfile
+  startup.sh
+```
+
+### Project structure (server — legacy TypeScript backend)
 
 ```
 apps/server/
   src/
     routes/               # Hono route handlers
-      auth.ts
-      generate.ts
-      sync.ts
-      health.ts
-    middleware/            # Auth, rate limiting, error handling
-    services/             # Business logic
-      ai.ts               # LangChain pipeline
-      generation.ts       # Generation counting/limiting
+    middleware/
+    services/
+    domain/
+    repositories/
     lib/
-      prisma.ts           # Prisma client instance
-      auth.ts             # BetterAuth server config
-      storage.ts          # GCS helpers
-    index.ts              # Hono app entry point
+    index.ts
   prisma/
-    schema.prisma
+    schema.prisma         # Source of truth for DB schema
 ```
+
+### Python (apps/server-py)
+
+- Python 3.13+, type hints on everything — no bare `Any` without a comment
+- Async-first: all DB, network, and file I/O must be `async/await`
+- Sync SDKs (minio, openfoodfacts, pillow) must be wrapped in `asyncio.to_thread()`
+- Use `loguru` for all logging — no `print()`
+- Follow wine-app-backend patterns for all structural decisions
+- Ruff for linting + formatting (replaces flake8/black/isort)
+- Use `uv` for all dependency management
 
 ### API conventions
 
-- RESTful endpoints
-- All requests/responses validated with Zod (from shared package)
-- Error responses: `{ error: string, code: string }`
-- Auth: Bearer token in Authorization header
-- Rate limiting on AI endpoints (checked via GenerationLog table)
+- RESTful endpoints, no `/api/v1` prefix (paths match existing mobile client expectations)
+- All request bodies validated with Pydantic v2
+- Error responses: `{ "detail": string }` (FastAPI default) or `{ "error": string }` where mobile expects it
+- Auth: `Cookie: better-auth.session_token=<JWT>` (primary) or `Authorization: Bearer <JWT>` (fallback)
+- Pagination: cursor-based with `?cursor=<string>&limit=<int>`
 
 ### Environment variables
 
 - Never commit `.env` files
 - Use `.env.example` with placeholder values in each app
-- Server env vars: `DATABASE_URL`, `OPENAI_API_KEY`, `BETTER_AUTH_SECRET`, `GCS_BUCKET`, `GOOGLE_CLIENT_ID`
+- Server-py env vars: `DATABASE_URL`, `OPENAI_API_KEY`, `JWT_SECRET`, `GCS_BUCKET`, `GCS_ENDPOINT`, `GCS_ACCESS_KEY`, `GCS_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `APPLE_APP_ID`, `REDIS_HOST`
 - Mobile env vars: `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_GOOGLE_CLIENT_ID`
