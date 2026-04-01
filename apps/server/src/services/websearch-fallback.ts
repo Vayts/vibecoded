@@ -1,4 +1,4 @@
-import { ChatOpenAI, tools } from '@langchain/openai';
+import { ChatOpenAI } from '@langchain/openai';
 import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
 import { AI_MODELS } from '../domain/flashcards/prompts';
@@ -69,7 +69,7 @@ RULES:
 
 const getModel = () =>
   new ChatOpenAI({
-    model: AI_MODELS.mini,
+    model: AI_MODELS.reason,
     temperature: 0,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 2,
@@ -87,39 +87,23 @@ export const searchProductByBarcode = async (
   }
 
   try {
-    const model = getModel();
-    const response = await model.invoke(
-      [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Find the food product with barcode: ${barcode}`,
-        },
-      ],
+    // bindTools for web search BEFORE withStructuredOutput so the tool is sent to the API
+    const structuredModel = (getModel() as any)
+      .bindTools([{ type: 'web_search_preview', search_context_size: 'medium' }])
+      .withStructuredOutput(websearchProductSchema, {
+        method: 'jsonSchema',
+        name: 'websearch_product_lookup',
+      });
+
+    const result: z.infer<typeof websearchProductSchema> = await structuredModel.invoke([
+      { role: 'system', content: SYSTEM_PROMPT },
       {
-        tools: [tools.webSearch({ search_context_size: 'medium' })],
+        role: 'user',
+        content: `Find the food product with barcode: ${barcode}`,
       },
-    );
+    ]);
 
-    const text =
-      typeof response.content === 'string'
-        ? response.content
-        : response.content
-            .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-            .map((c) => c.text)
-            .join('');
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return null;
-    }
-
-    const parsed = websearchProductSchema.safeParse(JSON.parse(jsonMatch[0]));
-    if (!parsed.success) {
-      return null;
-    }
-
-    const { found, isFoodProduct, confidence, product } = parsed.data;
+    const { found, isFoodProduct, confidence, product } = result;
 
     if (!found || !isFoodProduct || confidence < MIN_CONFIDENCE || !product) {
       return null;

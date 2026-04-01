@@ -13,7 +13,7 @@ export const AI_MODELS = {
   /** Fast model for text-to-cards and structured output */
   mini: 'gpt-4o-mini',
   /** Reasoning model for complex problem solving */
-  reason: 'gpt-5.4-nano'
+  reason: 'gpt-5.4'
 } as const;
 
 // ---------------------------------------------------------------------------

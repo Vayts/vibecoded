@@ -78,7 +78,7 @@ export function BarcodeScannerScreen() {
     return (
       <ScannerPermissionState
         title="Camera access required"
-        description="Allow camera access to scan a barcode. This flow stays frontend-only and uses a mocked async submission after detection."
+        description="Allow camera access to scan a barcode."
         buttonLabel="Allow camera"
         onPress={() => {
           void requestPermission();

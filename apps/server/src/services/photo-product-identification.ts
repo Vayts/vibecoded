@@ -1,23 +1,55 @@
-import { ChatOpenAI, tools } from '@langchain/openai';
+import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { AI_MODELS } from '../domain/flashcards/prompts';
+import { resolveProduct } from '../routes/scanner-helpers';
+import { findByNameAndBrand } from '../repositories/productRepository';
 
-const photoProductSchema = z.object({
-  found: z.boolean().describe('Whether a food product was identified in the photo'),
-  isFoodProduct: z
-    .boolean()
-    .describe('Whether the identified item is a food or beverage product'),
-  confidence: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe('Confidence in the product identification (0.0 to 1.0)'),
+// ---------------------------------------------------------------------------
+// Step 1 — OCR: extract all visible text from the photo
+// ---------------------------------------------------------------------------
+
+const ocrResultSchema = z.object({
+  allText: z
+    .string()
+    .describe(
+      'ALL visible text from the photo, transcribed exactly as printed. Include every word, number, symbol you can read.',
+    ),
+  barcodes: z
+    .array(z.string())
+    .describe(
+      'Any barcode / EAN / UPC numbers visible in the image. Only include numbers you are confident about.',
+    ),
+  productName: z.string().nullable().describe('Best guess for the product name from the text'),
+  brand: z.string().nullable().describe('Best guess for the brand / manufacturer from the text'),
+  isFoodProduct: z.boolean().describe('Whether this appears to be a food or beverage product'),
+});
+
+type OcrResult = z.infer<typeof ocrResultSchema>;
+
+const OCR_SYSTEM_PROMPT = `You are an OCR specialist. Given a photo, extract ALL visible text EXACTLY as it appears on the packaging. Do NOT translate anything.
+
+RULES:
+- Transcribe every piece of text you can see: product name, brand, ingredients, nutrition facts, barcodes, weight, etc.
+- Preserve the ORIGINAL language exactly as printed. Do NOT translate to English or any other language.
+- If you see barcode numbers (EAN-13, UPC-A, etc.), list them in the barcodes array.
+- Identify the most likely product name and brand from the text (in the original language as printed).
+- Determine whether this is a food/beverage product.
+- Do NOT guess or invent text that isn't visible in the image.
+- Be thorough: even small/blurry text matters for product identification.`;
+
+// ---------------------------------------------------------------------------
+// Step 2 — Search: find the product by extracted text
+// ---------------------------------------------------------------------------
+
+const websearchProductSchema = z.object({
+  found: z.boolean().describe('Whether a specific food product was found'),
+  confidence: z.number().min(0).max(1).describe('Confidence in the product identification'),
   product: z
     .object({
-      barcode: z.string().nullable().describe('Product barcode/EAN if found via web search'),
+      code: z.string().describe('Product barcode/EAN if known, or empty string'),
       product_name: z.string().nullable(),
       brands: z.string().nullable(),
       image_url: z.string().nullable(),
@@ -60,42 +92,41 @@ const photoProductSchema = z.object({
     .describe('Normalized product data if found'),
 });
 
-const MIN_CONFIDENCE = 0.7;
+const SEARCH_SYSTEM_PROMPT = `You are a food product identification assistant. You are given text that was extracted from a product photo via OCR.
+Your job is to identify the exact product AND find its complete nutritional information using web search.
 
-const SYSTEM_PROMPT = `You are a food product identification expert. Given a photo of a food product, your job is to identify it and find complete nutritional information.
-
-STEPS:
-1. Analyze the photo to identify the product — look for brand name, product name, packaging, any visible text or barcode
-2. Use web search to find the exact product's:
-   - Official product name
-   - Brand
-   - Product image URL (from manufacturer or major retailer)
-   - Complete nutrition facts (per 100g)
-   - Complete ingredients list
-   - Allergens
-   - Nutri-Score grade (if available in any market)
-   - Barcode/EAN code if findable
-3. Return all data in the structured JSON format
+YOU MUST PERFORM MULTIPLE WEB SEARCHES:
+1. First search: Find the exact product by name and brand. Try searching in the original language first, then in English if needed.
+2. Second search: Find the product's NUTRITION FACTS (calories, protein, fat, carbs, sugar, salt, fiber per 100g). Search for "[product name] nutrition facts per 100g" or "[product name] пищевая ценность" or "[product name] харчова цінність".
+3. Third search: Find the product's INGREDIENTS list. Search for "[product name] ingredients" or "[product name] состав" or "[product name] склад".
+4. If the first searches didn't find nutrition data, try searching on OpenFoodFacts: "site:openfoodfacts.org [product name]" or "site:openfoodfacts.org [barcode]".
 
 RULES:
-- Only identify food and beverage products
-- If the photo does not clearly show a food/beverage product, set found to false
-- You MUST use web search to verify the product identity and gather nutritional data
-- Do NOT fabricate or guess nutrition values or ingredients — they must come from a reliable source
-- Prefer data from: manufacturer websites, major retailers (Walmart, Tesco, Carrefour), OpenFoodFacts, nutrition databases
-- If the product name is in a foreign language, keep the original name
-- Set confidence based on how certain you are (0.0 to 1.0):
-  - 0.9-1.0: Exact product clearly visible and verified via web
-  - 0.7-0.8: Product identified with high confidence but some data may be from similar variants
-  - Below 0.7: Too uncertain — set found to false
-- If nutrition data per 100g is not available, try to calculate from serving size data
-- Ingredients should be a clean array of individual ingredient names
-- Allergens should be normalized lowercase strings
-- If you cannot find reliable data, prefer returning found: false over guessing
+- You MUST search for nutrition data separately if the first search didn't include it. Do NOT return all-zero nutrition values.
+- Do NOT fabricate or guess nutrition values or ingredients — they must come from a reliable source.
+- Prefer data from (in order): OpenFoodFacts, manufacturer websites, major retailers, FatSecret, USDA.
+- All output fields (brand, ingredients, etc.) MUST be in English. If the original data is not in English, translate it.
+- The product_name field MUST be left in the original language as found on the packaging (do NOT translate product_name).
+- Ingredients should be a clean array of individual ingredient names (in English).
+- Allergens should be normalized lowercase strings (in English).
+- If no reliable result is found, return found: false.
+- Set confidence 0.0-1.0 based on certainty. Below 0.5 means too uncertain — set found to false.
+- If you found the product but could NOT find nutrition data, still return found: true with null nutrition values (NOT zeros).
 
-RESPOND WITH JSON ONLY. No explanation text, no markdown formatting. Just the raw JSON object.`;
+STRICT NUTRITION RULES (per 100g):
+- ALL nutrition values MUST be per 100g. If only per-serving data is available, calculate per 100g.
+- Round all nutrition values to 1 decimal place (e.g. 12.3, not 12.34 or 12).
+- energy_kcal_100g: round to nearest whole number (integer, no decimals).
+- If a nutrition value is not available from the source, set it to null. NEVER use 0 as a placeholder for missing data.
+- Use the SAME source for ALL nutrition values — do not mix values from different sources.
+- If the product has multiple variants (flavors, sizes), use the EXACT variant matching the product name.`;
 
-const getModel = () =>
+const MIN_CONFIDENCE = 0.5;
+
+const roundTo1 = (v: number | null): number | null =>
+  v != null ? Math.round(v * 10) / 10 : null;
+
+const getVisionModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.vision,
     temperature: 0,
@@ -103,89 +134,257 @@ const getModel = () =>
     maxRetries: 2,
   });
 
+const getSearchModel = () =>
+  new ChatOpenAI({
+    model: AI_MODELS.reason,
+    temperature: 0,
+    apiKey: process.env.OPENAI_API_KEY,
+    maxRetries: 2,
+  });
+
+// ---------------------------------------------------------------------------
+// Step 1 implementation
+// ---------------------------------------------------------------------------
+
+const extractTextFromPhoto = async (imageBase64: string): Promise<OcrResult | null> => {
+  const model = (getVisionModel() as any).withStructuredOutput(ocrResultSchema, {
+    method: 'jsonSchema',
+    name: 'photo_ocr',
+  });
+
+  const result = await model.invoke([
+    new SystemMessage(OCR_SYSTEM_PROMPT),
+    new HumanMessage({
+      content: [
+        { type: 'text', text: 'Extract all visible text from this product photo.' },
+        { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+      ],
+    }),
+  ]);
+
+  return result as OcrResult;
+};
+
+// ---------------------------------------------------------------------------
+// Step 2a — try existing barcode pipeline
+// ---------------------------------------------------------------------------
+
+/** Check if a product has any meaningful nutrition data (not all zeros/nulls) */
+const hasNutritionData = (product: NormalizedProduct): boolean => {
+  const n = product.nutrition;
+  return (
+    (n.energy_kcal_100g != null && n.energy_kcal_100g > 0) ||
+    (n.proteins_100g != null && n.proteins_100g > 0) ||
+    (n.fat_100g != null && n.fat_100g > 0) ||
+    (n.carbohydrates_100g != null && n.carbohydrates_100g > 0)
+  );
+};
+
+const tryBarcodeResolution = async (barcodes: string[]): Promise<NormalizedProduct | null> => {
+  for (const barcode of barcodes) {
+    const cleaned = barcode.replace(/\D/g, '');
+    if (cleaned.length < 8 || cleaned.length > 14) continue;
+    const resolved = await resolveProduct(cleaned);
+    if (resolved) return resolved.product;
+  }
+  return null;
+};
+
+// ---------------------------------------------------------------------------
+// Step 2b — web search by extracted text
+// ---------------------------------------------------------------------------
+
+const searchByExtractedText = async (
+  ocr: OcrResult,
+): Promise<NormalizedProduct | null> => {
+  const structuredModel = (getSearchModel() as any)
+    .bindTools([{ type: 'web_search_preview', search_context_size: 'high' }])
+    .withStructuredOutput(websearchProductSchema, {
+      method: 'jsonSchema',
+      name: 'text_product_search',
+    });
+
+  const searchQuery = [ocr.brand, ocr.productName].filter(Boolean).join(' ') || ocr.allText.slice(0, 300);
+
+  const result: z.infer<typeof websearchProductSchema> = await structuredModel.invoke([
+    { role: 'system', content: SEARCH_SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: `Find the food product matching this text extracted from a product photo.
+
+EXTRACTED TEXT:
+${ocr.allText}
+
+DETECTED PRODUCT NAME: ${ocr.productName ?? 'unknown'}
+DETECTED BRAND: ${ocr.brand ?? 'unknown'}
+
+Search for: "${searchQuery}"`,
+    },
+  ]);
+
+  const { found, confidence, product } = result;
+  console.log(`[PhotoID:search] result: found=${found} confidence=${confidence} product_name="${product?.product_name}" brands="${product?.brands}" code="${product?.code}"`);
+
+  if (!found || confidence < MIN_CONFIDENCE || !product) return null;
+
+  const code = product.code || `photo-${randomUUID().slice(0, 12)}`;
+
+  // Normalize nutrition values to consistent precision
+  const nutrition = product.nutrition;
+  const normalizedNutrition = {
+    energy_kcal_100g: nutrition.energy_kcal_100g != null ? Math.round(nutrition.energy_kcal_100g) : null,
+    proteins_100g: roundTo1(nutrition.proteins_100g),
+    fat_100g: roundTo1(nutrition.fat_100g),
+    saturated_fat_100g: roundTo1(nutrition.saturated_fat_100g),
+    carbohydrates_100g: roundTo1(nutrition.carbohydrates_100g),
+    sugars_100g: roundTo1(nutrition.sugars_100g),
+    fiber_100g: roundTo1(nutrition.fiber_100g),
+    salt_100g: roundTo1(nutrition.salt_100g),
+    sodium_100g: roundTo1(nutrition.sodium_100g),
+  };
+
+  const parsed = normalizedProductSchema.safeParse({ ...product, code, nutrition: normalizedNutrition });
+  return parsed.success ? parsed.data : null;
+};
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 /**
- * Identify a food product from a photo using AI vision + web search.
- * Returns a normalized product or null if the product cannot be reliably identified.
+ * Identify a food product from a photo using a two-step approach:
+ * 1. OCR — extract all visible text from the photo (fast vision model)
+ * 2. Lookup — try barcode pipeline first, then web-search by extracted text
  */
 export const identifyProductByPhoto = async (
   imageBase64: string,
 ): Promise<NormalizedProduct | null> => {
+  const t0 = Date.now();
+  const elapsed = () => `${Date.now() - t0}ms`;
+
   if (!process.env.OPENAI_API_KEY) {
+    console.error('[PhotoID] ❌ OPENAI_API_KEY is not set');
     return null;
   }
 
-  try {
-    const model = getModel();
+  console.log(
+    `[PhotoID] 1/4 Starting OCR — base64 length=${imageBase64.length} chars (~${Math.round((imageBase64.length * 0.75) / 1024)}KB)`,
+  );
 
-    const response = await model.invoke(
-      [
-        new SystemMessage(SYSTEM_PROMPT),
-        new HumanMessage({
-          content: [
-            {
-              type: 'text',
-              text: 'Identify this food product and find its complete nutritional data.',
-            },
-            {
-              type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${imageBase64}` },
-            },
-          ],
-        }),
-      ],
-      {
-        tools: [tools.webSearch({ search_context_size: 'high' })],
-      },
+  try {
+    // Step 1: Extract text from photo
+    const ocr = await extractTextFromPhoto(imageBase64);
+
+    if (!ocr) {
+      console.log(`[PhotoID] ❌ OCR returned null [${elapsed()}]`);
+      return null;
+    }
+
+    console.log(
+      `[PhotoID] 2/4 OCR done — product="${ocr.productName}" brand="${ocr.brand}" barcodes=[${ocr.barcodes.join(',')}] food=${ocr.isFoodProduct} textLen=${ocr.allText.length} [${elapsed()}]`,
     );
 
-    const text =
-      typeof response.content === 'string'
-        ? response.content
-        : response.content
-            .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-            .map((c) => c.text)
-            .join('');
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('[PhotoIdentification] No JSON found in response');
+    if (!ocr.isFoodProduct) {
+      console.log(`[PhotoID] ❌ Not a food product [${elapsed()}]`);
       return null;
     }
 
-    const parsed = photoProductSchema.safeParse(JSON.parse(jsonMatch[0]));
-    if (!parsed.success) {
-      console.error('[PhotoIdentification] Schema validation failed:', parsed.error.message);
+    // Step 2a: If barcodes found, try existing pipeline (DB → OpenFoodFacts → WebSearch)
+    let barcodeProduct: NormalizedProduct | null = null;
+    if (ocr.barcodes.length > 0) {
+      console.log(`[PhotoID] 3/4 Trying barcode resolution: [${ocr.barcodes.join(', ')}] [${elapsed()}]`);
+      barcodeProduct = await tryBarcodeResolution(ocr.barcodes);
+      if (barcodeProduct && hasNutritionData(barcodeProduct)) {
+        console.log(
+          `[PhotoID] ✅ Found via barcode (with nutrition) — "${barcodeProduct.product_name}" (${barcodeProduct.brands}) [${elapsed()}]`,
+        );
+        return barcodeProduct;
+      }
+      if (barcodeProduct) {
+        console.log(`[PhotoID] 3/4 Barcode found product but no nutrition data, will try text search [${elapsed()}]`);
+      } else {
+        console.log(`[PhotoID] 3/4 Barcode resolution failed, falling back to text search [${elapsed()}]`);
+      }
+    } else {
+      console.log(`[PhotoID] 3/4 No barcodes detected, using text search [${elapsed()}]`);
+    }
+
+    // Step 2b: Check DB cache by product name + brand before doing a web search
+    if (ocr.productName && ocr.brand) {
+      const cached = await findByNameAndBrand(ocr.productName, ocr.brand);
+      if (cached) {
+        console.log(
+          `[PhotoID] ✅ Found in DB cache — "${cached.product_name}" (${cached.brands}) code=${cached.code} [${elapsed()}]`,
+        );
+        return cached;
+      }
+    }
+
+    // Step 2c: Search by extracted text (product name, brand, etc.) — retry once on failure
+    let product = await searchByExtractedText(ocr);
+
+    if (!product) {
+      console.log(`[PhotoID] 🔄 Text search attempt 1 failed, retrying... [${elapsed()}]`);
+      product = await searchByExtractedText(ocr);
+    }
+
+    if (!product) {
+      // If barcode found a product (even without nutrition), return it as last resort
+      if (barcodeProduct) {
+        console.log(`[PhotoID] ⚠️ Text search failed, returning barcode product without nutrition [${elapsed()}]`);
+        return barcodeProduct;
+      }
+      console.log(`[PhotoID] ❌ Text search found nothing after 2 attempts [${elapsed()}]`);
       return null;
     }
 
-    const { found, isFoodProduct, confidence, product } = parsed.data;
-
-    if (!found || !isFoodProduct || confidence < MIN_CONFIDENCE || !product) {
-      console.log(
-        `[PhotoIdentification] Rejected: found=${found} food=${isFoodProduct} confidence=${confidence}`,
-      );
-      return null;
+    // If barcode pipeline found the product with a real barcode, use that code instead of a synthetic one
+    if (barcodeProduct && product.code.startsWith('photo-')) {
+      product = { ...product, code: barcodeProduct.code };
     }
 
-    // Use real barcode if found, otherwise generate synthetic code
-    const code = product.barcode || `photo-${randomUUID().slice(0, 12)}`;
+    // Post-process: if brands are not in English, re-ask the model for English translation
+    // (defensive, in case the model ignores the prompt)
+    const isEnglish = (text: string | null | undefined) => {
+      if (!text) return true;
+      // Simple heuristic: if contains only ASCII letters, numbers, and common punctuation, treat as English
+      return /^[A-Za-z\d\s.,'"()\-!?:;]+$/.test(text);
+    };
 
-    const normalized = normalizedProductSchema.safeParse({
-      ...product,
-      code,
-      image_url: product.image_url || product.images.front_url,
-    });
-
-    if (!normalized.success) {
-      console.error('[PhotoIdentification] Normalization failed:', normalized.error.message);
-      return null;
+    let finalProduct = product;
+    if (!isEnglish(product.brands)) {
+      try {
+        const translationModel = getSearchModel();
+        const translation = await translationModel.invoke([
+          new SystemMessage('You are a translation assistant. Translate the following brand to English, preserving meaning and capitalization. Only return the translated brand.'),
+          new HumanMessage({
+            content: [
+              { type: 'text', text: `Brand: ${product.brands ?? ''}` },
+            ],
+          }),
+        ]);
+        // Try to extract translated brand from the model response
+        const contentStr = typeof translation.content === 'string' ? translation.content : '';
+        const match = /Brand:\s*(.+)/i.exec(contentStr);
+        if (match) {
+          finalProduct = {
+            ...product,
+            brands: match[1].trim(),
+          };
+        }
+      } catch (err) {
+        console.warn('[PhotoID] Brand translation fallback failed:', err);
+      }
     }
 
-    return normalized.data;
+    console.log(
+      `[PhotoID] ✅ Found via text search — "${finalProduct.product_name}" (${finalProduct.brands}) code=${finalProduct.code} [${elapsed()}]`,
+    );
+    return finalProduct;
   } catch (error) {
     console.error(
-      '[PhotoIdentification] Failed:',
-      error instanceof Error ? error.message : error,
+      `[PhotoID] ❌ Uncaught error [${elapsed()}]:`,
+      error instanceof Error ? `${error.message}\n${error.stack}` : error,
     );
     return null;
   }

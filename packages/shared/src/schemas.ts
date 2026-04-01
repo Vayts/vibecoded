@@ -94,6 +94,7 @@ export const productAnalysisItemSchema = z.object({
   severity: z.enum(['good', 'neutral', 'warning', 'bad']),
   category: z.enum(['nutrition', 'diet', 'ingredients', 'restriction']),
   overview: z.string(),
+  triggerIngredients: z.array(z.string()).optional().describe('Specific ingredient(s) that caused this flag — only for diet/restriction/ingredients categories'),
 });
 export type ProductAnalysisItem = z.infer<typeof productAnalysisItemSchema>;
 

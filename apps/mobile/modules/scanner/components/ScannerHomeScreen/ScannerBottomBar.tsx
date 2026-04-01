@@ -26,7 +26,7 @@ export function ScannerBottomBar({
             accessibilityLabel="Take product photo"
             accessibilityRole="button"
             activeOpacity={0.7}
-            className="h-12 w-12 items-center justify-center rounded-full bg-black/50"
+            className="h-12 w-12 items-center mb-10 ml-4 justify-center rounded-full bg-black/50"
             onPress={onPhotoPress}
           >
             <Camera color={COLORS.white} size={22} />

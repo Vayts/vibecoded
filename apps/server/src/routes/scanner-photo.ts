@@ -43,30 +43,33 @@ scannerPhotoRoute.post('/photo', async (c) => {
   try {
     console.log(`📸 [photo] Starting photo identification for user=${userId}`);
     const t0 = Date.now();
+    const elapsed = () => `${Date.now() - t0}ms`;
+    console.log(`📸 [photo-route] 1/5 Received photo scan — user=${userId} base64len=${imageBase64.length}`);
 
     const product = await identifyProductByPhoto(imageBase64);
 
     if (!product) {
-      console.log(`❌ [photo] Product not identified (${Date.now() - t0}ms)`);
+      console.log(`❌ [photo-route] AI identification returned null [${elapsed()}]`);
       return c.json(
         { error: 'Could not identify product from photo', code: 'PRODUCT_NOT_FOUND' },
         404,
       );
     }
 
+    console.log(`[photo-route] 2/5 AI identified: "${product.product_name}" (${product.brands}) code=${product.code} [${elapsed()}]`);
+
     if (!isFoodProduct(product)) {
-      console.log(
-        `❌ [photo] Not a food product: "${product.product_name}" (${Date.now() - t0}ms)`,
-      );
+      console.log(`❌ [photo-route] isFoodProduct check failed for "${product.product_name}" [${elapsed()}]`);
       return c.json(
         { error: 'Product does not appear to be a food item', code: 'PRODUCT_NOT_FOUND' },
         404,
       );
     }
 
-    console.log(`✅ [photo] Identified "${product.product_name}" (${Date.now() - t0}ms)`);
-
+    console.log(`[photo-route] 3/5 Food product confirmed — saving to DB... [${elapsed()}]`);
     const savedProduct = await createProduct(product);
+    console.log(`[photo-route] 4/5 Saved product — building response + analysis job... [${elapsed()}]`);
+
     const response = await buildSuccessResponse(
       savedProduct.code,
       'photo',
@@ -80,9 +83,10 @@ scannerPhotoRoute.post('/photo', async (c) => {
       findProductIdByBarcode(response.barcode),
     ]);
 
+    console.log(`✅ [photo-route] 5/5 Done — "${product.product_name}" isFav=${isFav} productId=${productId} [${elapsed()}]`);
     return c.json({ ...response, isFavourite: isFav, productId: productId ?? undefined });
   } catch (error) {
-    console.error('[photo] Error:', error);
+    console.error('[photo-route] ❌ Uncaught error:', error);
     throw error;
   }
 });

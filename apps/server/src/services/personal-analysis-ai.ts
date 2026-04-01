@@ -39,7 +39,8 @@ const toPersonalAnalysisResult = (
       per: isNutrition ? p.per : null,
       severity: p.severity === 'good' || p.severity === 'neutral' ? p.severity : ('good' as const),
       category: p.category,
-      overview: p.description,
+      overview: p.overview || p.description,
+      ...(p.triggerIngredients?.length ? { triggerIngredients: p.triggerIngredients } : {}),
     };
   });
 
@@ -58,7 +59,8 @@ const toPersonalAnalysisResult = (
       per: isNutrition ? n.per : null,
       severity: n.severity === 'warning' || n.severity === 'bad' ? n.severity : ('warning' as const),
       category: n.category,
-      overview: description,
+      overview: n.overview || description,
+      ...(n.triggerIngredients?.length ? { triggerIngredients: n.triggerIngredients } : {}),
     };
   });
 
@@ -156,6 +158,32 @@ export const analyzeProductForProfiles = async (
       const profileOutput = parsed.profiles.find((p) => p.profileLabel === label);
       if (profileOutput) {
         resultMap.set(profiles[i].profileId, toPersonalAnalysisResult(profileOutput, profiles[i].onboarding.allergies));
+      } else {
+        console.warn(`[PersonalAnalysis] ⚠️  AI omitted profile "${label}" (${profiles[i].profileName})`);
+      }
+    }
+
+    // Retry once for missing profiles
+    const missingProfiles = profiles.filter((p) => !resultMap.has(p.profileId));
+    if (missingProfiles.length > 0 && missingProfiles.length < profiles.length) {
+      console.log(`[PersonalAnalysis] 🔄 Retrying for ${missingProfiles.length} missing profile(s)...`);
+      try {
+        const retryMessage = buildPrompt(product, missingProfiles);
+        const retryResult = await structuredModel.invoke([
+          { role: 'system', content: PERSONAL_ANALYSIS_SYSTEM_PROMPT },
+          { role: 'user', content: retryMessage },
+        ]);
+        const retryParsed = multiProfilePersonalAnalysisOutputSchema.parse(retryResult);
+        for (let i = 0; i < missingProfiles.length; i++) {
+          const label = getProfileLabel(i);
+          const profileOutput = retryParsed.profiles.find((p) => p.profileLabel === label);
+          if (profileOutput) {
+            resultMap.set(missingProfiles[i].profileId, toPersonalAnalysisResult(profileOutput, missingProfiles[i].onboarding.allergies));
+            console.log(`[PersonalAnalysis] ✅ Retry succeeded for "${missingProfiles[i].profileName}"`);
+          }
+        }
+      } catch (retryError) {
+        console.error('[PersonalAnalysis] ⚠️  Retry failed:', retryError instanceof Error ? retryError.message : retryError);
       }
     }
 

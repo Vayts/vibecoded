@@ -182,7 +182,7 @@ let cachedModel: ChatOpenAI | undefined;
 const getModel = (): ChatOpenAI => {
   if (!cachedModel) {
     cachedModel = new ChatOpenAI({
-      model: AI_MODELS.mini,
+      model: AI_MODELS.reason,
       temperature: 0,
       apiKey: process.env.OPENAI_API_KEY,
       maxRetries: 3,

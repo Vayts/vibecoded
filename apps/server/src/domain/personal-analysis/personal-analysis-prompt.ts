@@ -10,11 +10,13 @@ export const personalAnalysisItemSchema = z.object({
   key: z.string().describe('Unique slug identifier, e.g. "sugar", "protein", "vegan-compatible"'),
   label: z.string().describe('Short display name, max 3 words, e.g. "Sugar", "Protein", "Vegan compatible"'),
   description: z.string().describe('One-line explanation, max 15 words, e.g. "Low sugar content fits your preference"'),
+  overview: z.string().describe('1-2 sentence health-focused explanation for the user. Explain the real-world health impact — how this nutrient or ingredient affects their body, energy, or specific health goals. Never mention thresholds, scores, or internal ratings. Good example: "High sugar intake causes blood glucose spikes and increases risk of weight gain. With your low-sugar goal, this product may work against your progress." Bad example: "5g sugar is below the 10g good threshold."'),
   value: z.number().nullable().describe('Numeric nutrition value if applicable, else null'),
   unit: z.string().nullable().describe('Unit for value: "g", "kcal", "mg", etc. Null if no value'),
   per: z.enum(['100g']).nullable().describe('"100g" for nutrition facts, null for non-nutrition items'),
   severity: z.enum(['good', 'neutral', 'warning', 'bad']).describe('Severity level'),
   category: z.enum(['nutrition', 'diet', 'ingredients', 'restriction']).describe('Item category: nutrition for macro/micronutrients, restriction for dietary conflicts, diet for goal-related, ingredients for additive/ingredient concerns'),
+  triggerIngredients: z.array(z.string()).nullable().describe('For restriction/diet/ingredients categories: the exact ingredient name(s) from the product ingredient list that caused this flag. Null for nutrition items.'),
 });
 
 export const personalProfileResultSchema = z.object({
@@ -131,10 +133,12 @@ Profile overrides: LOW_SODIUM → salt >0.5g warning, >1g bad. LOW_SUGAR/DIABETE
 
 Only when there IS a conflict. key: "restriction-{type}", label: diet name, description: which ingredient caused it.
 Tier 1→"bad", Tier 2→"warning". Compatible→no output.
+triggerIngredients: REQUIRED for restriction/diet/ingredients items — list the EXACT ingredient name(s) from the product's ingredient list that caused the flag. E.g. ["whey", "milk powder"] for a VEGAN violation. Empty array for nutrition items.
 
 ═══ OUTPUT ═══
 
 Per profile: fitScore, fitLabel, summary (max 20 words), positives (max 5), negatives (max 5).
+Each item needs: description (short, max 15 words) AND overview (1-2 sentences about the real health impact — how it affects the body, energy, or the user's specific goals. NEVER reference thresholds, numeric comparisons, or internal scoring. Write as if explaining to a health-conscious friend).
 Order: nutrition first, then restriction, then diet/ingredients.
 Analyze each profile INDEPENDENTLY.`;
 
