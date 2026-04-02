@@ -184,12 +184,33 @@ export const profileProductScoreSchema = z.object({
 export type ProfileProductScore = z.infer<typeof profileProductScoreSchema>;
 
 // ============================================================
+// Ingredient Analysis (per-ingredient highlighting)
+// ============================================================
+
+export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
+export type IngredientStatus = z.infer<typeof ingredientStatusSchema>;
+
+export const analyzedIngredientSchema = z.object({
+  name: z.string().describe('English-translated ingredient name'),
+  status: ingredientStatusSchema,
+  reason: z.string().nullable().describe('Short reason for status, referencing profile attribute'),
+});
+export type AnalyzedIngredient = z.infer<typeof analyzedIngredientSchema>;
+
+export const ingredientAnalysisSchema = z.object({
+  ingredients: z.array(analyzedIngredientSchema),
+  summary: z.string().nullable(),
+});
+export type IngredientAnalysis = z.infer<typeof ingredientAnalysisSchema>;
+
+// ============================================================
 // Product Analysis Result (final output)
 // ============================================================
 
 export const productAnalysisResultSchema = z.object({
   productFacts: productFactsSchema,
   profiles: z.array(profileProductScoreSchema),
+  ingredientAnalysis: ingredientAnalysisSchema.optional(),
 });
 export type ProductAnalysisResult = z.infer<typeof productAnalysisResultSchema>;
 

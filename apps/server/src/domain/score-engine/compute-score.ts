@@ -14,7 +14,7 @@ import type { OnboardingResponse } from '@acme/shared';
 // Score constants
 // ============================================================
 
-const BASE_SCORE = 50;
+const BASE_SCORE = 65;
 const MAX_SCORE = 100;
 const MIN_SCORE = 0;
 
