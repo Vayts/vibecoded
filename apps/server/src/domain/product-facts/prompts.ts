@@ -75,7 +75,7 @@ DIET COMPATIBILITY RULES:
 DIET COMPATIBILITY REASONS:
 - For each diet that is "incompatible" or "unclear", provide a short reason in dietCompatibilityReasons.
 - Keep it very short — just name the conflicting ingredient(s) or the ambiguity. Examples: "Contains milk and eggs", "Contains pork (lard)", "Gelatin source unclear", "Ingredients not available".
-- For "compatible" diets, set the reason to null or omit it.
+- For "compatible" diets, set the reason to null. Do NOT use ".", "", or any placeholder — use null only.
 
 PRODUCT TYPE — choose the single best match from this list:
 beverage, dairy, yogurt, cheese, meat, fish, snack, sweet, cereal, sauce, bread, ready_meal, plant_protein, dessert, fruit_vegetable, other

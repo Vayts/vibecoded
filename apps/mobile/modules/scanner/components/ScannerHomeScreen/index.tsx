@@ -33,6 +33,8 @@ export function ScannerHomeScreen() {
   const [isLocked, setIsLocked] = useState(false);
   const [isScannerPaused, setIsScannerPaused] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const scanFrameRef = useRef<View>(null);
+  const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -104,7 +106,18 @@ export function ScannerHomeScreen() {
     }
   }, [compareMutation, lookupMutation, resetCompare, resumeScanner]);
 
-  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
+  const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
+    if (bounds && scanFrameBounds.current) {
+      const frame = scanFrameBounds.current;
+      const centerX = bounds.origin.x + bounds.size.width / 2;
+      const centerY = bounds.origin.y + bounds.size.height / 2;
+      const inFrame =
+        centerX >= frame.x &&
+        centerX <= frame.x + frame.w &&
+        centerY >= frame.y &&
+        centerY <= frame.y + frame.h;
+      if (!inFrame) return;
+    }
     await submitBarcode(data);
   };
 
@@ -177,7 +190,15 @@ export function ScannerHomeScreen() {
               {isCompareMode ? 'Scan second barcode' : 'Align the barcode inside the frame'}
             </Typography>
           </View>
-          <View className="h-64 w-full max-w-[320px] rounded-[32px] border-2 border-white/80" />
+          <View
+            ref={scanFrameRef}
+            className="h-64 w-full max-w-[320px] rounded-[32px] border-2 border-white/80"
+            onLayout={() => {
+              scanFrameRef.current?.measureInWindow((x, y, width, height) => {
+                scanFrameBounds.current = { x, y, w: width, h: height };
+              });
+            }}
+          />
         </View>
 
         <ScannerBottomBar

@@ -94,8 +94,7 @@ export type ProductEvaluation = z.infer<typeof productEvaluationSchema>;
 // Ingredient analysis schemas (used by comparison feature)
 // ============================================================
 
-export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
-export type IngredientStatus = z.infer<typeof ingredientStatusSchema>;
+import { ingredientStatusSchema } from './product-analysis';
 
 export const ingredientAnalysisItemSchema = z.object({
   original: z.string().describe('Raw ingredient string from source'),

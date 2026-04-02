@@ -4,12 +4,14 @@ import type {
   AnalysisJobResponse,
   ProductFacts,
   NutritionFacts,
+  IngredientAnalysis,
 } from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { randomUUID } from 'node:crypto';
 
 import { getProductFactsService } from './product-facts-ai';
 import { searchNutritionData } from './nutrition-websearch';
+import { analyzeIngredients } from './ingredient-analysis-ai';
 import {
   buildClassificationFromData,
   buildProductFacts,
@@ -87,34 +89,49 @@ const runAnalysisJob = async (
     const productHasNutrition = hasNutritionData(product);
     console.log(`[Job:${jobId}] 📊 Product has nutrition data: ${productHasNutrition}`);
 
-    // Step 3: AI classification + nutrition resolution (parallel if web search needed)
-    console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting classification${productHasNutrition ? '' : ' + searching nutrition'}...`);
+    // Step 3: AI classification + nutrition resolution + ingredient analysis (all parallel)
+    const selfProfile = profiles.find((p) => p.profileType === 'self');
+    const selfOnboarding = selfProfile?.onboarding ?? DEFAULT_ONBOARDING_RESPONSE;
+
+    console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting classification${productHasNutrition ? '' : ' + searching nutrition'} + ingredients...`);
     const factsStart = Date.now();
 
     let classification;
     let nutritionFacts: NutritionFacts;
+    let ingredientAnalysis: IngredientAnalysis | null = null;
+
+    // Ingredient analysis always runs in parallel (never blocks main pipeline)
+    const ingredientPromise = analyzeIngredients(product, selfOnboarding).catch((err) => {
+      console.warn(`[Job:${jobId}] ⚠️ Ingredient analysis failed:`, err);
+      return null;
+    });
 
     if (productHasNutrition) {
-      // Product has nutrition → just run AI classification, use existing nutrition
+      // Product has nutrition → just run AI classification + ingredients in parallel
       nutritionFacts = buildNutritionFacts(product);
-      try {
-        classification = await getProductFactsService().extractClassification(product);
-      } catch {
-        console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
-        classification = buildClassificationFromData(product);
-      }
+      const [classificationResult, ingredientResult] = await Promise.all([
+        getProductFactsService().extractClassification(product).catch(() => {
+          console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
+          return buildClassificationFromData(product);
+        }),
+        ingredientPromise,
+      ]);
+      classification = classificationResult;
+      ingredientAnalysis = ingredientResult;
     } else {
-      // No nutrition → run AI classification + nutrition web search in parallel
-      const [classificationResult, webNutrition] = await Promise.all([
+      // No nutrition → run AI classification + nutrition web search + ingredients in parallel
+      const [classificationResult, webNutrition, ingredientResult] = await Promise.all([
         getProductFactsService().extractClassification(product).catch(() => {
           console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
           return buildClassificationFromData(product);
         }),
         searchNutritionData(productName, product.brands, product.code),
+        ingredientPromise,
       ]);
 
       classification = classificationResult;
       nutritionFacts = webNutrition ?? buildNutritionFacts(product);
+      ingredientAnalysis = ingredientResult;
 
       if (webNutrition) {
         console.log(`[Job:${jobId}] 🌐 Nutrition found via web search`);
@@ -138,9 +155,14 @@ const runAnalysisJob = async (
     }
 
     // Step 6: Build final result
+    if (ingredientAnalysis) {
+      console.log(`[Job:${jobId}] 🧬 Ingredients analyzed — ${ingredientAnalysis.ingredients.length} items`);
+    }
+
     const result: ProductAnalysisResult = {
       productFacts: facts,
       profiles: profileScores,
+      ...(ingredientAnalysis ? { ingredientAnalysis } : {}),
     };
 
     const job = jobs.get(jobId);

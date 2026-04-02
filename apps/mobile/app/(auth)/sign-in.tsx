@@ -49,7 +49,7 @@ export default function SignInScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Hero image — ~75% of screen, diagonal corner cut */}
-      <View style={{ flex: 3, overflow: 'hidden', backgroundColor: COLORS.primary }}>
+      <View style={{ flex: 3, overflow: 'hidden', backgroundColor: COLORS.primaryLight }}>
         <ExpoImage
           source={loginBack}
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -60,7 +60,7 @@ export default function SignInScreen() {
         <View className="flex-1 bg-black/35">
             <View className="flex-1 justify-end px-6" style={{ paddingBottom: 48 }}>
               <Typography variant="hero" className="text-white text-4xl leading-tight">
-                Welcome to{'\n'}Acme
+                Welcome to{'\n'}Chozr
               </Typography>
               <Typography variant="body" className="mt-3 text-white/80">
                 Scan. Compare. Eat smarter.

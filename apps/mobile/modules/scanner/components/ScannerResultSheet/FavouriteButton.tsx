@@ -1,22 +1,18 @@
 import { Heart } from 'lucide-react-native';
-import { useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useToggleFavouriteMutation } from '../../../scans/hooks/useFavouritesQuery';
 
 interface FavouriteButtonProps {
   productId: string;
-  initialIsFavourite: boolean;
+  isFavourite: boolean;
 }
 
-export function FavouriteButton({ productId, initialIsFavourite }: FavouriteButtonProps) {
-  const [isFavourite, setIsFavourite] = useState(initialIsFavourite);
+export function FavouriteButton({ productId, isFavourite }: FavouriteButtonProps) {
   const { toggle, isLoading } = useToggleFavouriteMutation();
 
   const handlePress = () => {
     if (isLoading) return;
-    const newState = !isFavourite;
-    setIsFavourite(newState);
     toggle(productId, isFavourite);
   };
 

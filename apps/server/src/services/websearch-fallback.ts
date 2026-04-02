@@ -78,8 +78,9 @@ const getModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.reason,
     apiKey: process.env.OPENAI_API_KEY,
-    maxRetries: 2,
-    reasoning: {"effort": "medium"},
+    maxRetries: 1,
+    timeout: 30_000,
+    reasoning: {"effort": "low"},
   });
 
 /**
@@ -139,6 +140,23 @@ export const searchProductByBarcode = async (
           salt_100g: n.salt_100g != null ? Math.round((n.salt_100g / 10) * 10) / 10 : null,
           sodium_100g: n.sodium_100g != null ? Math.round((n.sodium_100g / 10) * 10) / 10 : null,
         };
+      }
+    }
+
+    // Normalize null-like values in image URLs (AI sometimes returns "/" or "/null")
+    const NULL_LIKE_URLS = new Set(['/', '/null', 'null', 'n/a', 'none', '-', '']);
+    if (product.image_url && NULL_LIKE_URLS.has(product.image_url.trim().toLowerCase())) {
+      product.image_url = null;
+    }
+    if (product.images) {
+      if (product.images.front_url && NULL_LIKE_URLS.has(product.images.front_url.trim().toLowerCase())) {
+        product.images.front_url = null;
+      }
+      if (product.images.ingredients_url && NULL_LIKE_URLS.has(product.images.ingredients_url.trim().toLowerCase())) {
+        product.images.ingredients_url = null;
+      }
+      if (product.images.nutrition_url && NULL_LIKE_URLS.has(product.images.nutrition_url.trim().toLowerCase())) {
+        product.images.nutrition_url = null;
       }
     }
 

@@ -25,7 +25,7 @@ export function ProductResultHeader({
     <View className="rounded-xl bg-white pt-4">
       {productId ? (
         <View className="absolute right-0 top-2 z-10">
-          <FavouriteButton productId={productId} initialIsFavourite={isFavourite ?? false} />
+          <FavouriteButton productId={productId} isFavourite={isFavourite ?? false} />
         </View>
       ) : null}
       <View className="flex-row gap-4">
