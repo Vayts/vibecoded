@@ -211,7 +211,7 @@ const getModel = (): ChatOpenAI => {
       model: AI_MODELS.reason,
       apiKey: process.env.OPENAI_API_KEY,
       maxRetries: 3,
-      reasoning: {"effort": "medium"},
+      reasoning: {"effort": "low"},
     });
   }
   return cachedModel;

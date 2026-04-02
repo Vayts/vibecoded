@@ -143,7 +143,6 @@ const getVisionModel = () =>
     model: AI_MODELS.vision,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 2,
-    reasoning: {"effort": "low"},
   });
 
 // ---------------------------------------------------------------------------

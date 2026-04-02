@@ -122,7 +122,7 @@ export const searchNutritionData = async (
       model: AI_MODELS.reason,
       apiKey: process.env.OPENAI_API_KEY,
       maxRetries: 1,
-      reasoning: { effort: 'high' },
+      reasoning: { effort: 'low' },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
