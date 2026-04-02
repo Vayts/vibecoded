@@ -83,7 +83,7 @@ export const buildSuccessResponse = async (
 };
 
 /**
- * Resolve a product by barcode: DB → OpenFoodFacts → WebSearch → save.
+ * Resolve a product by barcode: DB → OpenFoodFacts (6s timeout) → WebSearch → save.
  */
 export const resolveProduct = async (
   barcode: string,
@@ -92,7 +92,11 @@ export const resolveProduct = async (
   const wasExistingInDb = Boolean(product);
 
   if (!product) {
-    product = await lookupBarcode(barcode);
+    try {
+      product = await lookupBarcode(barcode);
+    } catch {
+      // OFF timeout/error — fall through to WebSearch
+    }
   }
 
   if (!product) {

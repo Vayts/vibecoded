@@ -3,13 +3,20 @@ import type {
   ProductAnalysisResult,
   AnalysisJobResponse,
   ProductFacts,
+  NutritionFacts,
 } from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { randomUUID } from 'node:crypto';
 
 import { getProductFactsService } from './product-facts-ai';
+import { searchNutritionData } from './nutrition-websearch';
+import {
+  buildClassificationFromData,
+  buildProductFacts,
+  buildNutritionFacts,
+  hasNutritionData,
+} from '../domain/product-facts/build-product-facts';
 import { computeAllProfileScores, type ScoreProfileInput } from '../domain/score-engine/compute-score';
-import { buildProductFactsFromData } from '../domain/product-facts/build-product-facts';
 import { getProfileInputs } from './profileInputs';
 import { updateScanAnalysisResult } from '../repositories/scanRepository';
 
@@ -55,9 +62,10 @@ const buildProfiles = async (userId?: string): Promise<ScoreProfileInput[]> => {
 
 /**
  * Run the full analysis pipeline:
- *   1. AI extracts structured product facts (or deterministic fallback)
- *   2. Deterministic score engine computes per-profile scores
- *   3. Return final result
+ *   1. Get nutrition data from product (OFF/DB). If missing → web search.
+ *   2. AI extracts classification facts (productType, diet, nutriGrade) — in parallel with step 1 if web search needed.
+ *   3. Merge classification + nutrition → ProductFacts
+ *   4. Deterministic score engine computes per-profile scores
  */
 const runAnalysisJob = async (
   jobId: string,
@@ -75,19 +83,51 @@ const runAnalysisJob = async (
     const profileNames = profiles.map((p) => `"${p.name}"`).join(', ');
     console.log(`[Job:${jobId}] 👤 Profiles (${profiles.length}): ${profileNames}`);
 
-    // Step 2: Extract product facts (AI or deterministic fallback)
-    console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting product facts...`);
-    const factsStart = Date.now();
-    let facts: ProductFacts;
-    try {
-      facts = await getProductFactsService().extractFacts(product);
-    } catch {
-      console.warn(`[Job:${jobId}] ⚠️ AI facts extraction failed, using deterministic fallback`);
-      facts = buildProductFactsFromData(product);
-    }
-    console.log(`[Job:${jobId}] ✅ Facts extracted  ${Date.now() - factsStart}ms  type=${facts.productType}`);
+    // Step 2: Get nutrition facts (product data first, web search fallback)
+    const productHasNutrition = hasNutritionData(product);
+    console.log(`[Job:${jobId}] 📊 Product has nutrition data: ${productHasNutrition}`);
 
-    // Step 3: Deterministic score engine
+    // Step 3: AI classification + nutrition resolution (parallel if web search needed)
+    console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting classification${productHasNutrition ? '' : ' + searching nutrition'}...`);
+    const factsStart = Date.now();
+
+    let classification;
+    let nutritionFacts: NutritionFacts;
+
+    if (productHasNutrition) {
+      // Product has nutrition → just run AI classification, use existing nutrition
+      nutritionFacts = buildNutritionFacts(product);
+      try {
+        classification = await getProductFactsService().extractClassification(product);
+      } catch {
+        console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
+        classification = buildClassificationFromData(product);
+      }
+    } else {
+      // No nutrition → run AI classification + nutrition web search in parallel
+      const [classificationResult, webNutrition] = await Promise.all([
+        getProductFactsService().extractClassification(product).catch(() => {
+          console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
+          return buildClassificationFromData(product);
+        }),
+        searchNutritionData(productName, product.brands, product.code),
+      ]);
+
+      classification = classificationResult;
+      nutritionFacts = webNutrition ?? buildNutritionFacts(product);
+
+      if (webNutrition) {
+        console.log(`[Job:${jobId}] 🌐 Nutrition found via web search`);
+      } else {
+        console.log(`[Job:${jobId}] ⚠️ No nutrition found anywhere — scoring with empty data`);
+      }
+    }
+
+    // Step 4: Merge classification + nutrition → ProductFacts
+    const facts: ProductFacts = buildProductFacts(classification, nutritionFacts);
+    console.log(`[Job:${jobId}] ✅ Facts built  ${Date.now() - factsStart}ms  type=${facts.productType}`);
+
+    // Step 5: Deterministic score engine
     console.log(`[Job:${jobId}] 🧮 Step 2 — Computing scores...`);
     const scoreStart = Date.now();
     const profileScores = computeAllProfileScores(facts, profiles);
@@ -97,7 +137,7 @@ const runAnalysisJob = async (
       console.log(`[Job:${jobId}]   "${ps.name}" → score=${ps.score} (${ps.fitLabel})  +${ps.positives.length}✓ -${ps.negatives.length}✗`);
     }
 
-    // Step 4: Build final result
+    // Step 6: Build final result
     const result: ProductAnalysisResult = {
       productFacts: facts,
       profiles: profileScores,

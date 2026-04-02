@@ -1,13 +1,16 @@
 import { ChatOpenAI } from '@langchain/openai';
-import type { NormalizedProduct, ProductFacts } from '@acme/shared';
 
 import { AI_MODELS } from '../constants/models';
-import { productFactsAiOutputSchema } from '../domain/product-facts/schema';
+import {
+  productFactsAiOutputSchema,
+  type AiClassification,
+} from '../domain/product-facts/schema';
 import {
   PRODUCT_FACTS_SYSTEM_PROMPT,
   buildProductFactsPrompt,
 } from '../domain/product-facts/prompts';
-import { buildProductFactsFromData } from '../domain/product-facts/build-product-facts';
+import { buildClassificationFromData } from '../domain/product-facts/build-product-facts';
+import type { NormalizedProduct } from '@acme/shared';
 
 export class ProductFactsAiService {
   private readonly model: ChatOpenAI;
@@ -24,13 +27,14 @@ export class ProductFactsAiService {
   }
 
   /**
-   * Extract structured product facts using AI.
+   * Extract structured classification facts using AI.
+   * Returns productType, dietCompatibility, nutriGrade only — no nutrition data.
    * Falls back to deterministic extraction if AI is unavailable.
    */
-  async extractFacts(product: NormalizedProduct): Promise<ProductFacts> {
+  async extractClassification(product: NormalizedProduct): Promise<AiClassification> {
     if (!process.env.OPENAI_API_KEY) {
       console.log('[ProductFacts] No API key, using deterministic fallback');
-      return buildProductFactsFromData(product);
+      return buildClassificationFromData(product);
     }
 
     try {
@@ -53,7 +57,7 @@ export class ProductFactsAiService {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[ProductFacts] AI extraction failed: ${message}, using deterministic fallback`);
-      return buildProductFactsFromData(product);
+      return buildClassificationFromData(product);
     }
   }
 }

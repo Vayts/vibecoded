@@ -63,7 +63,14 @@ RULES:
 - Extract as much product data as possible: name, brand, ingredients, nutrition, allergens.
 - Normalize all data into the structured format.
 - Ingredients should be a clean list of individual ingredient names.
-- Nutrition values should be per 100g.
+
+CRITICAL — NUTRITION VALUES PER 100g ONLY:
+- Nutrition values MUST be per 100g (or per 100ml for liquids). NOT per serving, NOT per package, NOT per 1kg.
+- Many websites show nutrition per serving. You MUST convert to per 100g.
+  Example: if "protein: 2.5g per 30g serving" → per 100g = 2.5 / 30 * 100 = 8.3g.
+  Example: if values are per 1kg → divide by 10.
+- VERIFY: carbs + protein + fat should sum to roughly ≤ 100g. If they sum > 100, you have wrong units.
+
 - Set confidence based on how certain you are about the identification (0.0 to 1.0).
 - If no reliable result is found, return found: false.`;
 
@@ -107,6 +114,32 @@ export const searchProductByBarcode = async (
 
     if (!found || !isFoodProduct || confidence < MIN_CONFIDENCE || !product) {
       return null;
+    }
+
+    // Sanity check nutrition values — AI sometimes returns per-serving or per-kg
+    if (product.nutrition) {
+      const n = product.nutrition;
+      const macros = [n.proteins_100g, n.fat_100g, n.carbohydrates_100g].filter(
+        (v): v is number => v != null,
+      );
+      const macroSum = macros.reduce((s, v) => s + v, 0);
+      if (macroSum > 150) {
+        // Likely per-kg or wrong units — scale down by 10
+        console.log(
+          `[WebSearchFallback] ⚠️ Macro sum=${macroSum}g > 150g — scaling nutrition by 10x (likely per-kg)`,
+        );
+        product.nutrition = {
+          energy_kcal_100g: n.energy_kcal_100g != null ? Math.round(n.energy_kcal_100g / 10) : null,
+          proteins_100g: n.proteins_100g != null ? Math.round((n.proteins_100g / 10) * 10) / 10 : null,
+          fat_100g: n.fat_100g != null ? Math.round((n.fat_100g / 10) * 10) / 10 : null,
+          saturated_fat_100g: n.saturated_fat_100g != null ? Math.round((n.saturated_fat_100g / 10) * 10) / 10 : null,
+          carbohydrates_100g: n.carbohydrates_100g != null ? Math.round((n.carbohydrates_100g / 10) * 10) / 10 : null,
+          sugars_100g: n.sugars_100g != null ? Math.round((n.sugars_100g / 10) * 10) / 10 : null,
+          fiber_100g: n.fiber_100g != null ? Math.round((n.fiber_100g / 10) * 10) / 10 : null,
+          salt_100g: n.salt_100g != null ? Math.round((n.salt_100g / 10) * 10) / 10 : null,
+          sodium_100g: n.sodium_100g != null ? Math.round((n.sodium_100g / 10) * 10) / 10 : null,
+        };
+      }
     }
 
     // Ensure barcode is set correctly

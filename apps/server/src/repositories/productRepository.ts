@@ -96,6 +96,12 @@ export const createProduct = async (product: NormalizedProduct): Promise<Normali
     `[productRepository] upsert start code=${product.code} name="${product.product_name ?? ''}" brand="${product.brands ?? ''}" imageUrl="${product.image_url ?? ''}"`,
   );
   const data = toProductCreateInput(product);
+
+  const existing = await prisma.product.findUnique({
+    where: { barcode: product.code },
+    select: { id: true, embeddingText: true, product_name: true, brands: true },
+  });
+
   const savedProduct = await prisma.product.upsert({
     where: { barcode: product.code },
     create: data,
@@ -106,15 +112,25 @@ export const createProduct = async (product: NormalizedProduct): Promise<Normali
     `[productRepository] upsert done id=${savedProduct.id} code=${savedProduct.code} elapsed=${Date.now() - startedAt}ms`,
   );
 
-  try {
-    await syncProductEmbedding(savedProduct.id, savedProduct.product_name, savedProduct.brands);
+  const nameChanged =
+    !existing || existing.product_name !== savedProduct.product_name || existing.brands !== savedProduct.brands;
+  const hasEmbedding = !!existing?.embeddingText;
+
+  if (!hasEmbedding || nameChanged) {
+    try {
+      await syncProductEmbedding(savedProduct.id, savedProduct.product_name, savedProduct.brands);
+      console.log(
+        `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
+      );
+    } catch (error) {
+      console.error(
+        '[productRepository] Failed to sync product embedding:',
+        error instanceof Error ? error.message : error,
+      );
+    }
+  } else {
     console.log(
-      `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
-    );
-  } catch (error) {
-    console.error(
-      '[productRepository] Failed to sync product embedding:',
-      error instanceof Error ? error.message : error,
+      `[productRepository] embedding skip (unchanged) id=${savedProduct.id} code=${savedProduct.code}`,
     );
   }
 

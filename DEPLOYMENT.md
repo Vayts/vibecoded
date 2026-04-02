@@ -5,7 +5,7 @@
 ### Prerequisites
 
 - Google Cloud account with Cloud Run, Cloud SQL, GCS, Secret Manager, and Container Registry APIs enabled
-- `gcloud` CLI installed and authenticated (`gcloud auth login && gcloud config set project acme-489110`)
+- `gcloud` CLI installed and authenticated (`gcloud auth login && gcloud config set project myyuka-app`)
 - Docker installed
 
 ---
@@ -55,31 +55,31 @@ echo -n "acme-temp-images" | gcloud secrets versions add GCS_BUCKET --data-file=
 gcloud iam service-accounts create github-actions-deploy \
   --display-name "GitHub Actions Deploy"
 
-SA_EMAIL=github-actions-deploy@acme-489110.iam.gserviceaccount.com
+SA_EMAIL=github-actions-deploy@myyuka-app.iam.gserviceaccount.com
 
 # Grant required roles
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/run.admin"
 
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/storage.admin"
 
 # Required for pushing to gcr.io (GCR routes through Artifact Registry in newer GCP projects)
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/artifactregistry.writer"
 
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/cloudsql.client"
 
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/secretmanager.secretAccessor"
 
-gcloud projects add-iam-policy-binding acme-489110 \
+gcloud projects add-iam-policy-binding myyuka-app \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser"
 
@@ -97,7 +97,7 @@ rm /tmp/sa-key.json
 ### Build the Docker image
 
 ```bash
-docker build -f apps/server/Dockerfile -t us-central1-docker.pkg.dev/acme-489110/acme/acme-server .
+docker build -f apps/server/Dockerfile -t us-central1-docker.pkg.dev/myyuka-app/acme/acme-server .
 ```
 
 ### Test locally
@@ -111,7 +111,7 @@ docker run --rm \
   -e GCS_BUCKET="acme-images" \
   -e TRUSTED_ORIGINS="http://localhost:8081" \
   -p 3000:3000 \
-  us-central1-docker.pkg.dev/acme-489110/acme/acme-server
+  us-central1-docker.pkg.dev/myyuka-app/acme/acme-server
 # Verify: curl http://localhost:3000/health
 ```
 
@@ -120,10 +120,10 @@ docker run --rm \
 ```bash
 gcloud auth configure-docker us-central1-docker.pkg.dev
 
-docker push us-central1-docker.pkg.dev/acme-489110/acme/acme-server:latest
+docker push us-central1-docker.pkg.dev/myyuka-app/acme/acme-server:latest
 
 gcloud run deploy acme-server \
-  --image us-central1-docker.pkg.dev/acme-489110/acme/acme-server:latest \
+  --image us-central1-docker.pkg.dev/myyuka-app/acme/acme-server:latest \
   --platform managed \
   --region us-central1 \
   --min-instances 1 \
@@ -135,7 +135,7 @@ gcloud run deploy acme-server \
   --add-cloudsql-instances <INSTANCE_CONNECTION_NAME> \
   --set-secrets=DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest,GCS_BUCKET=GCS_BUCKET:latest \
   --set-env-vars=BETTER_AUTH_URL=<SERVICE_URL>,TRUSTED_ORIGINS=<ORIGINS>,NODE_ENV=production \
-  --project acme-489110
+  --project myyuka-app
 ```
 
 ---
@@ -150,9 +150,9 @@ gcloud sql instances create acme-db \
   --region=us-central1
 
 # Create database and user
-gcloud sql databases create acme --instance=acme-db
-gcloud sql users create acme \
-  --instance=acme-db \
+gcloud sql databases create chozr --instance=chozr
+gcloud sql users create chozr \
+  --instance=chozr \
   --password='password'
 
 # Run migrations (from local machine via Cloud SQL Auth Proxy)
@@ -169,7 +169,7 @@ DATABASE_URL="postgresql://acme:<PASSWORD>@127.0.0.1:5432/acme" \
 
 ```bash
 # Create bucket
-gsutil mb -l us-central1 gs://acme-temp-images
+gsutil mb -l us-central1 gs://chozr-product-images
 
 # Set lifecycle rule: delete objects older than 1 day
 # Note: GCS lifecycle rules use "age" in days (minimum granularity = 1 day).
@@ -199,18 +199,18 @@ Uses the same GitHub secrets (`GCP_PROJECT_ID`, `GCP_SA_KEY`) and Artifact Regis
 
 ```bash
 # Build
-docker build -f apps/landing/Dockerfile -t us-central1-docker.pkg.dev/acme-489110/acme/acme-landing .
+docker build -f apps/landing/Dockerfile -t us-central1-docker.pkg.dev/myyuka-app/acme/acme-landing .
 
 # Test locally
-docker run --rm -p 3000:3000 us-central1-docker.pkg.dev/acme-489110/acme/acme-landing
+docker run --rm -p 3000:3000 us-central1-docker.pkg.dev/myyuka-app/acme/acme-landing
 
 # Push and deploy
 gcloud auth configure-docker us-central1-docker.pkg.dev
 
-docker push us-central1-docker.pkg.dev/acme-489110/acme/acme-landing:latest
+docker push us-central1-docker.pkg.dev/myyuka-app/acme/acme-landing:latest
 
 gcloud run deploy acme-landing \
-  --image us-central1-docker.pkg.dev/acme-489110/acme/acme-landing:latest \
+  --image us-central1-docker.pkg.dev/myyuka-app/acme/acme-landing:latest \
   --platform managed \
   --region us-central1 \
   --min-instances 0 \
@@ -220,7 +220,7 @@ gcloud run deploy acme-landing \
   --port 3000 \
   --allow-unauthenticated \
   --set-env-vars=NODE_ENV=production,HOSTNAME=0.0.0.0 \
-  --project acme-489110
+  --project myyuka-app
 ```
 
 ---
