@@ -1,6 +1,5 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import { Barcode, ClockFading, Heart } from 'lucide-react-native';
-import { useState } from 'react';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -73,12 +72,11 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
   const hasProfileChips = item.profileChips && item.profileChips.length > 0;
 
   const productId = item.product?.id ?? null;
-  const [isFavourite, setIsFavourite] = useState(item.isFavourite ?? false);
+  const isFavourite = item.isFavourite ?? false;
   const { toggle } = useToggleFavouriteMutation();
 
   const handleToggleFavourite = () => {
     if (!productId) return;
-    setIsFavourite((prev) => !prev);
     toggle(productId, isFavourite);
   };
 

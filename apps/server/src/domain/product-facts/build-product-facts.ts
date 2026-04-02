@@ -37,6 +37,28 @@ export const hasNutritionData = (product: NormalizedProduct): boolean => {
 };
 
 /**
+ * Sanitize diet compatibility reasons — AI sometimes returns ".", "", or other junk for compatible diets.
+ */
+const sanitizeReasons = (
+  reasons: AiClassification['dietCompatibilityReasons'],
+): ProductFacts['dietCompatibilityReasons'] => {
+  if (!reasons) return undefined;
+
+  const JUNK = new Set(['.', '-', '/', 'n/a', 'none', 'N/A', '']);
+  const cleaned: Record<string, string | null> = {};
+
+  for (const [key, value] of Object.entries(reasons)) {
+    if (typeof value === 'string' && (JUNK.has(value.trim()) || value.trim().length <= 1)) {
+      cleaned[key] = null;
+    } else {
+      cleaned[key] = value ?? null;
+    }
+  }
+
+  return cleaned as AiClassification['dietCompatibilityReasons'];
+};
+
+/**
  * Merge AI classification + product nutrition data → final ProductFacts.
  * Nutrition always comes from product data (OFF/DB/websearch), never from AI.
  */
@@ -47,7 +69,7 @@ export const buildProductFacts = (
   return {
     productType: classification.productType,
     dietCompatibility: classification.dietCompatibility,
-    dietCompatibilityReasons: classification.dietCompatibilityReasons,
+    dietCompatibilityReasons: sanitizeReasons(classification.dietCompatibilityReasons) ?? undefined,
     nutritionFacts,
     nutritionSummary: buildNutritionSummary(nutritionFacts, classification.productType),
     nutriGrade: classification.nutriGrade,

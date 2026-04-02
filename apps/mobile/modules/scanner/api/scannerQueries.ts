@@ -2,8 +2,10 @@ import {
   analysisJobResponseSchema,
   type AnalysisJobResponse,
 } from '@acme/shared';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { apiFetch } from '../../../shared/lib/client/client';
+import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 const POLLING_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 20;
@@ -34,7 +36,10 @@ export const usePersonalAnalysisQuery = (
   jobId?: string,
   initialStatus?: AnalysisJobResponse['status'],
 ) => {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const hasInvalidatedRef = useRef(false);
+
+  const query = useQuery({
     queryKey: getPersonalAnalysisQueryKey(jobId),
     queryFn: () => fetchPersonalAnalysisJob(jobId as string),
     enabled: Boolean(jobId),
@@ -44,10 +49,10 @@ export const usePersonalAnalysisQuery = (
           status: initialStatus ?? 'pending',
         }
       : undefined,
-    refetchInterval: (query) => {
-      const data = query.state.data;
+    refetchInterval: (q) => {
+      const data = q.state.data;
       const status = data?.status;
-      const attempts = query.state.dataUpdateCount;
+      const attempts = q.state.dataUpdateCount;
 
       if (!jobId || status === 'failed' || attempts >= MAX_POLL_ATTEMPTS) {
         return false;
@@ -61,4 +66,15 @@ export const usePersonalAnalysisQuery = (
     },
     retry: 0,
   });
+
+  // When analysis transitions to completed/failed, invalidate history so rows update
+  useEffect(() => {
+    const status = query.data?.status;
+    if (!hasInvalidatedRef.current && (status === 'completed' || status === 'failed')) {
+      hasInvalidatedRef.current = true;
+      void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
+    }
+  }, [query.data?.status, queryClient]);
+
+  return query;
 };

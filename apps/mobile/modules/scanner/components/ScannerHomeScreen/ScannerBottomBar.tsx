@@ -21,19 +21,17 @@ export function ScannerBottomBar({
   return (
     <View className="gap-3">
       <View className="flex-row items-end">
-        {!isCompareMode && !isLocked ? (
-          <TouchableOpacity
-            accessibilityLabel="Take product photo"
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            className="h-12 w-12 items-center mb-10 ml-4 justify-center rounded-full bg-black/50"
-            onPress={onPhotoPress}
-          >
-            <Camera color={COLORS.white} size={22} />
-          </TouchableOpacity>
-        ) : (
-          <View className="w-12" />
-        )}
+        <TouchableOpacity
+          accessibilityLabel="Take product photo"
+          accessibilityRole="button"
+          activeOpacity={0.7}
+          disabled={isCompareMode || isLocked}
+          className="h-12 w-12 items-center mb-10 ml-4 justify-center rounded-full bg-black/50"
+          style={{ opacity: isCompareMode || isLocked ? 0 : 1 }}
+          onPress={onPhotoPress}
+        >
+          <Camera color={COLORS.white} size={22} />
+        </TouchableOpacity>
 
         <View className="flex-1 items-center">
           {isCompareMode ? (
