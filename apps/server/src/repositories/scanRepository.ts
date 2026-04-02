@@ -1,4 +1,4 @@
-import type { ProductAnalysisResult, PersonalAnalysisResult, MultiProfilePersonalAnalysisResult } from '@acme/shared';
+import type { ProductAnalysisResult } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 import type { ScanSource, PersonalAnalysisStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -11,7 +11,6 @@ interface CreateScanInput {
   overallScore?: number;
   overallRating?: string;
   personalAnalysisStatus?: PersonalAnalysisStatus;
-  evaluation?: ProductAnalysisResult;
   photoImagePath?: string;
 }
 
@@ -37,27 +36,27 @@ export const createScan = async (input: CreateScanInput) => {
       overallScore: input.overallScore ?? null,
       overallRating: input.overallRating ?? null,
       personalAnalysisStatus: input.personalAnalysisStatus ?? null,
-      evaluation: (input.evaluation as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+      evaluation: Prisma.JsonNull,
       personalResult: Prisma.JsonNull,
       photoImagePath: input.photoImagePath ?? null,
     },
   });
 };
 
-export const updateScanPersonalResult = async (
+/**
+ * Update scan with analysis result (product facts + profile scores).
+ */
+export const updateScanAnalysisResult = async (
   scanId: string,
   status: PersonalAnalysisStatus,
-  result?: PersonalAnalysisResult,
-  multiProfile?: MultiProfilePersonalAnalysisResult,
+  result?: ProductAnalysisResult,
 ) => {
   return prisma.scan.update({
     where: { id: scanId },
     data: {
       personalAnalysisStatus: status,
       personalResult: result ? (result as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-      multiProfileResult: multiProfile
-        ? (multiProfile as unknown as Prisma.InputJsonValue)
-        : undefined,
+      multiProfileResult: result ? (result as unknown as Prisma.InputJsonValue) : undefined,
     },
   });
 };

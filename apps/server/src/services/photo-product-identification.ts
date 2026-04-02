@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { AI_MODELS } from '../constants/models';
 import { resolveProduct } from '../routes/scanner-helpers';
 import { findBestVectorMatchedProduct } from './product-vector-search.service';
-import { findByBarcode } from '../repositories/productRepository';
+import { findByBarcode, createProduct } from '../repositories/productRepository';
 
 export interface PhotoIdentificationResult {
   product: NormalizedProduct;
@@ -136,9 +136,17 @@ const roundTo1 = (v: number | null): number | null =>
 const getSearchModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.reason,
-    temperature: 0,
+    apiKey: process.env.OPENAI_API_KEY,
+    maxRetries: 1,
+    reasoning: {"effort": "low"},
+  });
+
+const getVisionModel = () =>
+  new ChatOpenAI({
+    model: AI_MODELS.vision,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 2,
+    reasoning: {"effort": "low"},
   });
 
 // ---------------------------------------------------------------------------
@@ -146,7 +154,7 @@ const getSearchModel = () =>
 // ---------------------------------------------------------------------------
 
 const extractTextFromPhoto = async (imageBase64: string): Promise<OcrResult | null> => {
-  const model = (getSearchModel() as any).withStructuredOutput(ocrResultSchema, {
+  const model = (getVisionModel() as any).withStructuredOutput(ocrResultSchema, {
     method: 'jsonSchema',
     name: 'photo_ocr',
   });
@@ -179,6 +187,14 @@ const hasNutritionData = (product: NormalizedProduct): boolean => {
   );
 };
 
+/** Check if a product has a real image URL (not null, empty, or "/null") */
+const hasValidImage = (product: NormalizedProduct): boolean => {
+  const url = product.image_url;
+  if (!url) return false;
+  const lower = url.trim().toLowerCase();
+  return lower.length > 0 && lower !== '/null' && lower !== 'null' && lower !== 'n/a';
+};
+
 const tryBarcodeResolution = async (
   barcodes: string[],
 ): Promise<PhotoIdentificationResult | null> => {
@@ -204,7 +220,7 @@ const tryBarcodeResolution = async (
 const searchByExtractedText = async (
   ocr: OcrResult,
 ): Promise<NormalizedProduct | null> => {
-  const structuredModel = (getSearchModel() as any)
+  const structuredModel = (getVisionModel() as any)
     .bindTools([{ type: 'web_search_preview', search_context_size: 'high' }])
     .withStructuredOutput(websearchProductSchema, {
       method: 'jsonSchema',
@@ -327,14 +343,21 @@ export const identifyProductByPhoto = async (
       });
 
       if (vectorMatch) {
-        console.log(
-          `[PhotoID] ✅ Found via DB vector match — "${vectorMatch.product.product_name}" (${vectorMatch.product.brands}) similarity=${vectorMatch.similarity.toFixed(3)} query="${vectorMatch.queryText}" [${elapsed()}]`,
-        );
-        return {
-          product: vectorMatch.product,
-          shouldUploadPhoto: false,
-          source: 'vector',
-        };
+        // Only accept vector match if it has nutrition data — otherwise it's a shell product
+        if (!hasNutritionData(vectorMatch.product)) {
+          console.log(
+            `[PhotoID] 3/4 DB vector match found but has no nutrition data — skipping — "${vectorMatch.product.product_name}" similarity=${vectorMatch.similarity.toFixed(3)} [${elapsed()}]`,
+          );
+        } else {
+          console.log(
+            `[PhotoID] ✅ Found via DB vector match — "${vectorMatch.product.product_name}" (${vectorMatch.product.brands}) similarity=${vectorMatch.similarity.toFixed(3)} query="${vectorMatch.queryText}" [${elapsed()}]`,
+          );
+          return {
+            product: vectorMatch.product,
+            shouldUploadPhoto: !hasValidImage(vectorMatch.product),
+            source: 'vector',
+          };
+        }
       }
 
       console.log(`[PhotoID] 3/4 No strong DB vector match, falling back to WebSearch [${elapsed()}]`);
@@ -377,30 +400,6 @@ export const identifyProductByPhoto = async (
     };
 
     let finalProduct = product;
-    if (!isEnglish(product.brands)) {
-      try {
-        const translationModel = getSearchModel();
-        const translation = await translationModel.invoke([
-          new SystemMessage('You are a translation assistant. Translate the following brand to English, preserving meaning and capitalization. Only return the translated brand.'),
-          new HumanMessage({
-            content: [
-              { type: 'text', text: `Brand: ${product.brands ?? ''}` },
-            ],
-          }),
-        ]);
-        // Try to extract translated brand from the model response
-        const contentStr = typeof translation.content === 'string' ? translation.content : '';
-        const match = /Brand:\s*(.+)/i.exec(contentStr);
-        if (match) {
-          finalProduct = {
-            ...finalProduct,
-            brands: match[1].trim(),
-          };
-        }
-      } catch (err) {
-        console.warn('[PhotoID] Brand translation fallback failed:', err);
-      }
-    }
 
     console.log(
       `[PhotoID] ✅ Found via text search — "${finalProduct.product_name}" (${finalProduct.brands}) code=${finalProduct.code} [${elapsed()}]`,
@@ -408,12 +407,25 @@ export const identifyProductByPhoto = async (
 
     const existingProduct = await findByBarcode(finalProduct.code);
     if (existingProduct) {
+      // Web search found richer data than what's in DB — update DB product
+      if (hasNutritionData(finalProduct) && !hasNutritionData(existingProduct)) {
+        console.log(
+          `[PhotoID] 📝 DB product lacks nutrition — updating with web search data — code=${finalProduct.code} [${elapsed()}]`,
+        );
+        const updated = await createProduct(finalProduct);
+        return {
+          product: updated,
+          shouldUploadPhoto: !hasValidImage(updated),
+          source: 'websearch',
+        };
+      }
+
       console.log(
         `[PhotoID] ♻️ WebSearch resolved to existing DB product — code=${finalProduct.code} name="${existingProduct.product_name}" [${elapsed()}]`,
       );
       return {
         product: existingProduct,
-        shouldUploadPhoto: false,
+        shouldUploadPhoto: !hasValidImage(existingProduct),
         source: 'websearch',
       };
     }

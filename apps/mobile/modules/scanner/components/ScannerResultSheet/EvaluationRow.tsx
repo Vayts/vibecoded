@@ -1,21 +1,21 @@
-import type { ProductAnalysisItem } from '@acme/shared';
+import type { ScoreReason } from '@acme/shared';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
-import { formatEvaluationValue, getSeverityTone } from './evaluationHelpers';
+import { formatScoreReasonValue, getSeverityTone } from './evaluationHelpers';
 import { EvaluationRowDetails } from './EvaluationRowDetails';
 import { EvaluationRowIcon } from './EvaluationRowIcon';
 
 interface EvaluationRowProps {
-  item: ProductAnalysisItem;
+  item: ScoreReason;
 }
 
 export function EvaluationRow({ item }: EvaluationRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const tone = getSeverityTone(item.severity);
-  const formattedValue = formatEvaluationValue(item);
+  const tone = getSeverityTone(item.kind);
+  const formattedValue = formatScoreReasonValue(item);
   const ChevronIcon = isExpanded ? ChevronUp : ChevronDown;
 
   return (

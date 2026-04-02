@@ -1,22 +1,20 @@
 import type {
   NormalizedProduct,
-  PersonalAnalysisJob,
-  PersonalAnalysisResult,
-  MultiProfilePersonalAnalysisJobResponse,
-  MultiProfilePersonalAnalysisResult,
-  ProfileFitChip,
+  ProductAnalysisResult,
+  AnalysisJobResponse,
+  ProductFacts,
 } from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import { randomUUID } from 'node:crypto';
 
-import { runIngredientAnalysisAsync } from './ingredientAnalysisRunner';
-import { updateScanPersonalResult } from '../repositories/scanRepository';
-import { extractIngredients } from '../domain/ingredient-analysis/extraction';
-import { getProfileInputs, type ProfileInput } from './profileInputs';
-import { buildPersonalProductAnalysis } from '../domain/personal-analysis/build-personal-analysis';
+import { getProductFactsService } from './product-facts-ai';
+import { computeAllProfileScores, type ScoreProfileInput } from '../domain/score-engine/compute-score';
+import { buildProductFactsFromData } from '../domain/product-facts/build-product-facts';
+import { getProfileInputs } from './profileInputs';
+import { updateScanAnalysisResult } from '../repositories/scanRepository';
 
 const JOB_TTL_MS = 10 * 60 * 1000;
-const jobs = new Map<string, MultiProfilePersonalAnalysisJobResponse>();
+const jobs = new Map<string, AnalysisJobResponse>();
 
 const scheduleCleanup = (jobId: string): void => {
   setTimeout(() => {
@@ -24,14 +22,42 @@ const scheduleCleanup = (jobId: string): void => {
   }, JOB_TTL_MS);
 };
 
-const hasIngredientData = (product: NormalizedProduct): boolean => {
-  return extractIngredients(product) !== null;
+/**
+ * Build ScoreProfileInput[] from userId.
+ */
+const buildProfiles = async (userId?: string): Promise<ScoreProfileInput[]> => {
+  if (!userId) {
+    return [{
+      profileId: 'you',
+      profileType: 'self',
+      name: 'You',
+      onboarding: DEFAULT_ONBOARDING_RESPONSE,
+    }];
+  }
+
+  const inputs = await getProfileInputs(userId);
+  if (inputs.length === 0) {
+    return [{
+      profileId: 'you',
+      profileType: 'self',
+      name: 'You',
+      onboarding: DEFAULT_ONBOARDING_RESPONSE,
+    }];
+  }
+
+  return inputs.map((input, index) => ({
+    profileId: input.profileId,
+    profileType: index === 0 ? 'self' as const : 'family_member' as const,
+    name: input.profileName,
+    onboarding: input.onboarding,
+  }));
 };
 
 /**
  * Run the full analysis pipeline:
- *   1. Deterministic personal analysis (positives/negatives) — completes first, marks job done
- *   2. AI ingredient analysis — runs in background, updates job in-place
+ *   1. AI extracts structured product facts (or deterministic fallback)
+ *   2. Deterministic score engine computes per-profile scores
+ *   3. Return final result
  */
 const runAnalysisJob = async (
   jobId: string,
@@ -44,158 +70,75 @@ const runAnalysisJob = async (
   const jobStart = Date.now();
 
   try {
-    const profiles = userId ? await getProfileInputs(userId) : [];
-    const productHasIngredients = hasIngredientData(product);
-    const job = jobs.get(jobId)!;
+    // Step 1: Build profiles
+    const profiles = await buildProfiles(userId);
+    const profileNames = profiles.map((p) => `"${p.name}"`).join(', ');
+    console.log(`[Job:${jobId}] 👤 Profiles (${profiles.length}): ${profileNames}`);
 
-    // Ensure at least a default profile
-    if (profiles.length === 0) {
-      profiles.push({
-        profileId: 'you',
-        profileName: 'You',
-        onboarding: DEFAULT_ONBOARDING_RESPONSE,
-      });
+    // Step 2: Extract product facts (AI or deterministic fallback)
+    console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting product facts...`);
+    const factsStart = Date.now();
+    let facts: ProductFacts;
+    try {
+      facts = await getProductFactsService().extractFacts(product);
+    } catch {
+      console.warn(`[Job:${jobId}] ⚠️ AI facts extraction failed, using deterministic fallback`);
+      facts = buildProductFactsFromData(product);
+    }
+    console.log(`[Job:${jobId}] ✅ Facts extracted  ${Date.now() - factsStart}ms  type=${facts.productType}`);
+
+    // Step 3: Deterministic score engine
+    console.log(`[Job:${jobId}] 🧮 Step 2 — Computing scores...`);
+    const scoreStart = Date.now();
+    const profileScores = computeAllProfileScores(facts, profiles);
+    console.log(`[Job:${jobId}] ✅ Scores computed  ${Date.now() - scoreStart}ms`);
+
+    for (const ps of profileScores) {
+      console.log(`[Job:${jobId}]   "${ps.name}" → score=${ps.score} (${ps.fitLabel})  +${ps.positives.length}✓ -${ps.negatives.length}✗`);
     }
 
-    const profileNames = profiles.map((p) => `"${p.profileName}"`).join(', ');
-    console.log(`[Job:${jobId}] 👤 Profiles (${profiles.length}): ${profileNames}  hasIngredients=${productHasIngredients}`);
-
-    // Phase 1: Run deterministic personal analysis (positives/negatives)
-    console.log(`[Job:${jobId}] 🧮 Phase 1 — Personal analysis (deterministic)...`);
-    const phase1Start = Date.now();
-    const personalResults = new Map<string, PersonalAnalysisResult>();
-    for (const profile of profiles) {
-      try {
-        const result = buildPersonalProductAnalysis(product, profile.onboarding);
-        personalResults.set(profile.profileId, result);
-      } catch (error) {
-        console.error(
-          `[Job:${jobId}] ❌ Deterministic analysis failed for profile "${profile.profileName}":`,
-          error,
-        );
-      }
-    }
-    console.log(`[Job:${jobId}] ✅ Phase 1 done  ${Date.now() - phase1Start}ms  results=${personalResults.size}/${profiles.length}`);
-
-    // Build multi-profile result from deterministic personal analysis
-    const profileChips: ProfileFitChip[] = [];
-    const detailsByProfile: Record<string, PersonalAnalysisResult> = {};
-
-    for (const profile of profiles) {
-      const aiResult = personalResults.get(profile.profileId);
-      if (aiResult) {
-        profileChips.push({
-          profileId: profile.profileId,
-          profileName: profile.profileName,
-          fitScore: aiResult.fitScore,
-          fitLabel: aiResult.fitLabel,
-        });
-        detailsByProfile[profile.profileId] = aiResult;
-        console.log(`[Job:${jobId}]   "${profile.profileName}" → score=${aiResult.fitScore} (${aiResult.fitLabel})  +${aiResult.positives.length}✓ -${aiResult.negatives.length}✗`);
-      } else {
-        console.warn(`[Job:${jobId}] ⚠️  Deterministic analysis missing for profile "${profile.profileName}" (${profile.profileId}), using baseline fallback`);
-        const fallback = buildPersonalProductAnalysis(product, profile.onboarding);
-        profileChips.push({
-          profileId: profile.profileId,
-          profileName: profile.profileName,
-          fitScore: fallback.fitScore,
-          fitLabel: fallback.fitLabel,
-        });
-        detailsByProfile[profile.profileId] = fallback;
-      }
-    }
-
-    const multiProfileData: MultiProfilePersonalAnalysisResult = {
-      profiles: profileChips,
-      detailsByProfile,
+    // Step 4: Build final result
+    const result: ProductAnalysisResult = {
+      productFacts: facts,
+      profiles: profileScores,
     };
 
-    job.result = multiProfileData;
-    job.status = 'completed';
-
-    if (!productHasIngredients) {
-      job.ingredientAnalysisStatus = 'skipped';
+    const job = jobs.get(jobId);
+    if (job) {
+      job.status = 'completed';
+      job.result = result;
     }
 
-    // Phase 2: Run ingredient analysis in background (does not block main result)
-    if (productHasIngredients) {
-      console.log(`[Job:${jobId}] 🧪 Phase 2 — Ingredient analysis (background)...`);
-      void runIngredientAnalysisForJob(job, product, profiles, scanId).catch((error) => {
-        console.error(`[Job:${jobId}] ❌ Phase 2 failed:`, error);
-        job.ingredientAnalysisStatus = 'failed';
-      });
-    } else {
-      console.log(`[Job:${jobId}] ⏭  Phase 2 skipped — no ingredients data`);
-    }
-
-    // Persist to database (initial save without ingredient analysis)
+    // Step 5: Persist to database
     if (scanId) {
-      const youResult = detailsByProfile['you'];
-      await updateScanPersonalResult(scanId, 'completed', youResult, multiProfileData).catch(
-        () => {},
-      );
+      await updateScanAnalysisResult(scanId, 'completed', result).catch(() => {});
     }
 
     console.log(`[Job:${jobId}] 🏁 Job completed  total=${Date.now() - jobStart}ms`);
   } catch (err) {
     console.error(`[Job:${jobId}] ❌ Job failed:`, err);
-    jobs.set(jobId, { jobId, status: 'failed' });
+    const job = jobs.get(jobId);
+    if (job) {
+      job.status = 'failed';
+    }
     if (scanId) {
-      await updateScanPersonalResult(scanId, 'failed').catch(() => {});
+      await updateScanAnalysisResult(scanId, 'failed').catch(() => {});
     }
   }
 };
 
 /**
- * Run ingredient analysis and attach results to the job.
- * This function updates the job in-place as results come in.
- * Re-persists to database after completion if scanId is provided.
- */
-const runIngredientAnalysisForJob = async (
-  job: MultiProfilePersonalAnalysisJobResponse,
-  product: NormalizedProduct,
-  profiles: ProfileInput[],
-  scanId?: string,
-): Promise<void> => {
-  const jobId = job.jobId;
-  const start = Date.now();
-
-  // Initialize ingredient analysis slots in existing result
-  if (job.result) {
-    for (const profile of profiles) {
-      const detail = job.result.detailsByProfile[profile.profileId];
-      if (detail && !detail.ingredientAnalysis) {
-        detail.ingredientAnalysis = null;
-      }
-    }
-  }
-
-  job.ingredientAnalysisStatus = 'pending';
-  await runIngredientAnalysisAsync(job, product, profiles);
-  job.ingredientAnalysisStatus = 'completed';
-  console.log(`[Job:${jobId}] ✅ Phase 2 done  ${Date.now() - start}ms`);
-
-  // Re-persist with ingredient data
-  if (scanId && job.result) {
-    const youResult = job.result.detailsByProfile['you'];
-    await updateScanPersonalResult(scanId, 'completed', youResult, job.result).catch(() => {});
-  }
-};
-
-/**
- * Create a new analysis job that runs personal + ingredient analysis in parallel.
- * Returns immediately with a pending job reference.
+ * Create a new analysis job. Returns immediately with a pending job reference.
  */
 export const createAnalysisJob = (
   product: NormalizedProduct,
   userId?: string,
   scanId?: string,
-): PersonalAnalysisJob => {
+): { jobId: string; status: 'pending' } => {
   const jobId = randomUUID();
-  const job: MultiProfilePersonalAnalysisJobResponse = {
+  const job: AnalysisJobResponse = {
     jobId,
     status: 'pending',
-    ingredientAnalysisStatus: 'pending',
   };
 
   jobs.set(jobId, job);
@@ -209,32 +152,14 @@ export const createAnalysisJob = (
  * Create a pre-completed job from cached results.
  */
 export const createCachedAnalysisJob = (
-  cachedResult: PersonalAnalysisResult,
-  cachedMultiProfile?: MultiProfilePersonalAnalysisResult,
-): PersonalAnalysisJob => {
+  cachedResult: ProductAnalysisResult,
+): { jobId: string; status: 'completed' } => {
   const jobId = randomUUID();
-
-  const multiProfileData = cachedMultiProfile ?? {
-    profiles: [
-      {
-        profileId: 'you',
-        profileName: 'You',
-        fitScore: cachedResult.fitScore,
-        fitLabel: cachedResult.fitLabel,
-      },
-    ],
-    detailsByProfile: { you: cachedResult },
-  };
-
-  const hasIngredientAnalysis = Object.values(multiProfileData.detailsByProfile).some((d) =>
-    Boolean(d.ingredientAnalysis),
-  );
 
   jobs.set(jobId, {
     jobId,
     status: 'completed',
-    result: multiProfileData,
-    ingredientAnalysisStatus: hasIngredientAnalysis ? 'completed' : 'skipped',
+    result: cachedResult,
   });
   scheduleCleanup(jobId);
 
@@ -244,8 +169,6 @@ export const createCachedAnalysisJob = (
 /**
  * Get a job by its ID.
  */
-export const getAnalysisJob = (
-  jobId: string,
-): MultiProfilePersonalAnalysisJobResponse | null => {
+export const getAnalysisJob = (jobId: string): AnalysisJobResponse | null => {
   return jobs.get(jobId) ?? null;
 };

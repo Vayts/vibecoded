@@ -1,6 +1,5 @@
 import {
-  personalAnalysisResultSchema,
-  multiProfilePersonalAnalysisResultSchema,
+  productAnalysisResultSchema,
   type BarcodeLookupSuccessResponse,
   type BarcodeLookupNotFoundResponse,
   type ScannerLookupSource,
@@ -56,20 +55,11 @@ export const buildSuccessResponse = async (
         scanSource !== 'photo' &&
         scanAge < RESULT_CACHE_MS &&
         existing.personalAnalysisStatus === 'completed' &&
-        existing.personalResult
+        existing.multiProfileResult
       ) {
-        const parsed = personalAnalysisResultSchema.safeParse(existing.personalResult);
+        const parsed = productAnalysisResultSchema.safeParse(existing.multiProfileResult);
         if (parsed.success) {
-          let cachedMultiProfile;
-          if (existing.multiProfileResult) {
-            const multiParsed = multiProfilePersonalAnalysisResultSchema.safeParse(
-              existing.multiProfileResult,
-            );
-            if (multiParsed.success) {
-              cachedMultiProfile = multiParsed.data;
-            }
-          }
-          const personalAnalysis = createCachedAnalysisJob(parsed.data, cachedMultiProfile);
+          const personalAnalysis = createCachedAnalysisJob(parsed.data);
           return { success: true, barcode, source, product, personalAnalysis };
         }
       }

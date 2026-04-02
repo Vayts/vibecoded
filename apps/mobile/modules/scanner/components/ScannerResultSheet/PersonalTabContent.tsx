@@ -1,17 +1,16 @@
-import type { MultiProfilePersonalAnalysisJobResponse, PersonalAnalysisResult } from '@acme/shared';
+import type { AnalysisJobResponse, ProfileProductScore } from '@acme/shared';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, TouchableOpacity, View } from 'react-native';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { mapFitLabelToToneKey, getRatingTone, getFitLabelText } from './evaluationHelpers';
 import { EvaluationSection } from './EvaluationSection';
-import { IngredientsSection } from './IngredientsSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
 import { PersonalAnalysisLoader } from './PersonalAnalysisLoader';
 import { ScoreSummary } from './ScoreSummary';
 
 interface PersonalTabContentProps {
-  personalResult?: MultiProfilePersonalAnalysisJobResponse;
+  personalResult?: AnalysisJobResponse;
   isError: boolean;
   onRetry: () => void;
 }
@@ -20,16 +19,14 @@ export function PersonalTabContent({ personalResult, isError, onRetry }: Persona
   const [selectedProfileId, setSelectedProfileId] = useState<string>('you');
 
   if (personalResult?.status === 'completed' && personalResult.result) {
-    const { profiles, detailsByProfile } = personalResult.result;
-    const ingredientStatus = personalResult.ingredientAnalysisStatus;
+    const { profiles } = personalResult.result;
     const hasMultipleProfiles = profiles.length > 1;
 
     // Ensure selected profile exists, fallback to first
-    const activeProfileId =
-      detailsByProfile[selectedProfileId] ? selectedProfileId : profiles[0]?.profileId ?? 'you';
-    const activeDetail = detailsByProfile[activeProfileId];
+    const activeProfile =
+      profiles.find((p) => p.profileId === selectedProfileId) ?? profiles[0];
 
-    if (!activeDetail) {
+    if (!activeProfile) {
       return <PersonalAnalysisFallback onRetry={onRetry} />;
     }
 
@@ -38,16 +35,12 @@ export function PersonalTabContent({ personalResult, isError, onRetry }: Persona
         {hasMultipleProfiles ? (
           <ProfileChips
             profiles={profiles}
-            selectedProfileId={activeProfileId}
+            selectedProfileId={activeProfile.profileId}
             onSelect={setSelectedProfileId}
           />
         ) : null}
 
-        <ProfileDetail
-          detail={activeDetail}
-          profileName={profiles.find((p) => p.profileId === activeProfileId)?.profileName ?? 'You'}
-          ingredientStatus={ingredientStatus}
-        />
+        <ProfileDetail profile={activeProfile} />
       </View>
     );
   }
@@ -60,11 +53,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry }: Persona
 }
 
 interface ProfileChipsProps {
-  profiles: MultiProfilePersonalAnalysisJobResponse['result'] extends infer R
-    ? R extends { profiles: infer P }
-      ? P
-      : never
-    : never;
+  profiles: ProfileProductScore[];
   selectedProfileId: string;
   onSelect: (profileId: string) => void;
 }
@@ -87,7 +76,7 @@ function ProfileChips({ profiles, selectedProfileId, onSelect }: ProfileChipsPro
             key={profile.profileId}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${profile.profileName}: ${getFitLabelText(profile.fitLabel)}, ${profile.fitScore}/100`}
+            accessibilityLabel={`${profile.name}: ${getFitLabelText(profile.fitLabel)}, ${profile.score}/100`}
             className="min-h-[44px] flex-row items-center rounded-full border px-4 py-2"
             style={{
               borderColor: isSelected ? tone.borderColor : COLORS.gray200,
@@ -101,7 +90,7 @@ function ProfileChips({ profiles, selectedProfileId, onSelect }: ProfileChipsPro
               variant="buttonSmall"
               style={{ color: isSelected ? tone.textColor : COLORS.gray700 }}
             >
-              {profile.profileName}
+              {profile.name}
             </Typography>
             <View
               className="ml-2 rounded-full px-2 py-0.5"
@@ -112,7 +101,7 @@ function ProfileChips({ profiles, selectedProfileId, onSelect }: ProfileChipsPro
                 className="font-semibold"
                 style={{ color: isSelected ? COLORS.white : COLORS.gray700 }}
               >
-                {profile.fitScore}
+                {profile.score}
               </Typography>
             </View>
           </TouchableOpacity>
@@ -123,41 +112,22 @@ function ProfileChips({ profiles, selectedProfileId, onSelect }: ProfileChipsPro
 }
 
 interface ProfileDetailProps {
-  detail: PersonalAnalysisResult;
-  profileName: string;
-  ingredientStatus?: string;
+  profile: ProfileProductScore;
 }
 
-function ProfileDetail({ detail, profileName, ingredientStatus }: ProfileDetailProps) {
-  const forLabel = `For ${profileName.toLowerCase() === 'you' ? 'you' : profileName}`;
+function ProfileDetail({ profile }: ProfileDetailProps) {
+  const forLabel = `For ${profile.name.toLowerCase() === 'you' ? 'you' : profile.name}`;
 
   return (
     <View>
       <ScoreSummary
         title="Fit score"
-        score={detail.fitScore}
-        label={detail.fitLabel}
-        toneKey={mapFitLabelToToneKey(detail.fitLabel)}
+        score={profile.score}
+        label={profile.fitLabel}
+        toneKey={mapFitLabelToToneKey(profile.fitLabel)}
       />
-      {detail.summary ? (
-        <View className="mt-4 rounded-xl border border-gray-100 bg-white px-4 py-4">
-          <Typography variant="bodySecondary" className="leading-6 text-gray-700">
-            {detail.summary}
-          </Typography>
-        </View>
-      ) : null}
-      <EvaluationSection title="Positives" items={detail.positives} rightLabel={forLabel} />
-      <EvaluationSection title="Negatives" items={detail.negatives} rightLabel={forLabel} />
-      {detail.ingredientAnalysis ? (
-        <IngredientsSection ingredientAnalysis={detail.ingredientAnalysis} />
-      ) : ingredientStatus === 'pending' ? (
-        <View className="mt-5 flex-row items-center gap-3 rounded-[12px] border border-gray-100 bg-white px-4 py-4">
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Typography variant="bodySecondary" className="text-gray-500">
-            Analyzing ingredients…
-          </Typography>
-        </View>
-      ) : null}
+      <EvaluationSection title="Positives" items={profile.positives} rightLabel={forLabel} />
+      <EvaluationSection title="Negatives" items={profile.negatives} rightLabel={forLabel} />
     </View>
   );
 }

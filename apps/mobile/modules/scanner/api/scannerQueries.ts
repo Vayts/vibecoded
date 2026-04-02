@@ -1,6 +1,6 @@
 import {
-  multiProfilePersonalAnalysisJobResponseSchema,
-  type MultiProfilePersonalAnalysisJobResponse,
+  analysisJobResponseSchema,
+  type AnalysisJobResponse,
 } from '@acme/shared';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../../shared/lib/client/client';
@@ -15,7 +15,7 @@ const getErrorMessage = async (response: Response): Promise<string> => {
 
 const fetchPersonalAnalysisJob = async (
   jobId: string,
-): Promise<MultiProfilePersonalAnalysisJobResponse> => {
+): Promise<AnalysisJobResponse> => {
   const response = await apiFetch(`/api/scanner/personal-analysis/${jobId}`);
 
   if (!response.ok) {
@@ -23,7 +23,7 @@ const fetchPersonalAnalysisJob = async (
   }
 
   const json = await response.json();
-  return multiProfilePersonalAnalysisJobResponseSchema.parse(json);
+  return analysisJobResponseSchema.parse(json);
 };
 
 export const getPersonalAnalysisQueryKey = (jobId?: string) => {
@@ -32,7 +32,7 @@ export const getPersonalAnalysisQueryKey = (jobId?: string) => {
 
 export const usePersonalAnalysisQuery = (
   jobId?: string,
-  initialStatus?: MultiProfilePersonalAnalysisJobResponse['status'],
+  initialStatus?: AnalysisJobResponse['status'],
 ) => {
   return useQuery({
     queryKey: getPersonalAnalysisQueryKey(jobId),
@@ -53,8 +53,7 @@ export const usePersonalAnalysisQuery = (
         return false;
       }
 
-      // Stop polling once heuristic done AND ingredient analysis settled
-      if (status === 'completed' && data?.result && data?.ingredientAnalysisStatus !== 'pending') {
+      if (status === 'completed' && data?.result) {
         return false;
       }
 

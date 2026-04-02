@@ -1,7 +1,7 @@
 import type {
   BarcodeLookupProduct,
   BarcodeLookupResponse,
-  MultiProfilePersonalAnalysisJobResponse,
+  AnalysisJobResponse,
 } from '@acme/shared';
 import { View } from 'react-native';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
@@ -11,11 +11,12 @@ import { ScrollView } from 'react-native-actions-sheet';
 import { PersonalTabContent } from './PersonalTabContent';
 import { ProductResultHeader } from './ProductResultHeader';
 import { NutriScoreBlock } from './NutriScoreBlock';
+import { IngredientsSection } from './ProductResultSections';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ProductResultContentProps {
   result: BarcodeLookupResponse;
-  resolvedPersonalResult?: MultiProfilePersonalAnalysisJobResponse;
+  resolvedPersonalResult?: AnalysisJobResponse;
 }
 
 export function ProductResultContent({ result, resolvedPersonalResult }: ProductResultContentProps) {
@@ -50,6 +51,8 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
         />
 
       <NutriScoreBlock grade={product.scores.nutriscore_grade} />
+
+      <IngredientsSection product={product} />
 
       <View>
         <PersonalTabContent

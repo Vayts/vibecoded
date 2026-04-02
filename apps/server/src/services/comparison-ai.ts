@@ -3,8 +3,34 @@ import { z } from 'zod';
 import type { NormalizedProduct, ProfileComparisonResult } from '@acme/shared';
 import { AI_MODELS } from '../constants/models';
 import type { ProfileInput } from './profileInputs';
-import { getProfileLabel } from '../domain/personal-analysis/personal-analysis-prompt';
-import { filterComparisonBulletsWithAllergies, filterComparisonPositives } from '../domain/personal-analysis/restriction-filter';
+
+const PROFILE_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const getProfileLabel = (index: number): string => PROFILE_LABELS[index] ?? `P${index}`;
+
+// ── Inline comparison filters (ported from old restriction-filter) ───
+
+const RESTRICTION_KEYWORDS: Record<string, string[]> = {
+  VEGAN: ['vegan'], VEGETARIAN: ['vegetarian'], HALAL: ['halal'], KOSHER: ['kosher'],
+  GLUTEN_FREE: ['gluten-free', 'gluten free', 'celiac'], DAIRY_FREE: ['dairy-free', 'dairy free'],
+  KETO: ['keto'], PALEO: ['paleo'], NUT_FREE: ['nut-free', 'nut free'],
+};
+
+const filterComparisonPositives = (positives: string[], userRestrictions: string[]): string[] => {
+  const set = new Set(userRestrictions);
+  return positives.filter((text) => {
+    const lower = text.toLowerCase();
+    for (const [restriction, keywords] of Object.entries(RESTRICTION_KEYWORDS)) {
+      if (set.has(restriction)) continue;
+      if (keywords.some((kw) => lower.includes(kw))) return false;
+    }
+    return true;
+  });
+};
+
+const filterComparisonNegatives = (negatives: string[], _userAllergies: string[]): string[] => {
+  // Pass-through — no false-positive filtering needed for comparison bullets
+  return negatives;
+};
 
 const comparisonItemSchema = z.object({
   positives: z.array(z.string()).describe('Short bullet points of advantages for this product for the profile'),
@@ -183,9 +209,9 @@ const getModel = (): ChatOpenAI => {
   if (!cachedModel) {
     cachedModel = new ChatOpenAI({
       model: AI_MODELS.reason,
-      temperature: 0,
       apiKey: process.env.OPENAI_API_KEY,
       maxRetries: 3,
+      reasoning: {"effort": "medium"},
     });
   }
   return cachedModel;
@@ -235,11 +261,11 @@ export const compareProductsForProfiles = async (
       profileName: profile.profileName,
       product1: {
         positives: filterComparisonPositives(profileResult.product1.positives, userRestrictions),
-        negatives: filterComparisonBulletsWithAllergies(profileResult.product1.negatives, userAllergies),
+        negatives: filterComparisonNegatives(profileResult.product1.negatives, userAllergies),
       },
       product2: {
         positives: filterComparisonPositives(profileResult.product2.positives, userRestrictions),
-        negatives: filterComparisonBulletsWithAllergies(profileResult.product2.negatives, userAllergies),
+        negatives: filterComparisonNegatives(profileResult.product2.negatives, userAllergies),
       },
       winner: profileResult.winner,
       conclusion: profileResult.conclusion,

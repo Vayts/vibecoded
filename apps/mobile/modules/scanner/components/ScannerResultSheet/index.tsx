@@ -1,6 +1,6 @@
 import type {
   BarcodeLookupResponse,
-  MultiProfilePersonalAnalysisJobResponse,
+  AnalysisJobResponse,
   ScanDetailResponse,
 } from '@acme/shared';
 import { useMemo } from 'react';
@@ -18,23 +18,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function buildResultFromScanDetail(scan: ScanDetailResponse): {
   result: BarcodeLookupResponse;
-  resolvedPersonalResult: MultiProfilePersonalAnalysisJobResponse;
+  resolvedPersonalResult: AnalysisJobResponse;
 } {
-  const ingredientAnalysisStatus = (() => {
-    if (!scan.multiProfileResult) return 'skipped' as const;
-    const hasIngredients = Object.values(scan.multiProfileResult.detailsByProfile).some(
-      (d) => d.ingredientAnalysis != null,
-    );
-    return hasIngredients ? ('completed' as const) : ('skipped' as const);
-  })();
-
   return {
     result: {
       success: true,
       barcode: scan.barcode ?? '',
       source: 'openfoodfacts',
       product: scan.product!,
-      evaluation: scan.evaluation ?? undefined,
       personalAnalysis: { jobId: scan.id, status: scan.personalAnalysisStatus ?? 'completed' },
       productId: scan.productId ?? undefined,
       isFavourite: scan.isFavourite,
@@ -42,8 +33,7 @@ function buildResultFromScanDetail(scan: ScanDetailResponse): {
     resolvedPersonalResult: {
       jobId: scan.id,
       status: scan.personalAnalysisStatus === 'completed' ? 'completed' : 'failed',
-      result: scan.multiProfileResult ?? undefined,
-      ingredientAnalysisStatus,
+      result: scan.analysisResult ?? undefined,
     },
   };
 }

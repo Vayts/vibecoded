@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { FavouriteItem } from '@acme/shared';
-import { addFavouriteRequestSchema, profileFitChipSchema } from '@acme/shared';
+import { addFavouriteRequestSchema, profileProductScoreSchema } from '@acme/shared';
 import { auth } from '../lib/auth';
 import {
   addFavourite,
@@ -35,16 +35,22 @@ favouritesRoute.get('/', async (c) => {
 
   const items: FavouriteItem[] = favourites.map((fav) => {
     const scan = fav.product ? scanMap.get(fav.product.id) : undefined;
-    const personal = scan?.personalResult as { fitScore?: number; fitLabel?: string } | null;
+    const raw = scan?.personalResult as { profiles?: Array<{ score?: number; fitLabel?: string }> } | null;
+    const firstProfile = raw?.profiles?.[0];
 
     let profileChips: FavouriteItem['profileChips'] = undefined;
     if (scan?.multiProfileResult && typeof scan.multiProfileResult === 'object') {
       const multi = scan.multiProfileResult as { profiles?: unknown[] };
       if (Array.isArray(multi.profiles)) {
         const parsed = multi.profiles
-          .map((p) => profileFitChipSchema.safeParse(p))
-          .filter((r) => r.success)
-          .map((r) => r.data!);
+          .map((p) => {
+            const r = profileProductScoreSchema.safeParse(p);
+            if (r.success) {
+              return { profileId: r.data.profileId, name: r.data.name, score: r.data.score, fitLabel: r.data.fitLabel };
+            }
+            return null;
+          })
+          .filter((r): r is NonNullable<typeof r> => r != null);
         if (parsed.length > 0) profileChips = parsed;
       }
     }
@@ -56,8 +62,8 @@ favouritesRoute.get('/', async (c) => {
       source: (scan?.source as 'barcode' | 'photo') ?? 'barcode',
       overallScore: scan?.overallScore ?? null,
       overallRating: scan?.overallRating ?? null,
-      personalScore: personal?.fitScore ?? null,
-      personalRating: (personal?.fitLabel as FavouriteItem['personalRating']) ?? null,
+      personalScore: firstProfile?.score ?? null,
+      personalRating: (firstProfile?.fitLabel as FavouriteItem['personalRating']) ?? null,
       personalAnalysisStatus:
         (scan?.personalAnalysisStatus as FavouriteItem['personalAnalysisStatus']) ?? null,
       isFavourite: true,

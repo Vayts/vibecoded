@@ -1,8 +1,7 @@
-import type { ProductAnalysisItem, ProductAnalysisResult } from '@acme/shared';
+  import type { ScoreReason, FitLabel } from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
 
-type RatingKey = ProductAnalysisResult['rating'];
-type SeverityKey = ProductAnalysisItem['severity'];
+type RatingKey = 'excellent' | 'good' | 'average' | 'bad';
 
 interface RatingTone {
   backgroundColor: string;
@@ -50,7 +49,7 @@ const RATING_TONES: Record<RatingKey, RatingTone> = {
   },
 };
 
-const SEVERITY_TONES: Record<SeverityKey, SeverityTone> = {
+const SEVERITY_TONES: Record<string, SeverityTone> = {
   good: {
     dotColor: COLORS.success,
     borderColor: COLORS.successBorder,
@@ -77,11 +76,11 @@ const SEVERITY_TONES: Record<SeverityKey, SeverityTone> = {
   },
 };
 
-export const getRatingTone = (rating: ProductAnalysisResult['rating']): RatingTone => {
+export const getRatingTone = (rating: RatingKey): RatingTone => {
   return RATING_TONES[rating];
 };
 
-export const formatRatingLabel = (rating: ProductAnalysisResult['rating']): string => {
+export const formatRatingLabel = (rating: RatingKey): string => {
   return rating.charAt(0).toUpperCase() + rating.slice(1);
 };
 
@@ -106,8 +105,8 @@ export const getFitLabelText = (label: string): string => {
 };
 
 export const mapFitLabelToToneKey = (
-  label: 'great_fit' | 'good_fit' | 'neutral' | 'poor_fit',
-): ProductAnalysisResult['rating'] => {
+  label: FitLabel,
+): RatingKey => {
   if (label === 'great_fit') {
     return 'excellent';
   }
@@ -123,11 +122,13 @@ export const mapFitLabelToToneKey = (
   return 'average';
 };
 
-export const getSeverityTone = (severity: ProductAnalysisItem['severity']): SeverityTone => {
-  return SEVERITY_TONES[severity];
+export const getSeverityTone = (kind: ScoreReason['kind']): SeverityTone => {
+  if (kind === 'positive') return SEVERITY_TONES.good;
+  if (kind === 'negative') return SEVERITY_TONES.bad;
+  return SEVERITY_TONES.neutral;
 };
 
-export const formatEvaluationValue = (item: ProductAnalysisItem): string | null => {
+export const formatScoreReasonValue = (item: ScoreReason): string | null => {
   if (item.value == null) {
     return null;
   }

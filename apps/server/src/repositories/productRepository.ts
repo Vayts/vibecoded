@@ -79,8 +79,13 @@ export const findByBarcode = async (barcode: string): Promise<NormalizedProduct 
   });
 
   if (!product) {
+
+    console.log(`[productRepository] No product found in DB for barcode=${barcode}`);
+
     return null;
   }
+
+  console.log(`[productRepository] Found product in DB for barcode=${barcode} name="${product.product_name ?? ''}" brand="${product.brands ?? ''}" imageUrl="${product.image_url ?? ''}"`);
 
   return toNormalizedProduct(product);
 };

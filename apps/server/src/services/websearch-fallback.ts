@@ -70,9 +70,9 @@ RULES:
 const getModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.reason,
-    temperature: 0,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 2,
+    reasoning: {"effort": "medium"},
   });
 
 /**

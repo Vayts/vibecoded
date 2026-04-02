@@ -5,6 +5,12 @@ import {
   allergySchema,
   nutritionPrioritySchema,
 } from './onboarding';
+import {
+  analysisJobStatusSchema,
+  fitLabelSchema,
+  productAnalysisResultSchema as productAnalysisResultSchemaFromPA,
+  profileProductScoreSchema,
+} from './product-analysis';
 
 // ============================================================
 // Scanner schemas
@@ -84,45 +90,8 @@ export const productEvaluationSchema = z.object({
 });
 export type ProductEvaluation = z.infer<typeof productEvaluationSchema>;
 
-export const productAnalysisItemSchema = z.object({
-  key: z.string(),
-  label: z.string(),
-  description: z.string(),
-  value: z.number().nullable(),
-  unit: z.string().nullable(),
-  per: z.enum(['100g']).nullable(),
-  severity: z.enum(['good', 'neutral', 'warning', 'bad']),
-  category: z.enum(['nutrition', 'diet', 'ingredients', 'restriction']),
-  overview: z.string(),
-  triggerIngredients: z.array(z.string()).optional().describe('Specific ingredient(s) that caused this flag — only for diet/restriction/ingredients categories'),
-});
-export type ProductAnalysisItem = z.infer<typeof productAnalysisItemSchema>;
-
-export const positiveProductAnalysisItemSchema = productAnalysisItemSchema.extend({
-  severity: z.enum(['good', 'neutral']),
-});
-export type PositiveProductAnalysisItem = z.infer<typeof positiveProductAnalysisItemSchema>;
-
-export const negativeProductAnalysisItemSchema = productAnalysisItemSchema.extend({
-  severity: z.enum(['warning', 'bad']),
-});
-export type NegativeProductAnalysisItem = z.infer<typeof negativeProductAnalysisItemSchema>;
-
-export const productAnalysisResultSchema = z.object({
-  overallScore: z.number().min(0).max(100),
-  rating: z.enum(['excellent', 'good', 'average', 'bad']),
-  summary: z.string(),
-  positives: z.array(positiveProductAnalysisItemSchema),
-  negatives: z.array(negativeProductAnalysisItemSchema),
-  warnings: z.array(z.string()),
-});
-export type ProductAnalysisResult = z.infer<typeof productAnalysisResultSchema>;
-
-export const personalFitLabelSchema = z.enum(['great_fit', 'good_fit', 'neutral', 'poor_fit']);
-export type PersonalFitLabel = z.infer<typeof personalFitLabelSchema>;
-
 // ============================================================
-// Ingredient analysis schemas
+// Ingredient analysis schemas (used by comparison feature)
 // ============================================================
 
 export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
@@ -147,42 +116,24 @@ export const ingredientAnalysisResultSchema = z.object({
 });
 export type IngredientAnalysisResult = z.infer<typeof ingredientAnalysisResultSchema>;
 
-export const personalAnalysisResultSchema = z.object({
-  fitScore: z.number().min(0).max(100),
-  fitLabel: personalFitLabelSchema,
-  summary: z.string().optional(),
-  positives: z.array(positiveProductAnalysisItemSchema),
-  negatives: z.array(negativeProductAnalysisItemSchema),
-  ingredientAnalysis: ingredientAnalysisResultSchema.nullable().optional(),
-});
-export type PersonalAnalysisResult = z.infer<typeof personalAnalysisResultSchema>;
+// ============================================================
+// Analysis job schemas (used in barcode lookup response)
+// ============================================================
 
-export const personalAnalysisJobStatusSchema = z.enum(['pending', 'completed', 'failed']);
+export const personalAnalysisJobStatusSchema = analysisJobStatusSchema;
 export type PersonalAnalysisJobStatus = z.infer<typeof personalAnalysisJobStatusSchema>;
 
 export const personalAnalysisJobSchema = z.object({
   jobId: z.string(),
-  status: personalAnalysisJobStatusSchema,
+  status: analysisJobStatusSchema,
 });
 export type PersonalAnalysisJob = z.infer<typeof personalAnalysisJobSchema>;
-
-export const ingredientAnalysisStatusSchema = z.enum(['pending', 'completed', 'skipped', 'failed']);
-export type IngredientAnalysisStatus = z.infer<typeof ingredientAnalysisStatusSchema>;
-
-export const personalAnalysisJobResponseSchema = z.object({
-  jobId: z.string(),
-  status: personalAnalysisJobStatusSchema,
-  result: personalAnalysisResultSchema.optional(),
-  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
-});
-export type PersonalAnalysisJobResponse = z.infer<typeof personalAnalysisJobResponseSchema>;
 
 export const barcodeLookupSuccessResponseSchema = z.object({
   success: z.literal(true),
   barcode: z.string(),
   source: scannerLookupSourceSchema,
   product: barcodeLookupProductSchema,
-  evaluation: productAnalysisResultSchema.optional(),
   personalAnalysis: personalAnalysisJobSchema,
   productId: z.string().optional(),
   isFavourite: z.boolean().optional(),
@@ -210,37 +161,16 @@ export const chatHistoryMessageSchema = z.object({
 export type ChatHistoryMessage = z.infer<typeof chatHistoryMessageSchema>;
 
 // ============================================================
-// Multi-profile personal analysis schemas
+// Profile chip schema (lightweight summary for history lists)
 // ============================================================
 
-export const profileFitChipSchema = z.object({
+export const profileChipSchema = z.object({
   profileId: z.string(),
-  profileName: z.string(),
-  fitScore: z.number().min(0).max(100),
-  fitLabel: personalFitLabelSchema,
+  name: z.string(),
+  score: z.number().min(0).max(100),
+  fitLabel: fitLabelSchema,
 });
-export type ProfileFitChip = z.infer<typeof profileFitChipSchema>;
-
-export const profileAnalysisDetailSchema = personalAnalysisResultSchema;
-export type ProfileAnalysisDetail = z.infer<typeof profileAnalysisDetailSchema>;
-
-export const multiProfilePersonalAnalysisResultSchema = z.object({
-  profiles: z.array(profileFitChipSchema),
-  detailsByProfile: z.record(z.string(), personalAnalysisResultSchema),
-});
-export type MultiProfilePersonalAnalysisResult = z.infer<
-  typeof multiProfilePersonalAnalysisResultSchema
->;
-
-export const multiProfilePersonalAnalysisJobResponseSchema = z.object({
-  jobId: z.string(),
-  status: personalAnalysisJobStatusSchema,
-  result: multiProfilePersonalAnalysisResultSchema.optional(),
-  ingredientAnalysisStatus: ingredientAnalysisStatusSchema.optional(),
-});
-export type MultiProfilePersonalAnalysisJobResponse = z.infer<
-  typeof multiProfilePersonalAnalysisJobResponseSchema
->;
+export type ProfileChip = z.infer<typeof profileChipSchema>;
 
 // ============================================================
 // Scan history schemas
@@ -256,10 +186,10 @@ export const scanHistoryItemSchema = z.object({
   overallScore: z.number().nullable(),
   overallRating: z.string().nullable(),
   personalScore: z.number().nullable(),
-  personalRating: personalFitLabelSchema.nullable(),
-  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  personalRating: fitLabelSchema.nullable(),
+  personalAnalysisStatus: analysisJobStatusSchema.nullable(),
   isFavourite: z.boolean().optional(),
-  profileChips: z.array(profileFitChipSchema).optional(),
+  profileChips: z.array(profileChipSchema).optional(),
   product: z
     .object({
       id: z.string(),
@@ -284,14 +214,12 @@ export const scanDetailResponseSchema = z.object({
   source: scanSourceSchema,
   overallScore: z.number().nullable(),
   overallRating: z.string().nullable(),
-  personalAnalysisStatus: personalAnalysisJobStatusSchema.nullable(),
+  personalAnalysisStatus: analysisJobStatusSchema.nullable(),
   barcode: z.string().nullable(),
   productId: z.string().nullable().optional(),
   isFavourite: z.boolean().optional(),
   product: barcodeLookupProductSchema.nullable(),
-  evaluation: productAnalysisResultSchema.nullable(),
-  personalResult: personalAnalysisResultSchema.nullable(),
-  multiProfileResult: multiProfilePersonalAnalysisResultSchema.nullable().optional(),
+  analysisResult: productAnalysisResultSchemaFromPA.nullable(),
 });
 export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
 

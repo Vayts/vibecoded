@@ -43,7 +43,7 @@ function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['prof
   return (
     <View className="flex-row flex-wrap justify-end gap-1">
       {chips.map((chip) => {
-        const color = getScoreColor(chip.fitScore);
+        const color = getScoreColor(chip.score);
         return (
           <View
             key={chip.profileId}
@@ -55,7 +55,7 @@ function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['prof
               style={{ color, fontSize: 11, lineHeight: 14 }}
               numberOfLines={1}
             >
-              {truncateName(chip.profileName)} {chip.fitScore}
+              {truncateName(chip.name)} {chip.score}
             </Typography>
           </View>
         );

@@ -1,11 +1,11 @@
-import type { ProductAnalysisItem } from '@acme/shared';
+import type { ScoreReason } from '@acme/shared';
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { EvaluationRow } from './EvaluationRow';
 
 interface EvaluationSectionProps {
   title: string;
-  items: ProductAnalysisItem[];
+  items: ScoreReason[];
   rightLabel?: string;
   emptyMessage?: string;
 }

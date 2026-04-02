@@ -6,13 +6,15 @@ import type {
   OpenFoodFactsSelectedImages,
 } from './openfoodfacts-types';
 
+const NULL_LIKE = new Set(['null', '/null', 'n/a', 'none', 'undefined', '-', '/', '']);
+
 const normalizeNullableString = (value: unknown): string | null => {
   if (typeof value !== 'string') {
     return null;
   }
 
   const normalized = value.trim();
-  return normalized.length > 0 ? normalized : null;
+  return NULL_LIKE.has(normalized.toLowerCase()) ? null : (normalized.length > 0 ? normalized : null);
 };
 
 const normalizeNullableNumber = (value: unknown): number | null => {
