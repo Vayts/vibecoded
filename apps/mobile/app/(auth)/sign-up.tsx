@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { View, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { Link } from 'expo-router';
+import { View, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
+import { Link, useRouter } from 'expo-router';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { Typography } from '../../shared/components/Typography';
 import { Input } from '../../shared/components/Input';
 import { Button } from '../../shared/components/Button';
 
 export default function SignUpScreen() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +19,7 @@ export default function SignUpScreen() {
     clearError();
     try {
       await signUp(name.trim(), email.trim(), password);
+      router.replace('/');
     } catch {
       return;
     }
@@ -28,6 +30,7 @@ export default function SignUpScreen() {
       className="flex-1 bg-white"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
       <View className="flex-1 justify-center px-6">
         <Typography variant="hero" className="mb-2">
           Create account
@@ -100,6 +103,7 @@ export default function SignUpScreen() {
           </Link>
         </View>
       </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
