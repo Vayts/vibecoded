@@ -52,7 +52,7 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
 
       <NutriScoreBlock grade={product.scores.nutriscore_grade} />
 
-      <IngredientsSection product={product} />
+      {/* <IngredientsSection product={product} /> */}
 
       <View>
         <PersonalTabContent

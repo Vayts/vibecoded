@@ -59,9 +59,18 @@ scannerRoute.post('/barcode', async (c) => {
     let product: NormalizedProduct | null = await findByBarcode(barcode);
     let source: ScannerLookupSource = 'openfoodfacts';
 
-    // Step 2: Try OpenFoodFacts
+    // Step 2: Try OpenFoodFacts (with timeout — falls through to WebSearch on failure)
     if (!product) {
-      product = await lookupBarcode(barcode);
+      try {
+        product = await lookupBarcode(barcode);
+      } catch (err) {
+        if (err instanceof OpenFoodFactsLookupError) {
+          console.warn(`[scanner] OFF lookup failed (${err.code}) for ${barcode}: ${err.message}`);
+          // Fall through to WebSearch
+        } else {
+          throw err;
+        }
+      }
     }
 
     // Step 3: Fallback to WebSearch
@@ -99,10 +108,6 @@ scannerRoute.post('/barcode', async (c) => {
     const productId = await findProductIdByBarcode(response.barcode);
     return c.json({ ...response, productId: productId ?? undefined });
   } catch (error) {
-    if (error instanceof OpenFoodFactsLookupError) {
-      return c.json({ error: error.message, code: error.code }, 502);
-    }
-
     throw error;
   }
 });

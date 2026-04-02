@@ -53,14 +53,14 @@ export const buildProductFactsPrompt = (product: NormalizedProduct): string => {
   return parts.join('\n');
 };
 
-export const PRODUCT_FACTS_SYSTEM_PROMPT = `You are a structured product fact extractor. Given food product data, return ONLY structured JSON facts.
+export const PRODUCT_FACTS_SYSTEM_PROMPT = `You are a structured product classifier. Given food product data, return ONLY structured JSON classification facts.
 
 RULES:
 - Return ONLY the JSON object matching the required schema. No prose, no explanation.
 - Do NOT compute any score or recommendation.
+- Do NOT return any nutrition values — those come from the product database, not from you.
 - Do NOT invent missing fields. Use null for unknown values.
 - For diet compatibility: use "compatible" only when clearly safe, "incompatible" when a known conflict exists, "unclear" when uncertain.
-- For nutrition summary levels: use product-category-aware thresholds. A beverage with 10g sugar is "high", but a cereal with 10g sugar is "moderate".
 
 DIET COMPATIBILITY RULES:
 - vegan: incompatible if any animal product (meat, fish, dairy, eggs, honey, gelatin, lard, etc.) is present
@@ -79,15 +79,6 @@ DIET COMPATIBILITY REASONS:
 
 PRODUCT TYPE — choose the single best match from this list:
 beverage, dairy, yogurt, cheese, meat, fish, snack, sweet, cereal, sauce, bread, ready_meal, plant_protein, dessert, fruit_vegetable, other
-
-NUTRITION SUMMARY LEVELS:
-- sugarLevel: low (≤5g), moderate (5-12g), high (>12g) per 100g. For beverages: low (≤2.5g), moderate (2.5-6g), high (>6g).
-- saltLevel: low (≤0.3g), moderate (0.3-1.0g), high (>1.0g) per 100g.
-- calorieLevel: low (≤100kcal), moderate (100-250kcal), high (>250kcal) per 100g. For beverages: low (≤20kcal), moderate (20-50kcal), high (>50kcal).
-- proteinLevel: low (<3g), moderate (3-8g), high (>8g) per 100g.
-- fiberLevel: low (<2g), moderate (2-5g), high (>5g) per 100g.
-- saturatedFatLevel: low (<1.5g), moderate (1.5-5g), high (>5g) per 100g.
-- If the nutrition value is missing, use "unknown".
 
 NUTRI GRADE:
 - Return the Nutri-Score grade if available (a/b/c/d/e lowercase), else null.`;

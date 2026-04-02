@@ -154,6 +154,23 @@ export type FitLabel = z.infer<typeof fitLabelSchema>;
 export const profileTypeSchema = z.enum(['self', 'family_member']);
 export type ProfileType = z.infer<typeof profileTypeSchema>;
 
+export const scoreBreakdownStepSchema = z.object({
+  rule: z.string(),
+  label: z.string(),
+  impact: z.number(),
+  running: z.number(),
+});
+export type ScoreBreakdownStep = z.infer<typeof scoreBreakdownStepSchema>;
+
+export const scoreBreakdownSchema = z.object({
+  baseScore: z.number(),
+  steps: z.array(scoreBreakdownStepSchema),
+  totalImpact: z.number(),
+  rawScore: z.number(),
+  finalScore: z.number(),
+});
+export type ScoreBreakdown = z.infer<typeof scoreBreakdownSchema>;
+
 export const profileProductScoreSchema = z.object({
   profileId: z.string(),
   profileType: profileTypeSchema,
@@ -162,6 +179,7 @@ export const profileProductScoreSchema = z.object({
   fitLabel: fitLabelSchema,
   positives: z.array(scoreReasonSchema),
   negatives: z.array(scoreReasonSchema),
+  scoreBreakdown: scoreBreakdownSchema.optional(),
 });
 export type ProfileProductScore = z.infer<typeof profileProductScoreSchema>;
 

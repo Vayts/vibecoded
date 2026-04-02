@@ -5,6 +5,8 @@ import type {
   ProfileProductScore,
   NutritionLevel,
   ProductType,
+  ScoreBreakdown,
+  ScoreBreakdownStep,
 } from '@acme/shared';
 import type { OnboardingResponse } from '@acme/shared';
 
@@ -818,9 +820,32 @@ export const computeProfileScore = (
     ...evaluateProductType(facts, onboarding),
   ];
 
-  // Sum impacts (only positive/negative contribute; neutral has impact 0)
-  const totalImpact = allReasons.reduce((sum, r) => sum + r.impact, 0);
-  const score = clamp(BASE_SCORE + totalImpact);
+  // Build breakdown — only steps with non-zero impact
+  const steps: ScoreBreakdownStep[] = [];
+  let running = BASE_SCORE;
+
+  for (const r of allReasons) {
+    if (r.impact === 0) continue;
+    running += r.impact;
+    steps.push({
+      rule: `${r.source}:${r.key}`,
+      label: r.description,
+      impact: r.impact,
+      running,
+    });
+  }
+
+  const totalImpact = running - BASE_SCORE;
+  const rawScore = running;
+  const score = clamp(rawScore);
+
+  const scoreBreakdown: ScoreBreakdown = {
+    baseScore: BASE_SCORE,
+    steps,
+    totalImpact,
+    rawScore,
+    finalScore: score,
+  };
 
   // Separate positives, negatives, and neutrals
   // Neutral items are appended to positives (informational, shown but not highlighted)
@@ -835,6 +860,7 @@ export const computeProfileScore = (
     fitLabel: getFitLabel(score),
     positives,
     negatives,
+    scoreBreakdown,
   };
 };
 
