@@ -48,14 +48,8 @@ export default function Index() {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
-  if (onboardingQuery.isLoading || !onboardingQuery.data) {
-    return (
-      <OnboardingStateScreen
-        loading
-        title="Getting onboarding ready"
-        description="We’re loading your preferences so you can pick up where you left off."
-      />
-    );
+  if (onboardingQuery.isLoading) {
+    return <ScreenSpinner />;
   }
 
   if (onboardingQuery.isError) {
@@ -69,6 +63,10 @@ export default function Index() {
         }}
       />
     );
+  }
+
+  if (!onboardingQuery.data) {
+    return <ScreenSpinner />;
   }
 
   if (onboardingQuery.data.onboardingCompleted) {

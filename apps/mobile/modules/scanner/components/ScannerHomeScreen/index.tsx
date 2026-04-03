@@ -176,38 +176,42 @@ export function ScannerHomeScreen() {
           <BackButton variant="dark" icon="close" accessibilityLabel="Close scanner" />
         </View>
 
-        <View className="items-center">
-          {isCompareMode && firstProduct ? (
-            <View className="mb-3 rounded-full bg-blue-600/80 px-4 py-2">
+        {!isLocked ? (
+          <View className="items-center">
+            {isCompareMode && firstProduct ? (
+              <View className="mb-3 rounded-full bg-blue-600/80 px-4 py-2">
+                <Typography variant="bodySecondary" className="text-center text-white">
+                  Scan the second product to compare
+                </Typography>
+              </View>
+            ) : null}
+
+            <View className="mb-5 rounded-full bg-black/50 px-4 py-2">
               <Typography variant="bodySecondary" className="text-center text-white">
-                Scan the second product to compare
+                {isCompareMode ? 'Scan second barcode' : 'Align the barcode inside the frame'}
               </Typography>
             </View>
-          ) : null}
-
-          <View className="mb-5 rounded-full bg-black/50 px-4 py-2">
-            <Typography variant="bodySecondary" className="text-center text-white">
-              {isCompareMode ? 'Scan second barcode' : 'Align the barcode inside the frame'}
-            </Typography>
+            <View
+              ref={scanFrameRef}
+              className="h-64 w-full max-w-[320px] rounded-[32px] border-2 border-white/80"
+              onLayout={() => {
+                scanFrameRef.current?.measureInWindow((x, y, width, height) => {
+                  scanFrameBounds.current = { x, y, w: width, h: height };
+                });
+              }}
+            />
           </View>
-          <View
-            ref={scanFrameRef}
-            className="h-64 w-full max-w-[320px] rounded-[32px] border-2 border-white/80"
-            onLayout={() => {
-              scanFrameRef.current?.measureInWindow((x, y, width, height) => {
-                scanFrameBounds.current = { x, y, w: width, h: height };
-              });
-            }}
-          />
-        </View>
+        ) : <View />}
 
-        <ScannerBottomBar
-          isCompareMode={isCompareMode}
-          isLocked={isLocked}
-          submitMessage={submitMessage}
-          onPhotoPress={() => void handlePhotoPress()}
-          onCancelCompare={() => resetCompare()}
-        />
+        {!isLocked ? (
+          <ScannerBottomBar
+            isCompareMode={isCompareMode}
+            isLocked={isLocked}
+            submitMessage={submitMessage}
+            onPhotoPress={() => void handlePhotoPress()}
+            onCancelCompare={() => resetCompare()}
+          />
+        ) : <View />}
       </View>
     </View>
   );

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as authClient from '../lib/auth/client';
 import type { AuthUser } from '../lib/auth/client';
+import { queryClient } from '../lib/query/queryClient';
 
 interface AuthState {
   user: AuthUser | null;
@@ -94,6 +95,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await authClient.signOut();
+      queryClient.clear();
       set({ user: null });
     } finally {
       set({ isLoading: false });

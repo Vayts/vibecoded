@@ -246,7 +246,17 @@ Search for: "${searchQuery}"`,
   };
 
   const parsed = normalizedProductSchema.safeParse({ ...product, code, nutrition: normalizedNutrition });
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) return null;
+
+  // Reject products without meaningful nutrition data — not worth saving
+  if (!hasNutritionData(parsed.data)) {
+    console.log(
+      `[PhotoID:search] ⚠️ Product found but has no nutrition data — treating as not found (code=${code})`,
+    );
+    return null;
+  }
+
+  return parsed.data;
 };
 
 // ---------------------------------------------------------------------------
