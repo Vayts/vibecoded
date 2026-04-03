@@ -135,7 +135,6 @@ const getSearchModel = () =>
     model: AI_MODELS.reason,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 1,
-    reasoning: {"effort": "low"},
   });
 
 const getVisionModel = () =>
