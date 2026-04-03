@@ -2,6 +2,7 @@ import { ChatOpenAI } from '@langchain/openai';
 import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
 import { AI_MODELS } from '../constants/models';
+import { hasNutritionData } from '../domain/product-facts/build-product-facts';
 
 const websearchProductSchema = z.object({
   found: z.boolean().describe('Whether a specific food product was found for this barcode'),
@@ -166,7 +167,17 @@ export const searchProductByBarcode = async (
       code: barcode,
     });
 
-    return normalizedProduct.success ? normalizedProduct.data : null;
+    if (!normalizedProduct.success) return null;
+
+    // Reject products without meaningful nutrition data — not worth saving
+    if (!hasNutritionData(normalizedProduct.data)) {
+      console.log(
+        `[WebSearchFallback] ⚠️ Product found but has no nutrition data — treating as not found (barcode=${barcode})`,
+      );
+      return null;
+    }
+
+    return normalizedProduct.data;
   } catch (error) {
     console.error('[WebSearchFallback] Failed:', error instanceof Error ? error.message : error);
     return null;
