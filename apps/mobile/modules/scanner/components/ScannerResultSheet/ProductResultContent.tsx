@@ -51,6 +51,12 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
         />
 
       <NutriScoreBlock grade={product.scores.nutriscore_grade} />
+<<<<<<< HEAD
+=======
+
+      {/* <IngredientsSection product={product} /> */}
+
+>>>>>>> feature/refactor-product-analysis-architecture
       <View>
         <PersonalTabContent
           personalResult={personalData}

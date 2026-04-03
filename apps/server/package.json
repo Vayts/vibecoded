@@ -16,6 +16,7 @@
   "dependencies": {
     "@acme/shared": "workspace:*",
     "@better-auth/expo": "^1.5.4",
+    "@google-cloud/storage": "^7.19.0",
     "@hono/node-server": "^1.13.7",
     "@langchain/core": "^1.1.29",
     "@langchain/openai": "^1.2.11",

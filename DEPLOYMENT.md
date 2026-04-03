@@ -48,6 +48,8 @@ echo -n "$(openssl rand -hex 32)" | gcloud secrets versions add BETTER_AUTH_SECR
 echo -n "acme-temp-images" | gcloud secrets versions add GCS_BUCKET --data-file=-
 ```
 
+Cloud Run runtime access to GCS should come from the service account attached to the Cloud Run service, not from a JSON key file or extra GCS auth environment variables.
+
 ### Step 3 — Create a GCP Service Account for GitHub Actions
 
 ```bash
@@ -108,6 +110,7 @@ docker run --rm \
   -e OPENAI_API_KEY="sk-..." \
   -e BETTER_AUTH_SECRET="change-me-32-chars-min" \
   -e BETTER_AUTH_URL="http://localhost:3000" \
+  -e STORAGE_BACKEND="gcs" \
   -e GCS_BUCKET="acme-images" \
   -e TRUSTED_ORIGINS="http://localhost:8081" \
   -p 3000:3000 \
@@ -134,7 +137,7 @@ gcloud run deploy acme-server \
   --allow-unauthenticated \
   --add-cloudsql-instances <INSTANCE_CONNECTION_NAME> \
   --set-secrets=DATABASE_URL=DATABASE_URL:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest,GCS_BUCKET=GCS_BUCKET:latest \
-  --set-env-vars=BETTER_AUTH_URL=<SERVICE_URL>,TRUSTED_ORIGINS=<ORIGINS>,NODE_ENV=production \
+  --set-env-vars=BETTER_AUTH_URL=<SERVICE_URL>,TRUSTED_ORIGINS=<ORIGINS>,NODE_ENV=production,STORAGE_BACKEND=gcs \
   --project myyuka-app
 ```
 
@@ -170,6 +173,18 @@ DATABASE_URL="postgresql://acme:<PASSWORD>@127.0.0.1:5432/acme" \
 ```bash
 # Create bucket
 gsutil mb -l us-central1 gs://chozr-product-images
+
+# Grant the Cloud Run runtime service account access to read and write objects.
+# Replace with the service account used by your Cloud Run service.
+RUNTIME_SA="chozr-server@myyuka-app.iam.gserviceaccount.com"
+gcloud projects add-iam-policy-binding myyuka-app \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/storage.objectAdmin"
+
+# Needed because the app checks whether the bucket exists on startup.
+gcloud projects add-iam-policy-binding myyuka-app \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/storage.legacyBucketReader"
 
 # Set lifecycle rule: delete objects older than 1 day
 # Note: GCS lifecycle rules use "age" in days (minimum granularity = 1 day).
