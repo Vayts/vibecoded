@@ -29,8 +29,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: 'Acme',
-    slug: 'acme',
+    name: 'Chozr',
+    slug: 'chozr',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -43,15 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       supportsTablet: false,
-      bundleIdentifier: 'ai.sealsync.acme',
-      infoPlist: {
-        GIDClientID: '*********',
-        CFBundleURLTypes: [
-          {
-            CFBundleURLSchemes: ['*********'],
-          },
-        ],
-      },
+      bundleIdentifier: 'app.chozr.ai',
       googleServicesFile: './GoogleService-Info.plist',
     },
     android: {
@@ -59,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
-      package: 'ai.sealsync.acme',
+      package: 'app.chozr.ai',
     },
     web: {
       bundler: 'metro',
@@ -68,6 +60,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     experiments: {
       typedRoutes: true,
     },
-    scheme: 'acme',
+    scheme: 'chozr',
   };
 };

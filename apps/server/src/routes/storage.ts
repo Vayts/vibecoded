@@ -5,7 +5,7 @@ export const storageRoute = new Hono();
 
 /**
  * GET /api/storage/products/:filename
- * Proxies product images from MinIO. Only serves files from the `products/` prefix.
+ * Proxies product images from configured object storage. Only serves files from the `products/` prefix.
  */
 storageRoute.get('/products/:filename', async (c) => {
   const filename = c.req.param('filename');
@@ -27,8 +27,8 @@ storageRoute.get('/products/:filename', async (c) => {
       headers: c.res.headers,
     });
   } catch (err: unknown) {
-    const code = (err as { code?: string }).code;
-    if (code === 'NoSuchKey' || code === 'NotFound') {
+    const code = (err as { code?: string | number }).code;
+    if (code === 'NoSuchKey' || code === 'NotFound' || code === '404' || code === 404) {
       return c.json({ error: 'Image not found', code: 'NOT_FOUND' }, 404);
     }
     console.error('[storage] Failed to serve image:', err);
