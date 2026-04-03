@@ -96,7 +96,7 @@ export function HealthPreferenceEditorScreen({
       </ScrollView>
       </Pressable>
 
-      <View className="border-t border-gray-100 px-4 pt-3 pb-8">
+      <View className="border-t border-gray-100 px-4 pt-3 pb-12">
         <Button
           fullWidth
           label="Save changes"
