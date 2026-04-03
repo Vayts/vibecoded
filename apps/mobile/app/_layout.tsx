@@ -12,6 +12,8 @@ import { Toasts } from '@backpackapp-io/react-native-toast';
 import { queryClient } from '../shared/lib/query/queryClient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
+import { ScreenSpinner } from '../shared/components/ScreenSpinner';
+import { NoInternetScreen } from '../shared/components/NoInternetScreen';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -21,11 +23,13 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useNetworkStatus } from '../shared/hooks/useNetworkStatus';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   useSessionBootstrap();
+  const { isConnected, isRefreshing, refresh } = useNetworkStatus();
 
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -43,6 +47,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return null;
+  }
+
+  if (isConnected === null) {
+    return <ScreenSpinner />;
+  }
+
+  if (!isConnected) {
+    return <NoInternetScreen onRetry={() => void refresh()} isRetrying={isRefreshing} />;
   }
 
   return (
