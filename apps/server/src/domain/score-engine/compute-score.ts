@@ -124,7 +124,7 @@ const CATEGORY_PROFILES: Partial<Record<ProductType, Partial<CategoryProfile>>> 
     sugar:        { low: 5,    high: 20,   goodImpact: 8,   badImpact: -12 },
     salt:         { low: 0.5,  high: 2,    goodImpact: 3,   badImpact: -10 },
     saturatedFat: { low: 3,    high: 10,   goodImpact: 3,   badImpact: -8  },
-    calories:     { low: 200,  high: 450,  goodImpact: 3,   badImpact: -8  },
+    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -8  },
     fiber:        { low: 2,    high: 6,    goodImpact: 8,   badImpact: -3  },
   },
 
@@ -132,13 +132,13 @@ const CATEGORY_PROFILES: Partial<Record<ProductType, Partial<CategoryProfile>>> 
   sweet: {
     sugar:        { low: 15,   high: 40,   goodImpact: 5,   badImpact: -8  },
     saturatedFat: { low: 3,    high: 12,   goodImpact: 3,   badImpact: -6  },
-    calories:     { low: 200,  high: 450,  goodImpact: 3,   badImpact: -6  },
+    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -6  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
   dessert: {
     sugar:        { low: 15,   high: 40,   goodImpact: 5,   badImpact: -8  },
     saturatedFat: { low: 3,    high: 12,   goodImpact: 3,   badImpact: -6  },
-    calories:     { low: 200,  high: 450,  goodImpact: 3,   badImpact: -6  },
+    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -6  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
 
@@ -218,6 +218,31 @@ const computeNutritionLevels = (n: ProductFacts['nutritionFacts'], cat: Category
   saturatedFatLevel: computeNutritionLevel(n.saturatedFat, cat.saturatedFat.low, cat.saturatedFat.high),
 });
 
+const PRODUCT_TYPE_DESCRIPTIONS: Record<ProductType | 'unknown', string> = {
+  beverage: 'beverages',
+  dairy: 'dairy products',
+  yogurt: 'yogurts',
+  cheese: 'cheeses',
+  meat: 'meat products',
+  fish: 'fish products',
+  snack: 'snacks',
+  sweet: 'sweets',
+  cereal: 'cereals',
+  sauce: 'sauces',
+  bread: 'bread products',
+  ready_meal: 'ready meals',
+  plant_protein: 'plant protein products',
+  dessert: 'desserts',
+  fruit_vegetable: 'fruits and vegetables',
+  other: 'products like this',
+  unknown: 'products like this',
+};
+
+const withProductTypeContext = (description: string, productType: ProductType | null): string => {
+  const category = PRODUCT_TYPE_DESCRIPTIONS[productType ?? 'unknown'];
+  return `${description} for ${category}`;
+};
+
 // ============================================================
 // Profile input for scoring
 // ============================================================
@@ -254,6 +279,7 @@ const nutritionReason = (
   moderateDesc: string,
   goodImpact: number,
   badImpact: number,
+  productType: ProductType | null,
 ): ScoreReason | null => {
   if (level === 'unknown') return null;
 
@@ -263,7 +289,7 @@ const nutritionReason = (
     return {
       key,
       label,
-      description: moderateDesc,
+      description: withProductTypeContext(moderateDesc, productType),
       value,
       unit,
       impact: 0,
@@ -279,7 +305,7 @@ const nutritionReason = (
   return {
     key,
     label,
-    description: isGood ? goodDesc : badDesc,
+    description: withProductTypeContext(isGood ? goodDesc : badDesc, productType),
     value,
     unit,
     impact: isGood ? goodImpact : badImpact,
@@ -298,12 +324,13 @@ const neutralNutritionReason = (
   value: number | null,
   unit: string,
   desc: string,
+  productType: ProductType | null,
 ): ScoreReason | null => {
   if (value == null || value === 0) return null;
   return {
     key,
     label,
-    description: desc,
+    description: withProductTypeContext(desc, productType),
     value,
     unit,
     impact: 0,
@@ -324,68 +351,75 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
   if (!skip.has('sugar')) {
     const sugar = nutritionReason('sugar', 'Sugar', s.sugarLevel, n.sugars, 'g',
       'low-is-good', 'Low sugar content', 'High sugar content', 'Moderate sugar content',
-      cat.sugar.goodImpact, cat.sugar.badImpact);
+      cat.sugar.goodImpact, cat.sugar.badImpact, facts.productType);
     if (sugar) reasons.push(sugar);
   } else {
-    const r = neutralNutritionReason('sugar', 'Sugar', n.sugars, 'g', 'Sugar content');
+    const r = neutralNutritionReason('sugar', 'Sugar', n.sugars, 'g', 'Sugar content', facts.productType);
     if (r) reasons.push(r);
   }
 
   if (!skip.has('salt')) {
     const salt = nutritionReason('salt', 'Salt', s.saltLevel, n.salt, 'g',
       'low-is-good', 'Low salt content', 'High salt content', 'Moderate salt content',
-      cat.salt.goodImpact, cat.salt.badImpact);
+      cat.salt.goodImpact, cat.salt.badImpact, facts.productType);
     if (salt) reasons.push(salt);
   } else {
-    const r = neutralNutritionReason('salt', 'Salt', n.salt, 'g', 'Salt content');
+    const r = neutralNutritionReason('salt', 'Salt', n.salt, 'g', 'Salt content', facts.productType);
     if (r) reasons.push(r);
   }
 
   if (!skip.has('saturatedFat')) {
     const satFat = nutritionReason('saturated-fat', 'Saturated fat', s.saturatedFatLevel, n.saturatedFat, 'g',
       'low-is-good', 'Low saturated fat', 'High saturated fat', 'Moderate saturated fat',
-      cat.saturatedFat.goodImpact, cat.saturatedFat.badImpact);
+      cat.saturatedFat.goodImpact, cat.saturatedFat.badImpact, facts.productType);
     if (satFat) reasons.push(satFat);
   } else {
-    const r = neutralNutritionReason('saturated-fat', 'Saturated fat', n.saturatedFat, 'g', 'Saturated fat content');
+    const r = neutralNutritionReason(
+      'saturated-fat',
+      'Saturated fat',
+      n.saturatedFat,
+      'g',
+      'Saturated fat content',
+      facts.productType,
+    );
     if (r) reasons.push(r);
   }
 
   if (!skip.has('calories')) {
     const cal = nutritionReason('calories', 'Calories', s.calorieLevel, n.calories, 'kcal',
       'low-is-good', 'Low calorie density', 'High calorie density', 'Moderate calorie density',
-      cat.calories.goodImpact, cat.calories.badImpact);
+      cat.calories.goodImpact, cat.calories.badImpact, facts.productType);
     if (cal) reasons.push(cal);
   } else {
-    const r = neutralNutritionReason('calories', 'Calories', n.calories, 'kcal', 'Calorie content');
+    const r = neutralNutritionReason('calories', 'Calories', n.calories, 'kcal', 'Calorie content', facts.productType);
     if (r) reasons.push(r);
   }
 
   if (!skip.has('protein')) {
     const protein = nutritionReason('protein', 'Protein', s.proteinLevel, n.protein, 'g',
       'high-is-good', 'High protein content', 'Low protein content', 'Moderate protein content',
-      cat.protein.goodImpact, cat.protein.badImpact);
+      cat.protein.goodImpact, cat.protein.badImpact, facts.productType);
     if (protein) reasons.push(protein);
   } else {
-    const r = neutralNutritionReason('protein', 'Protein', n.protein, 'g', 'Protein content');
+    const r = neutralNutritionReason('protein', 'Protein', n.protein, 'g', 'Protein content', facts.productType);
     if (r) reasons.push(r);
   }
 
   if (!skip.has('fiber')) {
     const fiber = nutritionReason('fiber', 'Fiber', s.fiberLevel, n.fiber, 'g',
       'high-is-good', 'High fiber content', 'Low fiber content', 'Moderate fiber content',
-      cat.fiber.goodImpact, cat.fiber.badImpact);
+      cat.fiber.goodImpact, cat.fiber.badImpact, facts.productType);
     if (fiber) reasons.push(fiber);
   } else {
-    const r = neutralNutritionReason('fiber', 'Fiber', n.fiber, 'g', 'Fiber content');
+    const r = neutralNutritionReason('fiber', 'Fiber', n.fiber, 'g', 'Fiber content', facts.productType);
     if (r) reasons.push(r);
   }
 
   // --- Always-neutral nutrients (informational, not scored) ---
-  const fat = neutralNutritionReason('fat', 'Fat', n.fat, 'g', 'Total fat content');
+  const fat = neutralNutritionReason('fat', 'Fat', n.fat, 'g', 'Total fat content', facts.productType);
   if (fat) reasons.push(fat);
 
-  const carbs = neutralNutritionReason('carbs', 'Carbs', n.carbs, 'g', 'Carbohydrate content');
+  const carbs = neutralNutritionReason('carbs', 'Carbs', n.carbs, 'g', 'Carbohydrate content', facts.productType);
   if (carbs) reasons.push(carbs);
 
   return reasons;

@@ -21,8 +21,8 @@ export class ProductFactsAiService {
       new ChatOpenAI({
         model: AI_MODELS.reason,
         apiKey: process.env.OPENAI_API_KEY,
-        maxRetries: 2,
-        reasoning: {"effort": "medium"},
+        maxRetries: 1,
+        reasoning: {"effort": "low"},
       });
   }
 
