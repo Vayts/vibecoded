@@ -6,7 +6,6 @@ import { COLORS } from '../../../../shared/constants/colors';
 interface ScannerBottomBarProps {
   isCompareMode: boolean;
   isLocked: boolean;
-  submitMessage: string | null;
   onPhotoPress: () => void;
   onCancelCompare: () => void;
 }
@@ -14,7 +13,6 @@ interface ScannerBottomBarProps {
 export function ScannerBottomBar({
   isCompareMode,
   isLocked,
-  submitMessage,
   onPhotoPress,
   onCancelCompare,
 }: ScannerBottomBarProps) {
@@ -51,12 +49,6 @@ export function ScannerBottomBar({
 
         <View className="w-12" />
       </View>
-
-      {submitMessage ? (
-        <Typography variant="bodySecondary" className="text-center text-red-300">
-          {submitMessage}
-        </Typography>
-      ) : null}
     </View>
   );
 }

@@ -27,14 +27,6 @@ export function IngredientsSection({ rawIngredients, rawIngredientsText, analysi
           </Typography>
         </View>
 
-        {analysis.summary ? (
-          <View className="py-1 mb-1">
-            <Typography variant="bodySecondary" className="leading-5 text-gray-600">
-              {analysis.summary}
-            </Typography>
-          </View>
-        ) : null}
-
         <Text className="py-1 leading-6">
           {analysis.ingredients.map((ingredient, index) => (
             <Text key={`ingredient-${index}`}>

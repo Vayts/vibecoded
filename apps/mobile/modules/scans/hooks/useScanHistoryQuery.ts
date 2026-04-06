@@ -31,7 +31,7 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
         return false;
       }
 
-      return 2000;
+      return 1000;
     },
   });
 
