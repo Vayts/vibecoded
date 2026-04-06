@@ -1,6 +1,7 @@
 import type { NormalizedProduct, IngredientAnalysis, OnboardingResponse } from '@acme/shared';
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
+import { AI_MODELS } from '../constants/models';
 
 const ingredientItemSchema = z.object({
   name: z.string().describe('English-translated ingredient name, capitalized (e.g. "Sugar", "Palm Oil")'),
@@ -97,8 +98,10 @@ ${profileContext}`;
 
   try {
     const model = new ChatOpenAI({
-      modelName: 'gpt-4o-mini',
-      temperature: 0,
+      modelName: AI_MODELS.reason,
+      reasoning: {
+        effort: 'low'
+      }
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

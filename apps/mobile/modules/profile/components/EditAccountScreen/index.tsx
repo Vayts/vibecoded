@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../../shared/components/Button';
 import { Input } from '../../../../shared/components/Input';
@@ -11,7 +10,6 @@ import { useUpdateProfileName } from '../../hooks/useUpdateProfileName';
 
 export function EditAccountScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const mutation = useUpdateProfileName();
   const { setUser, user } = useAuthStore();
   const [name, setName] = useState(user?.name ?? '');
@@ -44,31 +42,28 @@ export function EditAccountScreen() {
       className="flex-1 bg-white"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-    <Pressable
-      className="flex-1 px-4"
-      onPress={Keyboard.dismiss}
-      style={{ paddingBottom: Math.max(insets.bottom, 8) }}
-    >
-      <View className="mt-6">
-        <Typography variant="pageTitle">Edit profile</Typography>
-        <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-          Update the name shown across your account.
-        </Typography>
-      </View>
+      <Pressable className="flex-1 px-4" onPress={Keyboard.dismiss}>
+        <View className="mt-6">
+          <Typography variant="pageTitle">Edit profile</Typography>
+          <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+            Update the name shown across your account.
+          </Typography>
+        </View>
 
-      <View className="mt-8 gap-5">
-        <Input
-          label="Display name"
-          value={name}
-          onChangeText={setName}
-          placeholder="Your name"
-          error={error ?? undefined}
-        />
+        <View className="mt-8 gap-5">
+          <Input
+            label="Display name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            error={error ?? undefined}
+          />
 
-        <Input label="Email" value={user?.email ?? ''} editable={false} />
-      </View>
+          <Input label="Email" value={user?.email ?? ''} editable={false} />
+        </View>
+      </Pressable>
 
-      <View className="mt-auto pt-4" style={{ paddingBottom: insets.bottom }}>
+      <View className="border-t border-gray-100 px-4 pt-3 pb-12">
         <Button
           fullWidth
           label="Save changes"
@@ -78,7 +73,6 @@ export function EditAccountScreen() {
           }}
         />
       </View>
-    </Pressable>
     </KeyboardAvoidingView>
   );
 }
