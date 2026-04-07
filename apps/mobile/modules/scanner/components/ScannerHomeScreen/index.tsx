@@ -32,7 +32,6 @@ export function ScannerHomeScreen() {
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [isScannerPaused, setIsScannerPaused] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const scanFrameRef = useRef<View>(null);
   const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
 
@@ -44,12 +43,8 @@ export function ScannerHomeScreen() {
 
   const { capturePhoto, isPending: isPhotoPending } = usePhotoCapture();
 
-  const handlePhotoPress = useCallback(async () => {
-    if (scanLockRef.current || isCompareMode) return;
-    scanLockRef.current = true;
-    setIsLocked(true);
-    setIsScannerPaused(true);
-    setSubmitMessage(null);
+  // Photo capture without lock guard — used when scanner is already locked (e.g. from error sheet).
+  const capturePhotoFromSheet = useCallback(async () => {
     try {
       const result = await capturePhoto();
       if (!result) { resumeScanner(); return; }
@@ -57,10 +52,22 @@ export function ScannerHomeScreen() {
         payload: { result }, onClose: resumeScanner,
       });
     } catch (error) {
-      setSubmitMessage(error instanceof Error ? error.message : 'Unable to identify product');
-      resumeScanner();
+      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
+        payload: {
+          message: error instanceof Error ? error.message : 'Unable to identify product',
+          onDismiss: resumeScanner,
+        },
+      });
     }
-  }, [capturePhoto, isCompareMode, resumeScanner]);
+  }, [capturePhoto, resumeScanner]);
+
+  const handlePhotoPress = useCallback(async () => {
+    if (scanLockRef.current || isCompareMode) return;
+    scanLockRef.current = true;
+    setIsLocked(true);
+    setIsScannerPaused(true);
+    await capturePhotoFromSheet();
+  }, [capturePhotoFromSheet, isCompareMode]);
 
   const submitBarcode = useCallback(async (barcode: string) => {
     const normalized = barcode.trim();
@@ -74,7 +81,6 @@ export function ScannerHomeScreen() {
     lastScanRef.current = { barcode: normalized, timestamp: now };
     setIsLocked(true);
     setIsScannerPaused(true);
-    setSubmitMessage(null);
 
     try {
       const compareActive = useCompareStore.getState().isCompareMode;
@@ -101,10 +107,17 @@ export function ScannerHomeScreen() {
       }
     } catch (error) {
       resetCompare();
-      setSubmitMessage(error instanceof Error ? error.message : 'Unable to submit barcode');
-      resumeScanner();
+      const errorMessage = error instanceof Error ? error.message : 'Unable to submit barcode';
+      const isNotFound = errorMessage.toLowerCase().includes('not found');
+      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
+        payload: {
+          message: errorMessage,
+          onDismiss: resumeScanner,
+          ...(isNotFound && { onPhotoPress: () => void capturePhotoFromSheet() }),
+        },
+      });
     }
-  }, [compareMutation, lookupMutation, resetCompare, resumeScanner]);
+  }, [capturePhotoFromSheet, compareMutation, lookupMutation, resetCompare, resumeScanner]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
     if (bounds && scanFrameBounds.current) {
@@ -136,6 +149,8 @@ export function ScannerHomeScreen() {
     );
   }
 
+  const isProcessing = isPhotoPending || compareMutation.isPending || lookupMutation.isPending;
+
   const statusMessage = isPhotoPending
     ? 'Identifying product\u2026'
     : compareMutation.isPending
@@ -153,12 +168,12 @@ export function ScannerHomeScreen() {
         }}
         facing="back"
         onBarcodeScanned={isScannerPaused ? undefined : handleBarcodeScanned}
-        style={{ flex: 1 }}
+        style={{ flex: 1, opacity: isScannerPaused ? 0 : 1 }}
       />
 
-      {isLocked ? (
-        <View className="absolute inset-0 items-center justify-center bg-black/35 px-6">
-          <View className="items-center rounded-xl bg-black/70 px-5 py-4">
+      {isLocked && isProcessing ? (
+        <View className="absolute inset-0 items-center justify-center px-6">
+          <View className="items-center rounded-xl bg-white/10 px-5 py-4">
             <ActivityIndicator color={COLORS.white} />
             <Typography variant="bodySecondary" className="mt-3 text-center text-white">
               {statusMessage}
@@ -207,7 +222,6 @@ export function ScannerHomeScreen() {
           <ScannerBottomBar
             isCompareMode={isCompareMode}
             isLocked={isLocked}
-            submitMessage={submitMessage}
             onPhotoPress={() => void handlePhotoPress()}
             onCancelCompare={() => resetCompare()}
           />

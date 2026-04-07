@@ -182,6 +182,7 @@ model Product {
   updatedAt        DateTime @updatedAt
 
   scans            Scan[]
+  scansAsProduct2  Scan[]   @relation("ScanProduct2")
   favorites        Favorite[]
 
   @@map("products")
@@ -198,12 +199,20 @@ enum PersonalAnalysisStatus {
   failed
 }
 
+enum ScanType {
+  product
+  comparison
+}
+
 model Scan {
   id                      String                  @id @default(cuid())
   userId                  String
   user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                    ScanType                @default(product)
   productId               String?
   product                 Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product2Id              String?
+  product2                Product?                @relation("ScanProduct2", fields: [product2Id], references: [id], onDelete: SetNull)
   barcode                 String?
   source                  ScanSource
   overallScore            Int?
@@ -213,6 +222,7 @@ model Scan {
   evaluation              Json?
   personalResult          Json?
   multiProfileResult      Json?
+  comparisonResult        Json?
   photoImagePath          String?
   createdAt               DateTime                @default(now())
 

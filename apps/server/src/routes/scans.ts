@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { ScanDetailResponse, ScanHistoryItem } from '@acme/shared';
 import { auth } from '../lib/auth';
 import { findScanById, findScansByUserId } from '../repositories/scanRepository';
-import { normalizedProductSchema, productAnalysisResultSchema, profileProductScoreSchema } from '@acme/shared';
+import { normalizedProductSchema, productAnalysisResultSchema, productComparisonResultSchema, profileProductScoreSchema } from '@acme/shared';
 import { getFavouriteProductIds, isFavourite } from '../repositories/favoriteRepository';
 
 export const scansRoute = new Hono();
@@ -48,6 +48,7 @@ scansRoute.get('/history', async (c) => {
 
     return {
       id: scan.id,
+      type: scan.type,
       createdAt: scan.createdAt.toISOString(),
       source: scan.source,
       overallScore: scan.overallScore,
@@ -64,6 +65,15 @@ scansRoute.get('/history', async (c) => {
             product_name: scan.product.product_name,
             brands: scan.product.brands,
             image_url: scan.product.image_url,
+          }
+        : null,
+      product2: scan.product2
+        ? {
+            id: scan.product2.id,
+            barcode: scan.product2.barcode,
+            product_name: scan.product2.product_name,
+            brands: scan.product2.brands,
+            image_url: scan.product2.image_url,
           }
         : null,
     };
@@ -121,12 +131,21 @@ scansRoute.get('/:id', async (c) => {
     }
   }
 
+  let comparisonResult = null;
+  if (scan.type === 'comparison' && scan.comparisonResult) {
+    const parsedComparison = productComparisonResultSchema.safeParse(scan.comparisonResult);
+    if (parsedComparison.success) {
+      comparisonResult = parsedComparison.data;
+    }
+  }
+
   const isFav = scan.productId
     ? await isFavourite(session.user.id, scan.productId)
     : false;
 
   const response: ScanDetailResponse = {
     id: scan.id,
+    type: scan.type,
     createdAt: scan.createdAt.toISOString(),
     source: scan.source,
     overallScore: scan.overallScore,
@@ -137,6 +156,7 @@ scansRoute.get('/:id', async (c) => {
     isFavourite: isFav,
     product,
     analysisResult,
+    comparisonResult,
   };
 
   return c.json(response);

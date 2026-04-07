@@ -14,7 +14,7 @@ import { isFoodProduct } from '../services/is-food-product';
 import { getAnalysisJob } from '../services/analysis-jobs';
 import { compareProductsForProfiles } from '../services/comparison-ai';
 import { findByBarcode, createProduct } from '../repositories/productRepository';
-import { findProductIdByBarcode } from '../repositories/scanRepository';
+import { findProductIdByBarcode, createComparisonScan } from '../repositories/scanRepository';
 import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
 import { getProfileInputs } from '../services/profileInputs';
 import {
@@ -22,6 +22,7 @@ import {
   createNotFoundResponse,
   resolveProduct,
   toProductPreview,
+  toComparisonProductPreview,
 } from './scanner-helpers';
 
 export const scannerRoute = new Hono();
@@ -239,10 +240,20 @@ scannerRoute.post('/compare', async (c) => {
     );
 
     const result: ProductComparisonResult = {
-      product1: toProductPreview(resolved1.product, resolved1.productId),
-      product2: toProductPreview(resolved2.product, resolved2.productId),
+      product1: toComparisonProductPreview(resolved1.product, resolved1.productId),
+      product2: toComparisonProductPreview(resolved2.product, resolved2.productId),
       profiles: comparisonResult,
     };
+
+    // Save comparison to scan history
+    await createComparisonScan({
+      userId,
+      productId1: resolved1.productId ?? undefined,
+      productId2: resolved2.productId ?? undefined,
+      barcode1: parsed.data.barcode1,
+      barcode2: parsed.data.barcode2,
+      comparisonResult: result,
+    });
 
     return c.json(result);
   } catch (error) {

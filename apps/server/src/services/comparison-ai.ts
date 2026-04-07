@@ -41,7 +41,7 @@ const profileComparisonOutputSchema = z.object({
   profileLabel: z.string().describe('The exact profile label from the prompt (e.g. "A", "B")'),
   product1: comparisonItemSchema,
   product2: comparisonItemSchema,
-  winner: z.enum(['product1', 'product2', 'tie']).describe('Which product is better for this profile'),
+  winner: z.enum(['product1', 'product2', 'tie', 'neither']).describe('Which product is better for this profile. Use "neither" when BOTH products violate dietary restrictions or allergens'),
   conclusion: z.string().describe('One sentence explaining which product is better and why, max 25 words'),
 });
 
@@ -82,12 +82,14 @@ No allergies listed → ignore allergen data entirely. Do NOT mention traces.
 
 For each product, produce 2-4 positives and 0-4 negatives. All bullets must be COMPARATIVE (relative to the other product).
 - Max 12 words per bullet. Include actual values where available (e.g. "Lower sugar: 3g vs 12g").
-- NEVER give the same nutritional positive to both products.
+- NEVER give the same nutritional positive to both products. If Product1 wins a metric, Product2 CANNOT also win that metric.
+- Use the NUTRITION COMPARISON section to determine which product is better on each metric. NEVER contradict it.
+  Example: if "Fat: Product1=28.7g, Product2=2.3g → Product2 wins" then Product2 gets "Lower fat" as a positive, and Product1 gets "Higher fat" as a negative. NEVER list "Lower fat" for Product1.
 - A Tier 1 violation → negative. The other product gets a positive ONLY if user has that restriction.
 - Only mention dietary compatibility as a positive if the OTHER product violates it.
 
-Winner: Tier 1 violation in one product → other wins. Otherwise → better nutrition/ingredients. Tier 2 alone doesn't decide. Truly equal → "tie".
-Conclusion: one sentence, max 25 words.
+Winner: Tier 1 violation in one product → other wins. BOTH products have Tier 1 violations → "neither" (neither product is suitable). Otherwise → better nutrition/ingredients. Tier 2 alone doesn't decide. Truly equal → "tie".
+Conclusion: one sentence, max 25 words. For "neither": explain why both products are incompatible.
 
 Analyze each profile INDEPENDENTLY.`;
 
@@ -129,6 +131,55 @@ const formatProductBlock = (product: NormalizedProduct, label: string, includeAl
   return parts.join('\n');
 };
 
+// ── Pre-computed nutrition comparison (prevents AI math errors) ──────
+
+interface NutritionMetric {
+  key: string;
+  label: string;
+  /** true = higher value is better (e.g. protein, fiber) */
+  higherBetter: boolean;
+  getValue: (p: NormalizedProduct) => number | null;
+}
+
+const NUTRITION_METRICS: NutritionMetric[] = [
+  { key: 'calories', label: 'Calories', higherBetter: false, getValue: (p) => p.nutrition.energy_kcal_100g },
+  { key: 'protein', label: 'Protein', higherBetter: true, getValue: (p) => p.nutrition.proteins_100g },
+  { key: 'fat', label: 'Fat', higherBetter: false, getValue: (p) => p.nutrition.fat_100g },
+  { key: 'saturatedFat', label: 'Saturated fat', higherBetter: false, getValue: (p) => p.nutrition.saturated_fat_100g },
+  { key: 'sugars', label: 'Sugar', higherBetter: false, getValue: (p) => p.nutrition.sugars_100g },
+  { key: 'fiber', label: 'Fiber', higherBetter: true, getValue: (p) => p.nutrition.fiber_100g },
+  { key: 'salt', label: 'Salt', higherBetter: false, getValue: (p) => p.nutrition.salt_100g },
+];
+
+const formatUnit = (key: string, value: number): string => {
+  if (key === 'calories') return `${value}kcal`;
+  return `${value}g`;
+};
+
+const buildNutritionComparison = (p1: NormalizedProduct, p2: NormalizedProduct): string => {
+  const lines: string[] = ['=== NUTRITION COMPARISON (per 100g) ==='];
+
+  for (const metric of NUTRITION_METRICS) {
+    const v1 = metric.getValue(p1);
+    const v2 = metric.getValue(p2);
+    if (v1 === null || v2 === null) continue;
+
+    const v1Str = formatUnit(metric.key, v1);
+    const v2Str = formatUnit(metric.key, v2);
+
+    if (v1 === v2) {
+      lines.push(`${metric.label}: Product1=${v1Str}, Product2=${v2Str} → TIE`);
+    } else {
+      const p1Better = metric.higherBetter ? v1 > v2 : v1 < v2;
+      const winner = p1Better ? 'Product1' : 'Product2';
+      const reason = metric.higherBetter ? 'higher is better' : 'lower is better';
+      lines.push(`${metric.label}: Product1=${v1Str}, Product2=${v2Str} → ${winner} wins (${reason})`);
+    }
+  }
+
+  return lines.join('\n');
+};
+
 const RESTRICTION_LABELS: Record<string, string> = {
   VEGAN: 'VEGAN',
   VEGETARIAN: 'VEGETARIAN',
@@ -166,6 +217,8 @@ const buildComparisonPrompt = (
   parts.push(formatProductBlock(product1, '1', anyProfileHasAllergies));
   parts.push('');
   parts.push(formatProductBlock(product2, '2', anyProfileHasAllergies));
+  parts.push('');
+  parts.push(buildNutritionComparison(product1, product2));
   parts.push('');
   parts.push(`Compare these two products for EACH of the ${profiles.length} profiles below.`);
   parts.push('Return one entry per profile using the exact profileLabel.');

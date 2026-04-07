@@ -58,6 +58,7 @@ favouritesRoute.get('/', async (c) => {
     return {
       favouriteId: fav.id,
       id: scan?.id ?? fav.id,
+      type: 'product' as const,
       createdAt: (scan?.createdAt ?? fav.createdAt).toISOString(),
       source: (scan?.source as 'barcode' | 'photo') ?? 'barcode',
       overallScore: scan?.overallScore ?? null,

@@ -13,9 +13,15 @@ export function ScansTabScreen() {
   const [activeTab, setActiveTab] = useState<DiscoverTab>('history');
 
   const handleScanPress = (item: ScanHistoryItem) => {
-    void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-      payload: { scanId: item.id },
-    });
+    if (item.type === 'comparison') {
+      void SheetManager.show(SheetsEnum.ComparisonResultSheet, {
+        payload: { scanId: item.id },
+      });
+    } else {
+      void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+        payload: { scanId: item.id },
+      });
+    }
   };
 
   return (

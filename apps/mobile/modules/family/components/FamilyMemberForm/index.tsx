@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { CreateFamilyMemberRequest, FamilyMember } from '@acme/shared';
 
@@ -81,20 +81,16 @@ export function FamilyMemberForm({
 
   return (
     <View className="flex-1 bg-white">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
-        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-          <KeyboardAwareScrollView
-            bottomOffset={200}
-            automaticallyAdjustContentInsets={false}
-            automaticallyAdjustsScrollIndicatorInsets={false}
-            contentInsetAdjustmentBehavior="never"
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
+        <KeyboardAwareScrollView
+          bottomOffset={200}
+          automaticallyAdjustContentInsets={false}
+          automaticallyAdjustsScrollIndicatorInsets={false}
+          contentInsetAdjustmentBehavior="never"
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
             <View className="flex-1 px-5 pb-8 pt-4">
               <View>
                 <View className="mb-3 flex-row items-center justify-between">
@@ -153,7 +149,6 @@ export function FamilyMemberForm({
             </View>
           </KeyboardAwareScrollView>
         </Pressable>
-      </KeyboardAvoidingView>
     </View>
   );
 }

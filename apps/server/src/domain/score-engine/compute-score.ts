@@ -7,6 +7,7 @@ import type {
   ProductType,
   ScoreBreakdown,
   ScoreBreakdownStep,
+  IngredientAnalysis,
 } from '@acme/shared';
 import type { OnboardingResponse } from '@acme/shared';
 
@@ -513,8 +514,8 @@ const evaluateRestrictions = (
         description: aiReason ? `${baseDesc}. ${aiReason}` : baseDesc,
         value: null,
         unit: null,
-        impact: 0,
-        kind: 'neutral',
+        impact: -1,
+        kind: 'negative',
         source: 'restriction',
       });
     } else if (compat === 'compatible') {
@@ -587,6 +588,36 @@ const evaluateAllergens = (
         });
       }
     }
+  }
+
+  return reasons;
+};
+
+/**
+ * Use AI ingredient analysis to detect allergen/restriction conflicts
+ * that the deterministic diet-key approach can't catch (e.g. custom "OTHER" allergies).
+ */
+const evaluateIngredientFlags = (
+  ingredientAnalysis?: IngredientAnalysis,
+): ScoreReason[] => {
+  if (!ingredientAnalysis) return [];
+
+  const reasons: ScoreReason[] = [];
+
+  for (const ingredient of ingredientAnalysis.ingredients) {
+    if (ingredient.status !== 'bad' || !ingredient.reason) continue;
+
+    const key = `ingredient-flag-${ingredient.name.toLowerCase().replace(/\s+/g, '-')}`;
+    reasons.push({
+      key,
+      label: `${ingredient.name} flagged`,
+      description: ingredient.reason,
+      value: null,
+      unit: null,
+      impact: -25,
+      kind: 'negative',
+      source: 'allergen',
+    });
   }
 
   return reasons;
@@ -841,6 +872,7 @@ const evaluateProductType = (
 export const computeProfileScore = (
   facts: ProductFacts,
   profile: ScoreProfileInput,
+  ingredientAnalysis?: IngredientAnalysis,
 ): ProfileProductScore => {
   const { onboarding } = profile;
 
@@ -850,6 +882,7 @@ export const computeProfileScore = (
     ...evaluateNutriGrade(facts) ? [evaluateNutriGrade(facts)!] : [],
     ...evaluateRestrictions(facts, onboarding.restrictions),
     ...evaluateAllergens(facts, onboarding.allergies),
+    ...evaluateIngredientFlags(ingredientAnalysis),
     ...evaluateGoals(facts, onboarding),
     ...evaluateProductType(facts, onboarding),
   ];
@@ -895,15 +928,21 @@ export const computeProfileScore = (
     positives,
     negatives,
     scoreBreakdown,
+    ...(ingredientAnalysis ? { ingredientAnalysis } : {}),
   };
 };
 
 /**
  * Compute scores for multiple profiles against the same product facts.
+ * Accepts a per-profile ingredient analysis map for profile-specific highlighting.
  */
 export const computeAllProfileScores = (
   facts: ProductFacts,
   profiles: ScoreProfileInput[],
+  perProfileIngredients?: Map<string, IngredientAnalysis | null>,
 ): ProfileProductScore[] => {
-  return profiles.map((profile) => computeProfileScore(facts, profile));
+  return profiles.map((profile) => {
+    const analysis = perProfileIngredients?.get(profile.profileId) ?? undefined;
+    return computeProfileScore(facts, profile, analysis ?? undefined);
+  });
 };

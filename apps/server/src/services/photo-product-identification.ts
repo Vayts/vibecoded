@@ -110,7 +110,7 @@ RULES:
 - Do NOT fabricate or guess nutrition values or ingredients — they must come from a reliable source.
 - Prefer data from (in order): OpenFoodFacts, manufacturer websites, major retailers, FatSecret, USDA.
 - All output fields (brand, ingredients, etc.) MUST be in English. If the original data is not in English, translate it.
-- The product_name field MUST be left in the original language as found on the packaging (do NOT translate product_name).
+- The product_name field MUST contain ONLY the short product name WITHOUT the brand (e.g. "Oat Drink" NOT "Green Smile Oat Drink"). The brand goes in the "brands" field. Strip descriptions, percentages, preparation details, and marketing text. Keep the original language as found on the packaging.
 - Ingredients should be a clean array of individual ingredient names (in English).
 - Allergens should be normalized lowercase strings (in English).
 - If no reliable result is found, return found: false.
@@ -141,7 +141,7 @@ const getVisionModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.vision,
     apiKey: process.env.OPENAI_API_KEY,
-    maxRetries: 2,
+    maxRetries: 1,
   });
 
 // ---------------------------------------------------------------------------
@@ -213,9 +213,6 @@ const searchByExtractedText = async (
     {
       role: 'user',
       content: `Find the food product matching this text extracted from a product photo.
-
-EXTRACTED TEXT:
-${ocr.allText}
 
 DETECTED PRODUCT NAME: ${ocr.productName ?? 'unknown'}
 DETECTED BRAND: ${ocr.brand ?? 'unknown'}

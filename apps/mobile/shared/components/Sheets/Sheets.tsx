@@ -2,6 +2,10 @@ import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
 import { ComparisonResultSheet } from '../../../modules/scanner/components/ComparisonResultSheet';
 import { ProductDecisionSheet } from '../../../modules/scanner/components/ProductDecisionSheet';
+import {
+  ScannerErrorSheet,
+  type ScannerErrorSheetPayload,
+} from '../../../modules/scanner/components/ScannerErrorSheet';
 import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerResultSheet';
 import type {
   ComparisonResultSheetPayload,
@@ -19,6 +23,7 @@ declare module 'react-native-actions-sheet' {
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
     [SheetsEnum.ProductDecisionSheet]: SheetDefinition<{ payload: ProductDecisionSheetPayload }>;
     [SheetsEnum.ComparisonResultSheet]: SheetDefinition<{ payload: ComparisonResultSheetPayload }>;
+    [SheetsEnum.ScannerErrorSheet]: SheetDefinition<{ payload: ScannerErrorSheetPayload }>;
   }
 }
 
@@ -30,6 +35,7 @@ export const Sheets = () => {
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
         [SheetsEnum.ProductDecisionSheet]: ProductDecisionSheet,
         [SheetsEnum.ComparisonResultSheet]: ComparisonResultSheet,
+        [SheetsEnum.ScannerErrorSheet]: ScannerErrorSheet,
       }}
     />
   );

@@ -75,12 +75,12 @@ CRITICAL — NUTRITION VALUES PER 100g ONLY:
 - Set confidence based on how certain you are about the identification (0.0 to 1.0).
 - If no reliable result is found, return found: false.`;
 
-const getModel = () =>
+const getBarcodeModel = () =>
   new ChatOpenAI({
     model: AI_MODELS.reason,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 1,
-    timeout: 30_000,
+    timeout: 15_000,
     reasoning: {"effort": "low"},
   });
 
@@ -97,8 +97,8 @@ export const searchProductByBarcode = async (
 
   try {
     // bindTools for web search BEFORE withStructuredOutput so the tool is sent to the API
-    const structuredModel = (getModel() as any)
-      .bindTools([{ type: 'web_search_preview', search_context_size: 'medium' }])
+    const structuredModel = (getBarcodeModel() as any)
+      .bindTools([{ type: 'web_search_preview', search_context_size: 'low' }])
       .withStructuredOutput(websearchProductSchema, {
         method: 'jsonSchema',
         name: 'websearch_product_lookup',

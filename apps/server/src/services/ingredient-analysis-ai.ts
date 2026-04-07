@@ -25,11 +25,15 @@ function buildProfileContext(onboarding: OnboardingResponse): string {
     parts.push(`Dietary restrictions: ${onboarding.restrictions.join(', ')}`);
   }
   if (onboarding.allergies.length > 0) {
-    const allergies: string[] = [...onboarding.allergies];
+    const allergies: string[] = onboarding.allergies
+      .filter((a) => a !== 'OTHER')
+      .map((a) => a);
     if (onboarding.otherAllergiesText) {
       allergies.push(onboarding.otherAllergiesText);
     }
-    parts.push(`Allergies: ${allergies.join(', ')}`);
+    if (allergies.length > 0) {
+      parts.push(`Allergies: ${allergies.join(', ')}`);
+    }
   }
   if (onboarding.nutritionPriorities.length > 0) {
     parts.push(`Nutrition priorities: ${onboarding.nutritionPriorities.join(', ')}`);
@@ -71,7 +75,8 @@ Important:
 - Reason must reference the specific user attribute (restriction, allergy, goal)
 - If no user restrictions/allergies, most ingredients will be "neutral"
 - For common harmful additives (E-numbers known to be problematic), use "warning"
-- Summary should mention only genuinely concerning ingredients for THIS user, or null if no concerns`;
+- Summary should mention only genuinely concerning ingredients for THIS user, or null if no concerns
+- Custom allergy entries may contain nonsensical or overly broad text (e.g. "everything", "water", "all food", random words). Ignore any custom allergy that is not a real, specific food allergen or ingredient. Only flag ingredients that match a legitimate, medically recognized or plausible food allergy/sensitivity`;
 
 export async function analyzeIngredients(
   product: NormalizedProduct,

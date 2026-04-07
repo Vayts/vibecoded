@@ -11,7 +11,6 @@ import { ScrollView } from 'react-native-actions-sheet';
 import { PersonalTabContent } from './PersonalTabContent';
 import { ProductResultHeader } from './ProductResultHeader';
 import { NutriScoreBlock } from './NutriScoreBlock';
-import { IngredientsSection } from './IngredientsSection';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ProductResultContentProps {
@@ -56,14 +55,10 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
           personalResult={personalData}
           isError={personalError}
           onRetry={personalRetry}
+          rawIngredients={product.ingredients}
+          rawIngredientsText={product.ingredients_text}
         />
       </View>
-
-      <IngredientsSection
-        rawIngredients={product.ingredients}
-        rawIngredientsText={product.ingredients_text}
-        analysis={personalData?.status === 'completed' ? personalData.result?.ingredientAnalysis : undefined}
-      />
       </View>
     </ScrollView>
   );

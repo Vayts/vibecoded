@@ -63,7 +63,79 @@ function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['prof
   );
 }
 
+function ComparisonProductLine({
+  imageUrl,
+  label,
+  name,
+}: {
+  imageUrl: string | null;
+  label: string;
+  name: string;
+}) {
+  const uri = resolveStorageUri(imageUrl);
+  return (
+    <View className="flex-row items-center gap-2">
+      {uri ? (
+        <Image source={{ uri }} className="h-5 w-5 rounded bg-gray-100" resizeMode="cover" />
+      ) : (
+        <View className="h-5 w-5 items-center justify-center rounded bg-blue-50">
+          <Barcode color={COLORS.primary} size={10} />
+        </View>
+      )}
+      <Typography variant="bodySecondary" numberOfLines={1} className="flex-1">
+        <Typography variant="bodySecondary" className="font-medium">
+          {label}:
+        </Typography>{' '}
+        {name}
+      </Typography>
+    </View>
+  );
+}
+
+function ComparisonHistoryRow({ item, onPress }: ScanHistoryRowProps) {
+  const product1Name = item.product?.product_name ?? 'Unknown';
+  const product2Name = item.product2?.product_name ?? 'Unknown';
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => onPress(item)}
+      className="px-4 py-3 border-b border-gray-100"
+      accessibilityRole="button"
+      accessibilityLabel={`View comparison of ${product1Name} and ${product2Name}`}
+    >
+      <Typography variant="headerTitle" numberOfLines={1}>
+        Comparison
+      </Typography>
+
+      <View className="mt-1.5 gap-1">
+        <ComparisonProductLine
+          imageUrl={item.product?.image_url ?? null}
+          label="Product 1"
+          name={product1Name}
+        />
+        <ComparisonProductLine
+          imageUrl={item.product2?.image_url ?? null}
+          label="Product 2"
+          name={product2Name}
+        />
+      </View>
+
+      <View className="mt-2 flex-row items-center gap-1">
+        <ClockFading size={16} color={COLORS.neutrals500} strokeWidth={1.5} />
+        <Typography className="text-neutrals-500 text-[13px]">
+          {formatRelativeTime(item.createdAt)}
+        </Typography>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
+  if (item.type === 'comparison') {
+    return <ComparisonHistoryRow item={item} onPress={onPress} />;
+  }
+
   const imageUri = resolveStorageUri(item.product?.image_url) ?? null;
   const productName = item.product?.product_name ?? 'Unknown product';
   const brands = item.product?.brands ?? null;

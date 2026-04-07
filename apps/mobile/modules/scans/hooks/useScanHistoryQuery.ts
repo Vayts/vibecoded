@@ -27,11 +27,13 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
       const data = q.state.data;
       if (!data) return false;
 
-      if (data.personalAnalysisStatus === 'completed' || data.personalAnalysisStatus === 'failed') {
-        return false;
+      // Only poll while personal analysis is actively pending.
+      // Comparisons and scans without analysis have null status — no polling needed.
+      if (data.personalAnalysisStatus === 'pending') {
+        return 1000;
       }
 
-      return 2000;
+      return false;
     },
   });
 
