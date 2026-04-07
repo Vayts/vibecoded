@@ -12,6 +12,7 @@ import {
   useCompareProductsMutation,
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
+import { submitPhotoScan } from '../../api/scannerMutations';
 import { useCompareStore } from '../../stores/compareStore';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerPermissionState } from '../ScannerPermissionState';
@@ -34,29 +35,44 @@ export function ScannerHomeScreen() {
   const [isScannerPaused, setIsScannerPaused] = useState(false);
   const scanFrameRef = useRef<View>(null);
   const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [isPhotoAnalyzing, setIsPhotoAnalyzing] = useState(false);
+  const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
     setIsLocked(false);
     setIsScannerPaused(false);
+    setIsPhotoAnalyzing(false);
+    setIsResolvingFirstProduct(false);
   }, []);
 
-  const { capturePhoto, isPending: isPhotoPending } = usePhotoCapture();
+  const { captureAndCompress, capturePhotoPreview, isPending: isPhotoPending } = usePhotoCapture();
 
   // Shared photo capture handler — routes to compare or decision sheet based on state.
   const capturePhotoFromSheet = useCallback(async () => {
     try {
-      const result = await capturePhoto();
-      if (!result) { resumeScanner(); return; }
-
       const compareActive = useCompareStore.getState().isCompareMode;
       const first = useCompareStore.getState().firstProduct;
 
       if (compareActive && first) {
-        // Photo is the second product — trigger comparison
+        const firstImageBase64 = useCompareStore.getState().firstProductImageBase64;
+
+        // Second product in compare mode — capture photo, then resolve both in parallel
+        const captured = await captureAndCompress();
+        if (!captured) { resumeScanner(); return; }
+
+        setIsResolvingFirstProduct(true);
+        const [firstResolved, secondResolved] = await Promise.all([
+          firstImageBase64
+            ? submitPhotoScan({ imageBase64: firstImageBase64 })
+            : Promise.resolve({ barcode: first.barcode }),
+          submitPhotoScan({ imageBase64: captured.base64 }),
+        ]);
+        setIsResolvingFirstProduct(false);
+
         const compResult = await compareMutation.mutateAsync({
-          barcode1: first.barcode,
-          barcode2: result.barcode,
+          barcode1: firstResolved.barcode,
+          barcode2: secondResolved.barcode,
         });
         resetCompare();
         await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
@@ -64,16 +80,23 @@ export function ScannerHomeScreen() {
           onClose: resumeScanner,
         });
       } else {
-        // Non-compare: show ProductDecisionSheet (same as barcode flow)
+        // First product — OCR preview only (fast), full analysis deferred to user action
+        const preview = await capturePhotoPreview();
+        if (!preview) { resumeScanner(); return; }
         const productPreview = {
-          productId: result.productId ?? '',
-          barcode: result.barcode,
-          product_name: result.product.product_name,
-          brands: result.product.brands,
-          image_url: result.product.image_url,
+          productId: '',
+          barcode: '',
+          product_name: preview.productName,
+          brands: preview.brand,
+          image_url: preview.localImageUri,
         };
         await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
-          payload: { product: productPreview, onDismiss: resumeScanner },
+          payload: {
+            product: productPreview,
+            imageBase64: preview.imageBase64,
+            onDismiss: resumeScanner,
+            onAnalyzeStart: () => setIsPhotoAnalyzing(true),
+          },
         });
       }
     } catch (error) {
@@ -89,7 +112,7 @@ export function ScannerHomeScreen() {
         },
       });
     }
-  }, [capturePhoto, compareMutation, resetCompare, resumeScanner]);
+  }, [captureAndCompress, capturePhotoPreview, compareMutation, resetCompare, resumeScanner]);
 
   const handlePhotoPress = useCallback(async () => {
     if (scanLockRef.current) return;
@@ -117,8 +140,20 @@ export function ScannerHomeScreen() {
       const first = useCompareStore.getState().firstProduct;
 
       if (compareActive && first) {
+        const firstImageBase64 = useCompareStore.getState().firstProductImageBase64;
+
+        let barcode1: string;
+        if (firstImageBase64) {
+          setIsResolvingFirstProduct(true);
+          const firstResolved = await submitPhotoScan({ imageBase64: firstImageBase64 });
+          setIsResolvingFirstProduct(false);
+          barcode1 = firstResolved.barcode;
+        } else {
+          barcode1 = first.barcode;
+        }
+
         const result = await compareMutation.mutateAsync({
-          barcode1: first.barcode,
+          barcode1,
           barcode2: normalized,
         });
         resetCompare();
@@ -184,15 +219,19 @@ export function ScannerHomeScreen() {
     );
   }
 
-  const isProcessing = isPhotoPending || compareMutation.isPending || lookupMutation.isPending;
+  const isProcessing = isPhotoPending || compareMutation.isPending || lookupMutation.isPending || isPhotoAnalyzing || isResolvingFirstProduct;
 
   const statusMessage = isPhotoPending
     ? 'Identifying product\u2026'
-    : compareMutation.isPending
-      ? 'Comparing products\u2026'
-      : lookupMutation.isPending
-        ? 'Looking up product\u2026'
-        : 'Processing\u2026';
+    : isResolvingFirstProduct
+      ? 'Identifying products\u2026'
+      : isPhotoAnalyzing
+        ? 'Analyzing product\u2026'
+        : compareMutation.isPending
+          ? 'Comparing products\u2026'
+          : lookupMutation.isPending
+            ? 'Looking up product\u2026'
+            : 'Processing\u2026';
 
   return (
     <View className="flex-1 bg-black">

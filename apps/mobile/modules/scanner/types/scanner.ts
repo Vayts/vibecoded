@@ -16,7 +16,9 @@ export interface ScannerResultSheetPayload {
 
 export interface ProductDecisionSheetPayload {
   product: ProductPreview;
+  imageBase64?: string;
   onDismiss?: () => void;
+  onAnalyzeStart?: () => void;
 }
 
 export interface ComparisonResultSheetPayload {

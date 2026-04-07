@@ -148,6 +148,9 @@ const getVisionModel = () =>
 // Step 1 implementation
 // ---------------------------------------------------------------------------
 
+export { extractTextFromPhoto };
+export type { OcrResult };
+
 const extractTextFromPhoto = async (imageBase64: string): Promise<OcrResult | null> => {
   const model = (getVisionModel() as any).withStructuredOutput(ocrResultSchema, {
     method: 'jsonSchema',

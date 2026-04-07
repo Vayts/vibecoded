@@ -6,7 +6,7 @@ import { Typography } from '../../../../shared/components/Typography';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useCompareStore } from '../../stores/compareStore';
-import { useScanBarcodeMutation } from '../../hooks/useScannerMutations';
+import { useScanBarcodeMutation, usePhotoScanMutation } from '../../hooks/useScannerMutations';
 
 export function ProductDecisionSheet() {
   const payload = useSheetPayload(SheetsEnum.ProductDecisionSheet);
@@ -14,36 +14,49 @@ export function ProductDecisionSheet() {
   // vs. user swipe-to-dismiss. Only swipe-dismiss should call onDismiss here.
   const actionTakenRef = useRef(false);
   const product = payload?.product;
+  const imageBase64 = payload?.imageBase64 as string | undefined;
   const onDismiss = payload?.onDismiss as (() => void) | undefined;
+  const onAnalyzeStart = payload?.onAnalyzeStart as (() => void) | undefined;
   const startCompare = useCompareStore((s) => s.startCompare);
   const barcodeMutation = useScanBarcodeMutation();
+  const photoMutation = usePhotoScanMutation();
 
   if (!product) return null;
 
-  const resolvedImageUrl = resolveStorageUri(product.image_url);
+  const isPhoto = Boolean(imageBase64);
+  const resolvedImageUrl = isPhoto ? product.image_url : resolveStorageUri(product.image_url);
+  const isPending = barcodeMutation.isPending || photoMutation.isPending;
 
   const handleAnalyze = async () => {
-    // Mark that an action is taking ownership of the scanner pause.
-    // The scanner will be resumed when the ScannerResultSheet closes.
     actionTakenRef.current = true;
+    onAnalyzeStart?.();
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
     try {
-      const result = await barcodeMutation.mutateAsync({ barcode: product.barcode });
-      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { result },
-        onClose: onDismiss,
-      });
+      if (imageBase64) {
+        // Photo flow: run full identification + analysis
+        const result = await photoMutation.mutateAsync({ imageBase64 });
+        await SheetManager.show(SheetsEnum.ScannerResultSheet, {
+          payload: { result },
+          onClose: onDismiss,
+        });
+      } else {
+        // Barcode flow: trigger analysis by barcode
+        const result = await barcodeMutation.mutateAsync({ barcode: product.barcode });
+        await SheetManager.show(SheetsEnum.ScannerResultSheet, {
+          payload: { result },
+          onClose: onDismiss,
+        });
+      }
     } catch {
-      // Analysis failed — resume scanner so user can try again
       onDismiss?.();
     }
   };
 
   const handleCompare = async () => {
     actionTakenRef.current = true;
-    startCompare(product);
+    // Store product + imageBase64 (if photo) for deferred resolution when second product is scanned
+    startCompare(product, imageBase64);
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
-    // Resume scanner so user can scan the second product
     onDismiss?.();
   };
 
@@ -86,8 +99,8 @@ export function ProductDecisionSheet() {
         <View className="mt-6 w-full gap-3">
           <Button
             fullWidth
-            label={barcodeMutation.isPending ? 'Analyzing…' : 'Analyze'}
-            loading={barcodeMutation.isPending}
+            label={isPending ? 'Processing…' : 'Analyze'}
+            loading={isPending}
             onPress={() => void handleAnalyze()}
             accessibilityLabel="Analyze this product"
             accessibilityRole="button"
@@ -96,7 +109,7 @@ export function ProductDecisionSheet() {
             fullWidth
             variant="secondary"
             label="Compare with another"
-            disabled={barcodeMutation.isPending}
+            disabled={isPending}
             onPress={() => void handleCompare()}
             accessibilityLabel="Compare this product with another"
             accessibilityRole="button"

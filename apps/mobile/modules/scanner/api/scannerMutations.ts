@@ -76,6 +76,27 @@ export interface PhotoScanRequest {
   imageBase64: string;
 }
 
+export interface PhotoOcrResponse {
+  productName: string | null;
+  brand: string | null;
+  isFoodProduct: boolean;
+}
+
+export const submitPhotoOcr = async (
+  payload: PhotoScanRequest,
+): Promise<PhotoOcrResponse> => {
+  const response = await apiFetch('/api/scanner/photo/ocr', {
+    method: 'POST',
+    body: JSON.stringify({ imageBase64: payload.imageBase64 }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return (await response.json()) as PhotoOcrResponse;
+};
+
 export const submitPhotoScan = async (
   payload: PhotoScanRequest,
 ): Promise<BarcodeLookupSuccessResponse> => {

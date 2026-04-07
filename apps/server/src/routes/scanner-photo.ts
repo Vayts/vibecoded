@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { NormalizedProduct } from '@acme/shared';
 import { auth } from '../lib/auth';
-import { identifyProductByPhoto } from '../services/photo-product-identification';
+import { identifyProductByPhoto, extractTextFromPhoto } from '../services/photo-product-identification';
 import { isFoodProduct } from '../services/is-food-product';
 import { createProduct } from '../repositories/productRepository';
 import { findProductIdByBarcode } from '../repositories/scanRepository';
@@ -13,6 +13,52 @@ import { uploadProductImage } from '../lib/storage';
 export const scannerPhotoRoute = new Hono();
 
 const MAX_PHOTO_BASE64_SIZE = 10 * 1024 * 1024; // ~10MB base64 ≈ ~7.5MB binary
+
+/**
+ * POST /api/scanner/photo/ocr
+ * Quick OCR-only pass: extract product name and brand from photo without full identification.
+ */
+scannerPhotoRoute.post('/photo/ocr', async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'Invalid JSON body', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  const imageBase64 = (body as { imageBase64?: string }).imageBase64;
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    return c.json({ error: 'imageBase64 field is required', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  if (imageBase64.length > MAX_PHOTO_BASE64_SIZE) {
+    return c.json({ error: 'Image too large', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  try {
+    const ocr = await extractTextFromPhoto(imageBase64);
+
+    if (!ocr) {
+      return c.json({ error: 'Could not read text from photo', code: 'OCR_FAILED' }, 422);
+    }
+
+    if (!ocr.isFoodProduct) {
+      return c.json(
+        { error: 'Product does not appear to be a food item', code: 'NOT_FOOD' },
+        422,
+      );
+    }
+
+    return c.json({
+      productName: ocr.productName,
+      brand: ocr.brand,
+      isFoodProduct: ocr.isFoodProduct,
+    });
+  } catch (error) {
+    console.error('[photo-ocr] ❌ Error:', error);
+    throw error;
+  }
+});
 
 const attachPhotoImagePath = (
   product: NormalizedProduct,
