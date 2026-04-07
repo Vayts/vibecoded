@@ -3,12 +3,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback } from 'react';
 import { compressImage } from '../lib/compressImage';
 import { usePhotoScanMutation, usePhotoOcrMutation } from './useScannerMutations';
+import type { PhotoOcrData } from '../types/scanner';
 
 export interface PhotoPreviewResult {
   productName: string | null;
   brand: string | null;
   imageBase64: string;
   localImageUri: string;
+  ocr: PhotoOcrData;
 }
 
 /**
@@ -51,6 +53,7 @@ export function usePhotoCapture() {
       brand: ocr.brand,
       imageBase64: captured.base64,
       localImageUri: captured.localUri,
+      ocr,
     };
   }, [launchCamera, ocrMutation]);
 

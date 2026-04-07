@@ -265,6 +265,31 @@ export const favouriteStatusResponseSchema = z.object({
 export type FavouriteStatusResponse = z.infer<typeof favouriteStatusResponseSchema>;
 
 // ============================================================
+// Comparison history schemas
+// ============================================================
+
+export const comparisonHistoryItemSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  product1: scanHistoryProductSchema.nullable(),
+  product2: scanHistoryProductSchema.nullable(),
+});
+export type ComparisonHistoryItem = z.infer<typeof comparisonHistoryItemSchema>;
+
+export const comparisonHistoryResponseSchema = z.object({
+  items: z.array(comparisonHistoryItemSchema),
+  nextCursor: z.string().nullable(),
+});
+export type ComparisonHistoryResponse = z.infer<typeof comparisonHistoryResponseSchema>;
+
+export const comparisonDetailResponseSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  comparisonResult: z.lazy(() => productComparisonResultSchema).nullable(),
+});
+export type ComparisonDetailResponse = z.infer<typeof comparisonDetailResponseSchema>;
+
+// ============================================================
 // Family member schemas
 // ============================================================
 

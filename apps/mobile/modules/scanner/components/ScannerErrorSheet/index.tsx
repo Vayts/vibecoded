@@ -7,14 +7,19 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 
 export interface ScannerErrorSheetPayload {
+  variant?: 'generic' | 'not-found' | 'not-food';
+  title?: string;
   message: string;
   onDismiss?: () => void;
   onPhotoPress?: () => void;
 }
 
 export function ScannerErrorSheet() {
-  const { message, onDismiss, onPhotoPress } = useSheetPayload(SheetsEnum.ScannerErrorSheet);
-  const isNotFound = !!onPhotoPress;
+  const { variant = 'generic', title, message, onDismiss, onPhotoPress } = useSheetPayload(
+    SheetsEnum.ScannerErrorSheet,
+  );
+  const isNotFound = variant === 'not-found';
+  const isNotFood = variant === 'not-food';
   const actionTakenRef = useRef(false);
 
   const handleClose = () => {
@@ -49,7 +54,11 @@ export function ScannerErrorSheet() {
         </View>
 
         <Typography variant="sectionTitle" className="mb-2 text-center">
-          {isNotFound ? 'Product not found' : 'Something went wrong'}
+          {isNotFound
+            ? 'Product not found'
+            : isNotFood
+              ? 'This is not a food product'
+              : (title ?? 'Something went wrong')}
         </Typography>
 
         <Typography variant="bodySecondary" className="mb-6 text-center text-gray-500">

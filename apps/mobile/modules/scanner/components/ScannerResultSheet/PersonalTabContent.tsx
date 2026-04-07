@@ -54,20 +54,22 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
           />
         ) : null}
 
-        <ProfileDetail profile={activeProfile} />
+        <View className="px-4">
+          <ProfileDetail profile={activeProfile} />
 
-        <IngredientsSection
-          rawIngredients={rawIngredients}
-          rawIngredientsText={rawIngredientsText}
-          analysis={profileIngredientAnalysis}
-        />
+          <IngredientsSection
+            rawIngredients={rawIngredients}
+            rawIngredientsText={rawIngredientsText}
+            analysis={profileIngredientAnalysis}
+          />
+        </View>
       </View>
     );
   }
 
   if (personalResult?.status === 'failed' || isError) {
     return (
-      <View>
+      <View className="px-4">
         <PersonalAnalysisFallback onRetry={onRetry} />
         <IngredientsSection
           rawIngredients={rawIngredients}
@@ -78,7 +80,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
   }
 
   return (
-    <View>
+    <View className="px-4">
       <PersonalAnalysisLoader />
       <IngredientsSection
         rawIngredients={rawIngredients}

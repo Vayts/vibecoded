@@ -43,22 +43,23 @@ export function ProductResultContent({ result, resolvedPersonalResult }: Product
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="max-h-[660px]" contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
       <View>
-        <ProductResultHeader
-          product={product}
-          productId={result.productId}
-          isFavourite={result.isFavourite}
-        />
-
-      <NutriScoreBlock grade={product.scores.nutriscore_grade} />
-      <View>
-        <PersonalTabContent
-          personalResult={personalData}
-          isError={personalError}
-          onRetry={personalRetry}
-          rawIngredients={product.ingredients}
-          rawIngredientsText={product.ingredients_text}
-        />
-      </View>
+        <View className="px-4">
+          <ProductResultHeader
+            product={product}
+            productId={result.productId}
+            isFavourite={result.isFavourite}
+          />
+          <NutriScoreBlock grade={product.scores.nutriscore_grade} />
+        </View>
+        <View>
+          <PersonalTabContent
+            personalResult={personalData}
+            isError={personalError}
+            onRetry={personalRetry}
+            rawIngredients={product.ingredients}
+            rawIngredientsText={product.ingredients_text}
+          />
+        </View>
       </View>
     </ScrollView>
   );

@@ -2,6 +2,13 @@ import type { BarcodeLookupResponse, ProductPreview, ProductComparisonResult } f
 
 export type ScannerMutationResponse = BarcodeLookupResponse;
 
+export interface PhotoOcrData {
+  allText: string;
+  productName: string | null;
+  brand: string | null;
+  isFoodProduct: boolean;
+}
+
 export type ScannerResultPresentationMode = 'default' | 'personalOnly';
 
 export type ScannerResultOrigin = 'barcode';
@@ -17,6 +24,7 @@ export interface ScannerResultSheetPayload {
 export interface ProductDecisionSheetPayload {
   product: ProductPreview;
   imageBase64?: string;
+  photoOcr?: PhotoOcrData;
   onDismiss?: () => void;
   onAnalyzeStart?: () => void;
 }
@@ -24,4 +32,5 @@ export interface ProductDecisionSheetPayload {
 export interface ComparisonResultSheetPayload {
   result?: ProductComparisonResult;
   scanId?: string;
+  comparisonId?: string;
 }

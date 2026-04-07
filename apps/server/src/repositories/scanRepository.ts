@@ -89,7 +89,7 @@ const DEFAULT_PAGE_SIZE = 20;
 export const findScansByUserId = async (userId: string, cursor?: string, limit?: number) => {
   const take = limit ?? DEFAULT_PAGE_SIZE;
   const scans = await prisma.scan.findMany({
-    where: { userId },
+    where: { userId, type: 'product' },
     orderBy: { createdAt: 'desc' },
     take: take + 1,
     ...(cursor

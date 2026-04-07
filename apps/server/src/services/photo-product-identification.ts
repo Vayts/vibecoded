@@ -17,6 +17,16 @@ export interface PhotoIdentificationResult {
   source: 'vector' | 'websearch';
 }
 
+export class PhotoIdentificationError extends Error {
+  constructor(
+    public readonly code: 'NOT_FOOD',
+    message = 'This product does not appear to be a food item',
+  ) {
+    super(message);
+    this.name = 'PhotoIdentificationError';
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Step 1 — OCR: extract all visible text from the photo
 // ---------------------------------------------------------------------------
@@ -40,9 +50,14 @@ RULES:
 - Transcribe every piece of text you can see: product name, brand, ingredients, nutrition facts, weight, etc.
 - Preserve the ORIGINAL language exactly as printed. Do NOT translate to English or any other language.
 - Identify the most likely product name and brand from the text (in the original language as printed).
-- Determine whether this is a food/beverage product.
+- Determine whether this is a human food/beverage product.
 - Do NOT guess or invent text that isn't visible in the image.
-- Be thorough: even small/blurry text matters for product identification.`;
+- Be thorough: even small/blurry text matters for product identification.
+
+FOOD CLASSIFICATION:
+- Set isFoodProduct=true ONLY when the photo clearly shows a human food or beverage product.
+- Set isFoodProduct=false for non-food items such as cosmetics, personal care, household cleaners, medicine, supplements, pet food, toys, electronics, utensils, menus, receipts, shelves, or general objects.
+- If the image is ambiguous or you are not confident it is human food/drink, return isFoodProduct=false.`;
 
 // ---------------------------------------------------------------------------
 // Step 2 — Search: find the product by extracted text
@@ -202,14 +217,18 @@ const hasValidImage = (product: NormalizedProduct): boolean => {
 const searchByExtractedText = async (
   ocr: OcrResult,
 ): Promise<NormalizedProduct | null> => {
-  const structuredModel = (getVisionModel() as any)
+  const t0 = Date.now();
+  const elapsed = () => `${Date.now() - t0}ms`;
+  const searchQuery = [ocr.brand, ocr.productName].filter(Boolean).join(' ') || ocr.allText.slice(0, 300);
+
+  console.log(`[PhotoID:search] start query="${searchQuery}" [${elapsed()}]`);
+
+  const structuredModel = (getSearchModel() as any)
     .bindTools([{ type: 'web_search_preview', search_context_size: 'high' }])
     .withStructuredOutput(websearchProductSchema, {
       method: 'jsonSchema',
       name: 'text_product_search',
     });
-
-  const searchQuery = [ocr.brand, ocr.productName].filter(Boolean).join(' ') || ocr.allText.slice(0, 300);
 
   const result: z.infer<typeof websearchProductSchema> = await structuredModel.invoke([
     { role: 'system', content: SEARCH_SYSTEM_PROMPT },
@@ -225,7 +244,11 @@ Search for: "${searchQuery}"`,
   ]);
 
   const { found, confidence, product } = result;
-  console.log(`[PhotoID:search] result: found=${found} confidence=${confidence} product_name="${product?.product_name}" brands="${product?.brands}" code="${product?.code}"`);
+  const productLog = product
+    ? `product_name="${product.product_name ?? 'null'}" brands="${product.brands ?? 'null'}" code="${product.code || 'null'}"`
+    : 'product=null';
+
+  console.log(`[PhotoID:search] done found=${found} confidence=${confidence} ${productLog} [${elapsed()}]`);
 
   if (!found || confidence < MIN_CONFIDENCE || !product) return null;
 
@@ -308,6 +331,7 @@ const pickWinner = (
  */
 export const identifyProductByPhoto = async (
   imageBase64: string,
+  precomputedOcr?: OcrResult,
 ): Promise<PhotoIdentificationResult | null> => {
   const t0 = Date.now();
   const elapsed = () => `${Date.now() - t0}ms`;
@@ -317,28 +341,36 @@ export const identifyProductByPhoto = async (
     return null;
   }
 
-  console.log(
-    `[PhotoID] 1/2 Starting OCR — base64 length=${imageBase64.length} chars (~${Math.round((imageBase64.length * 0.75) / 1024)}KB)`,
-  );
+  if (precomputedOcr) {
+    console.log(
+      `[PhotoID] 1/2 Reusing OCR — product="${precomputedOcr.productName}" brand="${precomputedOcr.brand}" food=${precomputedOcr.isFoodProduct} textLen=${precomputedOcr.allText.length} [${elapsed()}]`,
+    );
+  } else {
+    console.log(
+      `[PhotoID] 1/2 Starting OCR — base64 length=${imageBase64.length} chars (~${Math.round((imageBase64.length * 0.75) / 1024)}KB)`,
+    );
+  }
 
   try {
     // -----------------------------------------------------------------------
     // Step 1: Extract text from photo
     // -----------------------------------------------------------------------
-    const ocr = await extractTextFromPhoto(imageBase64);
+    const ocr = precomputedOcr ?? await extractTextFromPhoto(imageBase64);
 
     if (!ocr) {
       console.log(`[PhotoID] ❌ OCR returned null [${elapsed()}]`);
       return null;
     }
 
-    console.log(
-      `[PhotoID] 2/2 OCR done — product="${ocr.productName}" brand="${ocr.brand}" food=${ocr.isFoodProduct} textLen=${ocr.allText.length} [${elapsed()}]`,
-    );
+    if (!precomputedOcr) {
+      console.log(
+        `[PhotoID] 2/2 OCR done — product="${ocr.productName}" brand="${ocr.brand}" food=${ocr.isFoodProduct} textLen=${ocr.allText.length} [${elapsed()}]`,
+      );
+    }
 
     if (!ocr.isFoodProduct) {
       console.log(`[PhotoID] ❌ Not a food product [${elapsed()}]`);
-      return null;
+      throw new PhotoIdentificationError('NOT_FOOD');
     }
 
     // -----------------------------------------------------------------------

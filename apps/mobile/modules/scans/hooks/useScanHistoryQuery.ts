@@ -14,21 +14,33 @@ export const useScanHistoryQuery = () => {
   });
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const useScanDetailQuery = (scanId: string | undefined) => {
   const queryClient = useQueryClient();
   const hasInvalidatedRef = useRef(false);
 
+  const queryKey = ['scans', 'detail', scanId] as const;
+
   const query = useQuery({
-    queryKey: ['scans', 'detail', scanId],
-    queryFn: () => fetchScanDetail(scanId!),
+    queryKey,
     enabled: Boolean(scanId),
     staleTime: 0,
+    queryFn: async () => {
+      const cachedData = queryClient.getQueryData(queryKey);
+
+      const data = await fetchScanDetail(scanId!);
+
+      if (cachedData === undefined) {
+        await sleep(300);
+      }
+
+      return data;
+    },
     refetchInterval: (q) => {
       const data = q.state.data;
       if (!data) return false;
 
-      // Only poll while personal analysis is actively pending.
-      // Comparisons and scans without analysis have null status — no polling needed.
       if (data.personalAnalysisStatus === 'pending') {
         return 1000;
       }
@@ -37,14 +49,14 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
     },
   });
 
-  // When analysis transitions to completed/failed, invalidate history so rows update
   useEffect(() => {
     const status = query.data?.personalAnalysisStatus;
+
     if (!hasInvalidatedRef.current && (status === 'completed' || status === 'failed')) {
       hasInvalidatedRef.current = true;
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     }
   }, [query.data?.personalAnalysisStatus, queryClient]);
 
-  return { ...query };
+  return query;
 };

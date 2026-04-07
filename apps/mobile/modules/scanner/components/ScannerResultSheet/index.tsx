@@ -40,6 +40,7 @@ function buildResultFromScanDetail(scan: ScanDetailResponse): {
 
 function ScanDetailLoader({ scanId }: { scanId: string }) {
   const { data, isLoading, isError, error, refetch } = useScanDetailQuery(scanId);
+  const safeAreaInsets = useSafeAreaInsets();
 
   const mapped = useMemo(
     () => (data?.product ? buildResultFromScanDetail(data) : null),
@@ -48,9 +49,12 @@ function ScanDetailLoader({ scanId }: { scanId: string }) {
 
   if (isLoading) {
     return (
-      <View className="items-center justify-center py-12">
-        <ActivityIndicator color={COLORS.primary} size="large" />
-      </View>
+      <View className="items-center justify-center px-6 py-12" style={{ paddingBottom: safeAreaInsets.bottom + 24 }}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+          <Typography variant="bodySecondary" className="mt-3 text-gray-500">
+            Loading product info…
+          </Typography>
+        </View>
     );
   }
 
@@ -87,20 +91,13 @@ export function ScannerResultSheet() {
   const scanId = payload?.scanId;
   const isBarcodeResult = isBarcodeLookupResponse(resolvedResult);
 
-  const handleClose = () => {
-    reset();
-    void SheetManager.hide(SheetsEnum.ScannerResultSheet);
-  };
-
   return (
     <ActionSheet gestureEnabled useBottomSafeAreaPadding={false} onClose={reset}>
-      <View className="px-6">
-        {scanId ? (
+      {scanId ? (
           <ScanDetailLoader scanId={scanId} />
         ) : isBarcodeResult ? (
           <ProductResultContent result={resolvedResult} />
         ) : null}
-      </View>
     </ActionSheet>
   );
 }

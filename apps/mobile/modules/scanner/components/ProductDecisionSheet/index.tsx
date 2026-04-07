@@ -5,18 +5,20 @@ import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import type { ProductDecisionSheetPayload } from '../../types/scanner';
 import { useCompareStore } from '../../stores/compareStore';
 import { useScanBarcodeMutation, usePhotoScanMutation } from '../../hooks/useScannerMutations';
 
 export function ProductDecisionSheet() {
-  const payload = useSheetPayload(SheetsEnum.ProductDecisionSheet);
+  const payload = useSheetPayload(SheetsEnum.ProductDecisionSheet) as ProductDecisionSheetPayload | null;
   // Track whether the sheet is being hidden by an action (Analyze/Compare)
   // vs. user swipe-to-dismiss. Only swipe-dismiss should call onDismiss here.
   const actionTakenRef = useRef(false);
   const product = payload?.product;
-  const imageBase64 = payload?.imageBase64 as string | undefined;
-  const onDismiss = payload?.onDismiss as (() => void) | undefined;
-  const onAnalyzeStart = payload?.onAnalyzeStart as (() => void) | undefined;
+  const imageBase64 = payload?.imageBase64;
+  const photoOcr = payload?.photoOcr;
+  const onDismiss = payload?.onDismiss;
+  const onAnalyzeStart = payload?.onAnalyzeStart;
   const startCompare = useCompareStore((s) => s.startCompare);
   const barcodeMutation = useScanBarcodeMutation();
   const photoMutation = usePhotoScanMutation();
@@ -34,7 +36,7 @@ export function ProductDecisionSheet() {
     try {
       if (imageBase64) {
         // Photo flow: run full identification + analysis
-        const result = await photoMutation.mutateAsync({ imageBase64 });
+        const result = await photoMutation.mutateAsync({ imageBase64, ocr: photoOcr });
         await SheetManager.show(SheetsEnum.ScannerResultSheet, {
           payload: { result },
           onClose: onDismiss,
@@ -55,7 +57,7 @@ export function ProductDecisionSheet() {
   const handleCompare = async () => {
     actionTakenRef.current = true;
     // Store product + imageBase64 (if photo) for deferred resolution when second product is scanned
-    startCompare(product, imageBase64);
+    startCompare(product, imageBase64, photoOcr);
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
     onDismiss?.();
   };

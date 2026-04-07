@@ -1,7 +1,12 @@
 import { Hono } from 'hono';
 import type { NormalizedProduct } from '@acme/shared';
+import { z } from 'zod';
 import { auth } from '../lib/auth';
-import { identifyProductByPhoto, extractTextFromPhoto } from '../services/photo-product-identification';
+import {
+  identifyProductByPhoto,
+  extractTextFromPhoto,
+  PhotoIdentificationError,
+} from '../services/photo-product-identification';
 import { isFoodProduct } from '../services/is-food-product';
 import { createProduct } from '../repositories/productRepository';
 import { findProductIdByBarcode } from '../repositories/scanRepository';
@@ -13,6 +18,12 @@ import { uploadProductImage } from '../lib/storage';
 export const scannerPhotoRoute = new Hono();
 
 const MAX_PHOTO_BASE64_SIZE = 10 * 1024 * 1024; // ~10MB base64 ≈ ~7.5MB binary
+const photoOcrPayloadSchema = z.object({
+  allText: z.string(),
+  productName: z.string().nullable(),
+  brand: z.string().nullable(),
+  isFoodProduct: z.boolean(),
+});
 
 /**
  * POST /api/scanner/photo/ocr
@@ -50,6 +61,7 @@ scannerPhotoRoute.post('/photo/ocr', async (c) => {
     }
 
     return c.json({
+      allText: ocr.allText,
       productName: ocr.productName,
       brand: ocr.brand,
       isFoodProduct: ocr.isFoodProduct,
@@ -92,8 +104,14 @@ scannerPhotoRoute.post('/photo', async (c) => {
   }
 
   const imageBase64 = (body as { imageBase64?: string }).imageBase64;
+  const rawOcr = (body as { ocr?: unknown }).ocr;
   if (!imageBase64 || typeof imageBase64 !== 'string') {
     return c.json({ error: 'imageBase64 field is required', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  const parsedOcr = rawOcr == null ? null : photoOcrPayloadSchema.safeParse(rawOcr);
+  if (parsedOcr && !parsedOcr.success) {
+    return c.json({ error: 'Invalid ocr field', code: 'VALIDATION_ERROR' }, 400);
   }
 
   if (imageBase64.length > MAX_PHOTO_BASE64_SIZE) {
@@ -113,7 +131,16 @@ scannerPhotoRoute.post('/photo', async (c) => {
     const elapsed = () => `${Date.now() - t0}ms`;
     console.log(`📸 [photo-route] 1/6 Received photo scan — user=${userId} base64len=${imageBase64.length}`);
 
-    const identification = await identifyProductByPhoto(imageBase64);
+    let identification;
+    try {
+      identification = await identifyProductByPhoto(imageBase64, parsedOcr?.data);
+    } catch (error) {
+      if (error instanceof PhotoIdentificationError) {
+        console.log(`❌ [photo-route] Photo rejected during OCR: ${error.code} [${elapsed()}]`);
+        return c.json({ error: error.message, code: error.code }, 422);
+      }
+      throw error;
+    }
 
     if (!identification) {
       console.log(`❌ [photo-route] AI identification returned null [${elapsed()}]`);
@@ -132,8 +159,8 @@ scannerPhotoRoute.post('/photo', async (c) => {
     if (!isFoodProduct(product)) {
       console.log(`❌ [photo-route] isFoodProduct check failed for "${product.product_name}" [${elapsed()}]`);
       return c.json(
-        { error: 'Product does not appear to be a food item', code: 'PRODUCT_NOT_FOUND' },
-        404,
+        { error: 'This product does not appear to be a food item', code: 'NOT_FOOD' },
+        422,
       );
     }
 

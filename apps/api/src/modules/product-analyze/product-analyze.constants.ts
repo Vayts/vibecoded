@@ -1,0 +1,1 @@
+export const MAX_PHOTO_BASE64_SIZE = 10 * 1024 * 1024;

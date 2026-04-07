@@ -12,7 +12,7 @@ import {
   useCompareProductsMutation,
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
-import { submitPhotoScan } from '../../api/scannerMutations';
+import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
 import { useCompareStore } from '../../stores/compareStore';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerPermissionState } from '../ScannerPermissionState';
@@ -56,6 +56,7 @@ export function ScannerHomeScreen() {
 
       if (compareActive && first) {
         const firstImageBase64 = useCompareStore.getState().firstProductImageBase64;
+        const firstProductOcr = useCompareStore.getState().firstProductOcr;
 
         // Second product in compare mode — capture photo, then resolve both in parallel
         const captured = await captureAndCompress();
@@ -64,7 +65,7 @@ export function ScannerHomeScreen() {
         setIsResolvingFirstProduct(true);
         const [firstResolved, secondResolved] = await Promise.all([
           firstImageBase64
-            ? submitPhotoScan({ imageBase64: firstImageBase64 })
+            ? submitPhotoScan({ imageBase64: firstImageBase64, ocr: firstProductOcr ?? undefined })
             : Promise.resolve({ barcode: first.barcode }),
           submitPhotoScan({ imageBase64: captured.base64 }),
         ]);
@@ -94,6 +95,7 @@ export function ScannerHomeScreen() {
           payload: {
             product: productPreview,
             imageBase64: preview.imageBase64,
+            photoOcr: preview.ocr,
             onDismiss: resumeScanner,
             onAnalyzeStart: () => setIsPhotoAnalyzing(true),
           },
@@ -104,11 +106,19 @@ export function ScannerHomeScreen() {
       if (!useCompareStore.getState().isCompareMode) {
         resetCompare();
       }
+      const errorMessage = error instanceof Error ? error.message : 'Unable to identify product';
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isRetriableNotFound = errorCode === 'PRODUCT_NOT_FOUND';
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          message: error instanceof Error ? error.message : 'Unable to identify product',
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isRetriableNotFound ? 'not-found' : 'generic',
+          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : errorMessage,
           onDismiss: resumeScanner,
-          onPhotoPress: () => void capturePhotoFromSheet(),
+          onPhotoPress: isRetriableNotFound ? () => void capturePhotoFromSheet() : undefined,
         },
       });
     }
@@ -141,11 +151,12 @@ export function ScannerHomeScreen() {
 
       if (compareActive && first) {
         const firstImageBase64 = useCompareStore.getState().firstProductImageBase64;
+        const firstProductOcr = useCompareStore.getState().firstProductOcr;
 
         let barcode1: string;
         if (firstImageBase64) {
           setIsResolvingFirstProduct(true);
-          const firstResolved = await submitPhotoScan({ imageBase64: firstImageBase64 });
+          const firstResolved = await submitPhotoScan({ imageBase64: firstImageBase64, ocr: firstProductOcr ?? undefined });
           setIsResolvingFirstProduct(false);
           barcode1 = firstResolved.barcode;
         } else {
@@ -176,12 +187,19 @@ export function ScannerHomeScreen() {
         resetCompare();
       }
       const errorMessage = error instanceof Error ? error.message : 'Unable to submit barcode';
-      const isNotFound = errorMessage.toLowerCase().includes('not found');
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isNotFound =
+        errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          message: errorMessage,
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isNotFound ? 'not-found' : 'generic',
+          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : errorMessage,
           onDismiss: resumeScanner,
-          ...(isNotFound && { onPhotoPress: () => void capturePhotoFromSheet() }),
+          onPhotoPress: isNotFound ? () => void capturePhotoFromSheet() : undefined,
         },
       });
     }

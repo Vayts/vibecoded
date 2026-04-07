@@ -14,7 +14,8 @@ import { isFoodProduct } from '../services/is-food-product';
 import { getAnalysisJob } from '../services/analysis-jobs';
 import { compareProductsForProfiles } from '../services/comparison-ai';
 import { findByBarcode, createProduct } from '../repositories/productRepository';
-import { findProductIdByBarcode, createComparisonScan } from '../repositories/scanRepository';
+import { findProductIdByBarcode } from '../repositories/scanRepository';
+import { createComparison } from '../repositories/comparisonRepository';
 import { isFavouriteByBarcode } from '../repositories/favoriteRepository';
 import { getProfileInputs } from '../services/profileInputs';
 import {
@@ -245,11 +246,11 @@ scannerRoute.post('/compare', async (c) => {
       profiles: comparisonResult,
     };
 
-    // Save comparison to scan history
-    await createComparisonScan({
+    // Save comparison to history
+    await createComparison({
       userId,
-      productId1: resolved1.productId ?? undefined,
-      productId2: resolved2.productId ?? undefined,
+      product1Id: resolved1.productId ?? undefined,
+      product2Id: resolved2.productId ?? undefined,
       barcode1: parsed.data.barcode1,
       barcode2: parsed.data.barcode2,
       comparisonResult: result,
