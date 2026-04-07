@@ -33,6 +33,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
       const session = await authClient.getSession();
       set({ user: session?.user ?? null, isInitialized: true });
     } catch {
+
+      console.error('Failed to initialize auth store');
+
       set({ user: null, isInitialized: true });
     } finally {
       set({ isLoading: false });

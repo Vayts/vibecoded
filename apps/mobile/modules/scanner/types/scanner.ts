@@ -20,5 +20,6 @@ export interface ProductDecisionSheetPayload {
 }
 
 export interface ComparisonResultSheetPayload {
-  result: ProductComparisonResult;
+  result?: ProductComparisonResult;
+  scanId?: string;
 }

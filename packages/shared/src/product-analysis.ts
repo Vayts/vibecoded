@@ -180,6 +180,7 @@ export const profileProductScoreSchema = z.object({
   positives: z.array(scoreReasonSchema),
   negatives: z.array(scoreReasonSchema),
   scoreBreakdown: scoreBreakdownSchema.optional(),
+  ingredientAnalysis: z.lazy(() => ingredientAnalysisSchema).optional(),
 });
 export type ProfileProductScore = z.infer<typeof profileProductScoreSchema>;
 

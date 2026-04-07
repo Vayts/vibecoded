@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Keyboard, Pressable, ScrollView, View } from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Button } from '../../../../shared/components/Button';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
@@ -67,45 +68,45 @@ export function HealthPreferenceEditorScreen({
 
   return (
     <View className="flex-1 bg-white">
-      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-      <ScrollView
-        className="flex-1"
-        contentInsetAdjustmentBehavior="never"
+      <KeyboardAwareScrollView
+        bottomOffset={60}
         contentContainerStyle={{
-          paddingBottom: 30,
+          flexGrow: 1,
           paddingHorizontal: 16,
         }}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <View className="mt-2">
-          <Typography variant="pageTitle">{title}</Typography>
-          <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-            {description}
-          </Typography>
+        <Pressable onPress={Keyboard.dismiss}>
+          <View className="mt-2">
+            <Typography variant="pageTitle">{title}</Typography>
+            <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+              {description}
+            </Typography>
+          </View>
+
+          <View className="mt-6 rounded-2xl border border-gray-100 bg-white px-4 py-5">
+            {children}
+          </View>
+
+          {submitMessage ? (
+            <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
+              {submitMessage}
+            </Typography>
+          ) : null}
+        </Pressable>
+
+        <View className="mt-auto pt-6 pb-12">
+          <Button
+            fullWidth
+            label="Save changes"
+            loading={submitMutation.isPending}
+            onPress={() => {
+              void handleSave();
+            }}
+          />
         </View>
-
-        <View className="mt-6 rounded-2xl border border-gray-100 bg-white px-4 py-5">
-          {children}
-        </View>
-
-        {submitMessage ? (
-          <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
-            {submitMessage}
-          </Typography>
-        ) : null}
-      </ScrollView>
-      </Pressable>
-
-      <View className="border-t border-gray-100 px-4 pt-3 pb-12">
-        <Button
-          fullWidth
-          label="Save changes"
-          loading={submitMutation.isPending}
-          onPress={() => {
-            void handleSave();
-          }}
-        />
-      </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

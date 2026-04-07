@@ -90,48 +90,47 @@ const runAnalysisJob = async (
     console.log(`[Job:${jobId}] 📊 Product has nutrition data: ${productHasNutrition}`);
 
     // Step 3: AI classification + nutrition resolution + ingredient analysis (all parallel)
-    const selfProfile = profiles.find((p) => p.profileType === 'self');
-    const selfOnboarding = selfProfile?.onboarding ?? DEFAULT_ONBOARDING_RESPONSE;
-
     console.log(`[Job:${jobId}] 🧪 Step 1 — Extracting classification${productHasNutrition ? '' : ' + searching nutrition'} + ingredients...`);
     const factsStart = Date.now();
 
     let classification;
     let nutritionFacts: NutritionFacts;
-    let ingredientAnalysis: IngredientAnalysis | null = null;
+    let ingredientResults: (IngredientAnalysis | null)[];
 
-    // Ingredient analysis always runs in parallel (never blocks main pipeline)
-    const ingredientPromise = analyzeIngredients(product, selfOnboarding).catch((err) => {
-      console.warn(`[Job:${jobId}] ⚠️ Ingredient analysis failed:`, err);
-      return null;
-    });
+    // Ingredient analysis per profile — all run in parallel
+    const ingredientPromises = profiles.map((profile) =>
+      analyzeIngredients(product, profile.onboarding).catch((err) => {
+        console.warn(`[Job:${jobId}] ⚠️ Ingredient analysis failed for "${profile.name}":`, err);
+        return null;
+      }),
+    );
 
     if (productHasNutrition) {
       // Product has nutrition → just run AI classification + ingredients in parallel
       nutritionFacts = buildNutritionFacts(product);
-      const [classificationResult, ingredientResult] = await Promise.all([
+      const [classificationResult, ...ingResults] = await Promise.all([
         getProductFactsService().extractClassification(product).catch(() => {
           console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
           return buildClassificationFromData(product);
         }),
-        ingredientPromise,
+        ...ingredientPromises,
       ]);
       classification = classificationResult;
-      ingredientAnalysis = ingredientResult;
+      ingredientResults = ingResults as (IngredientAnalysis | null)[];
     } else {
       // No nutrition → run AI classification + nutrition web search + ingredients in parallel
-      const [classificationResult, webNutrition, ingredientResult] = await Promise.all([
+      const [classificationResult, webNutrition, ...ingResults] = await Promise.all([
         getProductFactsService().extractClassification(product).catch(() => {
           console.warn(`[Job:${jobId}] ⚠️ AI classification failed, using deterministic fallback`);
           return buildClassificationFromData(product);
         }),
         searchNutritionData(productName, product.brands, product.code),
-        ingredientPromise,
+        ...ingredientPromises,
       ]);
 
       classification = classificationResult;
       nutritionFacts = webNutrition ?? buildNutritionFacts(product);
-      ingredientAnalysis = ingredientResult;
+      ingredientResults = ingResults as (IngredientAnalysis | null)[];
 
       if (webNutrition) {
         console.log(`[Job:${jobId}] 🌐 Nutrition found via web search`);
@@ -140,14 +139,20 @@ const runAnalysisJob = async (
       }
     }
 
+    // Build per-profile ingredient analysis map
+    const perProfileIngredients = new Map<string, IngredientAnalysis | null>();
+    for (let i = 0; i < profiles.length; i++) {
+      perProfileIngredients.set(profiles[i].profileId, ingredientResults[i] ?? null);
+    }
+
     // Step 4: Merge classification + nutrition → ProductFacts
     const facts: ProductFacts = buildProductFacts(classification, nutritionFacts);
     console.log(`[Job:${jobId}] ✅ Facts built  ${Date.now() - factsStart}ms  type=${facts.productType}`);
 
-    // Step 5: Deterministic score engine
+    // Step 5: Deterministic score engine (per-profile ingredient analysis)
     console.log(`[Job:${jobId}] 🧮 Step 2 — Computing scores...`);
     const scoreStart = Date.now();
-    const profileScores = computeAllProfileScores(facts, profiles);
+    const profileScores = computeAllProfileScores(facts, profiles, perProfileIngredients);
     console.log(`[Job:${jobId}] ✅ Scores computed  ${Date.now() - scoreStart}ms`);
 
     for (const ps of profileScores) {
@@ -155,14 +160,14 @@ const runAnalysisJob = async (
     }
 
     // Step 6: Build final result
-    if (ingredientAnalysis) {
-      console.log(`[Job:${jobId}] 🧬 Ingredients analyzed — ${ingredientAnalysis.ingredients.length} items`);
-    }
+    const selfIngredientAnalysis = perProfileIngredients.get(
+      profiles.find((p) => p.profileType === 'self')?.profileId ?? 'you',
+    );
 
     const result: ProductAnalysisResult = {
       productFacts: facts,
       profiles: profileScores,
-      ...(ingredientAnalysis ? { ingredientAnalysis } : {}),
+      ...(selfIngredientAnalysis ? { ingredientAnalysis: selfIngredientAnalysis } : {}),
     };
 
     const job = jobs.get(jobId);

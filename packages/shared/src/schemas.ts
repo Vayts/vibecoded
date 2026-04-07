@@ -178,8 +178,20 @@ export type ProfileChip = z.infer<typeof profileChipSchema>;
 export const scanSourceSchema = z.enum(['barcode', 'photo']);
 export type ScanSource = z.infer<typeof scanSourceSchema>;
 
+export const scanTypeSchema = z.enum(['product', 'comparison']);
+export type ScanType = z.infer<typeof scanTypeSchema>;
+
+const scanHistoryProductSchema = z.object({
+  id: z.string(),
+  barcode: z.string(),
+  product_name: z.string().nullable(),
+  brands: z.string().nullable(),
+  image_url: z.string().nullable(),
+});
+
 export const scanHistoryItemSchema = z.object({
   id: z.string(),
+  type: scanTypeSchema,
   createdAt: z.string(),
   source: scanSourceSchema,
   overallScore: z.number().nullable(),
@@ -189,15 +201,8 @@ export const scanHistoryItemSchema = z.object({
   personalAnalysisStatus: analysisJobStatusSchema.nullable(),
   isFavourite: z.boolean().optional(),
   profileChips: z.array(profileChipSchema).optional(),
-  product: z
-    .object({
-      id: z.string(),
-      barcode: z.string(),
-      product_name: z.string().nullable(),
-      brands: z.string().nullable(),
-      image_url: z.string().nullable(),
-    })
-    .nullable(),
+  product: scanHistoryProductSchema.nullable(),
+  product2: scanHistoryProductSchema.nullable().optional(),
 });
 export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
 
@@ -209,6 +214,7 @@ export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
 
 export const scanDetailResponseSchema = z.object({
   id: z.string(),
+  type: scanTypeSchema,
   createdAt: z.string(),
   source: scanSourceSchema,
   overallScore: z.number().nullable(),
@@ -219,6 +225,7 @@ export const scanDetailResponseSchema = z.object({
   isFavourite: z.boolean().optional(),
   product: barcodeLookupProductSchema.nullable(),
   analysisResult: productAnalysisResultSchemaFromPA.nullable(),
+  comparisonResult: z.lazy(() => productComparisonResultSchema).nullable().optional(),
 });
 export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
 
@@ -320,6 +327,23 @@ export type ProductLookupResponse = z.infer<typeof productLookupResponseSchema>;
 // Product comparison schemas
 // ============================================================
 
+export const comparisonNutritionSchema = z.object({
+  calories: z.number().nullable(),
+  protein: z.number().nullable(),
+  fat: z.number().nullable(),
+  sugars: z.number().nullable(),
+  fiber: z.number().nullable(),
+  salt: z.number().nullable(),
+  saturatedFat: z.number().nullable(),
+  nutriscore_grade: z.string().nullable(),
+});
+export type ComparisonNutrition = z.infer<typeof comparisonNutritionSchema>;
+
+export const comparisonProductPreviewSchema = productPreviewSchema.extend({
+  nutrition: comparisonNutritionSchema,
+});
+export type ComparisonProductPreview = z.infer<typeof comparisonProductPreviewSchema>;
+
 export const productComparisonItemSchema = z.object({
   positives: z.array(z.string()),
   negatives: z.array(z.string()),
@@ -331,14 +355,14 @@ export const profileComparisonResultSchema = z.object({
   profileName: z.string(),
   product1: productComparisonItemSchema,
   product2: productComparisonItemSchema,
-  winner: z.enum(['product1', 'product2', 'tie']),
+  winner: z.enum(['product1', 'product2', 'tie', 'neither']),
   conclusion: z.string(),
 });
 export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
 
 export const productComparisonResultSchema = z.object({
-  product1: productPreviewSchema,
-  product2: productPreviewSchema,
+  product1: comparisonProductPreviewSchema,
+  product2: comparisonProductPreviewSchema,
   profiles: z.array(profileComparisonResultSchema),
 });
 export type ProductComparisonResult = z.infer<typeof productComparisonResultSchema>;

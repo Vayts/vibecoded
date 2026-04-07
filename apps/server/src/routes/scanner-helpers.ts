@@ -5,6 +5,7 @@ import {
   type ScannerLookupSource,
   type NormalizedProduct,
   type ProductPreview,
+  type ComparisonProductPreview,
 } from '@acme/shared';
 import { createAnalysisJob, createCachedAnalysisJob } from '../services/analysis-jobs';
 import { findByBarcode, createProduct } from '../repositories/productRepository';
@@ -118,4 +119,21 @@ export const toProductPreview = (product: NormalizedProduct, productId: string):
   product_name: product.product_name,
   brands: product.brands,
   image_url: product.image_url,
+});
+
+export const toComparisonProductPreview = (
+  product: NormalizedProduct,
+  productId: string,
+): ComparisonProductPreview => ({
+  ...toProductPreview(product, productId),
+  nutrition: {
+    calories: product.nutrition.energy_kcal_100g,
+    protein: product.nutrition.proteins_100g,
+    fat: product.nutrition.fat_100g,
+    sugars: product.nutrition.sugars_100g,
+    fiber: product.nutrition.fiber_100g,
+    salt: product.nutrition.salt_100g,
+    saturatedFat: product.nutrition.saturated_fat_100g,
+    nutriscore_grade: product.scores.nutriscore_grade,
+  },
 });

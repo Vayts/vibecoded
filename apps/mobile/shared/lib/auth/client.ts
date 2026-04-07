@@ -75,11 +75,14 @@ export async function signOut(): Promise<void> {
 
 export async function getSession(): Promise<AuthSession | null> {
   try {
-    const { data } = await betterAuthClient.getSession();
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('getSession timeout')), 8000),
+    );
+    const { data } = await Promise.race([betterAuthClient.getSession(), timeout]);
     if (!data) return null;
     return toAuthSession(data as unknown as Record<string, unknown>);
-  } catch {
-    // Network error or timeout — surface null so caller keeps existing state
+  } catch (err) {
+    console.warn('[Auth] getSession failed:', err instanceof Error ? err.message : err);
     return null;
   }
 }

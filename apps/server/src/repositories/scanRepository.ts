@@ -1,4 +1,4 @@
-import type { ProductAnalysisResult } from '@acme/shared';
+import type { ProductAnalysisResult, ProductComparisonResult } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 import type { ScanSource, PersonalAnalysisStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -39,6 +39,29 @@ export const createScan = async (input: CreateScanInput) => {
       evaluation: Prisma.JsonNull,
       personalResult: Prisma.JsonNull,
       photoImagePath: input.photoImagePath ?? null,
+    },
+  });
+};
+
+interface CreateComparisonScanInput {
+  userId: string;
+  productId1?: string;
+  productId2?: string;
+  barcode1: string;
+  barcode2: string;
+  comparisonResult: ProductComparisonResult;
+}
+
+export const createComparisonScan = async (input: CreateComparisonScanInput) => {
+  return prisma.scan.create({
+    data: {
+      userId: input.userId,
+      type: 'comparison',
+      productId: input.productId1 ?? null,
+      product2Id: input.productId2 ?? null,
+      barcode: `${input.barcode1}|${input.barcode2}`,
+      source: 'barcode',
+      comparisonResult: input.comparisonResult as unknown as Prisma.InputJsonValue,
     },
   });
 };
@@ -85,6 +108,15 @@ export const findScansByUserId = async (userId: string, cursor?: string, limit?:
           image_url: true,
         },
       },
+      product2: {
+        select: {
+          id: true,
+          barcode: true,
+          product_name: true,
+          brands: true,
+          image_url: true,
+        },
+      },
     },
   });
 
@@ -100,6 +132,7 @@ export const findScanById = async (scanId: string, userId: string) => {
     where: { id: scanId, userId },
     include: {
       product: true,
+      product2: true,
     },
   });
 };

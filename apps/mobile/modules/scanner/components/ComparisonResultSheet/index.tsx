@@ -1,24 +1,56 @@
 import type { ProductComparisonResult, ProfileComparisonResult } from '@acme/shared';
-import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import ActionSheet, { SheetManager, useSheetPayload, ScrollView } from 'react-native-actions-sheet';
 import { Button } from '../../../../shared/components/Button';
+import { ProfileChips } from '../../../../shared/components/ProfileChips';
 import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useCompareStore } from '../../stores/compareStore';
-import { ComparisonConclusion } from './ComparisonConclusion';
-import { ProductComparisonBlock } from './ProductComparisonBlock';
-import { ProfileChips } from './ProfileChips';
+import { ComparisonProductCard } from './ComparisonProductCard';
+import { MetricsSummaryRow, NutritionComparison } from './MetricRow';
+import { VerdictCard } from './VerdictCard';
 
 export function ComparisonResultSheet() {
   const payload = useSheetPayload(SheetsEnum.ComparisonResultSheet);
   const resetCompare = useCompareStore((s) => s.reset);
-  const result: ProductComparisonResult | undefined = payload?.result;
+
+  const scanId = payload?.scanId;
+  const { data: scanDetail, isLoading } = useScanDetailQuery(scanId);
+
+  const result: ProductComparisonResult | undefined =
+    payload?.result ?? (scanDetail?.comparisonResult as ProductComparisonResult | undefined);
+
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
 
-  if (!result) return null;
+  const profiles = result?.profiles;
+  const chipItems = useMemo(
+    () => profiles?.map((p) => ({ id: p.profileId, name: p.profileName })) ?? [],
+    [profiles],
+  );
 
-  const profiles = result.profiles;
+  const handleClose = () => {
+    resetCompare();
+    void SheetManager.hide(SheetsEnum.ComparisonResultSheet);
+  };
+
+  if (scanId && isLoading) {
+    return (
+      <ActionSheet gestureEnabled containerStyle={{ maxHeight: '90%' }}>
+        <View className="items-center justify-center px-6 py-12">
+          <ActivityIndicator color={COLORS.primary} size="large" />
+          <Typography variant="bodySecondary" className="mt-3 text-gray-500">
+            Loading comparison…
+          </Typography>
+        </View>
+      </ActionSheet>
+    );
+  }
+
+  if (!result || !profiles) return null;
+
   const activeProfileId =
     profiles.find((p) => p.profileId === selectedProfileId)?.profileId ??
     profiles[0]?.profileId ??
@@ -27,51 +59,54 @@ export function ComparisonResultSheet() {
     (p) => p.profileId === activeProfileId,
   );
 
-  const handleClose = () => {
-    resetCompare();
-    void SheetManager.hide(SheetsEnum.ComparisonResultSheet);
-  };
+  const hasNutrition =
+    result.product1.nutrition !== undefined && result.product2.nutrition !== undefined;
 
   return (
-    <ActionSheet gestureEnabled containerStyle={{ maxHeight: '90%' }}>
-      <ScrollView className="px-6 pb-6 pt-2" showsVerticalScrollIndicator={false}>
+    <ActionSheet useBottomSafeAreaPadding={false} gestureEnabled containerStyle={{ maxHeight: '90%' }}>
+      <ScrollView className="px-6 pt-2" contentContainerClassName='pb-20' showsVerticalScrollIndicator={false}>
         <Typography variant="pageTitle" className="mb-4 text-center">
           Comparison
         </Typography>
 
-        {/* Profile Chips */}
         <ProfileChips
-          profiles={profiles}
+          profiles={chipItems}
           selectedProfileId={activeProfileId}
           onSelect={setSelectedProfileId}
+          className="mb-4"
         />
 
         {activeProfile ? (
-          <View className="gap-3">
-            <ProductComparisonBlock
-              product={result.product1}
-              comparison={activeProfile.product1}
-              label="Product 1"
-              isWinner={activeProfile.winner === 'product1'}
-            />
-
-            <View className="items-center py-1">
-              <Typography variant="bodySecondary" className="font-semibold text-gray-300">
-                vs
-              </Typography>
+          <View className="gap-4">
+            <View className="flex-row gap-3">
+              <ComparisonProductCard
+                product={result.product1}
+                label="Product A"
+                isWinner={activeProfile.winner === 'product1'}
+                isNeither={activeProfile.winner === 'neither'}
+              />
+              <ComparisonProductCard
+                product={result.product2}
+                label="Product B"
+                isWinner={activeProfile.winner === 'product2'}
+                isNeither={activeProfile.winner === 'neither'}
+              />
             </View>
 
-            <ProductComparisonBlock
-              product={result.product2}
-              comparison={activeProfile.product2}
-              label="Product 2"
-              isWinner={activeProfile.winner === 'product2'}
+            {/* Verdict card */}
+            <VerdictCard
+              profile={activeProfile}
+              product1={result.product1}
+              product2={result.product2}
             />
 
-            <ComparisonConclusion
-              conclusion={activeProfile.conclusion}
-              winner={activeProfile.winner}
-            />
+            {/* Detailed nutrition bars */}
+            {hasNutrition ? (
+              <NutritionComparison
+                nutritionA={result.product1.nutrition}
+                nutritionB={result.product2.nutrition}
+              />
+            ) : null}
           </View>
         ) : (
           <View className="items-center py-8">

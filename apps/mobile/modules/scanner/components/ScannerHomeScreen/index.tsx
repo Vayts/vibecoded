@@ -149,6 +149,8 @@ export function ScannerHomeScreen() {
     );
   }
 
+  const isProcessing = isPhotoPending || compareMutation.isPending || lookupMutation.isPending;
+
   const statusMessage = isPhotoPending
     ? 'Identifying product\u2026'
     : compareMutation.isPending
@@ -160,18 +162,18 @@ export function ScannerHomeScreen() {
   return (
     <View className="flex-1 bg-black">
       <CameraView
-        active
+        active={!isScannerPaused}
         barcodeScannerSettings={{
           barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
         }}
         facing="back"
         onBarcodeScanned={isScannerPaused ? undefined : handleBarcodeScanned}
-        style={{ flex: 1 }}
+        style={{ flex: 1, opacity: isScannerPaused ? 0 : 1 }}
       />
 
-      {isLocked ? (
-        <View className="absolute inset-0 items-center justify-center bg-black/35 px-6">
-          <View className="items-center rounded-xl bg-black/70 px-5 py-4">
+      {isLocked && isProcessing ? (
+        <View className="absolute inset-0 items-center justify-center px-6">
+          <View className="items-center rounded-xl bg-white/10 px-5 py-4">
             <ActivityIndicator color={COLORS.white} />
             <Typography variant="bodySecondary" className="mt-3 text-center text-white">
               {statusMessage}
