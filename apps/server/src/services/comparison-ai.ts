@@ -41,7 +41,7 @@ const profileComparisonOutputSchema = z.object({
   profileLabel: z.string().describe('The exact profile label from the prompt (e.g. "A", "B")'),
   product1: comparisonItemSchema,
   product2: comparisonItemSchema,
-  winner: z.enum(['product1', 'product2', 'tie', 'neither']).describe('Which product is better for this profile. Use "neither" when BOTH products violate dietary restrictions or allergens'),
+  winner: z.enum(['product1', 'product2', 'tie', 'neither']).describe('Which product is better for this profile. Use "neither" ONLY when BOTH products violate dietary restrictions or allergens. NEVER use "tie" — always pick a winner based on nutrition if nothing else differentiates them'),
   conclusion: z.string().describe('One sentence explaining which product is better and why, max 25 words'),
 });
 
@@ -88,7 +88,7 @@ For each product, produce 2-4 positives and 0-4 negatives. All bullets must be C
 - A Tier 1 violation → negative. The other product gets a positive ONLY if user has that restriction.
 - Only mention dietary compatibility as a positive if the OTHER product violates it.
 
-Winner: Tier 1 violation in one product → other wins. BOTH products have Tier 1 violations → "neither" (neither product is suitable). Otherwise → better nutrition/ingredients. Tier 2 alone doesn't decide. Truly equal → "tie".
+Winner: Tier 1 violation in one product → other wins. BOTH products have Tier 1 violations → "neither" (neither product is suitable). Otherwise → better nutrition/ingredients wins. Tier 2 alone doesn't decide. NEVER return "tie" — if products seem equal, compare nutrition metrics (lower calories, higher protein/fiber, lower sugar/fat/salt) to pick a winner. There is ALWAYS a nutritionally better product.
 Conclusion: one sentence, max 25 words. For "neither": explain why both products are incompatible.
 
 Analyze each profile INDEPENDENTLY.`;
@@ -270,6 +270,33 @@ const getModel = (): ChatOpenAI => {
   return cachedModel;
 };
 
+// ── Nutrition-based tiebreaker (deterministic fallback) ──────────────
+
+/**
+ * When the AI returns 'tie', pick a winner based on nutrition metrics.
+ * Each metric awards +1 to the winner. Most wins → overall winner.
+ */
+const breakTieByNutrition = (
+  p1: NormalizedProduct,
+  p2: NormalizedProduct,
+): 'product1' | 'product2' => {
+  let score1 = 0;
+  let score2 = 0;
+
+  for (const metric of NUTRITION_METRICS) {
+    const v1 = metric.getValue(p1);
+    const v2 = metric.getValue(p2);
+    if (v1 === null || v2 === null || v1 === v2) continue;
+
+    const p1Wins = metric.higherBetter ? v1 > v2 : v1 < v2;
+    if (p1Wins) score1++;
+    else score2++;
+  }
+
+  // Default to product1 if truly identical nutrition
+  return score1 >= score2 ? 'product1' : 'product2';
+};
+
 export const compareProductsForProfiles = async (
   product1: NormalizedProduct,
   product2: NormalizedProduct,
@@ -309,6 +336,12 @@ export const compareProductsForProfiles = async (
     const userRestrictions = profile.onboarding.restrictions;
     const userAllergies = profile.onboarding.allergies;
 
+    // Break ties deterministically using nutrition metrics
+    const resolvedWinner =
+      profileResult.winner === 'tie'
+        ? breakTieByNutrition(product1, product2)
+        : profileResult.winner;
+
     return {
       profileId: profile.profileId,
       profileName: profile.profileName,
@@ -320,7 +353,7 @@ export const compareProductsForProfiles = async (
         positives: filterComparisonPositives(profileResult.product2.positives, userRestrictions),
         negatives: filterComparisonNegatives(profileResult.product2.negatives, userAllergies),
       },
-      winner: profileResult.winner,
+      winner: resolvedWinner,
       conclusion: profileResult.conclusion,
     };
   });

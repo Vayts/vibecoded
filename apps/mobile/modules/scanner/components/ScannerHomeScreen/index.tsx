@@ -1,6 +1,6 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -43,31 +43,61 @@ export function ScannerHomeScreen() {
 
   const { capturePhoto, isPending: isPhotoPending } = usePhotoCapture();
 
-  // Photo capture without lock guard — used when scanner is already locked (e.g. from error sheet).
+  // Shared photo capture handler — routes to compare or decision sheet based on state.
   const capturePhotoFromSheet = useCallback(async () => {
     try {
       const result = await capturePhoto();
       if (!result) { resumeScanner(); return; }
-      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { result }, onClose: resumeScanner,
-      });
+
+      const compareActive = useCompareStore.getState().isCompareMode;
+      const first = useCompareStore.getState().firstProduct;
+
+      if (compareActive && first) {
+        // Photo is the second product — trigger comparison
+        const compResult = await compareMutation.mutateAsync({
+          barcode1: first.barcode,
+          barcode2: result.barcode,
+        });
+        resetCompare();
+        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
+          payload: { result: compResult },
+          onClose: resumeScanner,
+        });
+      } else {
+        // Non-compare: show ProductDecisionSheet (same as barcode flow)
+        const productPreview = {
+          productId: result.productId ?? '',
+          barcode: result.barcode,
+          product_name: result.product.product_name,
+          brands: result.product.brands,
+          image_url: result.product.image_url,
+        };
+        await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
+          payload: { product: productPreview, onDismiss: resumeScanner },
+        });
+      }
     } catch (error) {
+      // In compare mode, don't reset — preserve first product for retry
+      if (!useCompareStore.getState().isCompareMode) {
+        resetCompare();
+      }
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
           message: error instanceof Error ? error.message : 'Unable to identify product',
           onDismiss: resumeScanner,
+          onPhotoPress: () => void capturePhotoFromSheet(),
         },
       });
     }
-  }, [capturePhoto, resumeScanner]);
+  }, [capturePhoto, compareMutation, resetCompare, resumeScanner]);
 
   const handlePhotoPress = useCallback(async () => {
-    if (scanLockRef.current || isCompareMode) return;
+    if (scanLockRef.current) return;
     scanLockRef.current = true;
     setIsLocked(true);
     setIsScannerPaused(true);
     await capturePhotoFromSheet();
-  }, [capturePhotoFromSheet, isCompareMode]);
+  }, [capturePhotoFromSheet]);
 
   const submitBarcode = useCallback(async (barcode: string) => {
     const normalized = barcode.trim();
@@ -106,7 +136,10 @@ export function ScannerHomeScreen() {
         });
       }
     } catch (error) {
-      resetCompare();
+      // Only reset compare if NOT in compare mode (avoid losing first product on retry)
+      if (!useCompareStore.getState().isCompareMode) {
+        resetCompare();
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unable to submit barcode';
       const isNotFound = errorMessage.toLowerCase().includes('not found');
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
@@ -120,7 +153,9 @@ export function ScannerHomeScreen() {
   }, [capturePhotoFromSheet, compareMutation, lookupMutation, resetCompare, resumeScanner]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
-    if (bounds && scanFrameBounds.current) {
+    // On Android, barcode bounds use a different coordinate space than measureInWindow,
+    // so frame-filtering only works reliably on iOS.
+    if (Platform.OS === 'ios' && bounds && scanFrameBounds.current) {
       const frame = scanFrameBounds.current;
       const centerX = bounds.origin.x + bounds.size.width / 2;
       const centerY = bounds.origin.y + bounds.size.height / 2;
@@ -203,7 +238,9 @@ export function ScannerHomeScreen() {
 
             <View className="mb-5 rounded-full bg-black/50 px-4 py-2">
               <Typography variant="bodySecondary" className="text-center text-white">
-                {isCompareMode ? 'Scan second barcode' : 'Align the barcode inside the frame'}
+                {isCompareMode
+                  ? 'Scan or photograph the second product'
+                  : 'Align the barcode inside the frame'}
               </Typography>
             </View>
             <View
