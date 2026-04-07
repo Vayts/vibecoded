@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type {
-  AnalysisJobResponse,
   BarcodeLookupNotFoundResponse,
   BarcodeLookupSuccessResponse,
   NormalizedProduct,
   ProductComparisonResult,
 } from '@acme/shared';
-import { getAnalysisJob } from './services/analysis-jobs';
 import { compareProductsForProfiles } from './services/comparison-ai';
 import { isFoodProduct } from './services/is-food-product';
 import {
@@ -26,13 +24,13 @@ import { createComparison } from './repositories/comparisonRepository';
 import { isFavouriteByBarcode } from './repositories/favoriteRepository';
 import { createProduct, findByBarcode } from './repositories/productRepository';
 import { findProductIdByBarcode } from './repositories/scanRepository';
+import { AnalysisOrchestratorService } from './services/analysis-orchestrator.service';
 import { ApiError } from '../../shared/errors/api-error';
 import type {
   AnalyzePhotoInput,
   PhotoOcrPayload,
 } from './product-analyze.schemas';
 import {
-  buildSuccessResponse,
   createNotFoundResponse,
   resolveProduct,
   toComparisonProductPreview,
@@ -42,6 +40,10 @@ import { attachPhotoImagePath } from './utils/attach-photo-image-path';
 
 @Injectable()
 export class ProductAnalyzeService {
+  constructor(
+    private readonly analysisOrchestrator: AnalysisOrchestratorService,
+  ) {}
+
   private async resolveNormalizedProductByBarcode(barcode: string): Promise<{
     product: NormalizedProduct | null;
     source: 'openfoodfacts' | 'websearch';
@@ -94,42 +96,41 @@ export class ProductAnalyzeService {
       return createNotFoundResponse(barcode, resolvedProduct.source);
     }
 
-    const response = await buildSuccessResponse(
-      barcode,
-      resolvedProduct.source,
-      resolvedProduct.product,
-      userId,
+    const productId = await findProductIdByBarcode(
+      resolvedProduct.product.code,
     );
+    const [analysisState, isFavourite] = await Promise.all([
+      this.analysisOrchestrator.startAnalysis({
+        product: resolvedProduct.product,
+        productId: productId ?? undefined,
+        userId,
+        scanSource: 'barcode',
+      }),
+      userId
+        ? isFavouriteByBarcode(userId, resolvedProduct.product.code)
+        : Promise.resolve(undefined),
+    ]);
+
+    const response = {
+      success: true as const,
+      barcode,
+      source: resolvedProduct.source,
+      product: resolvedProduct.product,
+      personalAnalysis: analysisState.analysis,
+      scanId: analysisState.scanId,
+      productId: productId ?? undefined,
+    };
 
     if (userId) {
-      const [isFavourite, productId] = await Promise.all([
-        isFavouriteByBarcode(userId, response.barcode),
-        findProductIdByBarcode(response.barcode),
-      ]);
-
       return {
         ...response,
         isFavourite,
-        productId: productId ?? undefined,
       };
     }
 
-    const productId = await findProductIdByBarcode(response.barcode);
-
     return {
       ...response,
-      productId: productId ?? undefined,
     };
-  }
-
-  getPersonalAnalysis(jobId: string): AnalysisJobResponse {
-    const job = getAnalysisJob(jobId);
-
-    if (!job) {
-      throw ApiError.notFound('Analysis job not found');
-    }
-
-    return job;
   }
 
   async lookupProduct(
@@ -300,22 +301,25 @@ export class ProductAnalyzeService {
         }
       }
 
-      const response = await buildSuccessResponse(
-        savedProduct.code,
-        'photo',
-        savedProduct,
-        input.userId,
-        'photo',
-        photoImagePath ?? undefined,
-      );
-
-      const [isFavourite, productId] = await Promise.all([
-        isFavouriteByBarcode(input.userId, response.barcode),
-        findProductIdByBarcode(response.barcode),
+      const productId = await findProductIdByBarcode(savedProduct.code);
+      const [analysisState, isFavourite] = await Promise.all([
+        this.analysisOrchestrator.startAnalysis({
+          product: savedProduct,
+          productId: productId ?? undefined,
+          userId: input.userId,
+          scanSource: 'photo',
+          photoImagePath: photoImagePath ?? undefined,
+        }),
+        isFavouriteByBarcode(input.userId, savedProduct.code),
       ]);
 
       return {
-        ...response,
+        success: true,
+        barcode: savedProduct.code,
+        source: 'photo',
+        product: savedProduct,
+        personalAnalysis: analysisState.analysis,
+        scanId: analysisState.scanId,
         isFavourite,
         productId: productId ?? undefined,
         photoImagePath: photoImagePath ?? undefined,

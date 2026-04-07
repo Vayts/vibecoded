@@ -26,6 +26,7 @@ type HistoryProduct = {
 type ProductScanHistoryRecord = {
   id: string;
   type: 'product' | 'comparison';
+  personalAnalysisJobId: string | null;
   createdAt: Date;
   source: 'barcode' | 'photo';
   overallScore: number | null;
@@ -164,6 +165,7 @@ export class ScansService {
     return {
       id: scan.id,
       type: scan.type,
+      analysisId: scan.personalAnalysisJobId ?? null,
       createdAt: scan.createdAt.toISOString(),
       source: scan.source,
       overallScore: scan.overallScore,
@@ -224,6 +226,7 @@ export class ScansService {
     return {
       id: scan.id,
       type: scan.type,
+      analysisId: scan.personalAnalysisJobId ?? null,
       createdAt: scan.createdAt.toISOString(),
       source: scan.source,
       overallScore: scan.overallScore,

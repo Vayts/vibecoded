@@ -1,7 +1,15 @@
-import type { BarcodeLookupProduct, BarcodeLookupResponse } from '@acme/shared';
+import type {
+  BarcodeLookupProduct,
+  BarcodeLookupResponse,
+  ProductPreview,
+} from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import type { ScannerMutationResponse } from '../../types/scanner';
+
+type ProductImageSource =
+  | BarcodeLookupProduct
+  | ProductPreview;
 
 type GradeKey = 'a' | 'b' | 'c' | 'd' | 'e';
 
@@ -54,11 +62,13 @@ export const formatGrade = (grade: string | null | undefined): string => {
 };
 
 export const getProductImageUri = (
-  product: BarcodeLookupProduct,
+  product: ProductImageSource,
   previewImageUri?: string | null,
 ): string | null => {
+  const frontImageUrl = 'images' in product ? product.images.front_url : null;
+
   return (
-    resolveStorageUri(product.images.front_url) ??
+    resolveStorageUri(frontImageUrl) ??
     resolveStorageUri(product.image_url) ??
     previewImageUri ??
     null

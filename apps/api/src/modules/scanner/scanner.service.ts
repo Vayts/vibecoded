@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import type {
-  AnalysisJobResponse,
   BarcodeLookupResponse,
   CompareProductsRequest,
   ProductComparisonResult,
@@ -31,10 +30,6 @@ export class ScannerService {
     }
 
     return this.productAnalyzeService.scanBarcode(parsed.data.barcode, userId);
-  }
-
-  getPersonalAnalysis(jobId: string): AnalysisJobResponse {
-    return this.productAnalyzeService.getPersonalAnalysis(jobId);
   }
 
   async lookupProduct(body: unknown): Promise<{

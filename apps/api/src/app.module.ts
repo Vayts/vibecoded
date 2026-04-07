@@ -9,6 +9,7 @@ import { ProductAnalyzeModule } from './modules/product-analyze/product-analyze.
 import { ScannerModule } from './modules/scanner/scanner.module';
 import { ScannerPhotoModule } from './modules/scanner-photo/scanner-photo.module';
 import { ScansModule } from './modules/scans/scans.module';
+import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { UserModule } from './modules/user/user.module';
     ScannerPhotoModule,
     ScansModule,
     ComparisonsModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

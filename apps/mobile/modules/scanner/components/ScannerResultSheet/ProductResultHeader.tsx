@@ -1,4 +1,4 @@
-import type { BarcodeLookupProduct } from '@acme/shared';
+import type { BarcodeLookupProduct, ProductPreview } from '@acme/shared';
 import { Barcode } from 'lucide-react-native';
 import { Image, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
@@ -6,8 +6,10 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { getProductImageUri } from './productResultHelpers';
 import { FavouriteButton } from './FavouriteButton';
 
+type ProductHeaderData = BarcodeLookupProduct | ProductPreview;
+
 interface ProductResultHeaderProps {
-  product: BarcodeLookupProduct;
+  product: ProductHeaderData;
   previewImageUri?: string | null;
   productId?: string | null;
   isFavourite?: boolean;

@@ -21,14 +21,18 @@ interface PersonalTabContentProps {
 export function PersonalTabContent({ personalResult, isError, onRetry, rawIngredients, rawIngredientsText }: PersonalTabContentProps) {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('you');
 
-  const profiles = personalResult?.status === 'completed' ? personalResult.result?.profiles : undefined;
+  const analysisResult = personalResult?.result;
+  const profiles = analysisResult?.profiles;
+  const hasProductAnalysis = Boolean(analysisResult && profiles?.length);
+  const isIngredientAnalysisPending =
+    !hasProductAnalysis || personalResult?.ingredientsStatus === 'pending';
 
   const chipItems: ProfileChipItem[] = useMemo(
     () => profiles?.map((p) => ({ id: p.profileId, name: p.name, score: p.score })) ?? [],
     [profiles],
   );
 
-  if (personalResult?.status === 'completed' && personalResult.result && profiles) {
+  if (hasProductAnalysis && profiles) {
     const hasMultipleProfiles = profiles.length > 1;
 
     // Ensure selected profile exists, fallback to first
@@ -41,7 +45,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
 
     // Per-profile ingredient analysis, fallback to global analysis for backward compat
     const profileIngredientAnalysis =
-      activeProfile.ingredientAnalysis ?? personalResult.result.ingredientAnalysis;
+      activeProfile.ingredientAnalysis ?? analysisResult?.ingredientAnalysis;
 
     return (
       <View>
@@ -60,6 +64,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
           <IngredientsSection
             rawIngredients={rawIngredients}
             rawIngredientsText={rawIngredientsText}
+            isPending={isIngredientAnalysisPending}
             analysis={profileIngredientAnalysis}
           />
         </View>
@@ -74,6 +79,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
         <IngredientsSection
           rawIngredients={rawIngredients}
           rawIngredientsText={rawIngredientsText}
+          isPending={false}
         />
       </View>
     );
@@ -81,10 +87,9 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
 
   return (
     <View className="px-4">
-      <PersonalAnalysisLoader />
-      <IngredientsSection
-        rawIngredients={rawIngredients}
-        rawIngredientsText={rawIngredientsText}
+      <PersonalAnalysisLoader
+        title="Analyzing product..."
+        description="We&apos;re scoring this product for your profile."
       />
     </View>
   );

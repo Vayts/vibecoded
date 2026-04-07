@@ -8,7 +8,7 @@ import type { PhotoOcrData } from '../types/scanner';
 export interface PhotoPreviewResult {
   productName: string | null;
   brand: string | null;
-  imageBase64: string;
+  photoUri: string;
   localImageUri: string;
   ocr: PhotoOcrData;
 }
@@ -33,31 +33,31 @@ export function usePhotoCapture() {
 
     const { uri, width, height } = pickerResult.assets[0];
     const compressed = await compressImage(uri, width, height);
-    return { base64: compressed.base64, localUri: uri };
+    return { uploadUri: compressed.uri, localUri: uri };
   }, []);
 
   /** Full pipeline: camera → compress → identify product (for compare second product) */
   const capturePhoto = useCallback(async (): Promise<BarcodeLookupSuccessResponse | null> => {
     const captured = await launchCamera();
     if (!captured) return null;
-    return photoMutation.mutateAsync({ imageBase64: captured.base64 });
+    return photoMutation.mutateAsync({ photoUri: captured.uploadUri });
   }, [launchCamera, photoMutation]);
 
   /** OCR-only: camera → compress → extract text (fast preview for decision sheet) */
   const capturePhotoPreview = useCallback(async (): Promise<PhotoPreviewResult | null> => {
     const captured = await launchCamera();
     if (!captured) return null;
-    const ocr = await ocrMutation.mutateAsync({ imageBase64: captured.base64 });
+    const ocr = await ocrMutation.mutateAsync({ photoUri: captured.uploadUri });
     return {
       productName: ocr.productName,
       brand: ocr.brand,
-      imageBase64: captured.base64,
+      photoUri: captured.uploadUri,
       localImageUri: captured.localUri,
       ocr,
     };
   }, [launchCamera, ocrMutation]);
 
-  /** Camera → compress only, returns base64 + localUri without any API call */
+  /** Camera → compress only, returns upload URI + local preview URI without any API call */
   const captureAndCompress = useCallback(async () => {
     return launchCamera();
   }, [launchCamera]);

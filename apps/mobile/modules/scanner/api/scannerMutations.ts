@@ -101,18 +101,41 @@ export const compareProducts = async (
 };
 
 export interface PhotoScanRequest {
-  imageBase64: string;
+  photoUri: string;
   ocr?: PhotoOcrData;
 }
 
 export type PhotoOcrResponse = PhotoOcrData;
+
+interface ReactNativeFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
+  const formData = new FormData();
+  const photoFile: ReactNativeFile = {
+    uri: payload.photoUri,
+    name: 'scanner-photo.jpg',
+    type: 'image/jpeg',
+  };
+
+  formData.append('photo', photoFile as unknown as Blob);
+
+  if (payload.ocr) {
+    formData.append('ocr', JSON.stringify(payload.ocr));
+  }
+
+  return formData;
+};
 
 export const submitPhotoOcr = async (
   payload: PhotoScanRequest,
 ): Promise<PhotoOcrResponse> => {
   const response = await apiFetch('/api/scanner/photo/ocr', {
     method: 'POST',
-    body: JSON.stringify({ imageBase64: payload.imageBase64 }),
+    body: buildPhotoFormData(payload),
   });
 
   if (!response.ok) {
@@ -127,7 +150,7 @@ export const submitPhotoScan = async (
 ): Promise<BarcodeLookupSuccessResponse> => {
   const response = await apiFetch('/api/scanner/photo', {
     method: 'POST',
-    body: JSON.stringify({ imageBase64: payload.imageBase64, ocr: payload.ocr }),
+    body: buildPhotoFormData(payload),
   });
 
   if (!response.ok) {

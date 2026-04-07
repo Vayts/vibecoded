@@ -5,59 +5,87 @@ import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { ScannerApiError } from '../../api/scannerMutations';
 import type { ProductDecisionSheetPayload } from '../../types/scanner';
 import { useCompareStore } from '../../stores/compareStore';
+import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import { useScanBarcodeMutation, usePhotoScanMutation } from '../../hooks/useScannerMutations';
 
 export function ProductDecisionSheet() {
   const payload = useSheetPayload(SheetsEnum.ProductDecisionSheet) as ProductDecisionSheetPayload | null;
-  // Track whether the sheet is being hidden by an action (Analyze/Compare)
-  // vs. user swipe-to-dismiss. Only swipe-dismiss should call onDismiss here.
   const actionTakenRef = useRef(false);
   const product = payload?.product;
-  const imageBase64 = payload?.imageBase64;
+  const photoUri = payload?.photoUri;
   const photoOcr = payload?.photoOcr;
   const onDismiss = payload?.onDismiss;
-  const onAnalyzeStart = payload?.onAnalyzeStart;
   const startCompare = useCompareStore((s) => s.startCompare);
+  const startResultSession = useScannerResultSheetStore((s) => s.startSession);
+  const hydrateResultSession = useScannerResultSheetStore((s) => s.hydrateSession);
+  const resetResultSession = useScannerResultSheetStore((s) => s.reset);
   const barcodeMutation = useScanBarcodeMutation();
   const photoMutation = usePhotoScanMutation();
 
   if (!product) return null;
 
-  const isPhoto = Boolean(imageBase64);
+  const isPhoto = Boolean(photoUri);
   const resolvedImageUrl = isPhoto ? product.image_url : resolveStorageUri(product.image_url);
   const isPending = barcodeMutation.isPending || photoMutation.isPending;
 
   const handleAnalyze = async () => {
     actionTakenRef.current = true;
-    onAnalyzeStart?.();
+    const sessionId = startResultSession();
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
+    void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+      payload: {
+        previewProduct: product,
+        previewImageUri: resolvedImageUrl,
+      },
+      onClose: onDismiss,
+    });
+
     try {
-      if (imageBase64) {
+      if (photoUri) {
         // Photo flow: run full identification + analysis
-        const result = await photoMutation.mutateAsync({ imageBase64, ocr: photoOcr });
-        await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-          payload: { result },
-          onClose: onDismiss,
-        });
+        const result = await photoMutation.mutateAsync({ photoUri, ocr: photoOcr });
+        hydrateResultSession(sessionId, result);
       } else {
         // Barcode flow: trigger analysis by barcode
         const result = await barcodeMutation.mutateAsync({ barcode: product.barcode });
-        await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-          payload: { result },
-          onClose: onDismiss,
-        });
+        hydrateResultSession(sessionId, result);
       }
-    } catch {
-      onDismiss?.();
+    } catch (error) {
+      resetResultSession();
+      await SheetManager.hide(SheetsEnum.ScannerResultSheet);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unable to analyze product';
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isPhotoNotFound = Boolean(photoUri) && errorCode === 'PRODUCT_NOT_FOUND';
+
+      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
+        payload: {
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isPhotoNotFound ? 'not-found' : 'generic',
+          title:
+            errorCode === 'NOT_FOOD'
+              ? 'This is not a food product'
+              : isPhotoNotFound
+                ? 'Product not found'
+                : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : isPhotoNotFound
+                ? 'We couldn\'t identify a product from this photo. Try taking another photo with the full package visible.'
+                : errorMessage,
+          onDismiss,
+        },
+      });
     }
   };
 
   const handleCompare = async () => {
     actionTakenRef.current = true;
-    // Store product + imageBase64 (if photo) for deferred resolution when second product is scanned
-    startCompare(product, imageBase64, photoOcr);
+    // Store product + photo URI (if photo) for deferred resolution when second product is scanned
+    startCompare(product, photoUri, photoOcr);
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
     onDismiss?.();
   };

@@ -1,4 +1,9 @@
-import type { BarcodeLookupResponse, ProductPreview, ProductComparisonResult } from '@acme/shared';
+import type {
+  AnalysisJobResponse,
+  BarcodeLookupResponse,
+  ProductComparisonResult,
+  ProductPreview,
+} from '@acme/shared';
 
 export type ScannerMutationResponse = BarcodeLookupResponse;
 
@@ -16,17 +21,18 @@ export type ScannerResultOrigin = 'barcode';
 export interface ScannerResultSheetPayload {
   result?: ScannerMutationResponse;
   scanId?: string;
+  previewProduct?: ProductPreview;
   previewImageUri?: string | null;
+  resolvedPersonalResult?: AnalysisJobResponse;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
 }
 
 export interface ProductDecisionSheetPayload {
   product: ProductPreview;
-  imageBase64?: string;
+  photoUri?: string;
   photoOcr?: PhotoOcrData;
   onDismiss?: () => void;
-  onAnalyzeStart?: () => void;
 }
 
 export interface ComparisonResultSheetPayload {

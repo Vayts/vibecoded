@@ -1,80 +1,120 @@
 import {
-  analysisJobResponseSchema,
+  ANALYSIS_SOCKET_EVENTS,
   type AnalysisJobResponse,
+  type AnalysisSocketEventPayload,
 } from '@acme/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
-import { apiFetch } from '../../../shared/lib/client/client';
+import { useEffect, useMemo, useRef } from 'react';
+import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
-const POLLING_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 20;
+const toAnalysisState = (
+  payload: AnalysisSocketEventPayload,
+): AnalysisJobResponse => ({
+  analysisId: payload.analysisId,
+  status: payload.status,
+  productStatus: payload.productStatus,
+  ingredientsStatus: payload.ingredientsStatus,
+  result: payload.result,
+  error: payload.error,
+});
 
-const getErrorMessage = async (response: Response): Promise<string> => {
-  const json = (await response.json().catch(() => null)) as { error?: string } | null;
-  return json?.error ?? 'Unable to load personal analysis';
-};
-
-const fetchPersonalAnalysisJob = async (
-  jobId: string,
-): Promise<AnalysisJobResponse> => {
-  const response = await apiFetch(`/api/scanner/personal-analysis/${jobId}`);
-
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
-  }
-
-  const json = await response.json();
-  return analysisJobResponseSchema.parse(json);
-};
-
-export const getPersonalAnalysisQueryKey = (jobId?: string) => {
-  return ['scanner', 'personal-analysis', jobId] as const;
+export const getPersonalAnalysisQueryKey = (analysisId?: string) => {
+  return ['scanner', 'personal-analysis', analysisId] as const;
 };
 
 export const usePersonalAnalysisQuery = (
-  jobId?: string,
-  initialStatus?: AnalysisJobResponse['status'],
+  initialAnalysis?: AnalysisJobResponse,
 ) => {
   const queryClient = useQueryClient();
-  const hasInvalidatedRef = useRef(false);
+  const hasInvalidatedRef = useRef(
+    initialAnalysis?.status === 'completed' ||
+      initialAnalysis?.status === 'failed',
+  );
+  const analysisId = initialAnalysis?.analysisId;
+  const queryKey = useMemo(
+    () => getPersonalAnalysisQueryKey(analysisId),
+    [analysisId],
+  );
 
-  const query = useQuery({
-    queryKey: getPersonalAnalysisQueryKey(jobId),
-    queryFn: () => fetchPersonalAnalysisJob(jobId as string),
-    enabled: Boolean(jobId),
-    initialData: jobId
-      ? {
-          jobId,
-          status: initialStatus ?? 'pending',
-        }
-      : undefined,
-    refetchInterval: (q) => {
-      const data = q.state.data;
-      const status = data?.status;
-      const attempts = q.state.dataUpdateCount;
+  useEffect(() => {
+    if (!analysisId || !initialAnalysis) {
+      return;
+    }
 
-      if (!jobId || status === 'failed' || attempts >= MAX_POLL_ATTEMPTS) {
-        return false;
+    queryClient.setQueryData(queryKey, initialAnalysis);
+
+    if (initialAnalysis.status !== 'pending') {
+      return;
+    }
+
+    const handleAnalysisEvent = (payload: AnalysisSocketEventPayload) => {
+      if (payload.analysisId !== analysisId) {
+        return;
       }
 
-      if (status === 'completed' && data?.result) {
-        return false;
-      }
+      const nextState = toAnalysisState(payload);
+      queryClient.setQueryData(queryKey, nextState);
 
-      return POLLING_INTERVAL_MS;
+      if (
+        !hasInvalidatedRef.current &&
+        (nextState.status === 'completed' || nextState.status === 'failed')
+      ) {
+        hasInvalidatedRef.current = true;
+        void queryClient.invalidateQueries({
+          queryKey: [...SCAN_HISTORY_QUERY_KEY],
+        });
+      }
+    };
+
+    const disposers = [
+      analysisSocket.on(ANALYSIS_SOCKET_EVENTS.subscribed, handleAnalysisEvent),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.productStarted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.productCompleted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.productFailed,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsStarted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsCompleted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsFailed,
+        handleAnalysisEvent,
+      ),
+    ];
+
+    analysisSocket.subscribe(analysisId);
+
+    return () => {
+      disposers.forEach((dispose) => dispose());
+      analysisSocket.unsubscribe(analysisId);
+    };
+  }, [analysisId, initialAnalysis, queryClient, queryKey]);
+
+  return useQuery({
+    queryKey,
+    enabled: Boolean(analysisId),
+    queryFn: async () => {
+      return (
+        (queryClient.getQueryData(queryKey) as AnalysisJobResponse | undefined) ??
+        initialAnalysis
+      );
     },
+    initialData: initialAnalysis,
+    staleTime: Infinity,
+    gcTime: 10 * 60 * 1000,
     retry: 0,
   });
-
-  // When analysis transitions to completed/failed, invalidate history so rows update
-  useEffect(() => {
-    const status = query.data?.status;
-    if (!hasInvalidatedRef.current && (status === 'completed' || status === 'failed')) {
-      hasInvalidatedRef.current = true;
-      void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
-    }
-  }, [query.data?.status, queryClient]);
-
-  return query;
 };

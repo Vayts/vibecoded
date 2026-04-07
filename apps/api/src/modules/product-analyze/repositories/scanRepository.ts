@@ -2,17 +2,33 @@ import type { ProductAnalysisResult } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 import type { ScanSource, PersonalAnalysisStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { getScanSummary } from '../services/analysis-state';
 
 interface CreateScanInput {
   userId: string;
   productId?: string;
   barcode?: string;
   source: ScanSource;
-  overallScore?: number;
-  overallRating?: string;
-  personalAnalysisStatus?: PersonalAnalysisStatus;
-  photoImagePath?: string;
+  analysisId: string;
+  personalAnalysisStatus: PersonalAnalysisStatus;
+  result?: ProductAnalysisResult;
+  photoImagePath?: string | null;
 }
+
+interface PrepareScanForAnalysisInput {
+  productId?: string;
+  barcode?: string;
+  source: ScanSource;
+  analysisId: string;
+  personalAnalysisStatus: PersonalAnalysisStatus;
+  result?: ProductAnalysisResult;
+  photoImagePath?: string | null;
+}
+
+const toJsonResult = (result?: ProductAnalysisResult) =>
+  result
+    ? (result as unknown as Prisma.InputJsonValue)
+    : Prisma.JsonNull;
 
 export const findRecentScanByBarcode = async (
   userId: string,
@@ -27,17 +43,44 @@ export const findRecentScanByBarcode = async (
 };
 
 export const createScan = async (input: CreateScanInput) => {
+  const summary = getScanSummary(input.result);
+
   return prisma.scan.create({
     data: {
       userId: input.userId,
       productId: input.productId ?? null,
       barcode: input.barcode ?? null,
       source: input.source,
-      overallScore: input.overallScore ?? null,
-      overallRating: input.overallRating ?? null,
-      personalAnalysisStatus: input.personalAnalysisStatus ?? null,
+      overallScore: summary.overallScore,
+      overallRating: summary.overallRating,
+      personalAnalysisStatus: input.personalAnalysisStatus,
+      personalAnalysisJobId: input.analysisId,
       evaluation: Prisma.JsonNull,
-      personalResult: Prisma.JsonNull,
+      personalResult: toJsonResult(input.result),
+      multiProfileResult: toJsonResult(input.result),
+      photoImagePath: input.photoImagePath ?? null,
+    },
+  });
+};
+
+export const prepareScanForAnalysis = async (
+  scanId: string,
+  input: PrepareScanForAnalysisInput,
+) => {
+  const summary = getScanSummary(input.result);
+
+  return prisma.scan.update({
+    where: { id: scanId },
+    data: {
+      productId: input.productId ?? null,
+      barcode: input.barcode ?? null,
+      source: input.source,
+      overallScore: summary.overallScore,
+      overallRating: summary.overallRating,
+      personalAnalysisStatus: input.personalAnalysisStatus,
+      personalAnalysisJobId: input.analysisId,
+      personalResult: toJsonResult(input.result),
+      multiProfileResult: toJsonResult(input.result),
       photoImagePath: input.photoImagePath ?? null,
     },
   });
@@ -46,21 +89,48 @@ export const createScan = async (input: CreateScanInput) => {
 /**
  * Update scan with analysis result (product facts + profile scores).
  */
-export const updateScanAnalysisResult = async (
+export const updateScanAnalysisState = async (
   scanId: string,
-  status: PersonalAnalysisStatus,
-  result?: ProductAnalysisResult,
+  input: {
+    status: PersonalAnalysisStatus;
+    analysisId?: string;
+    result?: ProductAnalysisResult;
+  },
 ) => {
+  const summary = getScanSummary(input.result);
+
   return prisma.scan.update({
     where: { id: scanId },
     data: {
-      personalAnalysisStatus: status,
-      personalResult: result
-        ? (result as unknown as Prisma.InputJsonValue)
-        : Prisma.JsonNull,
-      multiProfileResult: result
-        ? (result as unknown as Prisma.InputJsonValue)
-        : undefined,
+      personalAnalysisStatus: input.status,
+      ...(input.analysisId ? { personalAnalysisJobId: input.analysisId } : {}),
+      ...(input.result
+        ? {
+            overallScore: summary.overallScore,
+            overallRating: summary.overallRating,
+            personalResult: input.result as unknown as Prisma.InputJsonValue,
+            multiProfileResult: input.result as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
+    },
+  });
+};
+
+export const findScanByAnalysisIdForUser = async (
+  userId: string,
+  analysisId: string,
+) => {
+  return prisma.scan.findFirst({
+    where: {
+      userId,
+      personalAnalysisJobId: analysisId,
+    },
+    select: {
+      id: true,
+      productId: true,
+      barcode: true,
+      personalAnalysisStatus: true,
+      personalResult: true,
     },
   });
 };

@@ -5,7 +5,7 @@ import type {
 } from '@acme/shared';
 import { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
+import ActionSheet, { useSheetPayload } from 'react-native-actions-sheet';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -13,26 +13,41 @@ import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import { ProductResultContent } from './ProductResultContent';
-import { isBarcodeLookupResponse } from './productResultHelpers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function buildResultFromScanDetail(scan: ScanDetailResponse): {
   result: BarcodeLookupResponse;
   resolvedPersonalResult: AnalysisJobResponse;
 } {
+  const status = scan.personalAnalysisStatus ?? 'completed';
+  const productStatus = scan.analysisResult
+    ? 'completed'
+    : status === 'failed'
+      ? 'failed'
+      : 'pending';
+
   return {
     result: {
       success: true,
       barcode: scan.barcode ?? '',
       source: 'openfoodfacts',
       product: scan.product!,
-      personalAnalysis: { jobId: scan.id, status: scan.personalAnalysisStatus ?? 'completed' },
+      personalAnalysis: {
+        analysisId: scan.analysisId ?? scan.id,
+        status,
+        productStatus,
+        ingredientsStatus: status,
+        result: scan.analysisResult ?? undefined,
+      },
+      scanId: scan.id,
       productId: scan.productId ?? undefined,
       isFavourite: scan.isFavourite,
     },
     resolvedPersonalResult: {
-      jobId: scan.id,
-      status: scan.personalAnalysisStatus === 'completed' ? 'completed' : 'failed',
+      analysisId: scan.analysisId ?? scan.id,
+      status,
+      productStatus,
+      ingredientsStatus: status,
       result: scan.analysisResult ?? undefined,
     },
   };
@@ -87,16 +102,28 @@ function ScanDetailLoader({ scanId }: { scanId: string }) {
 export function ScannerResultSheet() {
   const payload = useSheetPayload(SheetsEnum.ScannerResultSheet);
   const reset = useScannerResultSheetStore((s) => s.reset);
-  const resolvedResult = payload?.result;
+  const storeResult = useScannerResultSheetStore((s) => s.result);
+  const storeResolvedPersonalResult = useScannerResultSheetStore(
+    (s) => s.resolvedPersonalResult,
+  );
+  const resolvedResult = storeResult ?? payload?.result;
+  const resolvedPersonalResult =
+    storeResolvedPersonalResult ?? payload?.resolvedPersonalResult;
   const scanId = payload?.scanId;
-  const isBarcodeResult = isBarcodeLookupResponse(resolvedResult);
+  const previewProduct = payload?.previewProduct;
+  const previewImageUri = payload?.previewImageUri;
 
   return (
     <ActionSheet gestureEnabled useBottomSafeAreaPadding={false} onClose={reset}>
       {scanId ? (
           <ScanDetailLoader scanId={scanId} />
-        ) : isBarcodeResult ? (
-          <ProductResultContent result={resolvedResult} />
+        ) : resolvedResult || previewProduct ? (
+          <ProductResultContent
+            result={resolvedResult}
+            previewProduct={previewProduct}
+            previewImageUri={previewImageUri}
+            resolvedPersonalResult={resolvedPersonalResult}
+          />
         ) : null}
     </ActionSheet>
   );

@@ -1,6 +1,7 @@
 import { Storage } from '@google-cloud/storage';
 import { Client } from 'minio';
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 
 type StorageBackend = 'gcs' | 'minio';
 
@@ -116,4 +117,60 @@ export const uploadToStorage = async (
  */
 export const uploadProductImage = async (buffer: Buffer): Promise<string> => {
   return uploadToStorage(buffer, 'products', 'jpg', 'image/jpeg');
+};
+
+export interface StoredObjectResult {
+  stream: Readable;
+  contentType: string;
+  size: number;
+}
+
+const normalizeObjectPath = (objectPath: string): string => {
+  return objectPath.replace(/^\/+/, '');
+};
+
+export const getStoredObject = async (
+  objectPath: string,
+): Promise<StoredObjectResult | null> => {
+  await ensureBucket();
+
+  const normalizedPath = normalizeObjectPath(objectPath);
+
+  if (STORAGE_BACKEND === 'gcs') {
+    const file = gcsClient.bucket(BUCKET).file(normalizedPath);
+    const [exists] = await file.exists();
+
+    if (!exists) {
+      return null;
+    }
+
+    const [metadata] = await file.getMetadata();
+    return {
+      stream: file.createReadStream(),
+      contentType: metadata.contentType || 'application/octet-stream',
+      size: Number(metadata.size || 0),
+    };
+  }
+
+  try {
+    const stat = await minioClient.statObject(BUCKET, normalizedPath);
+    const objectStream = await minioClient.getObject(BUCKET, normalizedPath);
+
+    return {
+      stream: objectStream,
+      contentType: stat.metaData['content-type'] || 'application/octet-stream',
+      size: stat.size,
+    };
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: string }).code)
+        : undefined;
+
+    if (code === 'NotFound' || code === 'NoSuchKey' || code === 'NoSuchObject') {
+      return null;
+    }
+
+    throw error;
+  }
 };

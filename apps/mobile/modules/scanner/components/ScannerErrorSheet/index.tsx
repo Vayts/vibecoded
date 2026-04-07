@@ -20,7 +20,18 @@ export function ScannerErrorSheet() {
   );
   const isNotFound = variant === 'not-found';
   const isNotFood = variant === 'not-food';
+  const hasPhotoAction = Boolean(onPhotoPress);
   const actionTakenRef = useRef(false);
+
+  const resolvedTitle = isNotFound
+    ? (title ?? 'Product not found')
+    : isNotFood
+      ? 'This is not a food product'
+      : (title ?? 'Something went wrong');
+  const resolvedMessage =
+    isNotFound && hasPhotoAction
+      ? 'We couldn\'t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
+      : message;
 
   const handleClose = () => {
     void SheetManager.hide(SheetsEnum.ScannerErrorSheet);
@@ -54,20 +65,14 @@ export function ScannerErrorSheet() {
         </View>
 
         <Typography variant="sectionTitle" className="mb-2 text-center">
-          {isNotFound
-            ? 'Product not found'
-            : isNotFood
-              ? 'This is not a food product'
-              : (title ?? 'Something went wrong')}
+          {resolvedTitle}
         </Typography>
 
         <Typography variant="bodySecondary" className="mb-6 text-center text-gray-500">
-          {isNotFound
-            ? 'We couldn\u2019t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
-            : message}
+          {resolvedMessage}
         </Typography>
 
-        {isNotFound ? (
+        {isNotFound && hasPhotoAction ? (
           <View className="w-full gap-3">
             <TouchableOpacity
               accessibilityLabel="Use photo instead"
