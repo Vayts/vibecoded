@@ -23,9 +23,9 @@ export function ScannerBottomBar({
           accessibilityLabel="Take product photo"
           accessibilityRole="button"
           activeOpacity={0.7}
-          disabled={isCompareMode || isLocked}
+          disabled={isLocked}
           className="h-12 w-12 items-center mb-10 ml-4 justify-center rounded-full bg-black/50"
-          style={{ opacity: isCompareMode || isLocked ? 0 : 1 }}
+          style={{ opacity: isLocked ? 0 : 1 }}
           onPress={onPhotoPress}
         >
           <Camera color={COLORS.white} size={22} />

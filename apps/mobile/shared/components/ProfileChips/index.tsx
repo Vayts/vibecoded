@@ -28,7 +28,7 @@ export function ProfileChips({
       horizontal
       showsHorizontalScrollIndicator={false}
       className={className}
-      contentContainerStyle={{ gap: 8 }}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
     >
       {profiles.map((profile) => {
         const isSelected = profile.id === selectedProfileId;
@@ -36,7 +36,6 @@ export function ProfileChips({
         return (
           <TouchableOpacity
             key={profile.id}
-            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={
               profile.score !== undefined

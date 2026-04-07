@@ -1,6 +1,6 @@
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -12,6 +12,7 @@ import {
   useCompareProductsMutation,
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
+import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
 import { useCompareStore } from '../../stores/compareStore';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerPermissionState } from '../ScannerPermissionState';
@@ -34,40 +35,99 @@ export function ScannerHomeScreen() {
   const [isScannerPaused, setIsScannerPaused] = useState(false);
   const scanFrameRef = useRef<View>(null);
   const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
     setIsLocked(false);
     setIsScannerPaused(false);
+    setIsResolvingFirstProduct(false);
   }, []);
 
-  const { capturePhoto, isPending: isPhotoPending } = usePhotoCapture();
+  const { captureAndCompress, capturePhotoPreview, isPending: isPhotoPending } = usePhotoCapture();
 
-  // Photo capture without lock guard — used when scanner is already locked (e.g. from error sheet).
+  // Shared photo capture handler — routes to compare or decision sheet based on state.
   const capturePhotoFromSheet = useCallback(async () => {
     try {
-      const result = await capturePhoto();
-      if (!result) { resumeScanner(); return; }
-      await SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: { result }, onClose: resumeScanner,
-      });
+      const compareActive = useCompareStore.getState().isCompareMode;
+      const first = useCompareStore.getState().firstProduct;
+
+      if (compareActive && first) {
+        const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
+        const firstProductOcr = useCompareStore.getState().firstProductOcr;
+
+        // Second product in compare mode — capture photo, then resolve both in parallel
+        const captured = await captureAndCompress();
+        if (!captured) { resumeScanner(); return; }
+
+        setIsResolvingFirstProduct(true);
+        const [firstResolved, secondResolved] = await Promise.all([
+          firstPhotoUri
+            ? submitPhotoScan({ photoUri: firstPhotoUri, ocr: firstProductOcr ?? undefined })
+            : Promise.resolve({ barcode: first.barcode }),
+          submitPhotoScan({ photoUri: captured.uploadUri }),
+        ]);
+        setIsResolvingFirstProduct(false);
+
+        const compResult = await compareMutation.mutateAsync({
+          barcode1: firstResolved.barcode,
+          barcode2: secondResolved.barcode,
+        });
+        resetCompare();
+        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
+          payload: { result: compResult },
+          onClose: resumeScanner,
+        });
+      } else {
+        // First product — OCR preview only (fast), full analysis deferred to user action
+        const preview = await capturePhotoPreview();
+        if (!preview) { resumeScanner(); return; }
+        const productPreview = {
+          productId: '',
+          barcode: '',
+          product_name: preview.productName,
+          brands: preview.brand,
+          image_url: preview.localImageUri,
+        };
+        await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
+          payload: {
+            product: productPreview,
+            photoUri: preview.photoUri,
+            photoOcr: preview.ocr,
+            onDismiss: resumeScanner,
+          },
+        });
+      }
     } catch (error) {
+      // In compare mode, don't reset — preserve first product for retry
+      if (!useCompareStore.getState().isCompareMode) {
+        resetCompare();
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unable to identify product';
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isRetriableNotFound = errorCode === 'PRODUCT_NOT_FOUND';
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          message: error instanceof Error ? error.message : 'Unable to identify product',
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isRetriableNotFound ? 'not-found' : 'generic',
+          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : errorMessage,
           onDismiss: resumeScanner,
+          onPhotoPress: isRetriableNotFound ? () => void capturePhotoFromSheet() : undefined,
         },
       });
     }
-  }, [capturePhoto, resumeScanner]);
+  }, [captureAndCompress, capturePhotoPreview, compareMutation, resetCompare, resumeScanner]);
 
   const handlePhotoPress = useCallback(async () => {
-    if (scanLockRef.current || isCompareMode) return;
+    if (scanLockRef.current) return;
     scanLockRef.current = true;
     setIsLocked(true);
     setIsScannerPaused(true);
     await capturePhotoFromSheet();
-  }, [capturePhotoFromSheet, isCompareMode]);
+  }, [capturePhotoFromSheet]);
 
   const submitBarcode = useCallback(async (barcode: string) => {
     const normalized = barcode.trim();
@@ -87,8 +147,21 @@ export function ScannerHomeScreen() {
       const first = useCompareStore.getState().firstProduct;
 
       if (compareActive && first) {
+        const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
+        const firstProductOcr = useCompareStore.getState().firstProductOcr;
+
+        let barcode1: string;
+        if (firstPhotoUri) {
+          setIsResolvingFirstProduct(true);
+          const firstResolved = await submitPhotoScan({ photoUri: firstPhotoUri, ocr: firstProductOcr ?? undefined });
+          setIsResolvingFirstProduct(false);
+          barcode1 = firstResolved.barcode;
+        } else {
+          barcode1 = first.barcode;
+        }
+
         const result = await compareMutation.mutateAsync({
-          barcode1: first.barcode,
+          barcode1,
           barcode2: normalized,
         });
         resetCompare();
@@ -106,21 +179,33 @@ export function ScannerHomeScreen() {
         });
       }
     } catch (error) {
-      resetCompare();
+      // Only reset compare if NOT in compare mode (avoid losing first product on retry)
+      if (!useCompareStore.getState().isCompareMode) {
+        resetCompare();
+      }
       const errorMessage = error instanceof Error ? error.message : 'Unable to submit barcode';
-      const isNotFound = errorMessage.toLowerCase().includes('not found');
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isNotFound =
+        errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          message: errorMessage,
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isNotFound ? 'not-found' : 'generic',
+          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : errorMessage,
           onDismiss: resumeScanner,
-          ...(isNotFound && { onPhotoPress: () => void capturePhotoFromSheet() }),
+          onPhotoPress: isNotFound ? () => void capturePhotoFromSheet() : undefined,
         },
       });
     }
   }, [capturePhotoFromSheet, compareMutation, lookupMutation, resetCompare, resumeScanner]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
-    if (bounds && scanFrameBounds.current) {
+    // On Android, barcode bounds use a different coordinate space than measureInWindow,
+    // so frame-filtering only works reliably on iOS.
+    if (Platform.OS === 'ios' && bounds && scanFrameBounds.current) {
       const frame = scanFrameBounds.current;
       const centerX = bounds.origin.x + bounds.size.width / 2;
       const centerY = bounds.origin.y + bounds.size.height / 2;
@@ -149,15 +234,21 @@ export function ScannerHomeScreen() {
     );
   }
 
-  const isProcessing = isPhotoPending || compareMutation.isPending || lookupMutation.isPending;
+  const isProcessing =
+    isPhotoPending ||
+    compareMutation.isPending ||
+    lookupMutation.isPending ||
+    isResolvingFirstProduct;
 
   const statusMessage = isPhotoPending
     ? 'Identifying product\u2026'
-    : compareMutation.isPending
-      ? 'Comparing products\u2026'
-      : lookupMutation.isPending
-        ? 'Looking up product\u2026'
-        : 'Processing\u2026';
+    : isResolvingFirstProduct
+      ? 'Identifying products\u2026'
+      : compareMutation.isPending
+          ? 'Comparing products\u2026'
+          : lookupMutation.isPending
+            ? 'Looking up product\u2026'
+            : 'Processing\u2026';
 
   return (
     <View className="flex-1 bg-black">
@@ -203,7 +294,9 @@ export function ScannerHomeScreen() {
 
             <View className="mb-5 rounded-full bg-black/50 px-4 py-2">
               <Typography variant="bodySecondary" className="text-center text-white">
-                {isCompareMode ? 'Scan second barcode' : 'Align the barcode inside the frame'}
+                {isCompareMode
+                  ? 'Scan or photograph the second product'
+                  : 'Align the barcode inside the frame'}
               </Typography>
             </View>
             <View

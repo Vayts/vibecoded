@@ -1,14 +1,17 @@
 import type { ProductPreview } from '@acme/shared';
 import { create } from 'zustand';
+import type { PhotoOcrData } from '../types/scanner';
 
 interface CompareState {
   isCompareMode: boolean;
   firstProduct: ProductPreview | null;
+  firstProductPhotoUri: string | null;
+  firstProductOcr: PhotoOcrData | null;
   secondProduct: ProductPreview | null;
 }
 
 interface CompareActions {
-  startCompare: (product: ProductPreview) => void;
+  startCompare: (product: ProductPreview, photoUri?: string, photoOcr?: PhotoOcrData) => void;
   setSecondProduct: (product: ProductPreview) => void;
   reset: () => void;
 }
@@ -16,13 +19,21 @@ interface CompareActions {
 const initialState: CompareState = {
   isCompareMode: false,
   firstProduct: null,
+  firstProductPhotoUri: null,
+  firstProductOcr: null,
   secondProduct: null,
 };
 
 export const useCompareStore = create<CompareState & CompareActions>((set) => ({
   ...initialState,
-  startCompare: (product) =>
-    set({ isCompareMode: true, firstProduct: product, secondProduct: null }),
+  startCompare: (product, photoUri, photoOcr) =>
+    set({
+      isCompareMode: true,
+      firstProduct: product,
+      secondProduct: null,
+      firstProductPhotoUri: photoUri ?? null,
+      firstProductOcr: photoOcr ?? null,
+    }),
   setSecondProduct: (product) => set({ secondProduct: product }),
   reset: () => set(initialState),
 }));

@@ -1,7 +1,7 @@
 import type {
-  BarcodeLookupProduct,
-  BarcodeLookupResponse,
   AnalysisJobResponse,
+  BarcodeLookupResponse,
+  ProductPreview,
 } from '@acme/shared';
 import { View } from 'react-native';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
@@ -14,51 +14,69 @@ import { NutriScoreBlock } from './NutriScoreBlock';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ProductResultContentProps {
-  result: BarcodeLookupResponse;
+  result?: BarcodeLookupResponse;
+  previewProduct?: ProductPreview;
+  previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
 }
 
-export function ProductResultContent({ result, resolvedPersonalResult }: ProductResultContentProps) {
+export function ProductResultContent({
+  result,
+  previewProduct,
+  previewImageUri,
+  resolvedPersonalResult,
+}: ProductResultContentProps) {
   const insets = useSafeAreaInsets();
-  const personalJobId =
-    !resolvedPersonalResult && hasProductResult(result)
-      ? result.personalAnalysis.jobId
+  const successResult = result && hasProductResult(result) ? result : undefined;
+  const initialAnalysis = resolvedPersonalResult
+    ? resolvedPersonalResult
+    : successResult
+      ? successResult.personalAnalysis
       : undefined;
-  const personalJobStatus =
-    !resolvedPersonalResult && hasProductResult(result)
-      ? result.personalAnalysis.status
-      : undefined;
-  const personalQuery = usePersonalAnalysisQuery(personalJobId, personalJobStatus);
+  const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
 
-  const personalData = resolvedPersonalResult ?? personalQuery.data;
-  const personalError = resolvedPersonalResult ? false : personalQuery.isError;
-  const personalRetry = resolvedPersonalResult ? () => {} : () => void personalQuery.refetch();
+  const personalData = personalQuery.data ?? initialAnalysis;
+  const personalError =
+    Boolean(initialAnalysis?.analysisId) &&
+    !personalData?.result &&
+    (personalData?.status === 'failed' || personalQuery.isError);
+  const personalRetry = () => {};
 
-  if (!hasProductResult(result)) {
+  if (result?.success === false) {
     return <NotFoundContent result={result} />;
   }
 
-  const product: BarcodeLookupProduct = result.product;
+  const product = successResult?.product ?? previewProduct;
+  const nutriScoreGrade =
+    successResult?.product.scores.nutriscore_grade ??
+    previewProduct?.nutriscore_grade ??
+    null;
+
+  if (!product) {
+    return null;
+  }
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="max-h-[660px]" contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
       <View>
-        <ProductResultHeader
-          product={product}
-          productId={result.productId}
-          isFavourite={result.isFavourite}
-        />
-
-      <NutriScoreBlock grade={product.scores.nutriscore_grade} />
-      <View>
-        <PersonalTabContent
-          personalResult={personalData}
-          isError={personalError}
-          onRetry={personalRetry}
-          rawIngredients={product.ingredients}
-          rawIngredientsText={product.ingredients_text}
-        />
-      </View>
+        <View className="px-4">
+          <ProductResultHeader
+            product={product}
+            previewImageUri={previewImageUri}
+            productId={successResult?.productId}
+            isFavourite={successResult?.isFavourite}
+          />
+          <NutriScoreBlock grade={nutriScoreGrade} />
+        </View>
+        <View>
+          <PersonalTabContent
+            personalResult={personalData}
+            isError={personalError}
+            onRetry={personalRetry}
+            rawIngredients={successResult?.product.ingredients ?? []}
+            rawIngredientsText={successResult?.product.ingredients_text ?? null}
+          />
+        </View>
       </View>
     </ScrollView>
   );

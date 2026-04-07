@@ -222,9 +222,51 @@ export type ProductAnalysisResult = z.infer<typeof productAnalysisResultSchema>;
 export const analysisJobStatusSchema = z.enum(['pending', 'completed', 'failed']);
 export type AnalysisJobStatus = z.infer<typeof analysisJobStatusSchema>;
 
+export const analysisErrorPhaseSchema = z.enum(['product', 'ingredients']);
+export type AnalysisErrorPhase = z.infer<typeof analysisErrorPhaseSchema>;
+
+export const analysisErrorSchema = z.object({
+  phase: analysisErrorPhaseSchema,
+  message: z.string(),
+  code: z.string().optional(),
+});
+export type AnalysisError = z.infer<typeof analysisErrorSchema>;
+
 export const analysisJobResponseSchema = z.object({
-  jobId: z.string(),
+  analysisId: z.string(),
   status: analysisJobStatusSchema,
+  productStatus: analysisJobStatusSchema,
+  ingredientsStatus: analysisJobStatusSchema,
   result: productAnalysisResultSchema.optional(),
+  error: analysisErrorSchema.optional(),
 });
 export type AnalysisJobResponse = z.infer<typeof analysisJobResponseSchema>;
+
+export const analysisSubscriptionSchema = z.object({
+  analysisId: z.string(),
+});
+export type AnalysisSubscription = z.infer<typeof analysisSubscriptionSchema>;
+
+export const analysisSocketEventPayloadSchema = analysisJobResponseSchema.extend({
+  scanId: z.string().optional(),
+  productId: z.string().optional(),
+  barcode: z.string().optional(),
+});
+export type AnalysisSocketEventPayload = z.infer<
+  typeof analysisSocketEventPayloadSchema
+>;
+
+export const ANALYSIS_SOCKET_EVENTS = {
+  subscribe: 'analysis:subscribe',
+  unsubscribe: 'analysis:unsubscribe',
+  subscribed: 'analysis:subscribed',
+  productStarted: 'product:analysis_started',
+  productCompleted: 'product:analysis_completed',
+  productFailed: 'product:analysis_failed',
+  ingredientsStarted: 'ingredients:analysis_started',
+  ingredientsCompleted: 'ingredients:analysis_completed',
+  ingredientsFailed: 'ingredients:analysis_failed',
+} as const;
+
+export type AnalysisSocketEventName =
+  (typeof ANALYSIS_SOCKET_EVENTS)[keyof typeof ANALYSIS_SOCKET_EVENTS];

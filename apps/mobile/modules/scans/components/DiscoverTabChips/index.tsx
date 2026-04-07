@@ -1,8 +1,8 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
-export type DiscoverTab = 'history' | 'favourites';
+export type DiscoverTab = 'history' | 'favourites' | 'comparisons';
 
 interface DiscoverTabChipsProps {
   selected: DiscoverTab;
@@ -12,6 +12,7 @@ interface DiscoverTabChipsProps {
 const TABS: Array<{ key: DiscoverTab; label: string }> = [
   { key: 'history', label: 'History' },
   { key: 'favourites', label: 'Favourites' },
+  { key: 'comparisons', label: 'Comparisons' },
 ];
 
 export function DiscoverTabChips({ selected, onSelect }: DiscoverTabChipsProps) {
@@ -20,7 +21,7 @@ export function DiscoverTabChips({ selected, onSelect }: DiscoverTabChipsProps) 
       {TABS.map((tab) => {
         const isSelected = tab.key === selected;
         return (
-          <Pressable
+          <TouchableOpacity
             key={tab.key}
             onPress={() => onSelect(tab.key)}
             accessibilityRole="button"
@@ -36,7 +37,7 @@ export function DiscoverTabChips({ selected, onSelect }: DiscoverTabChipsProps) 
             >
               {tab.label}
             </Typography>
-          </Pressable>
+          </TouchableOpacity>
         );
       })}
     </View>

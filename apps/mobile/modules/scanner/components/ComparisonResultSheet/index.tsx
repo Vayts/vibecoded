@@ -8,6 +8,7 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
+import { useComparisonDetailQuery } from '../../../scans/hooks/useComparisonsQuery';
 import { useCompareStore } from '../../stores/compareStore';
 import { ComparisonProductCard } from './ComparisonProductCard';
 import { MetricsSummaryRow, NutritionComparison } from './MetricRow';
@@ -18,10 +19,17 @@ export function ComparisonResultSheet() {
   const resetCompare = useCompareStore((s) => s.reset);
 
   const scanId = payload?.scanId;
-  const { data: scanDetail, isLoading } = useScanDetailQuery(scanId);
+  const comparisonId = payload?.comparisonId;
+  const { data: scanDetail, isLoading: isScanLoading } = useScanDetailQuery(scanId);
+  const { data: comparisonDetail, isLoading: isComparisonLoading } =
+    useComparisonDetailQuery(comparisonId);
+
+  const isLoading = (scanId && isScanLoading) || (comparisonId && isComparisonLoading);
 
   const result: ProductComparisonResult | undefined =
-    payload?.result ?? (scanDetail?.comparisonResult as ProductComparisonResult | undefined);
+    payload?.result ??
+    (comparisonDetail?.comparisonResult as ProductComparisonResult | undefined) ??
+    (scanDetail?.comparisonResult as ProductComparisonResult | undefined);
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
 
@@ -36,7 +44,7 @@ export function ComparisonResultSheet() {
     void SheetManager.hide(SheetsEnum.ComparisonResultSheet);
   };
 
-  if (scanId && isLoading) {
+  if ((scanId || comparisonId) && isLoading) {
     return (
       <ActionSheet gestureEnabled containerStyle={{ maxHeight: '90%' }}>
         <View className="items-center justify-center px-6 py-12">
@@ -64,7 +72,7 @@ export function ComparisonResultSheet() {
 
   return (
     <ActionSheet useBottomSafeAreaPadding={false} gestureEnabled containerStyle={{ maxHeight: '90%' }}>
-      <ScrollView className="px-6 pt-2" contentContainerClassName='pb-20' showsVerticalScrollIndicator={false}>
+      <ScrollView className="pt-2" contentContainerClassName='pb-20' showsVerticalScrollIndicator={false}>
         <Typography variant="pageTitle" className="mb-4 text-center">
           Comparison
         </Typography>
@@ -76,7 +84,8 @@ export function ComparisonResultSheet() {
           className="mb-4"
         />
 
-        {activeProfile ? (
+        <View className="px-4">
+          {activeProfile ? (
           <View className="gap-4">
             <View className="flex-row gap-3">
               <ComparisonProductCard
@@ -118,6 +127,7 @@ export function ComparisonResultSheet() {
 
         <View className="mt-4">
           <Button fullWidth label="Done" onPress={handleClose} />
+        </View>
         </View>
       </ScrollView>
     </ActionSheet>

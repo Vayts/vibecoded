@@ -15,7 +15,7 @@ import type { OnboardingResponse } from '@acme/shared';
 // Score constants
 // ============================================================
 
-const BASE_SCORE = 65;
+const BASE_SCORE = 55;
 const MAX_SCORE = 100;
 const MIN_SCORE = 0;
 
@@ -56,7 +56,6 @@ interface CategoryProfile {
   skip: Set<NutrientKey>;
 }
 
-//                          low   high  good  bad
 const NO_SKIP = new Set<NutrientKey>();
 
 const DEFAULT_PROFILE: CategoryProfile = {
@@ -72,12 +71,12 @@ const DEFAULT_PROFILE: CategoryProfile = {
 const CATEGORY_PROFILES: Partial<Record<ProductType, Partial<CategoryProfile>>> = {
   // Beverages: very strict — even moderate values are notable
   beverage: {
-    sugar:        { low: 2.5,  high: 8,    goodImpact: 10,  badImpact: -15 },
-    salt:         { low: 0.1,  high: 0.5,  goodImpact: 3,   badImpact: -8  },
-    saturatedFat: { low: 0.5,  high: 2,    goodImpact: 3,   badImpact: -8  },
-    calories:     { low: 20,   high: 50,   goodImpact: 5,   badImpact: -10 },
-    protein:      { low: 1,    high: 5,    goodImpact: 8,   badImpact: -3  },
-    fiber:        { low: 0.5,  high: 2,    goodImpact: 5,   badImpact: -3  },
+    sugar:        { low: 2.5,  high: 8,    goodImpact: 8,   badImpact: -15 },
+    salt:         { low: 0.1,  high: 0.5,  goodImpact: 0,   badImpact: -8  },
+    saturatedFat: { low: 0.5,  high: 2,    goodImpact: 0,   badImpact: -8  },
+    calories:     { low: 20,   high: 50,   goodImpact: 2,   badImpact: -10 },
+    protein:      { low: 1,    high: 5,    goodImpact: 0,   badImpact: -3  },
+    fiber:        { low: 0.5,  high: 2,    goodImpact: 0,   badImpact: -3  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
 
@@ -122,24 +121,24 @@ const CATEGORY_PROFILES: Partial<Record<ProductType, Partial<CategoryProfile>>> 
 
   // Snacks: calorie-dense by nature — raise thresholds, keep penalties
   snack: {
-    sugar:        { low: 5,    high: 20,   goodImpact: 8,   badImpact: -12 },
-    salt:         { low: 0.5,  high: 2,    goodImpact: 3,   badImpact: -10 },
-    saturatedFat: { low: 3,    high: 10,   goodImpact: 3,   badImpact: -8  },
-    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -8  },
-    fiber:        { low: 2,    high: 6,    goodImpact: 8,   badImpact: -3  },
+    sugar:        { low: 5,    high: 10,   goodImpact: 0,   badImpact: -14 },
+    salt:         { low: 0.5,  high: 2,    goodImpact: 0,   badImpact: -12 },
+    saturatedFat: { low: 3,    high: 10,   goodImpact: 0,   badImpact: -10 },
+    calories:     { low: 200,  high: 350,  goodImpact: 0,   badImpact: -12 },
+    fiber:        { low: 2,    high: 6,    goodImpact: 6,   badImpact: -3  },
   },
 
   // Sweets & desserts: sugar is expected — raise threshold, soften penalty
   sweet: {
-    sugar:        { low: 15,   high: 40,   goodImpact: 5,   badImpact: -8  },
-    saturatedFat: { low: 3,    high: 12,   goodImpact: 3,   badImpact: -6  },
-    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -6  },
+    sugar:        { low: 15,   high: 40,   goodImpact: 0,   badImpact: -12 },
+    saturatedFat: { low: 3,    high: 12,   goodImpact: 0,   badImpact: -8  },
+    calories:     { low: 200,  high: 350,  goodImpact: 0,   badImpact: -8  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
   dessert: {
-    sugar:        { low: 15,   high: 40,   goodImpact: 5,   badImpact: -8  },
-    saturatedFat: { low: 3,    high: 12,   goodImpact: 3,   badImpact: -6  },
-    calories:     { low: 200,  high: 350,  goodImpact: 3,   badImpact: -6  },
+    sugar:        { low: 15,   high: 40,   goodImpact: 0,   badImpact: -12 },
+    saturatedFat: { low: 3,    high: 12,   goodImpact: 0,   badImpact: -8  },
+    calories:     { low: 200,  high: 350,  goodImpact: 0,   badImpact: -8  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
 
@@ -157,10 +156,10 @@ const CATEGORY_PROFILES: Partial<Record<ProductType, Partial<CategoryProfile>>> 
 
   // Sauce / condiment: consumed in small portions — raise salt/calorie bar
   sauce: {
-    sugar:        { low: 5,    high: 25,   goodImpact: 5,   badImpact: -8  },
-    salt:         { low: 1,    high: 4,    goodImpact: 3,   badImpact: -8  },
-    calories:     { low: 50,   high: 200,  goodImpact: 3,   badImpact: -5  },
-    saturatedFat: { low: 2,    high: 8,    goodImpact: 3,   badImpact: -6  },
+    sugar:        { low: 5,    high: 25,   goodImpact: 0,   badImpact: -10 },
+    salt:         { low: 1,    high: 4,    goodImpact: 0,   badImpact: -10 },
+    calories:     { low: 50,   high: 200,  goodImpact: 0,   badImpact: -8  },
+    saturatedFat: { low: 2,    high: 8,    goodImpact: 0,   badImpact: -8  },
     skip: new Set<NutrientKey>(['protein', 'fiber']),
   },
 
@@ -614,7 +613,7 @@ const evaluateIngredientFlags = (
       description: ingredient.reason,
       value: null,
       unit: null,
-      impact: -25,
+      impact: -50,
       kind: 'negative',
       source: 'allergen',
     });

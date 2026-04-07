@@ -15,10 +15,38 @@ import {
   type CompareProductsResponse,
 } from '@acme/shared';
 import { apiFetch } from '../../../shared/lib/client/client';
+import type { PhotoOcrData } from '../types/scanner';
 
-const getErrorMessage = async (response: Response): Promise<string> => {
-  const json = (await response.json().catch(() => null)) as { error?: string } | null;
-  return json?.error ?? 'Unable to fetch barcode data';
+interface ApiErrorPayload {
+  error?: string;
+  code?: string;
+}
+
+export class ScannerApiError extends Error {
+  constructor(
+    message: string,
+    public readonly code?: string,
+    public readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'ScannerApiError';
+  }
+}
+
+const getErrorPayload = async (response: Response): Promise<ApiErrorPayload | null> => {
+  return (await response.json().catch(() => null)) as ApiErrorPayload | null;
+};
+
+const throwScannerApiError = async (
+  response: Response,
+  fallbackMessage: string,
+): Promise<never> => {
+  const payload = await getErrorPayload(response);
+  throw new ScannerApiError(
+    payload?.error ?? fallbackMessage,
+    payload?.code,
+    response.status,
+  );
 };
 
 export const submitBarcodeScan = async (
@@ -31,7 +59,7 @@ export const submitBarcodeScan = async (
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    await throwScannerApiError(response, 'Unable to fetch barcode data');
   }
 
   const json = await response.json();
@@ -48,7 +76,7 @@ export const lookupProduct = async (
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    await throwScannerApiError(response, 'Unable to look up product');
   }
 
   const json = await response.json();
@@ -65,7 +93,7 @@ export const compareProducts = async (
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    await throwScannerApiError(response, 'Unable to compare products');
   }
 
   const json = await response.json();
@@ -73,19 +101,60 @@ export const compareProducts = async (
 };
 
 export interface PhotoScanRequest {
-  imageBase64: string;
+  photoUri: string;
+  ocr?: PhotoOcrData;
 }
+
+export type PhotoOcrResponse = PhotoOcrData;
+
+interface ReactNativeFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
+  const formData = new FormData();
+  const photoFile: ReactNativeFile = {
+    uri: payload.photoUri,
+    name: 'scanner-photo.jpg',
+    type: 'image/jpeg',
+  };
+
+  formData.append('photo', photoFile as unknown as Blob);
+
+  if (payload.ocr) {
+    formData.append('ocr', JSON.stringify(payload.ocr));
+  }
+
+  return formData;
+};
+
+export const submitPhotoOcr = async (
+  payload: PhotoScanRequest,
+): Promise<PhotoOcrResponse> => {
+  const response = await apiFetch('/api/scanner/photo/ocr', {
+    method: 'POST',
+    body: buildPhotoFormData(payload),
+  });
+
+  if (!response.ok) {
+    await throwScannerApiError(response, 'Unable to read product from photo');
+  }
+
+  return (await response.json()) as PhotoOcrResponse;
+};
 
 export const submitPhotoScan = async (
   payload: PhotoScanRequest,
 ): Promise<BarcodeLookupSuccessResponse> => {
   const response = await apiFetch('/api/scanner/photo', {
     method: 'POST',
-    body: JSON.stringify({ imageBase64: payload.imageBase64 }),
+    body: buildPhotoFormData(payload),
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    await throwScannerApiError(response, 'Unable to identify product from photo');
   }
 
   const json = await response.json();

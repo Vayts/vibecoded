@@ -13,19 +13,18 @@ const STATUS_TEXT_COLORS: Record<IngredientStatus, string> = {
 interface IngredientsSectionProps {
   rawIngredients: string[];
   rawIngredientsText: string | null;
+  isPending?: boolean;
   analysis?: IngredientAnalysis | null;
 }
 
-export function IngredientsSection({ rawIngredients, rawIngredientsText, analysis }: IngredientsSectionProps) {
+export function IngredientsSection({ rawIngredients, rawIngredientsText, isPending = false, analysis }: IngredientsSectionProps) {
   // If we have analyzed ingredients, show them with highlighting
   if (analysis && analysis.ingredients.length > 0) {
     return (
       <View className="mt-5 overflow-hidden bg-white">
-        <View className="py-1">
-          <Typography variant="sectionTitle" className="text-gray-900">
-            Ingredients
-          </Typography>
-        </View>
+        <Typography variant="sectionTitle" className="text-gray-900">
+          Ingredients
+        </Typography> 
 
         <Text className="py-1 leading-6">
           {analysis.ingredients.map((ingredient, index) => (
@@ -57,6 +56,11 @@ export function IngredientsSection({ rawIngredients, rawIngredientsText, analysi
         <Typography variant="sectionTitle" className="text-gray-900">
           Ingredients
         </Typography>
+        {isPending ? (
+          <Typography variant="bodySecondary" className="mt-1 text-gray-500">
+            Ingredient analysis is still running in the background.
+          </Typography>
+        ) : null}
       </View>
 
       <Text className="py-1 leading-6">

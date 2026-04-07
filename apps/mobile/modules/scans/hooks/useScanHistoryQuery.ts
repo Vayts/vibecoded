@@ -1,6 +1,11 @@
-import type { ScanHistoryResponse } from '@acme/shared';
+import type { ScanDetailResponse, ScanHistoryResponse } from '@acme/shared';
+import {
+  ANALYSIS_SOCKET_EVENTS,
+  type AnalysisSocketEventPayload,
+} from '@acme/shared';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
 import { fetchScanDetail, fetchScanHistory } from '../api/scansApi';
 
 export const SCAN_HISTORY_QUERY_KEY = ['scans', 'history'] as const;
@@ -14,37 +19,99 @@ export const useScanHistoryQuery = () => {
   });
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export const useScanDetailQuery = (scanId: string | undefined) => {
   const queryClient = useQueryClient();
   const hasInvalidatedRef = useRef(false);
 
+  const queryKey = useMemo(() => ['scans', 'detail', scanId] as const, [scanId]);
+
   const query = useQuery({
-    queryKey: ['scans', 'detail', scanId],
-    queryFn: () => fetchScanDetail(scanId!),
+    queryKey,
     enabled: Boolean(scanId),
     staleTime: 0,
-    refetchInterval: (q) => {
-      const data = q.state.data;
-      if (!data) return false;
+    queryFn: async () => {
+      const cachedData = queryClient.getQueryData(queryKey);
 
-      // Only poll while personal analysis is actively pending.
-      // Comparisons and scans without analysis have null status — no polling needed.
-      if (data.personalAnalysisStatus === 'pending') {
-        return 1000;
+      const data = await fetchScanDetail(scanId!);
+
+      if (cachedData === undefined) {
+        await sleep(300);
       }
 
-      return false;
+      return data;
     },
   });
 
-  // When analysis transitions to completed/failed, invalidate history so rows update
+  useEffect(() => {
+    const analysisId = query.data?.analysisId;
+    if (!analysisId || query.data?.personalAnalysisStatus !== 'pending') {
+      return;
+    }
+
+    const handleAnalysisEvent = (payload: AnalysisSocketEventPayload) => {
+      if (payload.analysisId !== analysisId) {
+        return;
+      }
+
+      queryClient.setQueryData<ScanDetailResponse | undefined>(
+        queryKey,
+        (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          analysisId: payload.analysisId,
+          personalAnalysisStatus: payload.status,
+          analysisResult: payload.result ?? current.analysisResult,
+        };
+        },
+      );
+
+      if (
+        !hasInvalidatedRef.current &&
+        (payload.status === 'completed' || payload.status === 'failed')
+      ) {
+        hasInvalidatedRef.current = true;
+        void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
+      }
+    };
+
+    const disposers = [
+      analysisSocket.on(ANALYSIS_SOCKET_EVENTS.subscribed, handleAnalysisEvent),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsStarted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsCompleted,
+        handleAnalysisEvent,
+      ),
+      analysisSocket.on(
+        ANALYSIS_SOCKET_EVENTS.ingredientsFailed,
+        handleAnalysisEvent,
+      ),
+    ];
+
+    analysisSocket.subscribe(analysisId);
+
+    return () => {
+      disposers.forEach((dispose) => dispose());
+      analysisSocket.unsubscribe(analysisId);
+    };
+  }, [query.data?.analysisId, query.data?.personalAnalysisStatus, queryClient, queryKey]);
+
   useEffect(() => {
     const status = query.data?.personalAnalysisStatus;
+
     if (!hasInvalidatedRef.current && (status === 'completed' || status === 'failed')) {
       hasInvalidatedRef.current = true;
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     }
   }, [query.data?.personalAnalysisStatus, queryClient]);
 
-  return { ...query };
+  return query;
 };
