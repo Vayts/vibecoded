@@ -1,0 +1,10 @@
+.DS_Store
+.git
+.github
+.turbo
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/.env.*

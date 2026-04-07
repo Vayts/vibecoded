@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-## Server — Google Cloud Run
+## API — Google Cloud Run
 
 ### Prerequisites
 
@@ -12,7 +12,9 @@
 
 ## Automated CI/CD Pipeline (Recommended)
 
-The repository includes a GitHub Actions workflow at `.github/workflows/deploy-server.yml` that automatically builds, pushes, and deploys the server on every push to `main` that touches `apps/server/` or `packages/shared/`.
+The repository includes a GitHub Actions workflow at `.github/workflows/deploy-server.yml` that automatically builds, pushes, and deploys the active `apps/api` backend on every push to `main` that touches `apps/api/` or `packages/shared/`.
+
+The Cloud Run service name can stay `chozr-server` so the public URL does not need to change, but the deployed container should now be built from `apps/api`.
 
 ### Step 1 — Store Secrets in GitHub
 
@@ -99,7 +101,7 @@ rm /tmp/sa-key.json
 ### Build the Docker image
 
 ```bash
-docker build -f apps/server/Dockerfile -t us-central1-docker.pkg.dev/myyuka-app/acme/acme-server .
+docker build -f apps/api/Dockerfile -t us-central1-docker.pkg.dev/myyuka-app/acme/acme-server .
 ```
 
 ### Test locally
@@ -161,10 +163,10 @@ gcloud sql users create chozr \
 # Run migrations (from local machine via Cloud SQL Auth Proxy)
 cloud-sql-proxy <INSTANCE_CONNECTION_NAME> &
 DATABASE_URL="postgresql://acme:<PASSWORD>@127.0.0.1:5432/acme" \
-  pnpm --filter @acme/server db:migrate
+  pnpm --filter api exec prisma migrate deploy
 ```
 
-> **Note:** Migrations also run automatically on container startup via `docker-entrypoint.sh`.
+> **Note:** Migrations also run automatically on container startup via `apps/api/docker-entrypoint.sh`.
 
 ---
 

@@ -15,7 +15,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
 
-  const port = 3001;
+  const port = parseInt(process.env.PORT ?? '3001', 10);
   await app.listen(port, '0.0.0.0');
 }
 
