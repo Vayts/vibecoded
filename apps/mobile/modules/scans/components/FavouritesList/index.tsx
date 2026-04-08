@@ -5,6 +5,7 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useFavouritesQuery } from '../../hooks/useFavouritesQuery';
+import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { Heart } from 'lucide-react-native';
 
@@ -48,6 +49,7 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
     isFetchingNextPage,
     refetch,
   } = useFavouritesQuery();
+  const profileScoreChipContext = useProfileScoreChipContext();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -96,7 +98,13 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
     <FlatList
       data={items}
       keyExtractor={(item) => item.favouriteId ?? item.id}
-      renderItem={({ item }) => <ScanHistoryRow item={item} onPress={onItemPress} />}
+      renderItem={({ item }) => (
+        <ScanHistoryRow
+          item={item}
+          onPress={onItemPress}
+          profileScoreChipContext={profileScoreChipContext}
+        />
+      )}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={

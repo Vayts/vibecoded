@@ -1,11 +1,14 @@
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { Typography } from '../Typography';
 import { COLORS } from '../../constants/colors';
+import { Typography } from '../Typography';
+import { UserAvatar } from '../UserAvatar';
 
 export interface ProfileChipItem {
   id: string;
   name: string;
   score?: number;
+  imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
 }
 
 interface ProfileChipsProps {
@@ -49,6 +52,13 @@ export function ProfileChips({
             }}
             onPress={() => onSelect(profile.id)}
           >
+            <UserAvatar
+              imageUrl={profile.imageUrl}
+              fallbackImageUrl={profile.fallbackImageUrl}
+              name={profile.name}
+              size="sm"
+              className="mr-2"
+            />
             <Typography
               variant="buttonSmall"
               style={{ color: isSelected ? COLORS.primary : COLORS.gray700 }}

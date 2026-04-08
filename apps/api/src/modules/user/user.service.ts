@@ -7,6 +7,8 @@ export interface SerializedUser {
   id: string;
   name: string;
   email: string;
+  image: string | null;
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,18 +25,45 @@ const serializeUser = (user: {
   id: string;
   name: string;
   email: string;
+  image: string | null;
+  avatarUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }): SerializedUser => ({
   id: user.id,
   name: user.name,
   email: user.email,
+  image: user.image,
+  avatarUrl: user.avatarUrl,
   createdAt: user.createdAt.toISOString(),
   updatedAt: user.updatedAt.toISOString(),
 });
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  image: true,
+  avatarUrl: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 @Injectable()
 export class UserService {
+  async getCurrentUser(userId: string): Promise<SerializedUser> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userSelect,
+    });
+
+    if (!user) {
+      throw ApiError.notFound('User not found');
+    }
+
+    return serializeUser(user);
+  }
+
   async updateProfile(userId: string, body: unknown) {
     const parsed = updateUserRequestSchema.safeParse(body);
 
@@ -44,16 +73,20 @@ export class UserService {
       );
     }
 
+    const data: { name?: string; avatarUrl?: string | null } = {};
+
+    if (parsed.data.name !== undefined) {
+      data.name = parsed.data.name;
+    }
+
+    if (parsed.data.avatarUrl !== undefined) {
+      data.avatarUrl = parsed.data.avatarUrl;
+    }
+
     const updated = await prisma.user.update({
       where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      data: { name: parsed.data.name },
+      select: userSelect,
+      data,
     });
 
     return serializeUser(updated);

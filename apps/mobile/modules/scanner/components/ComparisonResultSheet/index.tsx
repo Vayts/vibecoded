@@ -6,17 +6,23 @@ import { Button } from '../../../../shared/components/Button';
 import { ProfileChips } from '../../../../shared/components/ProfileChips';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { useAuthStore } from '../../../../shared/stores/authStore';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
+import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useComparisonDetailQuery } from '../../../scans/hooks/useComparisonsQuery';
 import { useCompareStore } from '../../stores/compareStore';
 import { ComparisonProductCard } from './ComparisonProductCard';
-import { MetricsSummaryRow, NutritionComparison } from './MetricRow';
+import { NutritionComparison } from './MetricRow';
 import { VerdictCard } from './VerdictCard';
 
 export function ComparisonResultSheet() {
   const payload = useSheetPayload(SheetsEnum.ComparisonResultSheet);
   const resetCompare = useCompareStore((s) => s.reset);
+  const authUser = useAuthStore((s) => s.user);
+  const currentUserQuery = useCurrentUserQuery(authUser?.id);
+  const familyMembersQuery = useFamilyMembersQuery();
 
   const scanId = payload?.scanId;
   const comparisonId = payload?.comparisonId;
@@ -34,9 +40,25 @@ export function ComparisonResultSheet() {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
 
   const profiles = result?.profiles;
+  const currentUser = currentUserQuery.data ?? authUser;
+  const familyMembersById = useMemo(
+    () => new Map((familyMembersQuery.data?.items ?? []).map((member) => [member.id, member])),
+    [familyMembersQuery.data?.items],
+  );
   const chipItems = useMemo(
-    () => profiles?.map((p) => ({ id: p.profileId, name: p.profileName })) ?? [],
-    [profiles],
+    () =>
+      profiles?.map((profile) => {
+        const familyMember = familyMembersById.get(profile.profileId);
+        const isCurrentUser = profile.profileId === 'you';
+
+        return {
+          id: profile.profileId,
+          name: profile.profileName,
+          imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
+          fallbackImageUrl: isCurrentUser ? currentUser?.image ?? null : null,
+        };
+      }) ?? [],
+    [currentUser?.avatarUrl, currentUser?.image, familyMembersById, profiles],
   );
 
   const handleClose = () => {

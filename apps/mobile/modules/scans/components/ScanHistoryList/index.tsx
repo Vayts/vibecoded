@@ -5,6 +5,7 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useScanHistoryQuery } from '../../hooks/useScanHistoryQuery';
+import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import ScanningArrow from '../../../../assets/scanning_arrow.svg';
 
@@ -53,6 +54,7 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
     isFetchingNextPage,
     refetch,
   } = useScanHistoryQuery();
+  const profileScoreChipContext = useProfileScoreChipContext();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -101,7 +103,15 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
     <FlatList
       data={items}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <ScanHistoryRow item={item} onPress={onScanPress} />}
+      renderItem={({ item }) => (
+        <ScanHistoryRow
+          item={item}
+          onPress={onScanPress}
+          profileScoreChipContext={profileScoreChipContext}
+        />
+      )}
+      automaticallyAdjustContentInsets={false}
+      contentInsetAdjustmentBehavior="never"
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
@@ -112,7 +122,12 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : {paddingBottom: 60}}
+      contentContainerStyle={items.length === 0 ? { 
+        flex: 1 
+      } : {
+        paddingBottom: 60,
+        paddingTop: 16,
+      }}
     />
   );
 }

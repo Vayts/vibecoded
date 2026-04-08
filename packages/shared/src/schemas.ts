@@ -153,6 +153,7 @@ export type ComparisonDetailResponse = z.infer<typeof comparisonDetailResponseSc
 export const familyMemberSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(50),
+  avatarUrl: z.string().nullable(),
   mainGoal: mainGoalSchema.nullable(),
   restrictions: z.array(restrictionSchema),
   allergies: z.array(allergySchema),
@@ -165,6 +166,7 @@ export type FamilyMember = z.infer<typeof familyMemberSchema>;
 
 export const createFamilyMemberRequestSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
+  avatarUrl: z.string().trim().min(1, 'Avatar URL is invalid').nullable().optional(),
   mainGoal: mainGoalSchema.nullable().optional(),
   restrictions: z.array(restrictionSchema).optional().default([]),
   allergies: z.array(allergySchema).optional().default([]),

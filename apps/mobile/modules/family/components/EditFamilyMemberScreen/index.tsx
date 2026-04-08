@@ -16,7 +16,7 @@ export function EditFamilyMemberScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
+      <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color={COLORS.primary} />
       </View>
     );
@@ -24,7 +24,7 @@ export function EditFamilyMemberScreen() {
 
   if (!member) {
     return (
-      <View className="flex-1 items-center justify-center bg-white px-6">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <Typography variant="sectionTitle" className="text-gray-900">
           Member not found
         </Typography>

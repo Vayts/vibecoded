@@ -16,8 +16,10 @@ import { ScanHistoryList } from '../ScanHistoryList';
 import { FavouritesList } from '../FavouritesList';
 import { ComparisonsList } from '../ComparisonsList';
 import { DiscoverTabChips, type DiscoverTab } from '../DiscoverTabChips';
+import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
 
-const TABS: DiscoverTab[] = ['history', 'favourites', 'comparisons'];
+const TABS: DiscoverTab[] = ['history', 'comparisons', 'favourites'];
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIMING_CONFIG = { duration: 250, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
 const IS_IOS = Platform.OS === 'ios';
@@ -74,34 +76,90 @@ export function ScansTabScreen() {
 
   if (!IS_IOS) {
     return (
-      <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+        <View className="px-4">
+          <Typography variant="pageTitle">Discover</Typography>
+        </View> 
         <DiscoverTabChips selected={activeTab} onSelect={handleTabSelect} />
-        {activeTab === 'history' && historyPanel}
-        {activeTab === 'favourites' && favouritesPanel}
-        {activeTab === 'comparisons' && comparisonsPanel}
+        <View
+          style={{
+            backgroundColor: COLORS.white,
+            borderTopLeftRadius: 40,
+            borderTopRightRadius: 40,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+            elevation: 8,
+            gap: 12,
+            marginTop: 8,
+            flex: 1,
+          }}
+        >
+          <View
+            style={{
+              borderTopLeftRadius: 40,
+              borderTopRightRadius: 40,
+              overflow: "hidden",
+              flex: 1,
+            }}
+          >
+            {activeTab === 'history' && historyPanel}
+            {activeTab === 'comparisons' && comparisonsPanel}
+            {activeTab === 'favourites' && favouritesPanel}
+          </View>
+        </View>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
-      <DiscoverTabChips selected={activeTab} onSelect={handleTabSelect} />
-      <View style={{ flex: 1, overflow: 'hidden' }}>
-        <Animated.View
-          style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
-          className="flex-1"
-        >
-          <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-            {historyPanel}
-          </View>
-          <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-            {favouritesPanel}
-          </View>
-          <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-            {comparisonsPanel}
-          </View>
-        </Animated.View>
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      <View className="px-4">
+        <Typography variant="pageTitle">Discover</Typography>
       </View>
+      <DiscoverTabChips selected={activeTab} onSelect={handleTabSelect} />
+        <View
+          style={{
+            backgroundColor: COLORS.white,
+            borderTopLeftRadius: 40,
+            borderTopRightRadius: 40,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+            elevation: 8,
+            gap: 12,
+            marginTop: 8,
+            flex: 1,
+          }}
+        >
+          <View
+            style={{
+              borderTopLeftRadius: 40,
+              borderTopRightRadius: 40,
+              overflow: "hidden",
+              flex: 1,
+            }}
+          >
+            <View style={{ flex: 1, overflow: 'hidden' }}>
+              <Animated.View
+                style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
+                className="flex-1"
+              >
+                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                  {historyPanel}
+                </View>
+                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                  {comparisonsPanel}
+                </View>
+                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                  {favouritesPanel}
+                </View>
+              </Animated.View>
+            </View>
+          </View>
+        </View>
     </View>
   );
 }

@@ -49,16 +49,20 @@ module.exports = {
           red: '#DC2626', // Error / destructive (red-600)
           amber: '#D97706', // Warning / trial (amber-600)
           purple: '#7C3AED', // Pro badge (violet-600)
+          600: '#E28200',
         },
         sparkle: {
           DEFAULT: '#FBBF24', // AI sparkle gold
           dark: '#F59E0B', // AI sparkle amber
         },
         neutrals: {
+          50: '#FAFAFA',
           100: '#F1F1F1',
+          200: '#E6E6E6',
           500: '#767676',
           900: '#1A1A1A',
         },
+        background: '#FAFAFA',
         primary: {
           900: '#205B23'
         }

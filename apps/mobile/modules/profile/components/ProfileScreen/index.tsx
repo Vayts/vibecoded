@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +9,7 @@ import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
 import { FamilyMemberList } from '../../../family/components/FamilyMemberList';
+import { useCurrentUserQuery } from '../../api/profileQueries';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
 import { ProfileMenuRow } from '../ProfileMenuRow';
 import { ProfileMenuSection } from '../ProfileMenuSection';
@@ -23,8 +25,16 @@ const getHealthSummary = (onboarding: ReturnType<typeof useOnboardingQuery>['dat
 export function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isLoading, signOut, user } = useAuthStore();
+  const { isLoading, setUser, signOut, user: authUser } = useAuthStore();
+  const currentUserQuery = useCurrentUserQuery(authUser?.id);
+  const user = currentUserQuery.data ?? authUser;
   const onboardingQuery = useOnboardingQuery(user?.id);
+
+  useEffect(() => {
+    if (currentUserQuery.data) {
+      setUser(currentUserQuery.data);
+    }
+  }, [currentUserQuery.data, setUser]);
 
   if (!user) {
     return <ScreenSpinner />;
@@ -36,7 +46,7 @@ export function ProfileScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
+      className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
         paddingTop: insets.top,
@@ -53,13 +63,15 @@ export function ProfileScreen() {
         <ProfileHeaderCard
           name={user.name || 'Your account'}
           email={user.email}
+          avatarUrl={user.avatarUrl}
+          fallbackImageUrl={user.image}
           statusText={onboardingQuery.data?.onboardingCompleted ? 'Health profile saved' : null}
         />
 
         <ProfileMenuSection title="Account">
           <ProfileMenuRow
             label="Edit profile"
-            subtitle="Update your display name"
+            subtitle="Update your photo and display name"
             onPress={() => {
               router.push('/(tabs)/profile/edit-account');
             }}

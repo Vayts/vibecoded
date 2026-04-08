@@ -3,6 +3,7 @@ import { Alert, TouchableOpacity, View } from 'react-native';
 import { ChevronRight, Plus, Trash2 } from 'lucide-react-native';
 
 import { Typography } from '../../../../shared/components/Typography';
+import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
 import {
   useFamilyMembersQuery,
@@ -67,13 +68,21 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
                 onEdit(member);
               }}
             >
-              <View className="flex-1">
-                <Typography variant="body" className="font-semibold text-gray-900">
-                  {member.name}
-                </Typography>
-                <Typography variant="bodySecondary" className="mt-0.5 text-gray-500">
-                  {member.mainGoal ? MAIN_GOAL_LABELS[member.mainGoal] : 'No goal set'}
-                </Typography>
+              <View className="flex-1 flex-row items-center">
+                <UserAvatar
+                  imageUrl={member.avatarUrl}
+                  name={member.name}
+                  size="md"
+                  className="mr-3"
+                />
+                <View className="flex-1">
+                  <Typography variant="body" className="font-semibold text-gray-900">
+                    {member.name}
+                  </Typography>
+                  <Typography variant="bodySecondary" className="mt-0.5 text-gray-500">
+                    {member.mainGoal ? MAIN_GOAL_LABELS[member.mainGoal] : 'No goal set'}
+                  </Typography>
+                </View>
               </View>
               <ChevronRight color={COLORS.gray400} size={18} />
             </TouchableOpacity>

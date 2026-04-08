@@ -1,7 +1,7 @@
 import type { BarcodeLookupSuccessResponse } from '@acme/shared';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback } from 'react';
-import { compressImage } from '../lib/compressImage';
+import { compressImage } from '../../../shared/lib/media/compressImage';
 import { usePhotoScanMutation, usePhotoOcrMutation } from './useScannerMutations';
 import type { PhotoOcrData } from '../types/scanner';
 

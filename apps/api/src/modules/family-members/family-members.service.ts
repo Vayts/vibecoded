@@ -11,6 +11,7 @@ import {
 const serializeFamilyMember = (member: FamilyMember) => ({
   id: member.id,
   name: member.name,
+  avatarUrl: member.avatarUrl,
   mainGoal: member.mainGoal,
   restrictions: member.restrictions,
   allergies: member.allergies,
@@ -53,6 +54,7 @@ export class FamilyMembersService {
       data: {
         userId,
         name: parsed.data.name,
+        avatarUrl: parsed.data.avatarUrl ?? null,
         mainGoal: parsed.data.mainGoal ?? null,
         restrictions: parsed.data.restrictions ?? [],
         allergies: parsed.data.allergies ?? [],

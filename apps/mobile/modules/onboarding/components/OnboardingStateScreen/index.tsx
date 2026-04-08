@@ -20,7 +20,7 @@ export function OnboardingStateScreen({
   onAction,
 }: OnboardingStateScreenProps) {
   return (
-    <View className="flex-1 justify-center bg-white px-6">
+    <View className="flex-1 justify-center bg-background px-6">
       <View className="rounded-xl border border-gray-100 bg-white px-6 py-8 shadow-sm">
         <View className="mb-5 h-14 w-14 items-center justify-center self-center rounded-xl bg-blue-50">
           {loading ? (

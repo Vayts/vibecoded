@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { ScreenSpinner } from '../shared/components/ScreenSpinner';
 import { NoInternetScreen } from '../shared/components/NoInternetScreen';
+import { COLORS } from '../shared/constants/colors';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -84,5 +85,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.appBackground,
   },
 });

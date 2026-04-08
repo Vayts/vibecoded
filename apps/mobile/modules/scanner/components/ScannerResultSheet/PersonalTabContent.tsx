@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { ProfileChips } from '../../../../shared/components/ProfileChips';
 import type { ProfileChipItem } from '../../../../shared/components/ProfileChips';
+import { useAuthStore } from '../../../../shared/stores/authStore';
+import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
+import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { mapFitLabelToToneKey } from './evaluationHelpers';
 import { EvaluationSection } from './EvaluationSection';
 import { IngredientsSection } from './IngredientsSection';
@@ -20,16 +23,36 @@ interface PersonalTabContentProps {
 
 export function PersonalTabContent({ personalResult, isError, onRetry, rawIngredients, rawIngredientsText }: PersonalTabContentProps) {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('you');
+  const authUser = useAuthStore((s) => s.user);
+  const currentUserQuery = useCurrentUserQuery(authUser?.id);
+  const familyMembersQuery = useFamilyMembersQuery();
 
   const analysisResult = personalResult?.result;
   const profiles = analysisResult?.profiles;
   const hasProductAnalysis = Boolean(analysisResult && profiles?.length);
   const isIngredientAnalysisPending =
     !hasProductAnalysis || personalResult?.ingredientsStatus === 'pending';
+  const currentUser = currentUserQuery.data ?? authUser;
+  const familyMembersById = useMemo(
+    () => new Map((familyMembersQuery.data?.items ?? []).map((member) => [member.id, member])),
+    [familyMembersQuery.data?.items],
+  );
 
   const chipItems: ProfileChipItem[] = useMemo(
-    () => profiles?.map((p) => ({ id: p.profileId, name: p.name, score: p.score })) ?? [],
-    [profiles],
+    () =>
+      profiles?.map((profile) => {
+        const familyMember = familyMembersById.get(profile.profileId);
+        const isCurrentUser = profile.profileId === 'you';
+
+        return {
+          id: profile.profileId,
+          name: profile.name,
+          score: profile.score,
+          imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
+          fallbackImageUrl: isCurrentUser ? currentUser?.image ?? null : null,
+        };
+      }) ?? [],
+    [currentUser?.avatarUrl, currentUser?.image, familyMembersById, profiles],
   );
 
   if (hasProductAnalysis && profiles) {
