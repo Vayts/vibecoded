@@ -76,6 +76,7 @@ favouritesRoute.get('/', async (c) => {
             product_name: fav.product.product_name,
             brands: fav.product.brands,
             image_url: fav.product.image_url,
+            nutriscore_grade: fav.product.nutriscore_grade,
           }
         : null,
     };

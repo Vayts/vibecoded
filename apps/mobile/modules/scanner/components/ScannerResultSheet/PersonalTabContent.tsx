@@ -1,8 +1,6 @@
 import type { AnalysisJobResponse, ProfileProductScore } from '@acme/shared';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { ProfileChips } from '../../../../shared/components/ProfileChips';
-import type { ProfileChipItem } from '../../../../shared/components/ProfileChips';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
@@ -11,6 +9,10 @@ import { EvaluationSection } from './EvaluationSection';
 import { IngredientsSection } from './IngredientsSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
 import { PersonalAnalysisLoader } from './PersonalAnalysisLoader';
+import {
+  ProfileScoreSelector,
+  type ProfileScoreSelectorItem,
+} from './ProfileScoreSelector';
 import { ScoreSummary } from './ScoreSummary';
 
 interface PersonalTabContentProps {
@@ -38,7 +40,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
     [familyMembersQuery.data?.items],
   );
 
-  const chipItems: ProfileChipItem[] = useMemo(
+  const chipItems: ProfileScoreSelectorItem[] = useMemo(
     () =>
       profiles?.map((profile) => {
         const familyMember = familyMembersById.get(profile.profileId);
@@ -73,7 +75,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
     return (
       <View>
         {hasMultipleProfiles ? (
-          <ProfileChips
+          <ProfileScoreSelector
             profiles={chipItems}
             selectedProfileId={activeProfile.profileId}
             onSelect={setSelectedProfileId}

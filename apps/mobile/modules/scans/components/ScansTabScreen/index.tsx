@@ -45,7 +45,10 @@ export function ScansTabScreen() {
 
   const handleScanPress = useCallback((item: ScanHistoryItem) => {
     void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-      payload: { scanId: item.id },
+      payload: { 
+        scanId: item.id,
+        item: item,
+      },
     });
   }, []);
 

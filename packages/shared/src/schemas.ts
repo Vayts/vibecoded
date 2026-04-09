@@ -13,7 +13,6 @@ import {
 import { barcodeLookupProductSchema } from './scanner-core-schemas';
 
 export * from './scanner-core-schemas';
-
 // ============================================================
 // Profile chip schema (lightweight summary for history lists)
 // ============================================================
@@ -25,13 +24,11 @@ export const profileChipSchema = z.object({
   fitLabel: fitLabelSchema,
 });
 export type ProfileChip = z.infer<typeof profileChipSchema>;
-
 // ============================================================
 // Scan history schemas
 // ============================================================
 
-export const scanSourceSchema = z.enum(['barcode', 'photo']);
-export type ScanSource = z.infer<typeof scanSourceSchema>;
+export const scanSourceSchema = z.enum(['barcode', 'photo']); export type ScanSource = z.infer<typeof scanSourceSchema>;
 
 export const scanTypeSchema = z.enum(['product', 'comparison']);
 export type ScanType = z.infer<typeof scanTypeSchema>;
@@ -42,6 +39,7 @@ const scanHistoryProductSchema = z.object({
   product_name: z.string().nullable(),
   brands: z.string().nullable(),
   image_url: z.string().nullable(),
+  nutriscore_grade: z.string().nullable().optional(),
 });
 
 export const scanHistoryItemSchema = z.object({
@@ -67,7 +65,6 @@ export const scanHistoryResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
-
 export const scanDetailResponseSchema = z.object({
   id: z.string(),
   type: scanTypeSchema,

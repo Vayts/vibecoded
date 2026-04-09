@@ -64,7 +64,8 @@ module.exports = {
         },
         background: '#FAFAFA',
         primary: {
-          900: '#205B23'
+          900: '#205B23',
+          700: '#237227',
         }
       },
     },

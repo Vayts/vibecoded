@@ -2,6 +2,7 @@ import type {
   BarcodeLookupProduct,
   BarcodeLookupResponse,
   ProductPreview,
+  ScanHistoryItem,
 } from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
@@ -9,7 +10,8 @@ import type { ScannerMutationResponse } from '../../types/scanner';
 
 type ProductImageSource =
   | BarcodeLookupProduct
-  | ProductPreview;
+  | ProductPreview
+  | NonNullable<ScanHistoryItem['product']>;
 
 type GradeKey = 'a' | 'b' | 'c' | 'd' | 'e';
 

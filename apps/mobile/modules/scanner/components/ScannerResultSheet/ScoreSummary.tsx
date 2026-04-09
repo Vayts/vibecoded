@@ -1,7 +1,8 @@
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
-import { getFitLabelText, getRatingTone } from './evaluationHelpers';
-import { Sparkle, Smile, ThumbsDown } from 'lucide-react-native';
+import { COLORS } from '../../../../shared/constants/colors';
+import { getFitLabelText } from './evaluationHelpers';
+import { Sparkles } from 'lucide-react-native';
 
 interface ScoreSummaryProps {
   title: string;
@@ -10,36 +11,52 @@ interface ScoreSummaryProps {
   toneKey: 'excellent' | 'good' | 'average' | 'bad';
 }
 
-function ToneIcon({ toneKey, color }: { toneKey: ScoreSummaryProps['toneKey']; color: string }) {
-  const size = 24;
-  if (toneKey === 'bad') return <ThumbsDown size={size} color={color} />;
-  if (toneKey === 'average') return <Smile size={size} color={color} />;
-  return <Sparkle size={size} color={color} />;
-}
+const SCORE_SUMMARY_LABEL_COLORS: Record<ScoreSummaryProps['toneKey'], string> = {
+  excellent: COLORS.primary,
+  good: COLORS.primary,
+  average: COLORS.warning,
+  bad: COLORS.danger,
+};
 
-export function ScoreSummary({ score, label, toneKey }: ScoreSummaryProps) {
-  const tone = getRatingTone(toneKey);
+export function ScoreSummary({ title, score, label, toneKey }: ScoreSummaryProps) {
+  const fitLabelColor = SCORE_SUMMARY_LABEL_COLORS[toneKey];
 
   return (
     <View
-      className="mt-4 rounded-xl border border-neutrals-100 bg-white px-4 py-4"
+      className="mt-4 overflow-hidden rounded-[16px] bg-white"
+      style={{ borderWidth: 1, borderColor: COLORS.gray200 }}
     >
-      <View className="flex-row items-center gap-3">
-        <View
-          className="h-12 w-12 items-center justify-center rounded-full"
-          style={{ backgroundColor: tone.backgroundColor }}
+      <View
+        className="flex-row items-center px-5 py-3 bg-neutrals-100 gap-2"
+      >
+        <Sparkles size={16} color={COLORS.neutrals500} strokeWidth={1.8} />
+        <Typography
+          style={{ color: COLORS.neutrals500, fontWeight: '500' }}
         >
-          <ToneIcon toneKey={toneKey} color={tone.textColor} />
-        </View>
+          {title}
+        </Typography>
+      </View>
 
-        <View>
-          <Typography variant="pageTitle" style={{ color: tone.textColor }}>
-            {score}/100
-          </Typography>
-          <Typography variant="bodySecondary" className="mt-1" style={{ color: tone.textColor }}>
-            {getFitLabelText(label)}
-          </Typography>
-        </View>
+      <View className="px-4 pt-2 pb-4">
+        <Typography
+          style={{
+            color: COLORS.neutrals900,
+            fontSize: 24,
+            fontWeight: '700',
+          }}
+        >
+          {score}/100
+        </Typography>
+        <Typography
+          style={{
+            color: fitLabelColor,
+            fontSize: 14,
+            marginTop: 2,
+            fontWeight: '600',
+          }}
+        >
+          {getFitLabelText(label)}
+        </Typography>
       </View>
     </View>
   );

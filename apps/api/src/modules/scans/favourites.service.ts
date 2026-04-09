@@ -20,6 +20,7 @@ type FavouriteProduct = {
   product_name: string | null;
   brands: string | null;
   image_url: string | null;
+  nutriscore_grade: string | null;
 };
 
 type LatestScanRecord = {
@@ -48,6 +49,7 @@ const serializeProduct = (product: FavouriteProduct) => ({
   product_name: product.product_name,
   brands: product.brands,
   image_url: product.image_url,
+  nutriscore_grade: product.nutriscore_grade,
 });
 
 @Injectable()
@@ -89,6 +91,7 @@ export class FavouritesService {
             product_name: true,
             brands: true,
             image_url: true,
+            nutriscore_grade: true,
           },
         },
       },

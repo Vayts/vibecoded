@@ -3,6 +3,7 @@ import type {
   BarcodeLookupResponse,
   ProductComparisonResult,
   ProductPreview,
+  ScanHistoryItem,
 } from '@acme/shared';
 
 export type ScannerMutationResponse = BarcodeLookupResponse;
@@ -21,6 +22,7 @@ export type ScannerResultOrigin = 'barcode';
 export interface ScannerResultSheetPayload {
   result?: ScannerMutationResponse;
   scanId?: string;
+  item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
   previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;

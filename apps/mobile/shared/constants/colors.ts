@@ -29,6 +29,9 @@ export const COLORS = {
 
   primary300: '#94E197',
   primary900: '#1C4B1F',
+  profileChipGoodBorder: '#94E197',
+  profileChipBadBorder: '#FF9292',
+  profileChipNeutralBorder: '#D9D9D9',
 
   // ── Semantic ──────────────────────────────────────────
   blue: '#2563EB', // blue-600 — good match rating

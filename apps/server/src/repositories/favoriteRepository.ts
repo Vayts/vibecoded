@@ -75,6 +75,7 @@ export const findFavouritesByUserId = async (
           product_name: true,
           brands: true,
           image_url: true,
+          nutriscore_grade: true,
         },
       },
     },

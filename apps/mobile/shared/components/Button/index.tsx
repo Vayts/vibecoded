@@ -25,22 +25,22 @@ const variantClasses: Record<
   { container: string; text: string; indicator: string }
 > = {
   primary: {
-    container: 'bg-primary-900 rounded-xl',
+    container: 'bg-primary-900 rounded-[30px]',
     text: 'text-white font-semibold text-base',
     indicator: 'white',
   },
   secondary: {
-    container: 'border border-gray-300 rounded-xl bg-white',
+    container: 'border border-gray-300 rounded-[30px] bg-white',
     text: 'text-gray-700 font-semibold text-base',
     indicator: COLORS.gray700,
   },
   ghost: {
-    container: 'rounded-xl',
-    text: 'text-blue-600 font-semibold text-base',
+    container: 'rounded-[30px]',
+    text: 'text-primary-700 font-semibold text-base',
     indicator: COLORS.primary,
   },
   destructive: {
-    container: 'border border-red-300 rounded-xl bg-white',
+    container: 'border border-red-300 rounded-[30px] bg-white',
     text: 'text-red-600 font-semibold text-base',
     indicator: COLORS.danger,
   },
@@ -57,7 +57,7 @@ export function Button({
   size = 'lg',
   loading = false,
   label,
-  fullWidth = false,
+  fullWidth = true,
   disabled,
   Icon,
   ...props

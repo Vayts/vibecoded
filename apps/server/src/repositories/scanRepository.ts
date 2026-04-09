@@ -106,6 +106,7 @@ export const findScansByUserId = async (userId: string, cursor?: string, limit?:
           product_name: true,
           brands: true,
           image_url: true,
+          nutriscore_grade: true,
         },
       },
       product2: {
@@ -115,6 +116,7 @@ export const findScansByUserId = async (userId: string, cursor?: string, limit?:
           product_name: true,
           brands: true,
           image_url: true,
+          nutriscore_grade: true,
         },
       },
     },
