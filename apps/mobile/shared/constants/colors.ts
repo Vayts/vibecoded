@@ -32,6 +32,17 @@ export const COLORS = {
   profileChipGoodBorder: '#94E197',
   profileChipBadBorder: '#FF9292',
   profileChipNeutralBorder: '#D9D9D9',
+  nutriScoreA: '#157F3E',
+  nutriScoreB: '#83CB16',
+  nutriScoreC: '#FCCB18',
+  nutriScoreD: '#FA913E',
+  nutriScoreE: '#EB580A',
+  nutriScoreAActive: '#196c37',
+  nutriScoreBActive: '#76a919',
+  nutriScoreCActive: '#a1862f',
+  nutriScoreDActive: '#d47f2f',
+  nutriScoreEActive: '#c2571a',
+  nutriScoreActiveBorder: '#D1A70F',
 
   // ── Semantic ──────────────────────────────────────────
   blue: '#2563EB', // blue-600 — good match rating

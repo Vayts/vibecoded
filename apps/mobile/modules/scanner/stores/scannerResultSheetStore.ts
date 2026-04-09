@@ -3,6 +3,7 @@ import { create } from 'zustand';
 
 interface ScannerResultSheetState {
   activeSessionId: number | null;
+  isLoadingInitialResult: boolean;
   result?: BarcodeLookupResponse;
   resolvedPersonalResult?: AnalysisJobResponse;
 }
@@ -15,23 +16,19 @@ interface ScannerResultSheetActions {
 
 const initialState: ScannerResultSheetState = {
   activeSessionId: null,
+  isLoadingInitialResult: false,
   result: undefined,
   resolvedPersonalResult: undefined,
 };
 
-const buildPendingSocketAnalysis = (
+const buildResolvedPersonalAnalysis = (
   result: BarcodeLookupResponse,
 ): AnalysisJobResponse | undefined => {
   if (!result.success) {
     return undefined;
   }
 
-  return {
-    analysisId: result.personalAnalysis.analysisId,
-    status: 'pending',
-    productStatus: 'pending',
-    ingredientsStatus: 'pending',
-  };
+  return result.personalAnalysis;
 };
 
 export const useScannerResultSheetStore = create<
@@ -42,6 +39,7 @@ export const useScannerResultSheetStore = create<
     const sessionId = Date.now();
     set({
       activeSessionId: sessionId,
+      isLoadingInitialResult: true,
       result: undefined,
       resolvedPersonalResult: undefined,
     });
@@ -56,8 +54,9 @@ export const useScannerResultSheetStore = create<
 
       return {
         ...state,
+        isLoadingInitialResult: false,
         result,
-        resolvedPersonalResult: buildPendingSocketAnalysis(result),
+        resolvedPersonalResult: buildResolvedPersonalAnalysis(result),
       };
     }),
   reset: () => set(initialState),

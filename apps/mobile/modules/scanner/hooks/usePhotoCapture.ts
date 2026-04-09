@@ -1,5 +1,5 @@
 import type { BarcodeLookupSuccessResponse } from '@acme/shared';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { compressImage } from '../../../shared/lib/media/compressImage';
 import { usePhotoScanMutation, usePhotoOcrMutation } from './useScannerMutations';
 import type { PhotoOcrData } from '../types/scanner';
@@ -27,13 +27,20 @@ export interface PhotoPreviewResult {
 export function usePhotoCapture(captureFromCamera: CaptureFromCamera) {
   const photoMutation = usePhotoScanMutation();
   const ocrMutation = usePhotoOcrMutation();
+  const [isPreparing, setIsPreparing] = useState(false);
 
   const captureCompressedPhoto = useCallback(async () => {
-    const captured = await captureFromCamera();
-    if (!captured) return null;
+    setIsPreparing(true);
 
-    const compressed = await compressImage(captured.uri, captured.width, captured.height);
-    return { uploadUri: compressed.uri, localUri: captured.uri };
+    try {
+      const captured = await captureFromCamera();
+      if (!captured) return null;
+
+      const compressed = await compressImage(captured.uri, captured.width, captured.height);
+      return { uploadUri: compressed.uri, localUri: captured.uri };
+    } finally {
+      setIsPreparing(false);
+    }
   }, [captureFromCamera]);
 
   /** Full pipeline: camera → compress → identify product (for compare second product) */
@@ -66,7 +73,8 @@ export function usePhotoCapture(captureFromCamera: CaptureFromCamera) {
     capturePhoto,
     capturePhotoPreview,
     captureAndCompress,
-    isPending: photoMutation.isPending || ocrMutation.isPending,
+    isPending: isPreparing || photoMutation.isPending || ocrMutation.isPending,
+    isPreparing,
     isOcrPending: ocrMutation.isPending,
   };
 }

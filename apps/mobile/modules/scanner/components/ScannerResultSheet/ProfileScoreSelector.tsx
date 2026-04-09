@@ -69,7 +69,7 @@ export function ProfileScoreSelector({
       horizontal
       showsHorizontalScrollIndicator={false}
       className={className}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingVertical: 4 }}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
     >
       {profiles.map((profile) => {
         const tone = SELECTOR_TONES[getSelectorTone(profile.score)];
@@ -85,7 +85,7 @@ export function ProfileScoreSelector({
                 : profile.name
             }
             activeOpacity={0.7}
-            className="flex-row items-center rounded-lg px-1 py-1"
+            className="flex-row items-center rounded-lg px-2 py-0.5"
             style={{
               backgroundColor: tone.backgroundColor,
               borderWidth: 1.5,
@@ -99,11 +99,11 @@ export function ProfileScoreSelector({
               name={profile.name}
               size="xs"
             />
-            <View className="ml-3 flex-row items-center" style={{ gap: 6, flexShrink: 1 }}>
+            <View className="ml-1 flex-row gap-1 items-center shrink">
               <Typography
                 variant="buttonSmall"
                 numberOfLines={1}
-                style={{ color: tone.textColor, flexShrink: 1 }}
+                style={{ color: tone.textColor, flexShrink: 1, fontWeight: '600', fontSize: 13 }}
               >
                 {profile.name}
               </Typography>
@@ -111,7 +111,7 @@ export function ProfileScoreSelector({
                 <Typography
                   variant="button"
                   numberOfLines={1}
-                  style={{ color: tone.textColor }}
+                  style={{ color: tone.textColor, fontWeight: '700', fontSize: 13 }}
                 >
                   {profile.score}
                 </Typography>

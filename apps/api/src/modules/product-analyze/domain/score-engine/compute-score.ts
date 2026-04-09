@@ -1,6 +1,8 @@
 import type {
+  NormalizedProduct,
   ProductFacts,
   ScoreReason,
+  ScoreReasonCategory,
   FitLabel,
   ProfileProductScore,
   NutritionLevel,
@@ -276,6 +278,136 @@ const withProductTypeContext = (
   return `${description} for ${category}`;
 };
 
+const SCORE_REASON_CATEGORY_LABELS: Record<ScoreReasonCategory, string> = {
+  additives: 'Additives',
+  allergens: 'Allergens',
+  calories: 'Calories',
+  carbohydrates: 'Carbohydrates',
+  'diet-matching': 'Diet matching',
+  fat: 'Fat',
+  protein: 'Protein',
+  salt: 'Salt',
+  'saturated-fat': 'Saturated fat',
+  sugar: 'Sugar',
+};
+
+type InternalScoreReason = Omit<ScoreReason, 'category'> & {
+  category?: ScoreReasonCategory;
+  displayGroupKey?: string;
+  hidden?: boolean;
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const normalizeMatchText = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const matchesAnyToken = (text: string, tokens: string[]): boolean => {
+  const normalizedText = normalizeMatchText(text);
+  if (!normalizedText) return false;
+
+  return tokens.some((token) => {
+    const normalizedToken = normalizeMatchText(token);
+    if (!normalizedToken) return false;
+
+    const pattern = new RegExp(
+      `\\b${escapeRegExp(normalizedToken).replace(/\s+/g, '\\s+')}s?\\b`,
+      'i',
+    );
+
+    return pattern.test(normalizedText);
+  });
+};
+
+const uniqueValues = (values: Array<string | null | undefined>): string[] => {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (!trimmed) continue;
+
+    const normalized = normalizeMatchText(trimmed);
+    if (!normalized || seen.has(normalized)) continue;
+
+    seen.add(normalized);
+    result.push(trimmed);
+  }
+
+  return result;
+};
+
+const formatFactList = (values: string[]): string => {
+  return uniqueValues(values)
+    .map((value) => value.toLowerCase())
+    .join(', ');
+};
+
+const buildContainsDescription = (values: string[]): string | null => {
+  const formatted = formatFactList(values);
+  return formatted ? `Contains ${formatted}` : null;
+};
+
+const trimSentence = (value: string): string => {
+  return value.trim().replace(/\.+$/, '');
+};
+
+const joinDescriptions = (
+  descriptions: Array<string | null | undefined>,
+): string => {
+  return uniqueValues(
+    descriptions.map((description) =>
+      description ? trimSentence(description) : description,
+    ),
+  ).join('. ');
+};
+
+const buildDisplayReasons = (
+  reasons: InternalScoreReason[],
+  kinds: Array<ScoreReason['kind']>,
+): ScoreReason[] => {
+  const grouped = new Map<string, InternalScoreReason[]>();
+
+  for (const reason of reasons) {
+    if (reason.hidden || !reason.category || !kinds.includes(reason.kind)) {
+      continue;
+    }
+
+    const groupKey = `${reason.kind}:${reason.displayGroupKey ?? reason.category}`;
+    const existing = grouped.get(groupKey);
+
+    if (existing) {
+      existing.push(reason);
+      continue;
+    }
+
+    grouped.set(groupKey, [reason]);
+  }
+
+  return Array.from(grouped.values()).map((group) => {
+    const first = group[0];
+    const category = first.category as ScoreReasonCategory;
+    const valueReason = group.find((reason) => reason.value != null);
+
+    return {
+      key: first.displayGroupKey ?? first.key,
+      label: SCORE_REASON_CATEGORY_LABELS[category],
+      description: joinDescriptions(group.map((reason) => reason.description)),
+      value: valueReason?.value ?? null,
+      unit: valueReason?.unit ?? null,
+      impact: group.reduce((sum, reason) => sum + reason.impact, 0),
+      kind: first.kind,
+      source: first.source,
+      category,
+    };
+  });
+};
+
 // ============================================================
 // Profile input for scoring
 // ============================================================
@@ -313,7 +445,8 @@ const nutritionReason = (
   goodImpact: number,
   badImpact: number,
   productType: ProductType | null,
-): ScoreReason | null => {
+  category?: ScoreReasonCategory,
+): InternalScoreReason | null => {
   if (level === 'unknown') return null;
 
   if (level === 'moderate') {
@@ -328,6 +461,9 @@ const nutritionReason = (
       impact: 0,
       kind: 'neutral',
       source: 'nutrition',
+      ...(category
+        ? { category, displayGroupKey: category }
+        : { hidden: true }),
     };
   }
 
@@ -347,6 +483,9 @@ const nutritionReason = (
     impact: isGood ? goodImpact : badImpact,
     kind: isGood ? 'positive' : 'negative',
     source: 'nutrition',
+    ...(category
+      ? { category, displayGroupKey: category }
+      : { hidden: true }),
   };
 };
 
@@ -361,7 +500,8 @@ const neutralNutritionReason = (
   unit: string,
   desc: string,
   productType: ProductType | null,
-): ScoreReason | null => {
+  category?: ScoreReasonCategory,
+): InternalScoreReason | null => {
   if (value == null || value === 0) return null;
   return {
     key,
@@ -372,11 +512,14 @@ const neutralNutritionReason = (
     impact: 0,
     kind: 'neutral',
     source: 'nutrition',
+    ...(category
+      ? { category, displayGroupKey: category }
+      : { hidden: true }),
   };
 };
 
-const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
-  const reasons: ScoreReason[] = [];
+const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
+  const reasons: InternalScoreReason[] = [];
   const n = facts.nutritionFacts;
   const cat = getCategoryProfile(facts.productType);
   const s = computeNutritionLevels(n, cat);
@@ -398,6 +541,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       cat.sugar.goodImpact,
       cat.sugar.badImpact,
       facts.productType,
+      'sugar',
     );
     if (sugar) reasons.push(sugar);
   } else {
@@ -408,6 +552,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       'g',
       'Sugar content',
       facts.productType,
+      'sugar',
     );
     if (r) reasons.push(r);
   }
@@ -426,6 +571,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       cat.salt.goodImpact,
       cat.salt.badImpact,
       facts.productType,
+      'salt',
     );
     if (salt) reasons.push(salt);
   } else {
@@ -436,6 +582,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       'g',
       'Salt content',
       facts.productType,
+      'salt',
     );
     if (r) reasons.push(r);
   }
@@ -454,6 +601,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       cat.saturatedFat.goodImpact,
       cat.saturatedFat.badImpact,
       facts.productType,
+      'saturated-fat',
     );
     if (satFat) reasons.push(satFat);
   } else {
@@ -464,6 +612,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       'g',
       'Saturated fat content',
       facts.productType,
+      'saturated-fat',
     );
     if (r) reasons.push(r);
   }
@@ -482,6 +631,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       cat.calories.goodImpact,
       cat.calories.badImpact,
       facts.productType,
+      'calories',
     );
     if (cal) reasons.push(cal);
   } else {
@@ -492,6 +642,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       'kcal',
       'Calorie content',
       facts.productType,
+      'calories',
     );
     if (r) reasons.push(r);
   }
@@ -510,6 +661,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       cat.protein.goodImpact,
       cat.protein.badImpact,
       facts.productType,
+      'protein',
     );
     if (protein) reasons.push(protein);
   } else {
@@ -520,6 +672,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
       'g',
       'Protein content',
       facts.productType,
+      'protein',
     );
     if (r) reasons.push(r);
   }
@@ -560,16 +713,18 @@ const evaluateNutritionFacts = (facts: ProductFacts): ScoreReason[] => {
     'g',
     'Total fat content',
     facts.productType,
+    'fat',
   );
   if (fat) reasons.push(fat);
 
   const carbs = neutralNutritionReason(
     'carbs',
-    'Carbs',
+    'Carbohydrates',
     n.carbs,
     'g',
     'Carbohydrate content',
     facts.productType,
+    'carbohydrates',
   );
   if (carbs) reasons.push(carbs);
 
@@ -595,7 +750,7 @@ const NUTRI_GRADE_IMPACTS: Record<
   e: { impact: -15, kind: 'negative', desc: 'Poor Nutri-Score grade (E)' },
 };
 
-const evaluateNutriGrade = (facts: ProductFacts): ScoreReason | null => {
+const evaluateNutriGrade = (facts: ProductFacts): InternalScoreReason | null => {
   if (!facts.nutriGrade) return null;
   const entry = NUTRI_GRADE_IMPACTS[facts.nutriGrade];
   if (!entry || entry.impact === 0) return null;
@@ -609,6 +764,7 @@ const evaluateNutriGrade = (facts: ProductFacts): ScoreReason | null => {
     impact: entry.impact,
     kind: entry.kind,
     source: 'nutrition',
+    hidden: true,
   };
 };
 
@@ -634,63 +790,257 @@ const RESTRICTION_LABELS: Record<string, string> = {
   VEGETARIAN: 'Vegetarian',
   HALAL: 'Halal',
   KOSHER: 'Kosher',
+  KETO: 'Keto',
+  PALEO: 'Paleo',
   GLUTEN_FREE: 'Gluten-free',
   DAIRY_FREE: 'Dairy-free',
   NUT_FREE: 'Nut-free',
 };
 
+const RESTRICTION_REASON_TOKENS: Record<string, string[]> = {
+  VEGAN: ['vegan'],
+  VEGETARIAN: ['vegetarian'],
+  HALAL: ['halal'],
+  KOSHER: ['kosher'],
+  KETO: ['keto'],
+  PALEO: ['paleo'],
+  GLUTEN_FREE: ['gluten free', 'gluten-free', 'gluten'],
+  DAIRY_FREE: ['dairy free', 'dairy-free', 'dairy'],
+  NUT_FREE: ['nut free', 'nut-free', 'nut'],
+};
+
+const RESTRICTION_CONFLICT_TOKENS: Partial<Record<string, string[]>> = {
+  VEGAN: [
+    'meat',
+    'beef',
+    'chicken',
+    'pork',
+    'fish',
+    'tuna',
+    'salmon',
+    'shellfish',
+    'shrimp',
+    'dairy',
+    'milk',
+    'whey',
+    'butter',
+    'cheese',
+    'cream',
+    'yogurt',
+    'egg',
+    'honey',
+    'gelatin',
+    'lard',
+    'tallow',
+    'bacon',
+    'ham',
+    'sausage',
+    'turkey',
+    'lamb',
+    'duck',
+    'collagen',
+    'casein',
+    'lactose',
+  ],
+  VEGETARIAN: [
+    'meat',
+    'beef',
+    'chicken',
+    'pork',
+    'fish',
+    'tuna',
+    'salmon',
+    'shellfish',
+    'shrimp',
+    'gelatin',
+    'lard',
+    'tallow',
+    'bacon',
+    'ham',
+    'sausage',
+    'turkey',
+    'lamb',
+    'duck',
+    'collagen',
+    'carmine',
+  ],
+  HALAL: [
+    'pork',
+    'bacon',
+    'ham',
+    'lard',
+    'gelatin',
+    'wine',
+    'beer',
+    'rum',
+    'alcohol',
+    'sausage',
+    'salami',
+    'prosciutto',
+  ],
+  KOSHER: [
+    'pork',
+    'bacon',
+    'ham',
+    'shellfish',
+    'shrimp',
+    'crab',
+    'lobster',
+    'lard',
+    'sausage',
+    'salami',
+    'prosciutto',
+  ],
+  GLUTEN_FREE: [
+    'wheat',
+    'barley',
+    'rye',
+    'spelt',
+    'semolina',
+    'bulgur',
+    'malt',
+    'seitan',
+    'farro',
+    'durum',
+    'gluten',
+  ],
+  DAIRY_FREE: [
+    'milk',
+    'cream',
+    'butter',
+    'cheese',
+    'yogurt',
+    'whey',
+    'casein',
+    'lactose',
+    'dairy',
+  ],
+  NUT_FREE: [
+    'peanut',
+    'almond',
+    'walnut',
+    'cashew',
+    'hazelnut',
+    'pistachio',
+    'macadamia',
+    'pecan',
+    'tree nut',
+    'nut',
+  ],
+};
+
+const collectBadIngredientNames = (
+  ingredientAnalysis: IngredientAnalysis | undefined,
+  matcher: (ingredient: IngredientAnalysis['ingredients'][number]) => boolean,
+): string[] => {
+  if (!ingredientAnalysis) return [];
+
+  return uniqueValues(
+    ingredientAnalysis.ingredients
+      .filter((ingredient) => ingredient.status === 'bad' && matcher(ingredient))
+      .map((ingredient) => ingredient.name),
+  );
+};
+
+const ingredientMatchesRestriction = (
+  restriction: string,
+  ingredient: IngredientAnalysis['ingredients'][number],
+): boolean => {
+  const haystack = `${ingredient.name} ${ingredient.reason ?? ''}`;
+  const reasonTokens = RESTRICTION_REASON_TOKENS[restriction] ?? [];
+  const conflictTokens = RESTRICTION_CONFLICT_TOKENS[restriction] ?? [];
+
+  return (
+    matchesAnyToken(haystack, reasonTokens) ||
+    matchesAnyToken(ingredient.name, conflictTokens)
+  );
+};
+
+const buildRestrictionConflictDescription = (
+  label: string,
+  aiReason: string | null | undefined,
+  ingredientNames: string[],
+): string => {
+  return joinDescriptions([
+    `Conflicts with your ${label.toLowerCase()} restriction`,
+    aiReason,
+    buildContainsDescription(ingredientNames),
+  ]);
+};
+
+const buildRestrictionUnclearDescription = (
+  label: string,
+  aiReason: string | null | undefined,
+): string => {
+  return joinDescriptions([
+    `Cannot confirm ${label.toLowerCase()} compatibility`,
+    aiReason,
+  ]);
+};
+
 const evaluateRestrictions = (
   facts: ProductFacts,
-  restrictions: string[],
-): ScoreReason[] => {
-  const reasons: ScoreReason[] = [];
+  onboarding: OnboardingResponse,
+  ingredientAnalysis?: IngredientAnalysis,
+): InternalScoreReason[] => {
+  const reasons: InternalScoreReason[] = [];
 
-  for (const restriction of restrictions) {
+  for (const restriction of onboarding.restrictions) {
     const dietKey = RESTRICTION_TO_DIET_KEY[restriction];
-    if (!dietKey) continue;
-
-    const compat = facts.dietCompatibility[dietKey];
-    const aiReason = facts.dietCompatibilityReasons?.[dietKey];
     const label = RESTRICTION_LABELS[restriction] ?? restriction;
     const key = `restriction-${restriction.toLowerCase()}`;
 
-    if (compat === 'incompatible') {
-      const baseDesc = `Product is incompatible with your ${label.toLowerCase()} diet`;
+    const compat = dietKey ? facts.dietCompatibility[dietKey] : null;
+    const aiReason = dietKey ? facts.dietCompatibilityReasons?.[dietKey] : null;
+    const ingredientNames = collectBadIngredientNames(
+      ingredientAnalysis,
+      (ingredient) => ingredientMatchesRestriction(restriction, ingredient),
+    );
+
+    if (compat === 'incompatible' || ingredientNames.length > 0) {
       reasons.push({
         key,
-        label: `${label} diet conflict`,
-        description: aiReason ? `${baseDesc}. ${aiReason}` : baseDesc,
+        label: label,
+        description: buildRestrictionConflictDescription(
+          label,
+          aiReason,
+          ingredientNames,
+        ),
         value: null,
         unit: null,
         impact: -100,
         kind: 'negative',
         source: 'restriction',
+        category: 'diet-matching',
+        displayGroupKey: key,
       });
     } else if (compat === 'unclear') {
-      const baseDesc = `Cannot confirm ${label.toLowerCase()} compatibility`;
       reasons.push({
         key,
-        label: `${label} unclear`,
-        description: aiReason ? `${baseDesc}. ${aiReason}` : baseDesc,
+        label: label,
+        description: buildRestrictionUnclearDescription(label, aiReason),
         value: null,
         unit: null,
         impact: -1,
         kind: 'negative',
         source: 'restriction',
+        category: 'diet-matching',
+        displayGroupKey: key,
       });
     } else if (compat === 'compatible') {
       reasons.push({
         key,
-        label: `${label} compatible`,
-        description: `No conflict with your ${label.toLowerCase()} diet detected`,
+        label: label,
+        description: `Matches your ${label.toLowerCase()} restriction`,
         value: null,
         unit: null,
         impact: 5,
         kind: 'positive',
         source: 'restriction',
+        category: 'diet-matching',
+        displayGroupKey: key,
       });
     }
-    // "unclear" → no reason added
   }
 
   return reasons;
@@ -721,69 +1071,197 @@ const ALLERGY_TO_DIET_KEY: Record<
   TREE_NUTS: 'nutFree',
 };
 
-const evaluateAllergens = (
-  facts: ProductFacts,
-  allergies: string[],
-): ScoreReason[] => {
-  const reasons: ScoreReason[] = [];
+const ALLERGY_CONFLICT_TOKENS: Record<string, string[]> = {
+  PEANUTS: ['peanut'],
+  TREE_NUTS: [
+    'almond',
+    'walnut',
+    'cashew',
+    'hazelnut',
+    'pistachio',
+    'macadamia',
+    'pecan',
+    'tree nut',
+    'nut',
+  ],
+  GLUTEN: [
+    'wheat',
+    'barley',
+    'rye',
+    'spelt',
+    'semolina',
+    'bulgur',
+    'malt',
+    'seitan',
+    'farro',
+    'durum',
+    'gluten',
+  ],
+  DAIRY: [
+    'milk',
+    'cream',
+    'butter',
+    'cheese',
+    'yogurt',
+    'whey',
+    'casein',
+    'lactose',
+    'dairy',
+  ],
+  SOY: ['soy'],
+  EGGS: ['egg'],
+  SHELLFISH: ['shellfish', 'shrimp', 'crab', 'lobster'],
+  SESAME: ['sesame'],
+};
 
-  for (const allergy of allergies) {
+const collectMatchingProductValues = (
+  values: string[],
+  tokens: string[],
+): string[] => {
+  return uniqueValues(values.filter((value) => matchesAnyToken(value, tokens)));
+};
+
+const ingredientMatchesAllergy = (
+  allergy: string,
+  ingredient: IngredientAnalysis['ingredients'][number],
+): boolean => {
+  const haystack = `${ingredient.name} ${ingredient.reason ?? ''}`;
+  const tokens = ALLERGY_CONFLICT_TOKENS[allergy] ?? [];
+
+  return matchesAnyToken(haystack, tokens);
+};
+
+const parseCustomAllergyEntries = (value: string | null): string[] => {
+  if (!value) return [];
+
+  return uniqueValues(
+    value
+      .split(/[,;/]/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0),
+  );
+};
+
+const evaluateAllergens = (
+  product: NormalizedProduct,
+  facts: ProductFacts,
+  onboarding: OnboardingResponse,
+  ingredientAnalysis?: IngredientAnalysis,
+): InternalScoreReason[] => {
+  if (
+    onboarding.allergies.length === 0 &&
+    !onboarding.otherAllergiesText?.trim()
+  ) {
+    return [];
+  }
+
+  const productValues = uniqueValues([
+    ...product.allergens,
+    ...product.traces,
+    ...product.ingredients,
+  ]);
+  const matchedNames: string[] = [];
+  const detailReasons: string[] = [];
+
+  for (const allergy of onboarding.allergies) {
     if (allergy === 'OTHER') continue;
 
-    const dietKey = ALLERGY_TO_DIET_KEY[allergy];
-    const label = ALLERGY_LABELS[allergy] ?? allergy;
-    const key = `allergen-${allergy.toLowerCase()}`;
+    matchedNames.push(
+      ...collectMatchingProductValues(
+        productValues,
+        ALLERGY_CONFLICT_TOKENS[allergy] ?? [],
+      ),
+    );
+    matchedNames.push(
+      ...collectBadIngredientNames(
+        ingredientAnalysis,
+        (ingredient) => ingredientMatchesAllergy(allergy, ingredient),
+      ),
+    );
 
-    if (dietKey) {
-      const compat = facts.dietCompatibility[dietKey];
-      const aiReason = facts.dietCompatibilityReasons?.[dietKey];
-      if (compat === 'incompatible') {
-        const baseDesc = `Product may contain ${label.toLowerCase()}, which conflicts with your allergy`;
-        reasons.push({
-          key,
-          label: `${label} allergen conflict`,
-          description: aiReason ? `${baseDesc}. ${aiReason}` : baseDesc,
-          value: null,
-          unit: null,
-          impact: -50,
-          kind: 'negative',
-          source: 'allergen',
-        });
-      }
+    const dietKey = ALLERGY_TO_DIET_KEY[allergy];
+    if (!dietKey || facts.dietCompatibility[dietKey] !== 'incompatible') {
+      continue;
+    }
+
+    const aiReason = facts.dietCompatibilityReasons?.[dietKey];
+    if (aiReason) {
+      detailReasons.push(aiReason);
     }
   }
 
-  return reasons;
-};
+  const customEntries = parseCustomAllergyEntries(onboarding.otherAllergiesText);
+  if (customEntries.length > 0) {
+    matchedNames.push(
+      ...uniqueValues(
+        productValues.filter((value) =>
+          customEntries.some((entry) => matchesAnyToken(value, [entry])),
+        ),
+      ),
+    );
+    matchedNames.push(
+      ...collectBadIngredientNames(ingredientAnalysis, (ingredient) => {
+        const haystack = `${ingredient.name} ${ingredient.reason ?? ''}`;
+        return customEntries.some((entry) => matchesAnyToken(haystack, [entry]));
+      }),
+    );
+  }
 
-/**
- * Use AI ingredient analysis to detect allergen/restriction conflicts
- * that the deterministic diet-key approach can't catch (e.g. custom "OTHER" allergies).
- */
-const evaluateIngredientFlags = (
-  ingredientAnalysis?: IngredientAnalysis,
-): ScoreReason[] => {
-  if (!ingredientAnalysis) return [];
+  const conflictNames = uniqueValues(matchedNames);
+  if (conflictNames.length === 0 && detailReasons.length === 0) {
+    return [];
+  }
 
-  const reasons: ScoreReason[] = [];
+  const description =
+    conflictNames.length > 0
+      ? `Contains allergens you should avoid (${formatFactList(conflictNames)})`
+      : joinDescriptions(['Contains allergens you should avoid', ...detailReasons]);
 
-  for (const ingredient of ingredientAnalysis.ingredients) {
-    if (ingredient.status !== 'bad' || !ingredient.reason) continue;
-
-    const key = `ingredient-flag-${ingredient.name.toLowerCase().replace(/\s+/g, '-')}`;
-    reasons.push({
-      key,
-      label: `${ingredient.name} flagged`,
-      description: ingredient.reason,
+  return [
+    {
+      key: 'allergens',
+      label: 'Allergens',
+      description,
       value: null,
       unit: null,
       impact: -50,
       kind: 'negative',
       source: 'allergen',
-    });
+      category: 'allergens',
+      displayGroupKey: 'allergens',
+    },
+  ];
+};
+
+const evaluateAdditives = (
+  product: NormalizedProduct,
+): InternalScoreReason[] => {
+  const additiveNames = uniqueValues(product.additives);
+  const additiveCount = product.additives_count ?? additiveNames.length;
+
+  if (additiveNames.length === 0 && additiveCount === 0) {
+    return [];
   }
 
-  return reasons;
+  const description =
+    additiveNames.length > 0
+      ? `Contains additives (${formatFactList(additiveNames)})`
+      : `Contains ${additiveCount} additives`;
+
+  return [
+    {
+      key: 'additives',
+      label: 'Additives',
+      description,
+      value: additiveCount,
+      unit: null,
+      impact: 0,
+      kind: 'negative',
+      source: 'ingredient',
+      category: 'additives',
+      displayGroupKey: 'additives',
+    },
+  ];
 };
 
 // ============================================================
@@ -793,8 +1271,8 @@ const evaluateIngredientFlags = (
 const evaluateGoals = (
   facts: ProductFacts,
   onboarding: OnboardingResponse,
-): ScoreReason[] => {
-  const reasons: ScoreReason[] = [];
+): InternalScoreReason[] => {
+  const reasons: InternalScoreReason[] = [];
   const n = facts.nutritionFacts;
   const cat = getCategoryProfile(facts.productType);
   const s = computeNutritionLevels(n, cat);
@@ -813,6 +1291,8 @@ const evaluateGoals = (
       impact: -10,
       kind: 'negative',
       source: 'goal',
+      category: 'calories',
+      displayGroupKey: 'calories',
     });
   }
 
@@ -827,6 +1307,8 @@ const evaluateGoals = (
       impact: 10,
       kind: 'positive',
       source: 'goal',
+      category: 'protein',
+      displayGroupKey: 'protein',
     });
   }
 
@@ -841,6 +1323,8 @@ const evaluateGoals = (
       impact: -8,
       kind: 'negative',
       source: 'goal',
+      category: 'protein',
+      displayGroupKey: 'protein',
     });
   }
 
@@ -856,6 +1340,8 @@ const evaluateGoals = (
       impact: -15,
       kind: 'negative',
       source: 'goal',
+      category: 'sugar',
+      displayGroupKey: 'sugar',
     });
   }
 
@@ -870,6 +1356,8 @@ const evaluateGoals = (
       impact: 10,
       kind: 'positive',
       source: 'goal',
+      category: 'sugar',
+      displayGroupKey: 'sugar',
     });
   }
 
@@ -885,6 +1373,8 @@ const evaluateGoals = (
         impact: 8,
         kind: 'positive',
         source: 'goal',
+        category: 'sugar',
+        displayGroupKey: 'sugar',
       });
     } else if (s.sugarLevel === 'high') {
       reasons.push({
@@ -896,6 +1386,8 @@ const evaluateGoals = (
         impact: -12,
         kind: 'negative',
         source: 'goal',
+        category: 'sugar',
+        displayGroupKey: 'sugar',
       });
     }
   }
@@ -912,6 +1404,8 @@ const evaluateGoals = (
         impact: 8,
         kind: 'positive',
         source: 'goal',
+        category: 'salt',
+        displayGroupKey: 'salt',
       });
     } else if (s.saltLevel === 'high') {
       reasons.push({
@@ -923,6 +1417,8 @@ const evaluateGoals = (
         impact: -12,
         kind: 'negative',
         source: 'goal',
+        category: 'salt',
+        displayGroupKey: 'salt',
       });
     }
   }
@@ -939,6 +1435,8 @@ const evaluateGoals = (
         impact: 8,
         kind: 'positive',
         source: 'goal',
+        category: 'protein',
+        displayGroupKey: 'protein',
       });
     } else if (s.proteinLevel === 'low') {
       reasons.push({
@@ -950,6 +1448,8 @@ const evaluateGoals = (
         impact: -8,
         kind: 'negative',
         source: 'goal',
+        category: 'protein',
+        displayGroupKey: 'protein',
       });
     }
   }
@@ -966,6 +1466,7 @@ const evaluateGoals = (
         impact: 8,
         kind: 'positive',
         source: 'goal',
+        hidden: true,
       });
     } else if (s.fiberLevel === 'low') {
       reasons.push({
@@ -977,6 +1478,7 @@ const evaluateGoals = (
         impact: -6,
         kind: 'negative',
         source: 'goal',
+        hidden: true,
       });
     }
   }
@@ -993,6 +1495,8 @@ const evaluateGoals = (
         impact: 8,
         kind: 'positive',
         source: 'goal',
+        category: 'carbohydrates',
+        displayGroupKey: 'carbohydrates',
       });
     } else if (n.carbs > 30) {
       reasons.push({
@@ -1004,6 +1508,8 @@ const evaluateGoals = (
         impact: -10,
         kind: 'negative',
         source: 'goal',
+        category: 'carbohydrates',
+        displayGroupKey: 'carbohydrates',
       });
     }
   }
@@ -1018,7 +1524,7 @@ const evaluateGoals = (
 const evaluateProductType = (
   _facts: ProductFacts,
   _onboarding: OnboardingResponse,
-): ScoreReason[] => {
+): InternalScoreReason[] => {
   // Category-aware thresholds & impacts are already applied via
   // getCategoryProfile() in evaluateNutritionFacts and evaluateGoals.
   // No additional product-type penalties needed.
@@ -1034,6 +1540,7 @@ const evaluateProductType = (
  * Same input always gives the same output.
  */
 export const computeProfileScore = (
+  product: NormalizedProduct,
   facts: ProductFacts,
   profile: ScoreProfileInput,
   ingredientAnalysis?: IngredientAnalysis,
@@ -1041,12 +1548,12 @@ export const computeProfileScore = (
   const { onboarding } = profile;
 
   // Collect all reasons
-  const allReasons: ScoreReason[] = [
+  const allReasons: InternalScoreReason[] = [
     ...evaluateNutritionFacts(facts),
     ...(evaluateNutriGrade(facts) ? [evaluateNutriGrade(facts)!] : []),
-    ...evaluateRestrictions(facts, onboarding.restrictions),
-    ...evaluateAllergens(facts, onboarding.allergies),
-    ...evaluateIngredientFlags(ingredientAnalysis),
+    ...evaluateRestrictions(facts, onboarding, ingredientAnalysis),
+    ...evaluateAllergens(product, facts, onboarding, ingredientAnalysis),
+    ...evaluateAdditives(product),
     ...evaluateGoals(facts, onboarding),
     ...evaluateProductType(facts, onboarding),
   ];
@@ -1080,10 +1587,8 @@ export const computeProfileScore = (
 
   // Separate positives, negatives, and neutrals
   // Neutral items are appended to positives (informational, shown but not highlighted)
-  const positives = allReasons.filter(
-    (r) => r.kind === 'positive' || r.kind === 'neutral',
-  );
-  const negatives = allReasons.filter((r) => r.kind === 'negative');
+  const positives = buildDisplayReasons(allReasons, ['positive', 'neutral']);
+  const negatives = buildDisplayReasons(allReasons, ['negative']);
 
   return {
     profileId: profile.profileId,
@@ -1103,12 +1608,13 @@ export const computeProfileScore = (
  * Accepts a per-profile ingredient analysis map for profile-specific highlighting.
  */
 export const computeAllProfileScores = (
+  product: NormalizedProduct,
   facts: ProductFacts,
   profiles: ScoreProfileInput[],
   perProfileIngredients?: Map<string, IngredientAnalysis | null>,
 ): ProfileProductScore[] => {
   return profiles.map((profile) => {
     const analysis = perProfileIngredients?.get(profile.profileId) ?? undefined;
-    return computeProfileScore(facts, profile, analysis ?? undefined);
+    return computeProfileScore(product, facts, profile, analysis ?? undefined);
   });
 };

@@ -4,8 +4,8 @@ import type {
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, type LayoutChangeEvent, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, View } from 'react-native';
 import { useProfileScoreChipContext } from '../../../scans/hooks/useProfileScoreChipContext';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
 import { DetailStateContent, type ProductResultDetailState } from './DetailStateContent';
@@ -18,7 +18,7 @@ import { ProductResultHeader } from './ProductResultHeader';
 import { NutriScoreBlock } from './NutriScoreBlock';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const TRANSITION_DURATION_MS = 240;
+const TRANSITION_DURATION_MS = 200;
 
 interface ProductResultContentProps {
   previewItem?: ScanHistoryItem;
@@ -26,6 +26,7 @@ interface ProductResultContentProps {
   previewProduct?: ProductPreview;
   previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
+  isInitialLoadingResult?: boolean;
   snapIndex: number;
   onExpandDetails: () => void;
   detailState?: ProductResultDetailState;
@@ -45,6 +46,7 @@ export function ProductResultContent({
   previewProduct,
   previewImageUri,
   resolvedPersonalResult,
+  isInitialLoadingResult = false,
   snapIndex,
   onExpandDetails,
   detailState,
@@ -67,18 +69,26 @@ export function ProductResultContent({
   const personalRetry = () => {};
   const isExpanded = snapIndex > 0;
   const previewHistoryProduct = getPreviewHistoryProduct(previewItem);
+  const isLiveFlow = Boolean(previewProduct) && !previewItem;
   const previewChips = previewItem?.type === 'product' ? previewItem.profileChips : undefined;
   const previewScore =
     previewItem?.type === 'product'
       ? previewItem.personalScore ?? previewItem.overallScore
       : null;
-  const showPendingSummary =
+  const showHistoryPendingSummary =
     previewItem?.type === 'product' &&
     !previewChips?.length &&
     previewScore == null &&
     previewItem.personalAnalysisStatus === 'pending';
-  const hasSummaryContent = Boolean(previewChips?.length || previewScore != null || showPendingSummary);
-  const [summaryContentHeight, setSummaryContentHeight] = useState(0);
+  const hasHistorySummaryContent = Boolean(
+    previewChips?.length || previewScore != null || showHistoryPendingSummary,
+  );
+  const showLivePendingSummary =
+    isLiveFlow &&
+    !isInitialLoadingResult &&
+    personalData?.status === 'pending';
+  const hasLiveSummaryContent = isLiveFlow;
+  const hasSummaryContent = hasHistorySummaryContent || hasLiveSummaryContent;
   const summaryOpacity = useRef(new Animated.Value(isExpanded ? 0 : 1)).current;
   const detailOpacity = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
@@ -119,18 +129,6 @@ export function ProductResultContent({
     return <DetailStateContent detailState={detailState} />;
   }
 
-  const detailMarginTop = hasSummaryContent ? -summaryContentHeight : 0;
-  const handleSummaryLayout = ({ nativeEvent }: LayoutChangeEvent) => {
-    const nextHeight = nativeEvent.layout.height;
-    setSummaryContentHeight((currentHeight) => {
-      if (Math.abs(currentHeight - nextHeight) < 1) {
-        return currentHeight;
-      }
-
-      return nextHeight;
-    });
-  };
-
   return (
     <ScrollView
       scrollEnabled={isExpanded}
@@ -147,41 +145,42 @@ export function ProductResultContent({
             isFavourite={successResult?.isFavourite}
           />
           <NutriScoreBlock grade={nutriScoreGrade} />
-          {previewItem?.type === 'product' && hasSummaryContent ? (
+        </View>
+        <View className="relative">
+          {hasSummaryContent ? (
             <Animated.View
               pointerEvents={isExpanded ? 'none' : 'auto'}
+              className="absolute left-4 right-4 -top-4 z-10"
               style={{ opacity: summaryOpacity }}
             >
               <PreviewSummaryContent
                 chips={previewChips}
                 score={previewScore}
-                showPendingSummary={showPendingSummary}
+                showPendingSummary={showHistoryPendingSummary || showLivePendingSummary}
                 context={profileScoreChipContext}
-                onLayout={handleSummaryLayout}
+                isLoading={isInitialLoadingResult}
+                showActions={!isInitialLoadingResult && !showLivePendingSummary}
                 onExpandDetails={onExpandDetails}
               />
             </Animated.View>
           ) : null}
+          <Animated.View
+            pointerEvents={isExpanded ? 'auto' : 'none'}
+            style={{ opacity: detailOpacity }}
+          >
+            {detailState?.isLoading || detailState?.isError ? (
+              <DetailStateContent detailState={detailState} />
+            ) : (
+              <PersonalTabContent
+                personalResult={personalData}
+                isError={personalError}
+                onRetry={personalRetry}
+                rawIngredients={successResult?.product.ingredients ?? []}
+                rawIngredientsText={successResult?.product.ingredients_text ?? null}
+              />
+            )}
+          </Animated.View>
         </View>
-        <Animated.View
-          pointerEvents={isExpanded ? 'auto' : 'none'}
-          style={{
-            marginTop: detailMarginTop,
-            opacity: detailOpacity,
-          }}
-        >
-          {detailState?.isLoading || detailState?.isError ? (
-            <DetailStateContent detailState={detailState} />
-          ) : (
-            <PersonalTabContent
-              personalResult={personalData}
-              isError={personalError}
-              onRetry={personalRetry}
-              rawIngredients={successResult?.product.ingredients ?? []}
-              rawIngredientsText={successResult?.product.ingredients_text ?? null}
-            />
-          )}
-        </Animated.View>
       </View>
     </ScrollView>
   );

@@ -5,7 +5,7 @@ import {
 } from 'expo-camera';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Dimensions, Platform, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, TouchableOpacity, Vibration, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -70,6 +70,8 @@ export function ScannerHomeScreen() {
       return null;
     }
 
+    Vibration.vibrate(40);
+
     return {
       uri: picture.uri,
       width: picture.width,
@@ -77,9 +79,12 @@ export function ScannerHomeScreen() {
     };
   }, []);
 
-  const { captureAndCompress, capturePhotoPreview, isPending: isPhotoPending } = usePhotoCapture(
-    capturePhotoWithCamera,
-  );
+  const {
+    captureAndCompress,
+    capturePhotoPreview,
+    isPending: isPhotoPending,
+    isPreparing: isPreparingPhoto,
+  } = usePhotoCapture(capturePhotoWithCamera);
 
   const handleModeChange = useCallback(
     (nextMode: ScannerMode) => {
@@ -328,7 +333,9 @@ export function ScannerHomeScreen() {
     isResolvingFirstProduct;
 
   const statusMessage = isPhotoPending
-    ? 'Identifying product…'
+    ? isPreparingPhoto
+      ? 'Capturing photo…'
+      : 'Identifying product…'
     : isResolvingFirstProduct
       ? 'Identifying products…'
       : compareMutation.isPending

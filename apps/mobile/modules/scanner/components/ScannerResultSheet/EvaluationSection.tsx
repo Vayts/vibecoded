@@ -21,16 +21,14 @@ export function EvaluationSection({
   }
 
   return (
-    <View className="mt-5">
+    <View className="mt-4">
       <View className="mb-3 flex-row items-center justify-between">
-        <Typography variant="sectionTitle" className="text-gray-900">
+        <Typography className="text-gray-900 text-[16px] font-bold">
           {title}
         </Typography>
-        {rightLabel ? (
-          <Typography variant="fieldLabel" className="text-gray-500">
-            {rightLabel}
-          </Typography>
-        ) : null}
+        <Typography variant="fieldLabel" className="text-gray-500">
+          PER 100g
+        </Typography>
       </View>
 
       <View className="gap-2">

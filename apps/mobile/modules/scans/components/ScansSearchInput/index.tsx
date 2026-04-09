@@ -18,18 +18,18 @@ export function ScansSearchInput({ value, onChangeText, className }: ScansSearch
           backgroundColor: COLORS.neutrals100,
         }}
       >
-        <Search color={COLORS.gray400} size={22} strokeWidth={2} />
+        <Search color={COLORS.neutrals500} size={20} strokeWidth={2} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder="Search"
-          placeholderTextColor={COLORS.gray400}
+          placeholderTextColor={COLORS.neutrals500}
           autoCapitalize="none"
           autoCorrect={false}
           clearButtonMode="while-editing"
           returnKeyType="search"
           selectionColor={COLORS.primary}
-          className="ml-3 flex-1 py-0 text-base text-neutrals-900"
+          className="ml-3 flex-1 py-0 text-[16px] text-neutrals-500"
         />
         {value ? (
           <TouchableOpacity

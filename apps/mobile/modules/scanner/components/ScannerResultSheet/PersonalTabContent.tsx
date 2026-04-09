@@ -1,6 +1,6 @@
 import type { AnalysisJobResponse, ProfileProductScore } from '@acme/shared';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
@@ -14,6 +14,7 @@ import {
   type ProfileScoreSelectorItem,
 } from './ProfileScoreSelector';
 import { ScoreSummary } from './ScoreSummary';
+import { Button } from '../../../../shared/components/Button';
 
 interface PersonalTabContentProps {
   personalResult?: AnalysisJobResponse;
@@ -74,12 +75,17 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
 
     return (
       <View>
+        <View className="px-4">
+          <View className="h-[1px] w-full bg-neutrals-200 mb-4"/>
+        </View>
+
+        <Text className="px-4 mb-4 font-bold text-lg">Analysis results</Text>
+
         {hasMultipleProfiles ? (
           <ProfileScoreSelector
             profiles={chipItems}
             selectedProfileId={activeProfile.profileId}
             onSelect={setSelectedProfileId}
-            className="mt-4"
           />
         ) : null}
 
@@ -92,6 +98,10 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
             isPending={isIngredientAnalysisPending}
             analysis={profileIngredientAnalysis}
           />
+
+          <View className="mt-4">
+            <Button fullWidth label="Compare with another" variant="secondary"/>
+          </View>
         </View>
       </View>
     );

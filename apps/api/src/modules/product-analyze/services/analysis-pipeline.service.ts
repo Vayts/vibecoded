@@ -45,6 +45,7 @@ export class AnalysisPipelineService {
     ]);
 
     const profileScores = computeAllProfileScores(
+      product,
       facts,
       profiles,
       ingredientAnalyses,

@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import { z } from 'zod';
 
 // ============================================================
@@ -129,8 +131,23 @@ export const scoreReasonSourceSchema = z.enum([
   'restriction',
   'product_type',
   'allergen',
+  'ingredient',
 ]);
 export type ScoreReasonSource = z.infer<typeof scoreReasonSourceSchema>;
+
+export const scoreReasonCategorySchema = z.enum([
+  'additives',
+  'allergens',
+  'calories',
+  'carbohydrates',
+  'diet-matching',
+  'fat',
+  'protein',
+  'salt',
+  'saturated-fat',
+  'sugar',
+]);
+export type ScoreReasonCategory = z.infer<typeof scoreReasonCategorySchema>;
 
 export const scoreReasonSchema = z.object({
   key: z.string(),
@@ -141,6 +158,7 @@ export const scoreReasonSchema = z.object({
   impact: z.number(),
   kind: scoreReasonKindSchema,
   source: scoreReasonSourceSchema,
+  category: scoreReasonCategorySchema.optional(),
 });
 export type ScoreReason = z.infer<typeof scoreReasonSchema>;
 
