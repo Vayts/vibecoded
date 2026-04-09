@@ -71,4 +71,5 @@ export const COLORS = {
   // ── Special ───────────────────────────────────────────
   transparent: 'transparent',
   overlay: 'rgba(0,0,0,0.4)', // modal backdrop
+  overlayStrong: '#00000099',
 } as const;

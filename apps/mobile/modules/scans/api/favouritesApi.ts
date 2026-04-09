@@ -7,12 +7,25 @@ import { apiFetch } from '../../../shared/lib/client/client';
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export const fetchFavourites = async (cursor?: string): Promise<FavouritesResponse> => {
+interface FetchFavouritesParams {
+  cursor?: string;
+  search?: string;
+  signal?: AbortSignal;
+}
+
+export const fetchFavourites = async ({
+  cursor,
+  search,
+  signal,
+}: FetchFavouritesParams): Promise<FavouritesResponse> => {
   const params = new URLSearchParams();
+  const normalizedSearch = search?.trim();
+
   if (cursor) params.set('cursor', cursor);
+  if (normalizedSearch) params.set('search', normalizedSearch);
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
-  const response = await apiFetch(`/api/favourites?${params.toString()}`);
+  const response = await apiFetch(`/api/favourites?${params.toString()}`, { signal });
 
   if (!response.ok) {
     const json = (await response.json().catch(() => null)) as { error?: string } | null;

@@ -11,9 +11,24 @@ import { Heart } from 'lucide-react-native';
 
 interface FavouritesListProps {
   onItemPress: (item: ScanHistoryItem) => void;
+  searchQuery: string;
+  enabled?: boolean;
 }
 
-function EmptyState() {
+function EmptyState({ searchQuery }: { searchQuery: string }) {
+  if (searchQuery) {
+    return (
+      <View className="flex-1 items-center justify-center px-8 py-20">
+        <Typography variant="sectionTitle" className="text-center">
+          No favourites found
+        </Typography>
+        <Typography variant="bodySecondary" className="mt-2 text-center">
+          Try a different product name or brand.
+        </Typography>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 items-center justify-center px-8 py-20">
       <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-red-50">
@@ -38,7 +53,11 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function FavouritesList({ onItemPress }: FavouritesListProps) {
+export function FavouritesList({
+  onItemPress,
+  searchQuery,
+  enabled = true,
+}: FavouritesListProps) {
   const {
     data,
     isLoading,
@@ -48,7 +67,7 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useFavouritesQuery();
+  } = useFavouritesQuery(searchQuery, enabled);
   const profileScoreChipContext = useProfileScoreChipContext();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
@@ -85,7 +104,7 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
   }
 
   if (items.length === 0) {
-    return <EmptyState />;
+    return <EmptyState searchQuery={searchQuery} />;
   }
 
   const handleEndReached = () => {
@@ -115,7 +134,10 @@ export function FavouritesList({ onItemPress }: FavouritesListProps) {
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : {paddingBottom: 60}}
+      contentContainerStyle={items.length === 0 ? { flex: 1 } : {
+        paddingBottom: 160,
+        paddingTop: 16,
+      }}
     />
   );
 }

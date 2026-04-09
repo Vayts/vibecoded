@@ -112,7 +112,7 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
             <ScanBarcode color={COLORS.white} size={26} />
           </View>
 
-          <Text className="text-sm relative -top-1.5 font-semibold -mt-10" style={{ color: COLORS.neutrals900 }}>
+          <Text className="text-sm relativeg font-semibold -mt-10" style={{ color: COLORS.neutrals900 }}>
             Scan
           </Text>
         </TouchableOpacity>

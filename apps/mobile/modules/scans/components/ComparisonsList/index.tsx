@@ -10,9 +10,24 @@ import { GitCompareArrows } from 'lucide-react-native';
 
 interface ComparisonsListProps {
   onItemPress: (item: ComparisonHistoryItem) => void;
+  searchQuery: string;
+  enabled?: boolean;
 }
 
-function EmptyState() {
+function EmptyState({ searchQuery }: { searchQuery: string }) {
+  if (searchQuery) {
+    return (
+      <View className="flex-1 items-center justify-center px-8 py-20">
+        <Typography variant="sectionTitle" className="text-center">
+          No comparisons found
+        </Typography>
+        <Typography variant="bodySecondary" className="mt-2 text-center">
+          Try a different product name or brand.
+        </Typography>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 items-center justify-center px-8 py-20">
       <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
@@ -37,7 +52,11 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function ComparisonsList({ onItemPress }: ComparisonsListProps) {
+export function ComparisonsList({
+  onItemPress,
+  searchQuery,
+  enabled = true,
+}: ComparisonsListProps) {
   const {
     data,
     isLoading,
@@ -47,7 +66,7 @@ export function ComparisonsList({ onItemPress }: ComparisonsListProps) {
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useComparisonsQuery();
+  } = useComparisonsQuery(searchQuery, enabled);
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -83,7 +102,7 @@ export function ComparisonsList({ onItemPress }: ComparisonsListProps) {
   }
 
   if (items.length === 0) {
-    return <EmptyState />;
+    return <EmptyState searchQuery={searchQuery} />;
   }
 
   const handleEndReached = () => {

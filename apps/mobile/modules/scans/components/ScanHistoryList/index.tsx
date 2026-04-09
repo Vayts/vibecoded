@@ -11,11 +11,26 @@ import ScanningArrow from '../../../../assets/scanning_arrow.svg';
 
 interface ScanHistoryListProps {
   onScanPress: (item: ScanHistoryItem) => void;
+  searchQuery: string;
+  enabled?: boolean;
 }
 
-function EmptyState() {
+function EmptyState({ searchQuery }: { searchQuery: string }) {
+  if (searchQuery) {
+    return (
+      <View className="flex-1 items-center justify-center px-8 py-20">
+        <Typography variant="sectionTitle" className="text-center">
+          No scans found
+        </Typography>
+        <Typography variant="bodySecondary" className="mt-2 text-center">
+          Try a different product name or brand.
+        </Typography>
+      </View>
+    );
+  }
+
   return (
-    <View className="flex-1 items-center justify-center px-8 py-20">
+    <View className="flex-1 items-center px-8 mt-16">
       
       <View
         className="w-24 h-24 rounded-md bg-gray-100 mb-6"
@@ -27,7 +42,7 @@ function EmptyState() {
       <Typography className="text-center mt-4 px-4">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit.
       </Typography>
-      <View className="mb-4 mt-8">
+      <View className="mb-4">
         <ScanningArrow width={80} height={160} />
       </View>
     </View>
@@ -43,7 +58,11 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
+export function ScanHistoryList({
+  onScanPress,
+  searchQuery,
+  enabled = true,
+}: ScanHistoryListProps) {
   const {
     data,
     isLoading,
@@ -53,7 +72,7 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useScanHistoryQuery();
+  } = useScanHistoryQuery(searchQuery, enabled);
   const profileScoreChipContext = useProfileScoreChipContext();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
@@ -90,7 +109,7 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
   }
 
   if (items.length === 0) {
-    return <EmptyState />;
+    return <EmptyState searchQuery={searchQuery} />;
   }
 
   const handleEndReached = () => {
@@ -125,7 +144,7 @@ export function ScanHistoryList({ onScanPress }: ScanHistoryListProps) {
       contentContainerStyle={items.length === 0 ? { 
         flex: 1 
       } : {
-        paddingBottom: 60,
+        paddingBottom: 160,
         paddingTop: 16,
       }}
     />

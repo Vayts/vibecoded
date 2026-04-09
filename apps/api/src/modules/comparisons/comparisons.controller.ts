@@ -20,9 +20,10 @@ export class ComparisonsController {
     @Req() request: Request,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ): Promise<ComparisonHistoryResponse> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.comparisonsService.getHistory(userId, cursor, limit);
+    return this.comparisonsService.getHistory(userId, cursor, limit, search);
   }
 
   @Get(':id')

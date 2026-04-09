@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   ScanDetailResponse,
   ScanHistoryItem,
@@ -11,6 +12,10 @@ import {
   profileProductScoreSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import {
+  buildProductSearchFilter,
+  normalizeSearchQuery,
+} from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -61,10 +66,24 @@ export class ScansService {
     userId: string,
     cursor?: string,
     limit?: string,
+    search?: string,
   ): Promise<ScanHistoryResponse> {
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
+    const normalizedSearch = normalizeSearchQuery(search);
+    const where: Prisma.ScanWhereInput = {
+      userId,
+      type: 'product',
+      ...(normalizedSearch
+        ? {
+            product: {
+              is: buildProductSearchFilter(normalizedSearch),
+            },
+          }
+        : {}),
+    };
+
     const scans = await prisma.scan.findMany({
-      where: { userId, type: 'product' },
+      where,
       orderBy: { createdAt: 'desc' },
       take: take + 1,
       ...(cursor

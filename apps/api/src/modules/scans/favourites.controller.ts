@@ -26,9 +26,10 @@ export class FavouritesController {
     @Req() request: Request,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ): Promise<FavouritesResponse> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.favouritesService.getFavourites(userId, cursor, limit);
+    return this.favouritesService.getFavourites(userId, cursor, limit, search);
   }
 
   @Post()

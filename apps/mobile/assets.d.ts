@@ -23,3 +23,8 @@ declare module '*.webp' {
   const value: number;
   export default value;
 }
+
+declare module '*.lottie' {
+  const value: number;
+  export default value;
+}
