@@ -1,54 +1,52 @@
-import { Camera } from 'lucide-react-native';
 import { TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
+import type { ScannerMode } from './ScannerModeSwitch';
 
 interface ScannerBottomBarProps {
+  mode: ScannerMode;
   isCompareMode: boolean;
   isLocked: boolean;
-  onPhotoPress: () => void;
+  onCapturePress: () => void;
   onCancelCompare: () => void;
 }
 
 export function ScannerBottomBar({
+  mode,
   isCompareMode,
   isLocked,
-  onPhotoPress,
+  onCapturePress,
   onCancelCompare,
 }: ScannerBottomBarProps) {
   return (
-    <View className="gap-3">
-      <View className="flex-row items-end">
+    <View className="items-center justify-end" style={{ minHeight: mode === 'photo' || isCompareMode ? 132 : 56 }}>
+      {isCompareMode ? (
+        <TouchableOpacity
+          accessibilityLabel="Cancel comparison"
+          accessibilityRole="button"
+          activeOpacity={0.7}
+          className="mb-4 rounded-full bg-black/50 px-4 py-3"
+          onPress={onCancelCompare}
+        >
+          <Typography variant="buttonSmall" className="text-white">
+            Cancel comparison
+          </Typography>
+        </TouchableOpacity>
+      ) : null}
+
+      {mode === 'photo' ? (
         <TouchableOpacity
           accessibilityLabel="Take product photo"
           accessibilityRole="button"
           activeOpacity={0.7}
           disabled={isLocked}
-          className="h-12 w-12 items-center mb-10 ml-4 justify-center rounded-full bg-black/50"
-          style={{ opacity: isLocked ? 0 : 1 }}
-          onPress={onPhotoPress}
+          style={{ opacity: isLocked ? 0.4 : 1 }}
+          onPress={onCapturePress}
         >
-          <Camera color={COLORS.white} size={22} />
+          <View className="h-20 w-20 items-center justify-center rounded-full border-[3px] border-white">
+            <View className="h-[68px] w-[68px] rounded-full bg-white" />
+          </View>
         </TouchableOpacity>
-
-        <View className="flex-1 items-center">
-          {isCompareMode ? (
-            <TouchableOpacity
-              accessibilityLabel="Cancel comparison"
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              className="rounded-full bg-black/50 px-4 py-3"
-              onPress={onCancelCompare}
-            >
-              <Typography variant="buttonSmall" className="text-white">
-                Cancel comparison
-              </Typography>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        <View className="w-12" />
-      </View>
+      ) : null}
     </View>
   );
 }

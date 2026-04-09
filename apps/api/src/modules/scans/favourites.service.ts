@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { FavouriteItem, FavouritesResponse } from '@acme/shared';
 import {
   addFavouriteRequestSchema,
   profileProductScoreSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import {
+  buildProductSearchFilter,
+  normalizeSearchQuery,
+} from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -15,6 +20,7 @@ type FavouriteProduct = {
   product_name: string | null;
   brands: string | null;
   image_url: string | null;
+  nutriscore_grade: string | null;
 };
 
 type LatestScanRecord = {
@@ -43,6 +49,7 @@ const serializeProduct = (product: FavouriteProduct) => ({
   product_name: product.product_name,
   brands: product.brands,
   image_url: product.image_url,
+  nutriscore_grade: product.nutriscore_grade,
 });
 
 @Injectable()
@@ -51,11 +58,23 @@ export class FavouritesService {
     userId: string,
     cursor?: string,
     limit?: string,
+    search?: string,
   ): Promise<FavouritesResponse> {
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
+    const normalizedSearch = normalizeSearchQuery(search);
+    const where: Prisma.FavoriteWhereInput = {
+      userId,
+      ...(normalizedSearch
+        ? {
+            product: {
+              is: buildProductSearchFilter(normalizedSearch),
+            },
+          }
+        : {}),
+    };
 
     const favourites = await prisma.favorite.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'desc' },
       take: take + 1,
       ...(cursor
@@ -72,6 +91,7 @@ export class FavouritesService {
             product_name: true,
             brands: true,
             image_url: true,
+            nutriscore_grade: true,
           },
         },
       },

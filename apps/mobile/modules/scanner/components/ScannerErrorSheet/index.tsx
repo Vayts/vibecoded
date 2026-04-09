@@ -1,7 +1,7 @@
 import { AlertTriangle, Camera, ScanBarcode } from 'lucide-react-native';
 import { useRef } from 'react';
 import ActionSheet, { useSheetPayload, SheetManager } from 'react-native-actions-sheet';
-import { InteractionManager, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
@@ -44,11 +44,7 @@ export function ScannerErrorSheet() {
 
   const handleSheetClose = () => {
     if (actionTakenRef.current) {
-      // Wait for iOS to fully dismiss the sheet's view controller hierarchy
-      // before presenting the camera picker, otherwise iOS silently cancels it.
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(() => onPhotoPress?.(), 300);
-      });
+      onPhotoPress?.();
     } else {
       onDismiss?.();
     }

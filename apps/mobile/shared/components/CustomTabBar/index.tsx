@@ -6,12 +6,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../constants/colors';
 
 const HIDDEN_ROUTES = new Set(['index', 'tab-two']);
+const FLOATING_GAP = 8;
+const TAB_BAR_SIDE_INSET = 14;
+const TAB_BAR_HEIGHT = 80;
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const floatingBottom = insets.bottom + FLOATING_GAP;
 
   const visibleRoutes = state.routes.filter((route) => !HIDDEN_ROUTES.has(route.name));
 
@@ -41,9 +45,11 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
         accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
         activeOpacity={0.7}
         onPress={onPress}
-        className="flex-1 items-center pt-2.5 pb-1 gap-1"
+        className="flex-1 h-full items-center pt-1 pb-1 gap-1"
       >
-        {options.tabBarIcon?.({ color: iconColor, size: 22, focused: isFocused })}
+        <View className={`${isFocused ? 'bg-neutrals-200' : 'bg-transparent'} rounded-xl px-5 py-1.5`}>
+          {options.tabBarIcon?.({ color: iconColor, size: 22, focused: isFocused })}
+        </View>
         <Text className="text-sm font-semibold mt-0.5" style={{ color: iconColor }}>
           {label}
         </Text>
@@ -55,69 +61,62 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
   const rightTabs = visibleRoutes.slice(1);
 
   return (
-    <View className="relative overflow-visible">
-      {/* Shadow strip behind the tab bar */}
+    <View
+      pointerEvents="box-none"
+      className="absolute overflow-visible"
+      style={{
+        left: TAB_BAR_SIDE_INSET,
+        right: TAB_BAR_SIDE_INSET,
+        bottom: floatingBottom,
+        zIndex: 100,
+      }}
+    >
       <View
-        className="absolute w-full bg-white z-[1]"
+        className="flex-row items-end rounded-[14px] bg-neutrals-50 border-neutrals-100 border px-3 pb-2 pt-3 overflow-visible"
         style={{
-          height: 30,
-          top: -1,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -1 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
+          minHeight: TAB_BAR_HEIGHT,
         }}
-      />
-
-      {/* Circle cutout behind the scanner button */}
-      <View
-        className="absolute bg-white z-[1]"
-        style={{
-          width: 90,
-          height: 90,
-          borderRadius: 45,
-          top: -37,
-          left: '50%',
-          transform: [{ translateX: -45 }],
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-        }}
-      />
-
-      {/* Tab bar content */}
-      <View
-        className="flex-row bg-white overflow-visible z-[2]"
-        style={{ paddingBottom: insets.bottom }}
       >
         {leftTabs.map(renderTab)}
 
-        <TouchableOpacity
+        <View className="w-[33%] h-full">
+          <View
+            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-neutrals-50 border-neutrals-100 border w-12 h-12 rounded-full"
+            style={{
+              top: -34.5,
+              width: 69,
+              height: 69,
+            }}
+          />
+          <View
+            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 bg-neutrals-50 w-12 h-12"
+            style={{
+              top: -11,
+              width: 69,
+              height: 69,
+            }}
+          />
+
+          <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Scan"
           activeOpacity={0.7}
           onPress={() => {
             router.push('/scanner');
           }}
-          className="flex-1 items-center pb-1"
+          className="flex-1 items-center justify-end pb-1"
         >
           <View
-            className="items-center justify-center"
-            style={{
-              width: 66,
-              height: 66,
-              borderRadius: 33,
-              backgroundColor: COLORS.accent,
-              marginTop: -28,
-            }}
+            className="w-[52px] h-[52px] rounded-[26px] -top-6 absolute items-center justify-center bg-accent-600"
           >
             <ScanBarcode color={COLORS.white} size={26} />
           </View>
-          <Text className="text-sm font-semibold mt-0.5">Scan</Text>
+
+          <Text className="text-sm relativeg font-semibold -mt-10" style={{ color: COLORS.neutrals900 }}>
+            Scan
+          </Text>
         </TouchableOpacity>
+        </View>
 
         {rightTabs.map(renderTab)}
       </View>

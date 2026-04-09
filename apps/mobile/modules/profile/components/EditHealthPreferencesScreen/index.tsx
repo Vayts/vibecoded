@@ -67,7 +67,7 @@ export function EditHealthPreferencesScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-white"
+      className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
         paddingBottom: insets.bottom + 24,

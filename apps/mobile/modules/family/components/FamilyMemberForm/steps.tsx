@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 
+import { AvatarField } from '../../../../shared/components/AvatarField';
 import { Input } from '../../../../shared/components/Input';
 import { Typography } from '../../../../shared/components/Typography';
+import { selectAndUploadAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import {
   ALLERGY_OPTIONS,
   MAIN_GOAL_OPTIONS,
@@ -14,6 +17,26 @@ import { useFamilyMemberFormStore } from '../../stores/familyMemberFormStore';
 function NameStep() {
   const draft = useFamilyMemberFormStore((s) => s.draft);
   const setName = useFamilyMemberFormStore((s) => s.setName);
+  const setAvatarUrl = useFamilyMemberFormStore((s) => s.setAvatarUrl);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  const handleChangeAvatar = async () => {
+    setAvatarError(null);
+    setIsUploadingAvatar(true);
+
+    try {
+      const nextAvatarUrl = await selectAndUploadAvatarImage();
+
+      if (nextAvatarUrl) {
+        setAvatarUrl(nextAvatarUrl);
+      }
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Unable to upload avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   return (
     <View>
@@ -21,6 +44,28 @@ function NameStep() {
       <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
         Enter the name of the family member you'd like to track.
       </Typography>
+      <View className="mt-6">
+        <AvatarField
+          name={draft.name}
+          imageUrl={draft.avatarUrl}
+          isUploading={isUploadingAvatar}
+          canRemove={Boolean(draft.avatarUrl)}
+          helperText="Optional. Helps you spot their profile faster in family lists and analysis."
+          onChangePress={() => {
+            void handleChangeAvatar();
+          }}
+          onRemovePress={() => {
+            setAvatarError(null);
+            setAvatarUrl(null);
+          }}
+        />
+
+        {avatarError ? (
+          <Typography variant="bodySecondary" className="mt-3 text-center text-red-500">
+            {avatarError}
+          </Typography>
+        ) : null}
+      </View>
       <View className="mt-6">
         <Input
           label="Name"

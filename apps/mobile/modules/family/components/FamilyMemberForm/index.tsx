@@ -80,7 +80,7 @@ export function FamilyMemberForm({
   const progress = `${((step + 1) / FAMILY_MEMBER_STEP_COUNT) * 100}%` as const;
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background">
       <Pressable className="flex-1" onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           bottomOffset={200}

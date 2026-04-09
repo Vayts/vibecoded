@@ -1,9 +1,16 @@
 import type { BarcodeLookupSuccessResponse } from '@acme/shared';
-import * as ImagePicker from 'expo-image-picker';
-import { useCallback } from 'react';
-import { compressImage } from '../lib/compressImage';
+import { useCallback, useState } from 'react';
+import { compressImage } from '../../../shared/lib/media/compressImage';
 import { usePhotoScanMutation, usePhotoOcrMutation } from './useScannerMutations';
 import type { PhotoOcrData } from '../types/scanner';
+
+export interface CapturedCameraPhoto {
+  uri: string;
+  width: number;
+  height: number;
+}
+
+type CaptureFromCamera = () => Promise<CapturedCameraPhoto | null>;
 
 export interface PhotoPreviewResult {
   productName: string | null;
@@ -14,38 +21,38 @@ export interface PhotoPreviewResult {
 }
 
 /**
- * Hook for capturing a product photo, compressing it, and uploading for AI identification.
- * Returns null if the user cancels the camera.
+ * Hook for capturing a product photo from the in-app camera,
+ * compressing it, and uploading for identification.
  */
-export function usePhotoCapture() {
+export function usePhotoCapture(captureFromCamera: CaptureFromCamera) {
   const photoMutation = usePhotoScanMutation();
   const ocrMutation = usePhotoOcrMutation();
+  const [isPreparing, setIsPreparing] = useState(false);
 
-  const launchCamera = useCallback(async () => {
-    const pickerResult = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 1,
-      allowsEditing: false,
-      exif: false,
-    });
+  const captureCompressedPhoto = useCallback(async () => {
+    setIsPreparing(true);
 
-    if (pickerResult.canceled || !pickerResult.assets[0]) return null;
+    try {
+      const captured = await captureFromCamera();
+      if (!captured) return null;
 
-    const { uri, width, height } = pickerResult.assets[0];
-    const compressed = await compressImage(uri, width, height);
-    return { uploadUri: compressed.uri, localUri: uri };
-  }, []);
+      const compressed = await compressImage(captured.uri, captured.width, captured.height);
+      return { uploadUri: compressed.uri, localUri: captured.uri };
+    } finally {
+      setIsPreparing(false);
+    }
+  }, [captureFromCamera]);
 
   /** Full pipeline: camera → compress → identify product (for compare second product) */
   const capturePhoto = useCallback(async (): Promise<BarcodeLookupSuccessResponse | null> => {
-    const captured = await launchCamera();
+    const captured = await captureCompressedPhoto();
     if (!captured) return null;
     return photoMutation.mutateAsync({ photoUri: captured.uploadUri });
-  }, [launchCamera, photoMutation]);
+  }, [captureCompressedPhoto, photoMutation]);
 
   /** OCR-only: camera → compress → extract text (fast preview for decision sheet) */
   const capturePhotoPreview = useCallback(async (): Promise<PhotoPreviewResult | null> => {
-    const captured = await launchCamera();
+    const captured = await captureCompressedPhoto();
     if (!captured) return null;
     const ocr = await ocrMutation.mutateAsync({ photoUri: captured.uploadUri });
     return {
@@ -55,18 +62,19 @@ export function usePhotoCapture() {
       localImageUri: captured.localUri,
       ocr,
     };
-  }, [launchCamera, ocrMutation]);
+  }, [captureCompressedPhoto, ocrMutation]);
 
   /** Camera → compress only, returns upload URI + local preview URI without any API call */
   const captureAndCompress = useCallback(async () => {
-    return launchCamera();
-  }, [launchCamera]);
+    return captureCompressedPhoto();
+  }, [captureCompressedPhoto]);
 
   return {
     capturePhoto,
     capturePhotoPreview,
     captureAndCompress,
-    isPending: photoMutation.isPending || ocrMutation.isPending,
+    isPending: isPreparing || photoMutation.isPending || ocrMutation.isPending,
+    isPreparing,
     isOcrPending: ocrMutation.isPending,
   };
 }

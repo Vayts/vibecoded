@@ -4,11 +4,15 @@ import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
+import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
+import { ProfileScoreChips } from '../ProfileScoreChips';
+import { colors } from 'react-native-keyboard-controller/lib/typescript/components/KeyboardToolbar/colors';
 
 interface ScanHistoryRowProps {
   item: ScanHistoryItem;
   onPress: (item: ScanHistoryItem) => void;
+  profileScoreChipContext: ProfileScoreChipContext;
 }
 
 const getScoreColor = (score: number): string => {
@@ -35,41 +39,13 @@ const formatRelativeTime = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString();
 };
 
-const truncateName = (name: string, maxLen = 8): string =>
-  name.length > maxLen ? name.slice(0, maxLen - 1) + '…' : name;
-
-function ProfileScoreChips({ chips }: { chips: NonNullable<ScanHistoryItem['profileChips']> }) {
-  return (
-    <View className="flex-row flex-wrap justify-end gap-1">
-      {chips.map((chip) => {
-        const color = getScoreColor(chip.score);
-        return (
-          <View
-            key={chip.profileId}
-            className="flex-row items-center rounded-md px-1.5 py-0.5 border"
-            style={{ borderColor: color + '1A' }}
-          >
-            <Typography
-              variant="caption"
-              style={{ color, fontSize: 11, lineHeight: 14 }}
-              numberOfLines={1}
-            >
-              {truncateName(chip.name)} {chip.score}
-            </Typography>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
+export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanHistoryRowProps) {
   const imageUri = resolveStorageUri(item.product?.image_url) ?? null;
   const productName = item.product?.product_name ?? 'Unknown product';
   const brands = item.product?.brands ?? null;
   const score = item.personalScore ?? item.overallScore;
   const isPersonalScore = item.personalScore != null;
-  const hasProfileChips = item.profileChips && item.profileChips.length > 0;
+  const hasProfileChips = Boolean(item.profileChips?.length);
 
   const productId = item.product?.id ?? null;
   const isFavourite = item.isFavourite ?? false;
@@ -84,58 +60,55 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => onPress(item)}
-      className="flex-row items-center px-4 py-3 border-b border-gray-100"
+      className="flex-row items-center px-4 py-3"
       accessibilityRole="button"
       accessibilityLabel={`View scan result for ${productName}`}
     >
       {imageUri ? (
         <Image
           source={{ uri: imageUri }}
-          className="h-14 w-14 rounded-xl bg-gray-100 self-start"
+          className="h-[74px] w-[74px] rounded-xl bg-gray-100 self-start"
           resizeMode="cover"
         />
       ) : (
-        <View className="h-14 w-14 items-center justify-center rounded-xl bg-blue-50">
+        <View className="h-[74px] w-[74px] items-center justify-center rounded-xl bg-blue-50">
           <Barcode color={COLORS.primary} size={20} />
         </View>
       )}
 
       <View className="ml-3 flex-1">
-        <Typography variant="headerTitle" numberOfLines={1}>
+        <Typography className="text-[14px] font-semibold" numberOfLines={1}>
           {productName}
         </Typography>
         {brands ? (
-          <Typography variant="bodySecondary" numberOfLines={1} className="mt-0.5">
+          <Typography className="text-[13px] mt-0.5" numberOfLines={1}>
             {brands}
           </Typography>
         ) : null}
 
         <View className="mt-2 items-start">
-        {hasProfileChips ? (
-          <ProfileScoreChips chips={item.profileChips!} />
-        ) : score != null ? (
-          <View
-            className="min-w-[40px] items-center rounded-lg px-2 py-1"
-
-          >
-            <Typography variant="buttonSmall" style={{ color: getScoreColor(score) }}>
-              {score}
+          {hasProfileChips ? (
+            <ProfileScoreChips chips={item.profileChips!} context={profileScoreChipContext} />
+          ) : score != null ? (
+            <View className="min-w-[40px] items-center rounded-lg px-2 py-1">
+              <Typography variant="buttonSmall" style={{ color: getScoreColor(score) }}>
+                {score}
+              </Typography>
+            </View>
+          ) : (
+            <Typography variant="caption">—</Typography>
+          )}
+          {!isPersonalScore && !hasProfileChips && item.personalAnalysisStatus === 'pending' ? (
+            <Typography variant="caption" className="mt-0.5 text-amber-600">
+              Analyzing…
+            </Typography>
+          ) : null}
+          <View className="mt-2 flex-row items-center gap-1">
+            <ClockFading size={16} color={COLORS.neutrals500} strokeWidth={1.5} />
+            <Typography className="text-neutrals-500 text-[13px]">
+              {formatRelativeTime(item.createdAt)}
             </Typography>
           </View>
-        ) : (
-          <Typography variant="caption">—</Typography>
-        )}
-        {!isPersonalScore && !hasProfileChips && item.personalAnalysisStatus === 'pending' ? (
-          <Typography variant="caption" className="mt-0.5 text-amber-600">
-            Analyzing…
-          </Typography>
-        ) : null}
-        <View className="mt-2 flex-row items-center gap-1">
-          <ClockFading size={16} color={COLORS.neutrals500} strokeWidth={1.5}/>
-          <Typography className="text-neutrals-500 text-[13px]">
-            {formatRelativeTime(item.createdAt)}
-          </Typography>
-        </View>
         </View>
       </View>
 
@@ -150,7 +123,7 @@ export function ScanHistoryRow({ item, onPress }: ScanHistoryRowProps) {
         >
           <Heart
             size={20}
-            color={isFavourite ? COLORS.accent500 : '#D1D5DB'}
+            color={isFavourite ? COLORS.accent500 : COLORS.neutrals900}
             fill={isFavourite ? COLORS.accent500 : 'none'}
           />
         </TouchableOpacity>

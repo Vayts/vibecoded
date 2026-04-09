@@ -18,6 +18,7 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  avatarUrl     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -281,6 +282,7 @@ model FamilyMember {
   userId              String
   user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name                String
+  avatarUrl           String?
   mainGoal            MainGoal?
   restrictions        Restriction[]       @default([])
   allergies           Allergy[]           @default([])

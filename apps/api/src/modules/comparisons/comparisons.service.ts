@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   ComparisonDetailResponse,
   ComparisonHistoryItem,
@@ -6,6 +7,10 @@ import type {
 } from '@acme/shared';
 import { productComparisonResultSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import {
+  buildProductSearchFilter,
+  normalizeSearchQuery,
+} from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -41,10 +46,32 @@ export class ComparisonsService {
     userId: string,
     cursor?: string,
     limit?: string,
+    search?: string,
   ): Promise<ComparisonHistoryResponse> {
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
+    const normalizedSearch = normalizeSearchQuery(search);
+    const where: Prisma.ComparisonWhereInput = {
+      userId,
+      ...(normalizedSearch
+        ? {
+            OR: [
+              {
+                product1: {
+                  is: buildProductSearchFilter(normalizedSearch),
+                },
+              },
+              {
+                product2: {
+                  is: buildProductSearchFilter(normalizedSearch),
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
     const comparisons = await prisma.comparison.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'desc' },
       take: take + 1,
       ...(cursor

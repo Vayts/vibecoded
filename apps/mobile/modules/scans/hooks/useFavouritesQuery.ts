@@ -6,16 +6,20 @@ import { SCAN_HISTORY_QUERY_KEY } from './useScanHistoryQuery';
 
 export const FAVOURITES_QUERY_KEY = ['favourites'] as const;
 
-export const useFavouritesQuery = () => {
+export const useFavouritesQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
-    queryKey: [...FAVOURITES_QUERY_KEY],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) => fetchFavourites(pageParam),
+    queryKey: [...FAVOURITES_QUERY_KEY, search],
+    enabled,
+    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
+      fetchFavourites({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: FavouritesResponse) => lastPage.nextCursor ?? undefined,
   });
 };
 
 type HistoryInfiniteData = InfiniteData<ScanHistoryResponse, string | undefined>;
+type FavouriteInfiniteData = InfiniteData<FavouritesResponse, string | undefined>;
+type QuerySnapshot<T> = Array<[readonly unknown[], T | undefined]>;
 
 /**
  * Optimistically flip `isFavourite` in every relevant cache entry for a product.
@@ -27,11 +31,19 @@ const optimisticToggle = (
   newValue: boolean,
 ) => {
   // --- Scan history (infinite) ---
-  const prevHistory = queryClient.getQueryData<HistoryInfiniteData>([...SCAN_HISTORY_QUERY_KEY]);
-  if (prevHistory) {
-    queryClient.setQueryData<HistoryInfiniteData>([...SCAN_HISTORY_QUERY_KEY], {
-      ...prevHistory,
-      pages: prevHistory.pages.map((page) => ({
+  const historyQueries = queryClient.getQueriesData<HistoryInfiniteData>({
+    queryKey: [...SCAN_HISTORY_QUERY_KEY],
+  });
+  const prevHistory: QuerySnapshot<HistoryInfiniteData> = historyQueries.map(([key, data]) => [
+    key,
+    data,
+  ]);
+  for (const [key, data] of historyQueries) {
+    if (!data) continue;
+
+    queryClient.setQueryData<HistoryInfiniteData>(key, {
+      ...data,
+      pages: data.pages.map((page) => ({
         ...page,
         items: page.items.map((scan) =>
           scan.product?.id === productId ? { ...scan, isFavourite: newValue } : scan,
@@ -53,7 +65,26 @@ const optimisticToggle = (
   }
 
   // --- Favourites list (infinite) ---
-  const prevFavourites = queryClient.getQueryData<InfiniteData<FavouritesResponse, string | undefined>>([...FAVOURITES_QUERY_KEY]);
+  const favouriteQueries = queryClient.getQueriesData<FavouriteInfiniteData>({
+    queryKey: [...FAVOURITES_QUERY_KEY],
+  });
+  const prevFavourites: QuerySnapshot<FavouriteInfiniteData> = favouriteQueries.map(
+    ([key, data]) => [key, data],
+  );
+
+  for (const [key, data] of favouriteQueries) {
+    if (!data) continue;
+
+    queryClient.setQueryData<FavouriteInfiniteData>(key, {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        items: page.items.map((item) =>
+          item.product?.id === productId ? { ...item, isFavourite: newValue } : item,
+        ),
+      })),
+    });
+  }
 
   return { prevHistory, prevDetails, prevFavourites };
 };
@@ -62,14 +93,14 @@ const rollback = (
   queryClient: ReturnType<typeof useQueryClient>,
   snapshot: ReturnType<typeof optimisticToggle>,
 ) => {
-  if (snapshot.prevHistory) {
-    queryClient.setQueryData([...SCAN_HISTORY_QUERY_KEY], snapshot.prevHistory);
+  for (const [key, data] of snapshot.prevHistory) {
+    queryClient.setQueryData(key, data);
   }
   for (const [key, data] of snapshot.prevDetails) {
     queryClient.setQueryData(key, data);
   }
-  if (snapshot.prevFavourites) {
-    queryClient.setQueryData([...FAVOURITES_QUERY_KEY], snapshot.prevFavourites);
+  for (const [key, data] of snapshot.prevFavourites) {
+    queryClient.setQueryData(key, data);
   }
 };
 

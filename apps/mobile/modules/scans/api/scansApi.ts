@@ -8,12 +8,25 @@ import { apiFetch } from '../../../shared/lib/client/client';
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export const fetchScanHistory = async (cursor?: string): Promise<ScanHistoryResponse> => {
+interface FetchScanHistoryParams {
+  cursor?: string;
+  search?: string;
+  signal?: AbortSignal;
+}
+
+export const fetchScanHistory = async ({
+  cursor,
+  search,
+  signal,
+}: FetchScanHistoryParams): Promise<ScanHistoryResponse> => {
   const params = new URLSearchParams();
+  const normalizedSearch = search?.trim();
+
   if (cursor) params.set('cursor', cursor);
+  if (normalizedSearch) params.set('search', normalizedSearch);
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
-  const response = await apiFetch(`/api/scans/history?${params.toString()}`);
+  const response = await apiFetch(`/api/scans/history?${params.toString()}`, { signal });
 
   if (!response.ok) {
     const json = (await response.json().catch(() => null)) as { error?: string } | null;

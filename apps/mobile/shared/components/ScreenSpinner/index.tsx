@@ -3,7 +3,7 @@ import { COLORS } from '../../constants/colors';
 
 export function ScreenSpinner() {
   return (
-    <View className="flex-1 items-center justify-center bg-white">
+    <View className="flex-1 items-center justify-center bg-background">
       <ActivityIndicator size="large" color={COLORS.primary} />
     </View>
   );

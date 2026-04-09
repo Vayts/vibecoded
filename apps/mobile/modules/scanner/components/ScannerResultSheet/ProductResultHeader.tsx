@@ -1,4 +1,4 @@
-import type { BarcodeLookupProduct, ProductPreview } from '@acme/shared';
+import type { BarcodeLookupProduct, ProductPreview, ScanHistoryItem } from '@acme/shared';
 import { Barcode } from 'lucide-react-native';
 import { Image, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
@@ -6,7 +6,12 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { getProductImageUri } from './productResultHelpers';
 import { FavouriteButton } from './FavouriteButton';
 
-type ProductHeaderData = BarcodeLookupProduct | ProductPreview;
+type ProductHeaderData =
+  | BarcodeLookupProduct
+  | ProductPreview
+  | NonNullable<ScanHistoryItem['product']>;
+
+export const PRODUCT_RESULT_HEADER_ESTIMATED_HEIGHT = 46;
 
 interface ProductResultHeaderProps {
   product: ProductHeaderData;

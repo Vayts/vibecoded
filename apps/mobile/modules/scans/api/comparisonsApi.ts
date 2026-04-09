@@ -8,12 +8,25 @@ import { apiFetch } from '../../../shared/lib/client/client';
 
 const DEFAULT_PAGE_SIZE = 20;
 
-export const fetchComparisons = async (cursor?: string): Promise<ComparisonHistoryResponse> => {
+interface FetchComparisonsParams {
+  cursor?: string;
+  search?: string;
+  signal?: AbortSignal;
+}
+
+export const fetchComparisons = async ({
+  cursor,
+  search,
+  signal,
+}: FetchComparisonsParams): Promise<ComparisonHistoryResponse> => {
   const params = new URLSearchParams();
+  const normalizedSearch = search?.trim();
+
   if (cursor) params.set('cursor', cursor);
+  if (normalizedSearch) params.set('search', normalizedSearch);
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
-  const response = await apiFetch(`/api/comparisons?${params.toString()}`);
+  const response = await apiFetch(`/api/comparisons?${params.toString()}`, { signal });
 
   if (!response.ok) {
     const json = (await response.json().catch(() => null)) as { error?: string } | null;

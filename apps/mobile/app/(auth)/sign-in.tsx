@@ -45,7 +45,7 @@ export default function SignInScreen() {
   }, [clearError, error]);
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background">
       <StatusBar barStyle="light-content" />
 
       {/* Hero image — ~75% of screen, diagonal corner cut */}

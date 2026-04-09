@@ -12,6 +12,12 @@ export class UserController {
     private readonly userService: UserService,
   ) {}
 
+  @Get()
+  async getCurrentUser(@Req() request: Request): Promise<SerializedUser> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.userService.getCurrentUser(userId);
+  }
+
   @Patch()
   async updateProfile(
     @Body() body: unknown,

@@ -17,10 +17,32 @@ export const COLORS = {
 
   accent: '#E28200', // violet-600 — Pro / premium badge
   accent500: '#FFAA00',
+  accent600: '#E28200',
 
-  neutrals900: '#1A1A1A',
+
+  neutrals100: '#F1F1F1',
   neutrals200: '#E6E6E6',
+  neutrals300: '#D6D6D6',
   neutrals500: '#767676',
+  neutrals700: '#434343',
+  neutrals900: '#1A1A1A',
+
+  primary300: '#94E197',
+  primary900: '#1C4B1F',
+  profileChipGoodBorder: '#94E197',
+  profileChipBadBorder: '#FF9292',
+  profileChipNeutralBorder: '#D9D9D9',
+  nutriScoreA: '#157F3E',
+  nutriScoreB: '#83CB16',
+  nutriScoreC: '#FCCB18',
+  nutriScoreD: '#FA913E',
+  nutriScoreE: '#EB580A',
+  nutriScoreAActive: '#196c37',
+  nutriScoreBActive: '#76a919',
+  nutriScoreCActive: '#a1862f',
+  nutriScoreDActive: '#d47f2f',
+  nutriScoreEActive: '#c2571a',
+  nutriScoreActiveBorder: '#D1A70F',
 
   // ── Semantic ──────────────────────────────────────────
   blue: '#2563EB', // blue-600 — good match rating
@@ -58,8 +80,10 @@ export const COLORS = {
   gray700: '#374151', // body primary (dark on white)
   gray800: '#1F2937', // primary text
   gray900: '#111827', // headings
+  appBackground: '#FAFAFA',
 
   // ── Special ───────────────────────────────────────────
   transparent: 'transparent',
   overlay: 'rgba(0,0,0,0.4)', // modal backdrop
+  overlayStrong: '#00000099',
 } as const;

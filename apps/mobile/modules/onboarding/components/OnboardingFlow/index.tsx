@@ -82,7 +82,7 @@ export function OnboardingFlow() {
   }, [step]);
 
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-background">
       <View className="absolute -left-10 top-8 h-36 w-36 rounded-full bg-blue-50" />
       <View className="absolute right-0 top-24 h-24 w-24 rounded-full bg-gray-50" />
       <KeyboardAvoidingView

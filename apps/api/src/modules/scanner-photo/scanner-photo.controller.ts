@@ -11,9 +11,7 @@ import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { SCANNER_PHOTO_ROUTE_BASE } from './scanner-photo.constants';
 import { ScannerPhotoService } from './scanner-photo.service';
-import {
-  MAX_PHOTO_UPLOAD_SIZE,
-} from './scanner-photo.constants';
+import { MAX_PHOTO_UPLOAD_SIZE } from './scanner-photo.constants';
 import type { UploadedPhotoFile } from './scanner-photo.schemas';
 
 @Controller(SCANNER_PHOTO_ROUTE_BASE)

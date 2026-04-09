@@ -10,10 +10,12 @@ import { fetchScanDetail, fetchScanHistory } from '../api/scansApi';
 
 export const SCAN_HISTORY_QUERY_KEY = ['scans', 'history'] as const;
 
-export const useScanHistoryQuery = () => {
+export const useScanHistoryQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
-    queryKey: [...SCAN_HISTORY_QUERY_KEY],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) => fetchScanHistory(pageParam),
+    queryKey: [...SCAN_HISTORY_QUERY_KEY, search],
+    enabled,
+    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
+      fetchScanHistory({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: ScanHistoryResponse) => lastPage.nextCursor ?? undefined,
   });

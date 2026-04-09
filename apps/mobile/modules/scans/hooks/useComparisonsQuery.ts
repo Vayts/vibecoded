@@ -4,10 +4,12 @@ import { fetchComparisons, fetchComparisonDetail } from '../api/comparisonsApi';
 
 export const COMPARISONS_QUERY_KEY = ['comparisons'] as const;
 
-export const useComparisonsQuery = () => {
+export const useComparisonsQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
-    queryKey: [...COMPARISONS_QUERY_KEY],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) => fetchComparisons(pageParam),
+    queryKey: [...COMPARISONS_QUERY_KEY, search],
+    enabled,
+    queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
+      fetchComparisons({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: ComparisonHistoryResponse) => lastPage.nextCursor ?? undefined,
   });

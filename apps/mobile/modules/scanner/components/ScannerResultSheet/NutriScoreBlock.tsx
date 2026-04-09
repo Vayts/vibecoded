@@ -1,45 +1,73 @@
-import type { BarcodeLookupProduct } from '@acme/shared';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
 interface NutriScoreBlockProps {
-  grade: BarcodeLookupProduct['scores']['nutriscore_grade'];
+  grade: string | null | undefined;
 }
 
 type NutriScoreGrade = 'a' | 'b' | 'c' | 'd' | 'e';
 
 interface NutriScoreSegment {
   grade: NutriScoreGrade;
-  backgroundClassName: string;
   backgroundColor: string;
+  activeBackgroundColor: string;
+  activeBorderColor: string;
+  description: string;
 }
 
-const SEGMENT_WIDTH = 40;
-const INDICATOR_SIZE = 56;
+export const NUTRI_SCORE_BLOCK_ESTIMATED_HEIGHT = 120;
+
+const BAR_HEIGHT = 26;
+const BAR_RADIUS = 12;
+const ACTIVE_SEGMENT_BORDER_WIDTH = 3;
+const POINTER_WIDTH = 8;
+const POINTER_HEIGHT = 8;
 
 const SEGMENTS: NutriScoreSegment[] = [
-  { grade: 'a', backgroundClassName: 'bg-green-700', backgroundColor: COLORS.success },
-  { grade: 'b', backgroundClassName: 'bg-lime-500', backgroundColor: '#84CC16' },
-  { grade: 'c', backgroundClassName: 'bg-yellow-400', backgroundColor: '#FACC15' },
-  { grade: 'd', backgroundClassName: 'bg-orange-400', backgroundColor: '#FB923C' },
-  { grade: 'e', backgroundClassName: 'bg-orange-600', backgroundColor: '#EA580C' },
+  {
+    grade: 'a',
+    backgroundColor: COLORS.nutriScoreA,
+    activeBackgroundColor: COLORS.nutriScoreA,
+    activeBorderColor: COLORS.nutriScoreAActive,
+    description: 'High quality',
+  },
+  {
+    grade: 'b',
+    backgroundColor: COLORS.nutriScoreB,
+    activeBackgroundColor: COLORS.nutriScoreB,
+    activeBorderColor: COLORS.nutriScoreBActive,
+    description: 'Good quality',
+  },
+  {
+    grade: 'c',
+    backgroundColor: COLORS.nutriScoreC,
+    activeBackgroundColor: COLORS.nutriScoreC,
+    activeBorderColor: COLORS.nutriScoreCActive,
+    description: 'Moderate quality',
+  },
+  {
+    grade: 'd',
+    backgroundColor: COLORS.nutriScoreD,
+    activeBackgroundColor: COLORS.nutriScoreD,
+    activeBorderColor: COLORS.nutriScoreDActive,
+    description: 'Low quality',
+  },
+  {
+    grade: 'e',
+    backgroundColor: COLORS.nutriScoreE,
+    activeBackgroundColor: COLORS.nutriScoreE,
+    activeBorderColor: COLORS.nutriScoreEActive,
+    description: 'Poor quality',
+  },
 ];
 
-const BAR_WIDTH = SEGMENTS.length * SEGMENT_WIDTH;
-
-const isNutriScoreGrade = (value: string | null | undefined): value is NutriScoreGrade => {
+export const isNutriScoreGrade = (value: string | null | undefined): value is NutriScoreGrade => {
   return value === 'a' || value === 'b' || value === 'c' || value === 'd' || value === 'e';
 };
 
-const getIndicatorLeft = (grade: NutriScoreGrade): number => {
-  const gradeIndex = SEGMENTS.findIndex((segment) => segment.grade === grade);
-
-  return gradeIndex * SEGMENT_WIDTH + (SEGMENT_WIDTH - INDICATOR_SIZE) / 2;
-};
-
-const getIndicatorColor = (grade: NutriScoreGrade): string => {
-  return SEGMENTS.find((segment) => segment.grade === grade)?.backgroundColor ?? COLORS.warning;
+const getSegment = (grade: NutriScoreGrade): NutriScoreSegment => {
+  return SEGMENTS.find((segment) => segment.grade === grade) ?? SEGMENTS[2];
 };
 
 export function NutriScoreBlock({ grade }: NutriScoreBlockProps) {
@@ -47,57 +75,105 @@ export function NutriScoreBlock({ grade }: NutriScoreBlockProps) {
     return null;
   }
 
+  const segment = getSegment(grade);
+
   return (
-    <View className="mt-3">
-      <Typography variant="fieldLabel" className="mb-2 text-gray-500">
+    <View className="mt-4">
+      <Typography
+        className="mb-3"
+        style={{
+          color: COLORS.neutrals500,
+          fontSize: 13,
+          fontWeight: '400',
+          textTransform: 'uppercase',
+        }}
+      >
         Nutri-Score
       </Typography>
 
       <View
-        className={grade === 'a' ? 'relative ml-3' : 'relative'}
-        style={{ width: BAR_WIDTH, height: INDICATOR_SIZE }}
+        style={{
+          position: 'relative',
+        }}
       >
         <View
-          className="absolute left-0 top-[8px] h-10 flex-row overflow-hidden rounded-full"
-          style={{ width: BAR_WIDTH }}
+          className="flex-row"
+          style={{
+            height: BAR_HEIGHT,
+            borderRadius: BAR_RADIUS,
+          }}
         >
-          {SEGMENTS.map((segment, index) => {
-            const isActive = segment.grade === grade;
-            const segmentRadiusClassName =
-              index === 0
-                ? 'rounded-l-full'
-                : index === SEGMENTS.length - 1
-                  ? 'rounded-r-full'
-                  : '';
+          {SEGMENTS.map((item, index) => {
+            const isSelected = item.grade === grade;
+            const isFirst = index === 0;
+            const isLast = index === SEGMENTS.length - 1;
 
             return (
               <View
-                key={segment.grade}
-                className={`h-10 w-10 items-center justify-center ${segment.backgroundClassName} ${segmentRadiusClassName}`.trim()}
+                key={item.grade}
+                className="flex-1 items-center justify-center"
+                style={{
+                  backgroundColor: isSelected ? item.activeBackgroundColor : item.backgroundColor,
+                  borderWidth: ACTIVE_SEGMENT_BORDER_WIDTH,
+                  borderColor: isSelected ? item.activeBorderColor : item.backgroundColor,
+                  borderTopLeftRadius: isFirst ? BAR_RADIUS : 0,
+                  borderBottomLeftRadius: isFirst ? BAR_RADIUS : 0,
+                  borderTopRightRadius: isLast ? BAR_RADIUS : 0,
+                  borderBottomRightRadius: isLast ? BAR_RADIUS : 0,
+                  marginLeft: index === 0 ? 0 : -ACTIVE_SEGMENT_BORDER_WIDTH,
+                  zIndex: isSelected ? 2 : 1,
+                }}
               >
                 <Typography
                   variant="button"
-                  className={isActive ? 'text-white opacity-100' : 'text-white/60 opacity-80'}
+                  style={{
+                    color: COLORS.white,
+                    fontSize: 15,
+                    fontWeight: '500',
+                    lineHeight: 18,
+                  }}
                 >
-                  {segment.grade.toUpperCase()}
+                  {item.grade.toUpperCase()}
                 </Typography>
               </View>
             );
           })}
         </View>
 
-        <View
-          className="absolute top-0 items-center justify-center rounded-full border-4 border-white shadow-sm"
-          style={{
-            left: getIndicatorLeft(grade),
-            width: INDICATOR_SIZE,
-            height: INDICATOR_SIZE,
-            backgroundColor: getIndicatorColor(grade),
-          }}
-        >
-          <Typography variant="pageTitle" className="text-white">
-            {grade.toUpperCase()}
-          </Typography>
+        <View className="mt-1 flex-row">
+          {SEGMENTS.map((item) => {
+            const isSelected = item.grade === grade;
+
+            return (
+              <View key={item.grade} className="flex-1 items-center">
+                {isSelected ? (
+                  <View
+                    style={{
+                      width: 0,
+                      height: 0,
+                      borderLeftWidth: POINTER_WIDTH,
+                      borderRightWidth: POINTER_WIDTH,
+                      borderBottomWidth: POINTER_HEIGHT,
+                      borderLeftColor: COLORS.transparent,
+                      borderRightColor: COLORS.transparent,
+                      borderBottomColor: COLORS.black,
+                    }}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+
+        <View className="items-center px-4" style={{ marginTop: 10 }}>
+          <View className="flex-row items-center justify-center gap-2">
+            <Text className="text-neutrals-900 font-semibold">
+              {`Grade ${grade.toUpperCase()}`}
+            </Text>
+            <Text>
+              {segment.description}
+            </Text>
+          </View>
         </View>
       </View>
     </View>

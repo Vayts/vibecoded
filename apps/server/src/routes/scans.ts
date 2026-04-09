@@ -65,6 +65,7 @@ scansRoute.get('/history', async (c) => {
             product_name: scan.product.product_name,
             brands: scan.product.brands,
             image_url: scan.product.image_url,
+            nutriscore_grade: scan.product.nutriscore_grade,
           }
         : null,
       product2: scan.product2
@@ -74,6 +75,7 @@ scansRoute.get('/history', async (c) => {
             product_name: scan.product2.product_name,
             brands: scan.product2.brands,
             image_url: scan.product2.image_url,
+            nutriscore_grade: scan.product2.nutriscore_grade,
           }
         : null,
     };
@@ -146,6 +148,7 @@ scansRoute.get('/:id', async (c) => {
   const response: ScanDetailResponse = {
     id: scan.id,
     type: scan.type,
+    analysisId: scan.personalAnalysisJobId ?? null,
     createdAt: scan.createdAt.toISOString(),
     source: scan.source,
     overallScore: scan.overallScore,

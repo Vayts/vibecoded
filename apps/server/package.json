@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "prisma generate && tsc",
-    "dev": "tsx watch src/index.ts",
+    "dev1": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "lint": "eslint \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",

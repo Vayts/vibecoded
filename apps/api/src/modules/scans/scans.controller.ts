@@ -17,9 +17,10 @@ export class ScansController {
     @Req() request: Request,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ): Promise<ScanHistoryResponse> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.scansService.getHistory(userId, cursor, limit);
+    return this.scansService.getHistory(userId, cursor, limit, search);
   }
 
   @Get(':id')

@@ -7,6 +7,8 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  image: string | null;
+  avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +39,8 @@ function toAuthSession(raw: Record<string, unknown>): AuthSession {
       id: user.id as string,
       name: (user.name ?? '') as string,
       email: user.email as string,
+      image: (user.image ?? null) as string | null,
+      avatarUrl: (user.avatarUrl ?? null) as string | null,
       createdAt: user.createdAt as string,
       updatedAt: user.updatedAt as string,
     },

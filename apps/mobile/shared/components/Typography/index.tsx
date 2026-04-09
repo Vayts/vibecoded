@@ -33,7 +33,7 @@ export type TypographyVariant =
 
 const variantClasses: Record<TypographyVariant, string> = {
   hero: 'text-3xl font-bold text-gray-900',
-  pageTitle: 'text-2xl font-bold text-gray-900',
+  pageTitle: 'text-2xl font-bold text-neutrals-900',
   sectionTitle: 'text-lg font-semibold text-gray-900',
   headerTitle: 'text-base font-semibold text-gray-900',
   body: 'text-base text-gray-700',

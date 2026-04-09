@@ -4,6 +4,7 @@ import { create } from 'zustand';
 
 export interface FamilyMemberDraft {
   name: string;
+  avatarUrl: string | null;
   mainGoal: MainGoal | null;
   restrictions: Restriction[];
   allergies: Allergy[];
@@ -16,6 +17,7 @@ export const FAMILY_MEMBER_REVIEW_STEP = 4;
 
 const createInitialDraft = (): FamilyMemberDraft => ({
   name: '',
+  avatarUrl: null,
   mainGoal: null,
   restrictions: [],
   allergies: [],
@@ -30,6 +32,7 @@ interface FamilyMemberFormStore {
   nextStep: () => void;
   prevStep: () => void;
   setName: (name: string) => void;
+  setAvatarUrl: (avatarUrl: string | null) => void;
   setMainGoal: (goal: MainGoal | null) => void;
   toggleRestriction: (value: Restriction) => void;
   toggleAllergy: (value: Allergy) => void;
@@ -49,6 +52,8 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
   prevStep: () => set((s) => ({ step: Math.max(0, s.step - 1) })),
 
   setName: (name) => set((s) => ({ draft: { ...s.draft, name } })),
+
+  setAvatarUrl: (avatarUrl) => set((s) => ({ draft: { ...s.draft, avatarUrl } })),
 
   setMainGoal: (goal) => set((s) => ({ draft: { ...s.draft, mainGoal: goal } })),
 
@@ -100,6 +105,7 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
       step: 0,
       draft: {
         name: member.name,
+        avatarUrl: member.avatarUrl,
         mainGoal: (member.mainGoal as MainGoal | null) ?? null,
         restrictions: (member.restrictions as Restriction[]) ?? [],
         allergies: (member.allergies as Allergy[]) ?? [],
@@ -114,6 +120,7 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
     const { draft } = get();
     return {
       name: draft.name.trim(),
+      avatarUrl: draft.avatarUrl,
       mainGoal: draft.mainGoal ?? undefined,
       restrictions: draft.restrictions,
       allergies: draft.allergies,

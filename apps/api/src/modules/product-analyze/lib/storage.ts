@@ -119,6 +119,10 @@ export const uploadProductImage = async (buffer: Buffer): Promise<string> => {
   return uploadToStorage(buffer, 'products', 'jpg', 'image/jpeg');
 };
 
+export const uploadAvatarImage = async (buffer: Buffer): Promise<string> => {
+  return uploadToStorage(buffer, 'avatars', 'jpg', 'image/jpeg');
+};
+
 export interface StoredObjectResult {
   stream: Readable;
   contentType: string;

@@ -1,23 +1,28 @@
 import { ActivityIndicator, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface PersonalAnalysisLoaderProps {
   title?: string;
   description?: string;
+  withTopMargin?: boolean;
 }
 
 export function PersonalAnalysisLoader({
   title = 'Analyzing product...',
   description = 'We\'re scoring this product for your profile.',
+  withTopMargin = true,
 }: PersonalAnalysisLoaderProps) {
   return (
-    <View className="mt-4 items-center rounded-xl border border-gray-100 bg-white px-6 py-8">
-      <ActivityIndicator color={COLORS.primary} size="small" />
-      <Typography variant="sectionTitle" className="mt-4 text-center text-gray-900">
+    <View
+      className={`items-center rounded-xl border border-gray-100 bg-white px-6 py-2 ${withTopMargin ? 'mt-4' : ''}`}
+    >
+      <CustomLoader size="sm" isReversed/>
+      <Typography className="mt-2 text-center text-md font-bold text-gray-900">
         {title}
       </Typography>
-      <Typography variant="bodySecondary" className="mt-2 text-center leading-6 text-gray-600">
+      <Typography variant="bodySecondary" className="text-center leading-6 text-gray-600">
         {description}
       </Typography>
     </View>
