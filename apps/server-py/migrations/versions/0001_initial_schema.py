@@ -10,7 +10,8 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 
 revision: str = "0001"
 down_revision: str | None = None
@@ -23,81 +24,51 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     # --- Enums ---
-    auth_provider_enum = postgresql.ENUM("email", "google", "apple", name="auth_provider_enum", create_type=False)
-    diet_type_enum = postgresql.ENUM(
-        "NONE",
-        "KETO",
-        "VEGAN",
-        "VEGETARIAN",
-        "PALEO",
-        "LOW_CARB",
-        "GLUTEN_FREE",
-        "DAIRY_FREE",
-        name="diet_type_enum",
-        create_type=False,
+    # asyncpg requires one statement per execute call.
+    # DO blocks make each creation idempotent (PostgreSQL has no CREATE TYPE IF NOT EXISTS).
+    _create_enum = lambda sql: op.execute(sa.text(sql))  # noqa: E731
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE auth_provider_enum AS ENUM "
+        "('email', 'google', 'apple'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-    main_goal_enum = postgresql.ENUM(
-        "GENERAL_HEALTH",
-        "WEIGHT_LOSS",
-        "DIABETES_CONTROL",
-        "PREGNANCY",
-        "MUSCLE_GAIN",
-        name="main_goal_enum",
-        create_type=False,
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE diet_type_enum AS ENUM "
+        "('NONE', 'KETO', 'VEGAN', 'VEGETARIAN', 'PALEO', 'LOW_CARB', 'GLUTEN_FREE', 'DAIRY_FREE'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-    restriction_enum = postgresql.ENUM(
-        "VEGAN",
-        "VEGETARIAN",
-        "KETO",
-        "PALEO",
-        "GLUTEN_FREE",
-        "DAIRY_FREE",
-        "HALAL",
-        "KOSHER",
-        "NUT_FREE",
-        name="restriction_enum",
-        create_type=False,
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE main_goal_enum AS ENUM "
+        "('GENERAL_HEALTH', 'WEIGHT_LOSS', 'DIABETES_CONTROL', 'PREGNANCY', 'MUSCLE_GAIN'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-    allergy_enum = postgresql.ENUM(
-        "PEANUTS",
-        "TREE_NUTS",
-        "GLUTEN",
-        "DAIRY",
-        "SOY",
-        "EGGS",
-        "SHELLFISH",
-        "SESAME",
-        "OTHER",
-        name="allergy_enum",
-        create_type=False,
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE restriction_enum AS ENUM "
+        "('VEGAN', 'VEGETARIAN', 'KETO', 'PALEO', 'GLUTEN_FREE', 'DAIRY_FREE', 'HALAL', 'KOSHER', 'NUT_FREE'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-    nutrition_priority_enum = postgresql.ENUM(
-        "HIGH_PROTEIN",
-        "LOW_SUGAR",
-        "LOW_SODIUM",
-        "LOW_CARB",
-        "HIGH_FIBER",
-        name="nutrition_priority_enum",
-        create_type=False,
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE allergy_enum AS ENUM "
+        "('PEANUTS', 'TREE_NUTS', 'GLUTEN', 'DAIRY', 'SOY', 'EGGS', 'SHELLFISH', 'SESAME', 'OTHER'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-    scan_source_enum = postgresql.ENUM("barcode", "photo", name="scan_source_enum", create_type=False)
-    scan_type_enum = postgresql.ENUM("product", "comparison", name="scan_type_enum", create_type=False)
-    personal_analysis_status_enum = postgresql.ENUM(
-        "pending", "completed", "failed", name="personal_analysis_status_enum", create_type=False
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE nutrition_priority_enum AS ENUM "
+        "('HIGH_PROTEIN', 'LOW_SUGAR', 'LOW_SODIUM', 'LOW_CARB', 'HIGH_FIBER'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
     )
-
-    for enum in [
-        auth_provider_enum,
-        diet_type_enum,
-        main_goal_enum,
-        restriction_enum,
-        allergy_enum,
-        nutrition_priority_enum,
-        scan_source_enum,
-        scan_type_enum,
-        personal_analysis_status_enum,
-    ]:
-        enum.create(op.get_bind(), checkfirst=True)
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE scan_source_enum AS ENUM ('barcode', 'photo'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
+    )
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE scan_type_enum AS ENUM ('product', 'comparison'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
+    )
+    _create_enum(
+        "DO $$ BEGIN CREATE TYPE personal_analysis_status_enum AS ENUM ('pending', 'completed', 'failed'); "
+        "EXCEPTION WHEN duplicate_object THEN null; END $$"
+    )
 
     # --- users ---
     op.create_table(
@@ -125,7 +96,7 @@ def upgrade() -> None:
         "user_identities",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("provider", sa.Enum(name="auth_provider_enum"), nullable=False),
+        sa.Column("provider", PgEnum(name="auth_provider_enum", create_type=False), nullable=False),
         sa.Column("account_id", sa.String(255), nullable=True),
         sa.Column("password_hash", sa.String(1024), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
@@ -138,16 +109,14 @@ def upgrade() -> None:
         "user_profiles",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("diet_type", sa.Enum(name="diet_type_enum"), nullable=True),
-        sa.Column("main_goal", sa.Enum(name="main_goal_enum"), nullable=True),
-        sa.Column(
-            "restrictions", postgresql.ARRAY(sa.Enum(name="restriction_enum")), nullable=False, server_default="{}"
-        ),
-        sa.Column("allergies", postgresql.ARRAY(sa.Enum(name="allergy_enum")), nullable=False, server_default="{}"),
+        sa.Column("diet_type", PgEnum(name="diet_type_enum", create_type=False), nullable=True),
+        sa.Column("main_goal", PgEnum(name="main_goal_enum", create_type=False), nullable=True),
+        sa.Column("restrictions", ARRAY(PgEnum(name="restriction_enum", create_type=False)), nullable=False, server_default="{}"),
+        sa.Column("allergies", ARRAY(PgEnum(name="allergy_enum", create_type=False)), nullable=False, server_default="{}"),
         sa.Column("other_allergies_text", sa.Text(), nullable=True),
         sa.Column(
             "nutrition_priorities",
-            postgresql.ARRAY(sa.Enum(name="nutrition_priority_enum")),
+            ARRAY(PgEnum(name="nutrition_priority_enum", create_type=False)),
             nullable=False,
             server_default="{}",
         ),
@@ -173,16 +142,16 @@ def upgrade() -> None:
         sa.Column("categories", sa.Text(), nullable=True),
         sa.Column("quantity", sa.String(100), nullable=True),
         sa.Column("serving_size", sa.String(100), nullable=True),
-        sa.Column("ingredients", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
-        sa.Column("allergens", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
-        sa.Column("additives", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("ingredients", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("allergens", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("additives", ARRAY(sa.String()), nullable=False, server_default="{}"),
         sa.Column("additives_count", sa.Integer(), nullable=True),
-        sa.Column("traces", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
-        sa.Column("countries", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
-        sa.Column("category_tags", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
-        sa.Column("images", postgresql.JSONB(), nullable=False, server_default="{}"),
-        sa.Column("nutrition", postgresql.JSONB(), nullable=False, server_default="{}"),
-        sa.Column("scores", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("traces", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("countries", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("category_tags", ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("images", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("nutrition", JSONB(), nullable=False, server_default="{}"),
+        sa.Column("scores", JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("barcode", name="uq_products_barcode"),
@@ -197,19 +166,19 @@ def upgrade() -> None:
         "scans",
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("type", sa.Enum(name="scan_type_enum"), nullable=False, server_default="product"),
+        sa.Column("type", PgEnum(name="scan_type_enum", create_type=False), nullable=False, server_default="product"),
         sa.Column("product_id", sa.String(36), sa.ForeignKey("products.id", ondelete="SET NULL"), nullable=True),
         sa.Column("product2_id", sa.String(36), sa.ForeignKey("products.id", ondelete="SET NULL"), nullable=True),
         sa.Column("barcode", sa.String(100), nullable=True),
-        sa.Column("source", sa.Enum(name="scan_source_enum"), nullable=False),
+        sa.Column("source", PgEnum(name="scan_source_enum", create_type=False), nullable=False),
         sa.Column("overall_score", sa.Integer(), nullable=True),
         sa.Column("overall_rating", sa.String(50), nullable=True),
-        sa.Column("personal_analysis_status", sa.Enum(name="personal_analysis_status_enum"), nullable=True),
+        sa.Column("personal_analysis_status", PgEnum(name="personal_analysis_status_enum", create_type=False), nullable=True),
         sa.Column("personal_analysis_job_id", sa.String(255), nullable=True),
-        sa.Column("evaluation", postgresql.JSONB(), nullable=True),
-        sa.Column("personal_result", postgresql.JSONB(), nullable=True),
-        sa.Column("multi_profile_result", postgresql.JSONB(), nullable=True),
-        sa.Column("comparison_result", postgresql.JSONB(), nullable=True),
+        sa.Column("evaluation", JSONB(), nullable=True),
+        sa.Column("personal_result", JSONB(), nullable=True),
+        sa.Column("multi_profile_result", JSONB(), nullable=True),
+        sa.Column("comparison_result", JSONB(), nullable=True),
         sa.Column("photo_image_path", sa.String(1024), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
@@ -224,7 +193,7 @@ def upgrade() -> None:
         sa.Column("product2_id", sa.String(36), sa.ForeignKey("products.id", ondelete="SET NULL"), nullable=True),
         sa.Column("barcode1", sa.String(100), nullable=False),
         sa.Column("barcode2", sa.String(100), nullable=False),
-        sa.Column("comparison_result", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("comparison_result", JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
     op.create_index("ix_comparisons_user_created", "comparisons", ["user_id", "created_at"])
@@ -246,15 +215,13 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
-        sa.Column("main_goal", sa.Enum(name="main_goal_enum"), nullable=True),
-        sa.Column(
-            "restrictions", postgresql.ARRAY(sa.Enum(name="restriction_enum")), nullable=False, server_default="{}"
-        ),
-        sa.Column("allergies", postgresql.ARRAY(sa.Enum(name="allergy_enum")), nullable=False, server_default="{}"),
+        sa.Column("main_goal", PgEnum(name="main_goal_enum", create_type=False), nullable=True),
+        sa.Column("restrictions", ARRAY(PgEnum(name="restriction_enum", create_type=False)), nullable=False, server_default="{}"),
+        sa.Column("allergies", ARRAY(PgEnum(name="allergy_enum", create_type=False)), nullable=False, server_default="{}"),
         sa.Column("other_allergies_text", sa.Text(), nullable=True),
         sa.Column(
             "nutrition_priorities",
-            postgresql.ARRAY(sa.Enum(name="nutrition_priority_enum")),
+            ARRAY(PgEnum(name="nutrition_priority_enum", create_type=False)),
             nullable=False,
             server_default="{}",
         ),
@@ -269,7 +236,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("barcode", sa.String(100), nullable=False),
         sa.Column("profile_hash", sa.String(64), nullable=False),
-        sa.Column("result", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("result", JSONB(), nullable=False, server_default="{}"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("barcode", "profile_hash", name="uq_ingredient_cache_barcode_profile"),
