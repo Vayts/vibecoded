@@ -50,7 +50,7 @@ export function ProfileScreen() {
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
         paddingTop: insets.top,
-        paddingBottom: insets.bottom + 24,
+        paddingBottom: insets.bottom + 140,
       }}
     >
       <View className="px-4 pb-2 pt-4">

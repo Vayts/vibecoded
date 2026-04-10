@@ -1,8 +1,9 @@
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { AlertCircle } from 'lucide-react-native';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface OnboardingStateScreenProps {
   title: string;
@@ -24,7 +25,7 @@ export function OnboardingStateScreen({
       <View className="rounded-xl border border-gray-100 bg-white px-6 py-8 shadow-sm">
         <View className="mb-5 h-14 w-14 items-center justify-center self-center rounded-xl bg-blue-50">
           {loading ? (
-            <ActivityIndicator color={COLORS.primary} size="small" />
+            <CustomLoader isReversed size="sm" />
           ) : (
             <AlertCircle color={COLORS.primary} size={24} />
           )}

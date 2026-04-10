@@ -4,8 +4,16 @@ import {
   useCameraPermissions,
 } from 'expo-camera';
 import { Zap } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
-import { Dimensions, Platform, TouchableOpacity, Vibration, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AppState,
+  type AppStateStatus,
+  Dimensions,
+  Platform,
+  TouchableOpacity,
+  Vibration,
+  View,
+} from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -50,6 +58,18 @@ export function ScannerHomeScreen() {
   const [scannerMode, setScannerMode] = useState<ScannerMode>('scanner');
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -59,24 +79,30 @@ export function ScannerHomeScreen() {
   }, []);
 
   const capturePhotoWithCamera = useCallback(async () => {
-    const picture = await cameraRef.current?.takePictureAsync({
-      quality: 1,
-      exif: false,
-      shutterSound: false,
-      skipProcessing: Platform.OS === 'android',
-    });
+    setIsCapturingPhoto(true);
 
-    if (!picture?.uri || picture.width == null || picture.height == null) {
-      return null;
+    try {
+      const picture = await cameraRef.current?.takePictureAsync({
+        quality: 1,
+        exif: false,
+        shutterSound: false,
+        skipProcessing: Platform.OS === 'android',
+      });
+
+      if (!picture?.uri || picture.width == null || picture.height == null) {
+        return null;
+      }
+
+      Vibration.vibrate(40);
+
+      return {
+        uri: picture.uri,
+        width: picture.width,
+        height: picture.height,
+      };
+    } finally {
+      setIsCapturingPhoto(false);
     }
-
-    Vibration.vibrate(40);
-
-    return {
-      uri: picture.uri,
-      width: picture.width,
-      height: picture.height,
-    };
   }, []);
 
   const {
@@ -345,22 +371,28 @@ export function ScannerHomeScreen() {
           : 'Processing…';
 
   const isPhotoMode = scannerMode === 'photo';
+  const isAppActive = appState === 'active';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
-  const showCameraBlackout = isLocked && (isPhotoMode || isScannerPaused);
+  const shouldSuspendCameraView =
+    !isAppActive || isScannerPaused || (isLocked && isPhotoMode && !isCapturingPhoto);
+  const shouldRenderCameraView = !shouldSuspendCameraView;
+  const showCameraBlackout = !isAppActive || (isLocked && (isPhotoMode || isScannerPaused));
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView
-        ref={cameraRef}
-        active={!isScannerPaused}
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
-        }}
-        enableTorch={isTorchEnabled}
-        facing="back"
-        onBarcodeScanned={!isScannerPaused && !isPhotoMode ? handleBarcodeScanned : undefined}
-        style={{ flex: 1 }}
-      />
+      {shouldRenderCameraView ? (
+        <CameraView
+          ref={cameraRef}
+          active
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+          }}
+          enableTorch={isTorchEnabled}
+          facing="back"
+          onBarcodeScanned={!isPhotoMode ? handleBarcodeScanned : undefined}
+          style={{ flex: 1 }}
+        />
+      ) : null}
 
       {showCameraBlackout ? <View pointerEvents="none" className="absolute inset-0 bg-black" /> : null}
 

@@ -8,6 +8,7 @@ import { useFavouritesQuery } from '../../hooks/useFavouritesQuery';
 import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { Heart } from 'lucide-react-native';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface FavouritesListProps {
   onItemPress: (item: ScanHistoryItem) => void;
@@ -30,16 +31,18 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   }
 
   return (
-    <View className="flex-1 items-center justify-center pb-[120px] px-8 py-4">
-      <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-red-50">
-        <Heart color={COLORS.danger} size={28} />
-      </View>
-      <Typography variant="sectionTitle" className="text-center">
-        No favourites yet
+    <View className="flex-1 items-center justify-center pb-[120px] px-8">
+      <View
+        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
+      />PfPP
+
+      <Typography variant="hero" className="text-center">
+        No favourite products yet
       </Typography>
-      <Typography variant="bodySecondary" className="mt-2 text-center">
-        Products you like will appear here.
+      <Typography className="text-center mt-4 px-4">
+        Start adding products to favourites to keep track of the ones you like most.
       </Typography>
+
     </View>
   );
 }
@@ -48,7 +51,7 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   if (!isFetchingNextPage) return null;
   return (
     <View className="py-4 items-center">
-      <ActivityIndicator color={COLORS.primary} />
+      <CustomLoader isReversed size="sm" />
     </View>
   );
 }

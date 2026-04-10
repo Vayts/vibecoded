@@ -42,3 +42,11 @@ export interface ComparisonResultSheetPayload {
   scanId?: string;
   comparisonId?: string;
 }
+
+export interface CompareProductPickerSheetPayload {
+  currentProduct: {
+    barcode: string;
+    productId?: string | null;
+    productName?: string | null;
+  };
+}

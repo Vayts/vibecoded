@@ -16,6 +16,8 @@ interface PreviewSummaryContentProps {
   context: ProfileScoreChipContext;
   isLoading?: boolean;
   showActions?: boolean;
+  onComparePress?: () => void;
+  isCompareDisabled?: boolean;
   onExpandDetails: () => void;
 }
 
@@ -32,6 +34,8 @@ export function PreviewSummaryContent({
   context,
   isLoading = false,
   showActions = true,
+  onComparePress,
+  isCompareDisabled = false,
   onExpandDetails,
 }: PreviewSummaryContentProps) {
   const hasTopContent = Boolean(chips?.length || score != null || showPendingSummary || isLoading);
@@ -56,7 +60,13 @@ export function PreviewSummaryContent({
 
       {showActions ? (
         <View className="w-full gap-3" style={{ marginTop: hasTopContent ? 16 : 0 }}>
-          <Button fullWidth label="Compare with another" variant="secondary" />
+          <Button
+            fullWidth
+            label="Compare with another"
+            variant="secondary"
+            disabled={isCompareDisabled}
+            onPress={onComparePress}
+          />
           <Button
             fullWidth
             label="↑ Swipe up for details"

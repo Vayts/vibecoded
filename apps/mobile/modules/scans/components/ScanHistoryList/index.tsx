@@ -1,4 +1,5 @@
 import type { ScanHistoryItem } from '@acme/shared';
+import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
@@ -13,6 +14,9 @@ interface ScanHistoryListProps {
   onScanPress: (item: ScanHistoryItem) => void;
   searchQuery: string;
   enabled?: boolean;
+  filterItem?: (item: ScanHistoryItem) => boolean;
+  renderEmptyState?: (searchQuery: string) => ReactNode;
+  contentPaddingBottom?: number;
 }
 
 function EmptyState({ searchQuery }: { searchQuery: string }) {
@@ -62,6 +66,9 @@ export function ScanHistoryList({
   onScanPress,
   searchQuery,
   enabled = true,
+  filterItem,
+  renderEmptyState,
+  contentPaddingBottom = 160,
 }: ScanHistoryListProps) {
   const {
     data,
@@ -75,7 +82,9 @@ export function ScanHistoryList({
   } = useScanHistoryQuery(searchQuery, enabled);
   const profileScoreChipContext = useProfileScoreChipContext();
 
-  const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const items = (data?.pages.flatMap((page) => page.items) ?? []).filter((item) =>
+    filterItem ? filterItem(item) : true,
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
@@ -109,7 +118,7 @@ export function ScanHistoryList({
   }
 
   if (items.length === 0) {
-    return <EmptyState searchQuery={searchQuery} />;
+    return renderEmptyState ? <>{renderEmptyState(searchQuery)}</> : <EmptyState searchQuery={searchQuery} />;
   }
 
   const handleEndReached = () => {
@@ -144,7 +153,7 @@ export function ScanHistoryList({
       contentContainerStyle={items.length === 0 ? { 
         flex: 1 
       } : {
-        paddingBottom: 160,
+        paddingBottom: contentPaddingBottom,
         paddingTop: 16,
       }}
     />

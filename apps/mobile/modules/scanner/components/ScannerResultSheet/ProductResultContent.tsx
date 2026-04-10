@@ -6,6 +6,7 @@ import type {
 } from '@acme/shared';
 import { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
+import { SheetManager } from 'react-native-actions-sheet';
 import { useProfileScoreChipContext } from '../../../scans/hooks/useProfileScoreChipContext';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
 import { DetailStateContent, type ProductResultDetailState } from './DetailStateContent';
@@ -17,6 +18,7 @@ import { PreviewSummaryContent } from './PreviewSummaryContent';
 import { ProductResultHeader } from './ProductResultHeader';
 import { NutriScoreBlock } from './NutriScoreBlock';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SheetsEnum } from '../../../../shared/types/sheets';
 
 const TRANSITION_DURATION_MS = 200;
 
@@ -112,6 +114,17 @@ export function ProductResultContent({
   }
 
   const product = successResult?.product ?? previewProduct ?? previewHistoryProduct;
+  const compareSource = product
+    ? {
+        barcode: successResult?.barcode ?? previewProduct?.barcode ?? previewHistoryProduct?.barcode ?? '',
+        productId:
+          successResult?.productId ??
+          (previewProduct?.productId?.trim() ? previewProduct.productId : null) ??
+          previewHistoryProduct?.id ??
+          null,
+        productName: product.product_name ?? null,
+      }
+    : null;
   const expandedNutriScoreGrade =
     successResult?.product.scores.nutriscore_grade ??
     previewProduct?.nutriscore_grade ??
@@ -128,6 +141,18 @@ export function ProductResultContent({
   if (!product) {
     return <DetailStateContent detailState={detailState} />;
   }
+
+  const handleComparePress = () => {
+    if (!compareSource?.barcode) {
+      return;
+    }
+
+    void SheetManager.show(SheetsEnum.CompareProductPickerSheet, {
+      payload: {
+        currentProduct: compareSource,
+      },
+    });
+  };
 
   return (
     <ScrollView
@@ -160,6 +185,8 @@ export function ProductResultContent({
                 context={profileScoreChipContext}
                 isLoading={isInitialLoadingResult}
                 showActions={!isInitialLoadingResult && !showLivePendingSummary}
+                onComparePress={handleComparePress}
+                isCompareDisabled={!compareSource?.barcode}
                 onExpandDetails={onExpandDetails}
               />
             </Animated.View>
@@ -175,6 +202,7 @@ export function ProductResultContent({
                 personalResult={personalData}
                 isError={personalError}
                 onRetry={personalRetry}
+                onComparePress={handleComparePress}
                 rawIngredients={successResult?.product.ingredients ?? []}
                 rawIngredientsText={successResult?.product.ingredients_text ?? null}
               />
