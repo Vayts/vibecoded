@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import uuid4
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -10,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 # Reusable column aliases
-str_pk = Annotated[str, mapped_column(String(36), primary_key=True)]
+str_pk = Annotated[str, mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))]
 created_at_col = Annotated[
     datetime,
     mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False),
@@ -27,7 +28,7 @@ updated_at_col = Annotated[
 
 
 class UUIDModel(Base):
-    """Abstract base with a string primary key (UUID or CUID)."""
+    """Abstract base with a string primary key (UUID)."""
 
     __abstract__ = True
 
