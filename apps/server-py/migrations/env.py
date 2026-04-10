@@ -18,7 +18,8 @@ config.set_main_option("sqlalchemy.url", settings.postgres.DATABASE_URL)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import Base so autogenerate can detect models
+# Import all models so Base.metadata is fully populated for autogenerate
+import app.models  # noqa: E402, F401
 from app.models.base import Base  # noqa: E402
 
 target_metadata = Base.metadata

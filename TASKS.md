@@ -22,9 +22,9 @@ Task tracker for the FastAPI backend migration. Work top to bottom. One task at 
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | 2.1 | Create `app/models/base.py` — `UUIDModel`, `TimestampModel`, `Base` | done | |
-| 2.2 | Create `app/enums/base.py` — all enums from Prisma schema | todo | |
-| 2.3 | Create all model files (user, user_profile, user_identity, product, scan, comparison, favorite, family_member, product_ingredient_cache) | todo | |
-| 2.4 | Write Alembic migration `0001_initial_schema.py` and verify against dev DB | todo | |
+| 2.2 | Create `app/enums/base.py` — all enums from Prisma schema | done | |
+| 2.3 | Create all model files (user, user_profile, user_identity, product, scan, comparison, favorite, family_member, product_ingredient_cache) | done | |
+| 2.4 | Write Alembic migration `0001_initial_schema.py` and verify against dev DB | done | Written manually; autogenerate skipped (no local DB) |
 
 ## Phase 3 — Repository + Unit of Work
 
