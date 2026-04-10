@@ -44,6 +44,10 @@ services:
     restart: unless-stopped
     env_file:
       - ./apps/server-py/.env
+    environment:
+      # Override localhost values from .env with Docker-internal service name
+      DB_HOST: postgres
+      DB_PORT: 5432
     ports:
       - '3000:3000'
     depends_on:
