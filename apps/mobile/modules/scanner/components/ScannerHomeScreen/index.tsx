@@ -346,6 +346,7 @@ export function ScannerHomeScreen() {
 
   const isPhotoMode = scannerMode === 'photo';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
+  const showCameraBlackout = isLocked && (isPhotoMode || isScannerPaused);
 
   return (
     <View className="flex-1 bg-black">
@@ -360,6 +361,8 @@ export function ScannerHomeScreen() {
         onBarcodeScanned={!isScannerPaused && !isPhotoMode ? handleBarcodeScanned : undefined}
         style={{ flex: 1 }}
       />
+
+      {showCameraBlackout ? <View pointerEvents="none" className="absolute inset-0 bg-black" /> : null}
 
       {isLocked && isProcessing ? (
         <View className="absolute inset-0 items-center justify-center px-6">

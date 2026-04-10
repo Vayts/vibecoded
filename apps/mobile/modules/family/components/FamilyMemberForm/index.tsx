@@ -83,11 +83,11 @@ export function FamilyMemberForm({
     <View className="flex-1 bg-background">
       <Pressable className="flex-1" onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
-          bottomOffset={200}
+          bottomOffset={120}
           automaticallyAdjustContentInsets={false}
           automaticallyAdjustsScrollIndicatorInsets={false}
           contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 160 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

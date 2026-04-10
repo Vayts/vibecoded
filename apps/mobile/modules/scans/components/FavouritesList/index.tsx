@@ -18,7 +18,7 @@ interface FavouritesListProps {
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
-      <View className="flex-1 items-center justify-center px-8 py-20">
+      <View className="flex-1 items-center justify-center pb-[120px] px-8 py-4">
         <Typography variant="sectionTitle" className="text-center">
           No favourites found
         </Typography>
@@ -30,7 +30,7 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   }
 
   return (
-    <View className="flex-1 items-center justify-center px-8 py-20">
+    <View className="flex-1 items-center justify-center pb-[120px] px-8 py-4">
       <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-red-50">
         <Heart color={COLORS.danger} size={28} />
       </View>

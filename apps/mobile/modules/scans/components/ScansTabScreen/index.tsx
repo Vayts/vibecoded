@@ -1,7 +1,7 @@
 import type { ComparisonHistoryItem } from '@acme/shared';
 import type { ScanHistoryItem } from '@acme/shared';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Dimensions, Platform, View } from 'react-native';
+import { Dimensions, Keyboard, Platform, Pressable, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -127,37 +127,38 @@ export function ScansTabScreen() {
           onSelect={handleTabSelect}
         />
         <ScansSearchInput className="mx-4 mt-4" value={searchQuery} onChangeText={setSearchQuery} />
-
-        <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
-          <View
-            style={{
-              backgroundColor: COLORS.white,
-              borderTopLeftRadius: 40,
-              borderTopRightRadius: 40,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.1,
-              shadowRadius: 6,
-              elevation: 8,
-              gap: 12,
-              marginTop: 8,
-              flex: 1,
-            }}
-          >
+          <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
+            <Pressable className="flex-1 h-full" onPress={Keyboard.dismiss}>
             <View
               style={{
-                borderTopLeftRadius: 40,
-                borderTopRightRadius: 40,
-                overflow: "hidden",
+                backgroundColor: COLORS.white,
+                borderTopRightRadius: 16,
+                borderTopLeftRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.1,
+                shadowRadius: 6,
+                elevation: 8,
+                gap: 12,
+                marginTop: 8,
                 flex: 1,
               }}
             >
-              {activeTab === 'history' && historyPanel}
-              {activeTab === 'comparisons' && comparisonsPanel}
-              {activeTab === 'favourites' && favouritesPanel}
+              <View
+                style={{
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                  overflow: 'hidden',
+                  flex: 1,
+                }}
+              >
+                {activeTab === 'history' && historyPanel}
+                {activeTab === 'comparisons' && comparisonsPanel}
+                {activeTab === 'favourites' && favouritesPanel}
+              </View>
             </View>
-          </View>
-        </KeyboardAvoidingView>
+            </Pressable>
+          </KeyboardAvoidingView>
       </View>
     );
   }
@@ -175,49 +176,52 @@ export function ScansTabScreen() {
       />
 
       <ScansSearchInput className="mx-4 mb-4 mt-2" value={searchQuery} onChangeText={setSearchQuery} />
-      <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
-        <View
-          style={{
-            backgroundColor: COLORS.white,
-            borderTopLeftRadius: 40,
-            borderTopRightRadius: 40,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.1,
-            shadowRadius: 6,
-            elevation: 8,
-            gap: 12,
-            marginTop: 8,
-            flex: 1,
-          }}
-        >
+      
+        <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
+          <Pressable className="flex-1" onPress={Keyboard.dismiss}>
           <View
             style={{
+              backgroundColor: COLORS.white,
               borderTopLeftRadius: 32,
               borderTopRightRadius: 32,
-              overflow: "hidden",
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 8,
+              gap: 12,
+              marginTop: 8,
               flex: 1,
             }}
           >
-            <View style={{ flex: 1, overflow: 'hidden' }}>
-              <Animated.View
-                style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
-                className="flex-1"
-              >
-                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                  {historyPanel}
-                </View>
-                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                  {comparisonsPanel}
-                </View>
-                <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                  {favouritesPanel}
-                </View>
-              </Animated.View>
+            <View
+              style={{
+                borderTopLeftRadius: 32,
+                borderTopRightRadius: 32,
+                overflow: 'hidden',
+                flex: 1,
+              }}
+            >
+              <View style={{ flex: 1, overflow: 'hidden' }}>
+                <Animated.View
+                  style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
+                  className="flex-1"
+                >
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                    {historyPanel}
+                  </View>
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                    {comparisonsPanel}
+                  </View>
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+                    {favouritesPanel}
+                  </View>
+                </Animated.View>
+              </View>
             </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+            </Pressable>
+        </KeyboardAvoidingView>
     </View>
   );
 }

@@ -122,11 +122,19 @@ export type FavouriteStatusResponse = z.infer<typeof favouriteStatusResponseSche
 // Comparison history schemas
 // ============================================================
 
+export const comparisonBestFitProfileSchema = z.object({
+  profileId: z.string(),
+  profileName: z.string(),
+});
+export type ComparisonBestFitProfile = z.infer<typeof comparisonBestFitProfileSchema>;
+
 export const comparisonHistoryItemSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
   product1: scanHistoryProductSchema.nullable(),
   product2: scanHistoryProductSchema.nullable(),
+  product1BestFitProfiles: z.array(comparisonBestFitProfileSchema),
+  product2BestFitProfiles: z.array(comparisonBestFitProfileSchema),
 });
 export type ComparisonHistoryItem = z.infer<typeof comparisonHistoryItemSchema>;
 

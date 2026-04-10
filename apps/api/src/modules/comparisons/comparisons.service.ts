@@ -31,6 +31,24 @@ const serializeComparisonProduct = (product: ComparisonProduct) => ({
   image_url: product.image_url,
 });
 
+const getBestFitProfiles = (
+  comparisonResult: unknown,
+  winner: 'product1' | 'product2',
+): ComparisonHistoryItem['product1BestFitProfiles'] => {
+  const parsedResult = productComparisonResultSchema.safeParse(comparisonResult);
+
+  if (!parsedResult.success) {
+    return [];
+  }
+
+  return parsedResult.data.profiles
+    .filter((profile) => profile.winner === winner)
+    .map((profile) => ({
+      profileId: profile.profileId,
+      profileName: profile.profileName,
+    }));
+};
+
 const getValidLimit = (limit?: string): number | undefined => {
   if (!limit) {
     return undefined;
@@ -140,6 +158,7 @@ export class ComparisonsService {
   private serializeHistoryItem(comparison: {
     id: string;
     createdAt: Date;
+    comparisonResult: unknown;
     product1: ComparisonProduct | null;
     product2: ComparisonProduct | null;
   }): ComparisonHistoryItem {
@@ -152,6 +171,8 @@ export class ComparisonsService {
       product2: comparison.product2
         ? serializeComparisonProduct(comparison.product2)
         : null,
+      product1BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product1'),
+      product2BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product2'),
     };
   }
 }

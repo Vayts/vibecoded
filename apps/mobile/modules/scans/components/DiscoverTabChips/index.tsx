@@ -68,10 +68,10 @@ function DiscoverTabChip({
         style={[
           labelStyle,
           {
-            fontSize: 16,
-            fontWeight: '700',
-            lineHeight: 28,
+            fontSize: 14,
+            fontWeight: '600',
             textAlign: 'center',
+            paddingBottom: 8,
           },
         ]}
       >

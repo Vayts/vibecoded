@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useComparisonsQuery } from '../../hooks/useComparisonsQuery';
+import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { ComparisonHistoryRow } from '../ComparisonHistoryRow';
 import { GitCompareArrows } from 'lucide-react-native';
@@ -67,6 +68,7 @@ export function ComparisonsList({
     isFetchingNextPage,
     refetch,
   } = useComparisonsQuery(searchQuery, enabled);
+  const profileScoreChipContext = useProfileScoreChipContext();
 
   const items = data?.pages.flatMap((page) => page.items) ?? [];
 
@@ -115,7 +117,13 @@ export function ComparisonsList({
     <FlatList
       data={items}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <ComparisonHistoryRow item={item} onPress={onItemPress} />}
+      renderItem={({ item }) => (
+        <ComparisonHistoryRow
+          item={item}
+          onPress={onItemPress}
+          profileScoreChipContext={profileScoreChipContext}
+        />
+      )}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
@@ -126,7 +134,16 @@ export function ComparisonsList({
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : { paddingBottom: 60 }}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      contentContainerStyle={
+        items.length === 0
+          ? { flex: 1 }
+          : {
+              paddingHorizontal: 12,
+              paddingTop: 16,
+              paddingBottom: 160,
+            }
+      }
     />
   );
 }

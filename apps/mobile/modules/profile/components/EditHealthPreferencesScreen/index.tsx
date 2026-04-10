@@ -70,7 +70,7 @@ export function EditHealthPreferencesScreen() {
       className="flex-1 bg-background"
       contentInsetAdjustmentBehavior="never"
       contentContainerStyle={{
-        paddingBottom: insets.bottom + 24,
+        paddingBottom: insets.bottom + 124,
         paddingHorizontal: 16,
       }}
     >
