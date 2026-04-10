@@ -28,18 +28,35 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.5.1",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.25.0",
-    "ruff>=0.9.0",
+    "pytest-mock>=3.14",
+    "ruff>=0.15.8",
     "mypy>=1.14.0",
 ]
 
 [tool.ruff]
-line-length = 100
-target-version = "py313"
+line-length = 120
+
+exclude = [
+    ".git",
+    "__pycache__",
+    ".env",
+    ".env.example",
+    "venv",
+    ".idea",
+    "migrations/",
+    "__init__.py",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+select = ["B", "C", "E", "F", "W"]
+ignore = ["E501", "E712", "B904", "C408", "F841", "B008", "C901"]
+unfixable = ["B"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402", "F403", "F405"]
 
 [tool.mypy]
 python_version = "3.13"
@@ -48,3 +65,4 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
