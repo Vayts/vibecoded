@@ -7,6 +7,11 @@ class BaseStrEnum(StrEnum):
         return [e.value for e in cls]
 
 
+class OrderDirection(BaseStrEnum):
+    ASC = "asc"
+    DESC = "desc"
+
+
 class DietType(BaseStrEnum):
     NONE = "NONE"
     KETO = "KETO"

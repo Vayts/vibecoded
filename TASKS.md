@@ -30,9 +30,9 @@ Task tracker for the FastAPI backend migration. Work top to bottom. One task at 
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| 3.1 | Create `app/repositories/base.py` — generic `SQLAlchemyRepository` + `PaginateMixin` | todo | |
-| 3.2 | Create all concrete repositories (one per model) | todo | |
-| 3.3 | Create `app/utils/unitofwork.py` — async context manager with all repos | todo | |
+| 3.1 | Create `app/repositories/base.py` — generic `SQLAlchemyRepository` + `PaginateMixin` | done | |
+| 3.2 | Create all concrete repositories (one per model) | done | |
+| 3.3 | Create `app/utils/unitofwork.py` — async context manager with all repos | done | |
 
 ## Phase 4 — Auth Endpoints
 
