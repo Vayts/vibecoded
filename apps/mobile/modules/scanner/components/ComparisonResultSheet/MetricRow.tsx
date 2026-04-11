@@ -1,9 +1,16 @@
-import type { ComparisonNutrition } from '@acme/shared';
+import type {
+  ComparisonNutrition,
+  ComparisonProductPreview,
+  ProductComparisonItem,
+} from '@acme/shared';
+import { Check, CircleCheck, CircleX, Minus, X } from 'lucide-react-native';
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
 type MetricDirection = 'higher_better' | 'lower_better';
+type DisplayWinner = 'left' | 'right' | 'tie' | 'neither';
+type CompatibilityStatus = 'positive' | 'negative' | 'neutral';
 
 interface MetricConfig {
   key: keyof ComparisonNutrition;
@@ -13,238 +20,210 @@ interface MetricConfig {
 }
 
 const METRICS: MetricConfig[] = [
-  { key: 'protein', label: 'Protein', unit: 'g', direction: 'higher_better' },
-  { key: 'fiber', label: 'Fiber', unit: 'g', direction: 'higher_better' },
   { key: 'sugars', label: 'Sugar', unit: 'g', direction: 'lower_better' },
-  { key: 'calories', label: 'Calories', unit: 'kcal', direction: 'lower_better' },
   { key: 'fat', label: 'Fat', unit: 'g', direction: 'lower_better' },
-  { key: 'saturatedFat', label: 'Sat. Fat', unit: 'g', direction: 'lower_better' },
   { key: 'salt', label: 'Salt', unit: 'g', direction: 'lower_better' },
+  { key: 'fiber', label: 'Fiber', unit: 'g', direction: 'higher_better' },
+  { key: 'protein', label: 'Protein', unit: 'g', direction: 'higher_better' },
 ];
 
-export { METRICS };
-export type { MetricConfig };
-
-function getBarColor(
-  isWinner: boolean,
-  direction: MetricDirection,
-): string {
-  if (!isWinner) return COLORS.gray200;
-  return direction === 'higher_better' ? COLORS.success : COLORS.success;
-}
-
-function getLoserBarColor(direction: MetricDirection): string {
-  return direction === 'lower_better' ? COLORS.dangerSoft : COLORS.gray200;
-}
-
-interface MetricRowProps {
-  config: MetricConfig;
-  valueA: number | null;
-  valueB: number | null;
-}
-
-export function MetricRow({ config, valueA, valueB }: MetricRowProps) {
-  const a = valueA ?? 0;
-  const b = valueB ?? 0;
-  const maxVal = Math.max(a, b, 0.01);
-  const pctA = (a / maxVal) * 100;
-  const pctB = (b / maxVal) * 100;
-
-  const hasData = valueA !== null || valueB !== null;
-  if (!hasData) return null;
-
-  let winnerA = false;
-  let winnerB = false;
-
-  if (a !== b) {
-    if (config.direction === 'higher_better') {
-      winnerA = a > b;
-      winnerB = b > a;
-    } else {
-      winnerA = a < b;
-      winnerB = b < a;
-    }
-  }
-
-  const barColorA = winnerA
-    ? getBarColor(true, config.direction)
-    : winnerB
-      ? getLoserBarColor(config.direction)
-      : COLORS.gray200;
-
-  const barColorB = winnerB
-    ? getBarColor(true, config.direction)
-    : winnerA
-      ? getLoserBarColor(config.direction)
-      : COLORS.gray200;
-
-  return (
-    <View className="mb-3">
-      <View className="mb-1 flex-row items-center justify-between">
-        <Typography variant="bodySecondary" className="font-medium text-gray-700">
-          {config.label}
-        </Typography>
-      </View>
-
-      {/* Product A bar */}
-      <View className="mb-1.5 flex-row items-center gap-2">
-        <Typography
-          variant="caption"
-          className="w-8 text-right font-semibold"
-          style={{ color: winnerA ? COLORS.success : COLORS.gray500 }}
-        >
-          A
-        </Typography>
-        <View className="h-5 flex-1 overflow-hidden rounded-full bg-gray-100">
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${Math.max(pctA, 2)}%`,
-              backgroundColor: barColorA,
-            }}
-          />
-        </View>
-        <View className="min-w-[52px] flex-row items-center justify-end gap-1">
-          <Typography
-            variant="caption"
-            className="font-semibold"
-            style={{ color: winnerA ? COLORS.success : COLORS.gray700 }}
-          >
-            {formatValue(a, config.unit)}
-          </Typography>
-          {winnerA ? (
-            <View
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: COLORS.success }}
-            />
-          ) : null}
-        </View>
-      </View>
-
-      {/* Product B bar */}
-      <View className="flex-row items-center gap-2">
-        <Typography
-          variant="caption"
-          className="w-8 text-right font-semibold"
-          style={{ color: winnerB ? COLORS.success : COLORS.gray500 }}
-        >
-          B
-        </Typography>
-        <View className="h-5 flex-1 overflow-hidden rounded-full bg-gray-100">
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${Math.max(pctB, 2)}%`,
-              backgroundColor: barColorB,
-            }}
-          />
-        </View>
-        <View className="min-w-[52px] flex-row items-center justify-end gap-1">
-          <Typography
-            variant="caption"
-            className="font-semibold"
-            style={{ color: winnerB ? COLORS.success : COLORS.gray700 }}
-          >
-            {formatValue(b, config.unit)}
-          </Typography>
-          {winnerB ? (
-            <View
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: COLORS.success }}
-            />
-          ) : null}
-        </View>
-      </View>
-    </View>
-  );
-}
+const PROFILE_FIT_KEYWORD =
+  /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame|vegan|vegetarian|halal|kosher|keto|paleo)/i;
 
 function formatValue(val: number, unit: string): string {
   if (unit === 'kcal') return `${Math.round(val)}`;
   return val % 1 === 0 ? `${val}${unit}` : `${val.toFixed(1)}${unit}`;
 }
 
-interface MetricsSummaryRowProps {
-  nutritionA: ComparisonNutrition;
-  nutritionB: ComparisonNutrition;
+function getMetricWinner(
+  config: MetricConfig,
+  leftValue: number | null,
+  rightValue: number | null,
+): 'left' | 'right' | null {
+  if (leftValue == null || rightValue == null || leftValue === rightValue) {
+    return null;
+  }
+
+  if (config.direction === 'higher_better') {
+    return leftValue > rightValue ? 'left' : 'right';
+  }
+
+  return leftValue < rightValue ? 'left' : 'right';
 }
 
-export function MetricsSummaryRow({ nutritionA, nutritionB }: MetricsSummaryRowProps) {
-  const chips = METRICS.map((config) => {
-    const a = (nutritionA[config.key] as number | null) ?? 0;
-    const b = (nutritionB[config.key] as number | null) ?? 0;
-    if (a === 0 && b === 0) return null;
+function hasCompatibilitySignal(comparison: ProductComparisonItem): boolean {
+  return [...comparison.positives, ...comparison.negatives].some((text) =>
+    PROFILE_FIT_KEYWORD.test(text),
+  );
+}
 
-    let winner: 'A' | 'B' | 'tie' = 'tie';
-    if (a !== b) {
-      if (config.direction === 'higher_better') {
-        winner = a > b ? 'A' : 'B';
-      } else {
-        winner = a < b ? 'A' : 'B';
+function getCompatibilityStatus(
+  comparison: ProductComparisonItem,
+  fallbackWinner: DisplayWinner,
+  side: 'left' | 'right',
+): CompatibilityStatus {
+  if (comparison.negatives.some((text) => PROFILE_FIT_KEYWORD.test(text))) {
+    return 'negative';
+  }
+
+  if (comparison.positives.some((text) => PROFILE_FIT_KEYWORD.test(text))) {
+    return 'positive';
+  }
+
+  if (fallbackWinner === 'neither') {
+    return 'negative';
+  }
+
+  if (fallbackWinner === side) {
+    return 'positive';
+  }
+
+  return 'neutral';
+}
+
+function ValueCell({
+  text,
+  highlighted,
+  status,
+}: {
+  text?: string;
+  highlighted?: boolean;
+  status?: CompatibilityStatus;
+}) {
+  const backgroundColor = highlighted ? COLORS.primaryLight : COLORS.white;
+  const borderColor = highlighted ? COLORS.primary300 : 'transparent';
+  const winnerShadowStyle = highlighted
+    ? {
+        shadowColor: COLORS.successShadow,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
       }
-    }
-
-    const color = winner === 'tie' ? COLORS.gray400 : COLORS.success;
-    const label = winner === 'tie' ? '=' : winner;
-
-    return { key: config.key, name: config.label, winner: label, color };
-  }).filter(Boolean);
-
-  if (chips.length === 0) return null;
+    : null;
 
   return (
-    <View className="mb-4 flex-row flex-wrap gap-2">
-      {chips.map((chip) => (
-        <View
-          key={chip!.key}
-          className="flex-row items-center gap-1 rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1"
-        >
-          <Typography variant="caption" className="text-gray-600">
-            {chip!.name}
-          </Typography>
-          <Typography
-            variant="caption"
-            className="font-bold"
-            style={{ color: chip!.color }}
-          >
-            {chip!.winner}
-          </Typography>
-        </View>
-      ))}
+    <View
+      className="min-h-[42px] flex-1 items-center justify-center rounded-[12px] border px-2 py-2"
+      style={{
+        backgroundColor,
+        borderColor,
+        ...(winnerShadowStyle ?? {}),
+      }}
+    >
+      {status ? (
+        status === 'positive' ? (
+          <CircleCheck color={COLORS.success} size={18} strokeWidth={2.5} />
+        ) : status === 'negative' ? (
+          <CircleX color={COLORS.danger} size={18} strokeWidth={2.5} />
+        ) : (
+          <Minus color={COLORS.gray400} size={18} strokeWidth={2.5} />
+        )
+      ) : (
+        <Typography variant="buttonSmall" className="text-center text-gray-900">
+          {text}
+        </Typography>
+      )}
     </View>
   );
 }
 
 interface NutritionComparisonProps {
-  nutritionA: ComparisonNutrition;
-  nutritionB: ComparisonNutrition;
+  leftProduct: ComparisonProductPreview;
+  rightProduct: ComparisonProductPreview;
+  leftComparison: ProductComparisonItem;
+  rightComparison: ProductComparisonItem;
+  displayWinner: DisplayWinner;
 }
 
-export function NutritionComparison({ nutritionA, nutritionB }: NutritionComparisonProps) {
-  const rows = METRICS.filter((config) => {
-    const a = nutritionA[config.key] as number | null;
-    const b = nutritionB[config.key] as number | null;
-    return a !== null || b !== null;
+export function NutritionComparison({
+  leftProduct,
+  rightProduct,
+  leftComparison,
+  rightComparison,
+  displayWinner,
+}: NutritionComparisonProps) {
+  const nutritionRows = METRICS.filter((config) => {
+    const leftValue = leftProduct.nutrition[config.key] as number | null;
+    const rightValue = rightProduct.nutrition[config.key] as number | null;
+    return leftValue !== null || rightValue !== null;
   });
-
-  if (rows.length === 0) return null;
+  const hasCompatibilityData =
+    hasCompatibilitySignal(leftComparison) || hasCompatibilitySignal(rightComparison);
+  const compatibilityLabel = hasCompatibilityData ? 'Allergens excluded' : 'Profile fit';
+  const leftCompatibility = getCompatibilityStatus(leftComparison, displayWinner, 'left');
+  const rightCompatibility = getCompatibilityStatus(rightComparison, displayWinner, 'right');
 
   return (
-    <View className="rounded-2xl border border-gray-100 bg-white p-4">
-      <Typography variant="sectionTitle" className="mb-3">
-        Nutrition Comparison
-      </Typography>
-      <Typography variant="caption" className="mb-3 text-gray-400">
-        Per 100g
-      </Typography>
-      {rows.map((config) => (
-        <MetricRow
-          key={config.key}
-          config={config}
-          valueA={nutritionA[config.key] as number | null}
-          valueB={nutritionB[config.key] as number | null}
-        />
-      ))}
+    <View className="rounded-[28px] bg-white px-4 py-0">
+      <View className="mb-4 flex-row items-end justify-between">
+        <Typography variant="sectionTitle">Nutrition comparison</Typography>
+        <Typography variant="caption" className="text-neutrals-500">
+          per 100g
+        </Typography>
+      </View>
+
+      <View className="flex-row items-start border-b border-neutrals-100 pb-3">
+        <View className="w-[94px] pr-3" />
+        <View className="flex-1 px-1">
+          <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
+            {leftProduct.product_name?.trim() || 'Unknown product'}
+          </Typography>
+          <Typography variant="caption" numberOfLines={1} className="mt-1 text-center text-gray-500">
+            {leftProduct.brands || ' '}
+          </Typography>
+        </View>
+        <View className="flex-1 px-1">
+          <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
+            {rightProduct.product_name?.trim() || 'Unknown product'}
+          </Typography>
+          <Typography variant="caption" numberOfLines={1} className="mt-1 text-center text-gray-500">
+            {rightProduct.brands || ' '}
+          </Typography>
+        </View>
+      </View>
+
+      {nutritionRows.map((config) => {
+        const leftValue = leftProduct.nutrition[config.key] as number | null;
+        const rightValue = rightProduct.nutrition[config.key] as number | null;
+        const rowWinner = getMetricWinner(config, leftValue, rightValue);
+
+        return (
+          <View key={config.key} className="flex-row items-center border-b border-neutrals-100 py-2">
+            <View className="w-[110px] pr-3">
+              <Typography variant="bodySecondary" className="text-gray-700">
+                {config.label}
+              </Typography>
+            </View>
+            <View className="flex-1 px-1">
+              <ValueCell
+                text={leftValue == null ? '—' : formatValue(leftValue, config.unit)}
+                highlighted={rowWinner === 'left'}
+              />
+            </View>
+            <View className="flex-1 px-1">
+              <ValueCell
+                text={rightValue == null ? '—' : formatValue(rightValue, config.unit)}
+                highlighted={rowWinner === 'right'}
+              />
+            </View>
+          </View>
+        );
+      })}
+
+      <View className="flex-row items-center py-3 border-b border-neutrals-100">
+        <View className="w-[110px] pr-3">
+          <Typography variant="bodySecondary" className="text-gray-700">
+            {compatibilityLabel}
+          </Typography>
+        </View>
+        <View className="flex-1 px-1">
+          <ValueCell status={leftCompatibility} highlighted={leftCompatibility === 'positive'} />
+        </View>
+        <View className="flex-1 px-1">
+          <ValueCell status={rightCompatibility} highlighted={rightCompatibility === 'positive'} />
+        </View>
+      </View>
     </View>
   );
 }

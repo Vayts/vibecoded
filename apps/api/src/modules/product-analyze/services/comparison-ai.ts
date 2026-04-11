@@ -47,16 +47,63 @@ const filterComparisonNegatives = (
   return negatives;
 };
 
+const PRODUCT_1_REFERENCE_PATTERN =
+  /\b(?:product\s*1|product\s*one|first product|the first product)\b/gi;
+const PRODUCT_2_REFERENCE_PATTERN =
+  /\b(?:product\s*2|product\s*two|second product|the second product)\b/gi;
+
+const getComparisonProductReferenceName = (product: NormalizedProduct): string => {
+  const productName = product.product_name?.trim();
+  if (productName) {
+    return productName;
+  }
+
+  const brand = product.brands
+    ?.split(',')
+    .map((part) => part.trim())
+    .find(Boolean);
+  if (brand && product.code?.trim()) {
+    return `${brand} (${product.code.trim()})`;
+  }
+
+  if (brand) {
+    return brand;
+  }
+
+  const barcode = product.code?.trim();
+  return barcode || 'Unknown product';
+};
+
+const replaceGenericProductReferences = (
+  text: string,
+  product1Name: string,
+  product2Name: string,
+): string =>
+  text
+    .replace(PRODUCT_1_REFERENCE_PATTERN, product1Name)
+    .replace(PRODUCT_2_REFERENCE_PATTERN, product2Name)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+const replaceGenericProductReferencesInList = (
+  items: string[],
+  product1Name: string,
+  product2Name: string,
+): string[] =>
+  items.map((item) =>
+    replaceGenericProductReferences(item, product1Name, product2Name),
+  );
+
 const comparisonItemSchema = z.object({
   positives: z
     .array(z.string())
     .describe(
-      'Short bullet points of advantages for this product for the profile',
+      'Short bullet points of advantages for this product for the profile. Never use Product 1/Product 2 placeholders in text; use the exact product name if needed.',
     ),
   negatives: z
     .array(z.string())
     .describe(
-      'Short bullet points of disadvantages for this product for the profile',
+      'Short bullet points of disadvantages for this product for the profile. Never use Product 1/Product 2 placeholders in text; use the exact product name if needed.',
     ),
 });
 
@@ -74,7 +121,7 @@ const profileComparisonOutputSchema = z.object({
   conclusion: z
     .string()
     .describe(
-      'One sentence explaining which product is better and why, max 25 words',
+      'One sentence explaining which product is better and why, max 35 words. Never use Product 1/Product 2 placeholders; use exact product names if needed.',
     ),
 });
 
@@ -114,6 +161,9 @@ No allergies listed → ignore allergen data entirely. Do NOT mention traces.
 ═══ COMPARISON RULES ═══
 
 For each product, produce 2-4 positives and 0-4 negatives. All bullets must be COMPARATIVE (relative to the other product).
+- The tokens product1/product2 are INTERNAL identifiers only. Use them only in the structured winner field and object keys, never in natural-language text.
+- In positives, negatives, and conclusion, NEVER write "Product1", "Product 1", "product1", "product 1", "Product2", "Product 2", "product2", "product 2", "first product", or "second product".
+- If you mention a product in prose, use the exact product name from its Name line.
 - Max 12 words per bullet. Include actual values where available (e.g. "Lower sugar: 3g vs 12g").
 - NEVER give the same nutritional positive to both products. If Product1 wins a metric, Product2 CANNOT also win that metric.
 - Use the NUTRITION COMPARISON section to determine which product is better on each metric. NEVER contradict it.
@@ -133,7 +183,7 @@ const formatProductBlock = (
 ): string => {
   const parts: string[] = [];
   parts.push(`=== PRODUCT ${label} ===`);
-  if (product.product_name) parts.push(`Name: ${product.product_name}`);
+  parts.push(`Name: ${getComparisonProductReferenceName(product)}`);
   if (product.brands) parts.push(`Brand: ${product.brands}`);
   if (product.categories) parts.push(`Categories: ${product.categories}`);
 
@@ -292,12 +342,21 @@ const buildComparisonPrompt = (
   profiles: ProfileInput[],
 ): string => {
   const parts: string[] = [];
+  const product1Name = getComparisonProductReferenceName(product1);
+  const product2Name = getComparisonProductReferenceName(product2);
 
   const anyProfileHasAllergies = profiles.some(
     (p) =>
       p.onboarding.allergies.length > 0 || !!p.onboarding.otherAllergiesText,
   );
 
+  parts.push('=== PRODUCT REFERENCES ===');
+  parts.push(`Product1 name: ${product1Name}`);
+  parts.push(`Product2 name: ${product2Name}`);
+  parts.push(
+    'In positives, negatives, and conclusion, use these names instead of Product1/Product2 if you mention a product.',
+  );
+  parts.push('');
   parts.push(formatProductBlock(product1, '1', anyProfileHasAllergies));
   parts.push('');
   parts.push(formatProductBlock(product2, '2', anyProfileHasAllergies));
@@ -392,8 +451,8 @@ export const compareProductsForProfiles = async (
     return [];
   }
 
-  const p1Name = product1.product_name ?? product1.code ?? 'product1';
-  const p2Name = product2.product_name ?? product2.code ?? 'product2';
+  const p1Name = getComparisonProductReferenceName(product1);
+  const p2Name = getComparisonProductReferenceName(product2);
   const profileNames = profiles
     .map((p, i) => `${getProfileLabel(i)}="${p.profileName}"`)
     .join(', ');
@@ -426,12 +485,37 @@ export const compareProductsForProfiles = async (
       (_, i) => getProfileLabel(i) === profileResult.profileLabel,
     );
     const profile = profiles[profileIndex] ?? profiles[0];
-    console.log(
-      `[Compare]   "${profile.profileName}" → winner=${profileResult.winner}  conclusion="${profileResult.conclusion}"`,
-    );
-
     const userRestrictions = profile.onboarding.restrictions;
     const userAllergies = profile.onboarding.allergies;
+    const sanitizedConclusion = replaceGenericProductReferences(
+      profileResult.conclusion,
+      p1Name,
+      p2Name,
+    );
+    const sanitizedProduct1Positives = replaceGenericProductReferencesInList(
+      filterComparisonPositives(profileResult.product1.positives, userRestrictions),
+      p1Name,
+      p2Name,
+    );
+    const sanitizedProduct1Negatives = replaceGenericProductReferencesInList(
+      filterComparisonNegatives(profileResult.product1.negatives, userAllergies),
+      p1Name,
+      p2Name,
+    );
+    const sanitizedProduct2Positives = replaceGenericProductReferencesInList(
+      filterComparisonPositives(profileResult.product2.positives, userRestrictions),
+      p1Name,
+      p2Name,
+    );
+    const sanitizedProduct2Negatives = replaceGenericProductReferencesInList(
+      filterComparisonNegatives(profileResult.product2.negatives, userAllergies),
+      p1Name,
+      p2Name,
+    );
+
+    console.log(
+      `[Compare]   "${profile.profileName}" → winner=${profileResult.winner}  conclusion="${sanitizedConclusion}"`,
+    );
 
     // Break ties deterministically using nutrition metrics
     const resolvedWinner =
@@ -443,27 +527,15 @@ export const compareProductsForProfiles = async (
       profileId: profile.profileId,
       profileName: profile.profileName,
       product1: {
-        positives: filterComparisonPositives(
-          profileResult.product1.positives,
-          userRestrictions,
-        ),
-        negatives: filterComparisonNegatives(
-          profileResult.product1.negatives,
-          userAllergies,
-        ),
+        positives: sanitizedProduct1Positives,
+        negatives: sanitizedProduct1Negatives,
       },
       product2: {
-        positives: filterComparisonPositives(
-          profileResult.product2.positives,
-          userRestrictions,
-        ),
-        negatives: filterComparisonNegatives(
-          profileResult.product2.negatives,
-          userAllergies,
-        ),
+        positives: sanitizedProduct2Positives,
+        negatives: sanitizedProduct2Negatives,
       },
       winner: resolvedWinner,
-      conclusion: profileResult.conclusion,
+      conclusion: sanitizedConclusion,
     };
   });
 };

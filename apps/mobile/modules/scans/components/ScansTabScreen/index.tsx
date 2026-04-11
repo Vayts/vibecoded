@@ -13,6 +13,7 @@ import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { useOpenComparisonRoute } from '../../../scanner/hooks/useOpenComparisonRoute';
 import { ScanHistoryList } from '../ScanHistoryList';
 import { FavouritesList } from '../FavouritesList';
 import { ComparisonsList } from '../ComparisonsList';
@@ -29,6 +30,7 @@ const IS_IOS = Platform.OS === 'ios';
 
 export function ScansTabScreen() {
   const insets = useSafeAreaInsets();
+  const { openComparisonById, openComparisonByScanId } = useOpenComparisonRoute();
   const [activeTab, setActiveTab] = useState<DiscoverTab>('history');
   const [searchQuery, setSearchQuery] = useState('');
   const activeIndexRef = useRef(0);
@@ -44,19 +46,22 @@ export function ScansTabScreen() {
   }, []);
 
   const handleScanPress = useCallback((item: ScanHistoryItem) => {
+    if (item.type === 'comparison') {
+      openComparisonByScanId(item.id);
+      return;
+    }
+
     void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-      payload: { 
+      payload: {
         scanId: item.id,
-        item: item,
+        item,
       },
     });
-  }, []);
+  }, [openComparisonByScanId]);
 
   const handleComparisonPress = useCallback((item: ComparisonHistoryItem) => {
-    void SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-      payload: { comparisonId: item.id },
-    });
-  }, []);
+    openComparisonById(item.id);
+  }, [openComparisonById]);
 
   const handleTabSelect = useCallback(
     (tab: DiscoverTab) => {
@@ -120,15 +125,11 @@ export function ScansTabScreen() {
       <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
         <View className="px-4">
           <Typography variant="pageTitle">Discover</Typography>
-        </View> 
-        <DiscoverTabChips
-          selected={activeTab}
-          selectedIndex={activeIndex}
-          onSelect={handleTabSelect}
-        />
+        </View>
+        <DiscoverTabChips selected={activeTab} selectedIndex={activeIndex} onSelect={handleTabSelect} />
         <ScansSearchInput className="mx-4 mt-4" value={searchQuery} onChangeText={setSearchQuery} />
-          <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
-            <Pressable className="flex-1 h-full" onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
+          <Pressable className="flex-1 h-full" onPress={Keyboard.dismiss}>
             <View
               style={{
                 backgroundColor: COLORS.white,
@@ -157,8 +158,8 @@ export function ScansTabScreen() {
                 {activeTab === 'favourites' && favouritesPanel}
               </View>
             </View>
-            </Pressable>
-          </KeyboardAvoidingView>
+          </Pressable>
+        </KeyboardAvoidingView>
       </View>
     );
   }
@@ -169,16 +170,10 @@ export function ScansTabScreen() {
         <Typography variant="pageTitle">Discover</Typography>
       </View>
 
-      <DiscoverTabChips
-        selected={activeTab}
-        selectedIndex={activeIndex}
-        onSelect={handleTabSelect}
-      />
-
+      <DiscoverTabChips selected={activeTab} selectedIndex={activeIndex} onSelect={handleTabSelect} />
       <ScansSearchInput className="mx-4 mb-4 mt-2" value={searchQuery} onChangeText={setSearchQuery} />
-      
-        <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
-          <Pressable className="flex-1" onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
+        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
           <View
             style={{
               backgroundColor: COLORS.white,
@@ -207,21 +202,15 @@ export function ScansTabScreen() {
                   style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
                   className="flex-1"
                 >
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                    {historyPanel}
-                  </View>
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                    {comparisonsPanel}
-                  </View>
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-                    {favouritesPanel}
-                  </View>
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{historyPanel}</View>
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{comparisonsPanel}</View>
+                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{favouritesPanel}</View>
                 </Animated.View>
               </View>
             </View>
           </View>
-            </Pressable>
-        </KeyboardAvoidingView>
+        </Pressable>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -34,7 +34,7 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
     <View className="flex-1 items-center justify-center pb-[120px] px-8">
       <View
         className="w-24 h-24 rounded-md bg-gray-100 mb-6"
-      />PfPP
+      />
 
       <Typography variant="hero" className="text-center">
         No favourite products yet

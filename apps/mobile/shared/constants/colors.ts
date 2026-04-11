@@ -16,8 +16,10 @@ export const COLORS = {
   primaryBorder: '#93C5FD',
 
   accent: '#E28200', // violet-600 — Pro / premium badge
+  accent400: '#FFC81B',
   accent500: '#FFAA00',
   accent600: '#E28200',
+  
 
 
   neutrals100: '#F1F1F1',
@@ -51,10 +53,12 @@ export const COLORS = {
   success: '#16A34A', // green-600 — correct answers, streaks
   successSoft: '#EAF7EE',
   successBorder: '#CDEBD6',
+  successShadow: '#37B03C',
   warning: '#D97706', // amber-600 — warnings, trial/upgrade prompts
   warningSoft: '#FEF5E7',
   warningBorder: '#F6D6A8',
   danger: '#DC2626', // red-600 — errors, destructive actions, "Again" rating
+  danger800: '#B60000',
   dangerSoft: '#FDECEC',
   dangerBorder: '#F5C5C5',
 

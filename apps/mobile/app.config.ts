@@ -41,8 +41,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       resizeMode: 'contain',
       backgroundColor: '#ffffff',
     },
+    backgroundColor: '#FAFAFA',
     ios: {
       supportsTablet: false,
+      backgroundColor: '#FAFAFA',
       bundleIdentifier: 'app.chozr.ai',
       googleServicesFile: './GoogleService-Info.plist',
     },
@@ -51,6 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
       },
+      backgroundColor: '#FAFAFA',
       package: 'app.chozr.ai',
     },
     web: {

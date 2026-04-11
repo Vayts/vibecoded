@@ -3,6 +3,7 @@ import {
   type BarcodeScanningResult,
   useCameraPermissions,
 } from 'expo-camera';
+import { useFocusEffect } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -26,6 +27,7 @@ import {
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
 import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
+import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import { useCompareStore } from '../../stores/compareStore';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
@@ -42,6 +44,7 @@ export function ScannerHomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const lookupMutation = useProductLookupMutation();
   const compareMutation = useCompareProductsMutation();
+  const { openLiveComparison } = useOpenComparisonRoute();
 
   const isCompareMode = useCompareStore((s) => s.isCompareMode);
   const firstProduct = useCompareStore((s) => s.firstProduct);
@@ -49,6 +52,7 @@ export function ScannerHomeScreen() {
 
   const cameraRef = useRef<CameraView | null>(null);
   const scanLockRef = useRef(false);
+  const wasScreenFocusedRef = useRef(true);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
   const scanFrameRef = useRef<View>(null);
   const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -77,6 +81,25 @@ export function ScannerHomeScreen() {
     setIsScannerPaused(false);
     setIsResolvingFirstProduct(false);
   }, []);
+
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+
+      if (!wasScreenFocusedRef.current) {
+        resumeScanner();
+      }
+
+      wasScreenFocusedRef.current = true;
+
+      return () => {
+        wasScreenFocusedRef.current = false;
+        setIsScreenFocused(false);
+      };
+    }, [resumeScanner]),
+  );
 
   const capturePhotoWithCamera = useCallback(async () => {
     setIsCapturingPhoto(true);
@@ -166,10 +189,7 @@ export function ScannerHomeScreen() {
           barcode2: secondResolved.barcode,
         });
         resetCompare();
-        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-          payload: { result },
-          onClose: resumeScanner,
-        });
+        openLiveComparison(result);
         return;
       }
 
@@ -222,6 +242,7 @@ export function ScannerHomeScreen() {
     captureAndCompress,
     capturePhotoPreview,
     compareMutation,
+    openLiveComparison,
     resetCompare,
     resumeScanner,
     switchToPhotoMode,
@@ -280,10 +301,7 @@ export function ScannerHomeScreen() {
           barcode2: normalized,
         });
         resetCompare();
-        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-          payload: { result },
-          onClose: resumeScanner,
-        });
+        openLiveComparison(result);
         return;
       }
 
@@ -314,7 +332,7 @@ export function ScannerHomeScreen() {
         },
       });
     }
-  }, [compareMutation, lookupMutation, resetCompare, resumeScanner, switchToPhotoMode]);
+  }, [compareMutation, lookupMutation, openLiveComparison, resetCompare, resumeScanner, switchToPhotoMode]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
     if (Platform.OS === 'ios' && bounds && scanFrameBounds.current) {
@@ -374,9 +392,9 @@ export function ScannerHomeScreen() {
   const isAppActive = appState === 'active';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
   const shouldSuspendCameraView =
-    !isAppActive || isScannerPaused || (isLocked && isPhotoMode && !isCapturingPhoto);
+    !isAppActive || !isScreenFocused || isScannerPaused || (isLocked && isPhotoMode && !isCapturingPhoto);
   const shouldRenderCameraView = !shouldSuspendCameraView;
-  const showCameraBlackout = !isAppActive || (isLocked && (isPhotoMode || isScannerPaused));
+  const showCameraBlackout = !isAppActive || !isScreenFocused || (isLocked && (isPhotoMode || isScannerPaused));
 
   return (
     <View className="flex-1 bg-black">

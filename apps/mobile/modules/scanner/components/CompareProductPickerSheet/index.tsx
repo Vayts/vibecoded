@@ -3,13 +3,13 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'rea
 import { InteractionManager, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ScansSearchInput } from '../../../scans/components/ScansSearchInput';
 import { useCompareProductsMutation } from '../../hooks/useScannerMutations';
+import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import type { CompareProductPickerSheetPayload } from '../../types/scanner';
 import { CompareProductPickerList } from '../CompareProductPickerList';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
@@ -20,6 +20,8 @@ export function CompareProductPickerSheet() {
   ) as CompareProductPickerSheetPayload | null;
   const insets = useSafeAreaInsets();
   const compareMutation = useCompareProductsMutation();
+  const { isPending, mutateAsync, reset } = compareMutation;
+  const { openLiveComparison } = useOpenComparisonRoute();
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isListReady, setIsListReady] = useState(false);
@@ -32,7 +34,7 @@ export function CompareProductPickerSheet() {
     setSearchQuery('');
     setErrorMessage(null);
     setIsListReady(false);
-    compareMutation.reset();
+    reset();
 
     const interactionTask = InteractionManager.runAfterInteractions(() => {
       setIsListReady(true);
@@ -41,7 +43,7 @@ export function CompareProductPickerSheet() {
     return () => {
       interactionTask.cancel();
     };
-  }, [currentProductKey]);
+  }, [currentProductKey, reset]);
 
   const sheetTitle = useMemo(() => {
     if (!currentProduct?.productName) {
@@ -55,32 +57,29 @@ export function CompareProductPickerSheet() {
     setSearchQuery('');
     setErrorMessage(null);
     setIsListReady(false);
-    compareMutation.reset();
-  }, [compareMutation]);
+    reset();
+  }, [reset]);
 
   const handleSelectProduct = useCallback(
     async (item: ScanHistoryItem) => {
-      if (!currentProduct || compareMutation.isPending || item.type !== 'product' || !item.product) {
+      if (!currentProduct || isPending || item.type !== 'product' || !item.product) {
         return;
       }
 
       setErrorMessage(null);
 
       try {
-        const result = await compareMutation.mutateAsync({
+        const result = await mutateAsync({
           barcode1: currentProduct.barcode,
           barcode2: item.product.barcode,
         });
-
         await SheetManager.hide(SheetsEnum.CompareProductPickerSheet);
-        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-          payload: { result },
-        });
+        openLiveComparison(result);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : 'Unable to compare products');
       }
     },
-    [compareMutation, currentProduct],
+    [currentProduct, isPending, mutateAsync, openLiveComparison],
   );
 
   if (!currentProduct) {
@@ -89,7 +88,7 @@ export function CompareProductPickerSheet() {
 
   return (
     <ActionSheet
-      gestureEnabled={!compareMutation.isPending}
+      gestureEnabled={!isPending}
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
       containerStyle={{ height: '88%' }}
@@ -130,7 +129,7 @@ export function CompareProductPickerSheet() {
           />
         </View>
 
-        {compareMutation.isPending ? (
+        {isPending ? (
           <View className="absolute inset-0 items-center justify-center bg-white/80 px-6">
             <View className="items-center rounded-3xl px-6 py-5" style={{ backgroundColor: COLORS.white }}>
               <CustomLoader isReversed size="sm" />
