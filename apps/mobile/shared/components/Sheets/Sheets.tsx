@@ -1,6 +1,6 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
-import { ComparisonResultSheet } from '../../../modules/scanner/components/ComparisonResultSheet';
+import { CompareProductPickerSheet } from '../../../modules/scanner/components/CompareProductPickerSheet';
 import { ProductDecisionSheet } from '../../../modules/scanner/components/ProductDecisionSheet';
 import {
   ScannerErrorSheet,
@@ -8,7 +8,7 @@ import {
 } from '../../../modules/scanner/components/ScannerErrorSheet';
 import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerResultSheet';
 import type {
-  ComparisonResultSheetPayload,
+  CompareProductPickerSheetPayload,
   ProductDecisionSheetPayload,
   ScannerResultSheetPayload,
 } from '../../../modules/scanner/types/scanner';
@@ -22,7 +22,7 @@ declare module 'react-native-actions-sheet' {
     [SheetsEnum.ExampleSheet]: SheetDefinition;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
     [SheetsEnum.ProductDecisionSheet]: SheetDefinition<{ payload: ProductDecisionSheetPayload }>;
-    [SheetsEnum.ComparisonResultSheet]: SheetDefinition<{ payload: ComparisonResultSheetPayload }>;
+    [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{ payload: CompareProductPickerSheetPayload }>;
     [SheetsEnum.ScannerErrorSheet]: SheetDefinition<{ payload: ScannerErrorSheetPayload }>;
   }
 }
@@ -34,7 +34,7 @@ export const Sheets = () => {
         [SheetsEnum.ExampleSheet]: ExampleSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
         [SheetsEnum.ProductDecisionSheet]: ProductDecisionSheet,
-        [SheetsEnum.ComparisonResultSheet]: ComparisonResultSheet,
+        [SheetsEnum.CompareProductPickerSheet]: CompareProductPickerSheet,
         [SheetsEnum.ScannerErrorSheet]: ScannerErrorSheet,
       }}
     />

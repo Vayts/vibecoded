@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useFamilyMembersQuery, useUpdateFamilyMember } from '../../hooks/useFamilyMembers';
 import { FamilyMemberForm } from '../FamilyMemberForm';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 export function EditFamilyMemberScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +18,7 @@ export function EditFamilyMemberScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color={COLORS.primary} />
+        <CustomLoader size="sm" isReversed/>
       </View>
     );
   }

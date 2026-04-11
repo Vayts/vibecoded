@@ -21,10 +21,11 @@ interface PersonalTabContentProps {
   isError: boolean;
   onRetry: () => void;
   rawIngredients: string[];
+  onComparePress?: () => void;
   rawIngredientsText: string | null;
 }
 
-export function PersonalTabContent({ personalResult, isError, onRetry, rawIngredients, rawIngredientsText }: PersonalTabContentProps) {
+export function PersonalTabContent({ personalResult, isError, onRetry, rawIngredients, onComparePress, rawIngredientsText }: PersonalTabContentProps) {
   const [selectedProfileId, setSelectedProfileId] = useState<string>('you');
   const authUser = useAuthStore((s) => s.user);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
@@ -100,7 +101,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
           />
 
           <View className="mt-4">
-            <Button fullWidth label="Compare with another" variant="secondary"/>
+            <Button onPress={onComparePress} fullWidth label="Compare with another" variant="secondary"/>
           </View>
         </View>
       </View>

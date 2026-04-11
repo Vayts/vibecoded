@@ -3,9 +3,18 @@ import {
   type BarcodeScanningResult,
   useCameraPermissions,
 } from 'expo-camera';
+import { useFocusEffect } from 'expo-router';
 import { Zap } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
-import { Dimensions, Platform, TouchableOpacity, Vibration, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AppState,
+  type AppStateStatus,
+  Dimensions,
+  Platform,
+  TouchableOpacity,
+  Vibration,
+  View,
+} from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -18,6 +27,7 @@ import {
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
 import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
+import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import { useCompareStore } from '../../stores/compareStore';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
@@ -34,6 +44,7 @@ export function ScannerHomeScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const lookupMutation = useProductLookupMutation();
   const compareMutation = useCompareProductsMutation();
+  const { openLiveComparison } = useOpenComparisonRoute();
 
   const isCompareMode = useCompareStore((s) => s.isCompareMode);
   const firstProduct = useCompareStore((s) => s.firstProduct);
@@ -41,6 +52,7 @@ export function ScannerHomeScreen() {
 
   const cameraRef = useRef<CameraView | null>(null);
   const scanLockRef = useRef(false);
+  const wasScreenFocusedRef = useRef(true);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
   const scanFrameRef = useRef<View>(null);
   const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -50,6 +62,18 @@ export function ScannerHomeScreen() {
   const [scannerMode, setScannerMode] = useState<ScannerMode>('scanner');
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -58,25 +82,50 @@ export function ScannerHomeScreen() {
     setIsResolvingFirstProduct(false);
   }, []);
 
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsScreenFocused(true);
+
+      if (!wasScreenFocusedRef.current) {
+        resumeScanner();
+      }
+
+      wasScreenFocusedRef.current = true;
+
+      return () => {
+        wasScreenFocusedRef.current = false;
+        setIsScreenFocused(false);
+      };
+    }, [resumeScanner]),
+  );
+
   const capturePhotoWithCamera = useCallback(async () => {
-    const picture = await cameraRef.current?.takePictureAsync({
-      quality: 1,
-      exif: false,
-      shutterSound: false,
-      skipProcessing: Platform.OS === 'android',
-    });
+    setIsCapturingPhoto(true);
 
-    if (!picture?.uri || picture.width == null || picture.height == null) {
-      return null;
+    try {
+      const picture = await cameraRef.current?.takePictureAsync({
+        quality: 1,
+        exif: false,
+        shutterSound: false,
+        skipProcessing: Platform.OS === 'android',
+      });
+
+      if (!picture?.uri || picture.width == null || picture.height == null) {
+        return null;
+      }
+
+      Vibration.vibrate(40);
+
+      return {
+        uri: picture.uri,
+        width: picture.width,
+        height: picture.height,
+      };
+    } finally {
+      setIsCapturingPhoto(false);
     }
-
-    Vibration.vibrate(40);
-
-    return {
-      uri: picture.uri,
-      width: picture.width,
-      height: picture.height,
-    };
   }, []);
 
   const {
@@ -140,10 +189,7 @@ export function ScannerHomeScreen() {
           barcode2: secondResolved.barcode,
         });
         resetCompare();
-        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-          payload: { result },
-          onClose: resumeScanner,
-        });
+        openLiveComparison(result);
         return;
       }
 
@@ -196,6 +242,7 @@ export function ScannerHomeScreen() {
     captureAndCompress,
     capturePhotoPreview,
     compareMutation,
+    openLiveComparison,
     resetCompare,
     resumeScanner,
     switchToPhotoMode,
@@ -254,10 +301,7 @@ export function ScannerHomeScreen() {
           barcode2: normalized,
         });
         resetCompare();
-        await SheetManager.show(SheetsEnum.ComparisonResultSheet, {
-          payload: { result },
-          onClose: resumeScanner,
-        });
+        openLiveComparison(result);
         return;
       }
 
@@ -288,7 +332,7 @@ export function ScannerHomeScreen() {
         },
       });
     }
-  }, [compareMutation, lookupMutation, resetCompare, resumeScanner, switchToPhotoMode]);
+  }, [compareMutation, lookupMutation, openLiveComparison, resetCompare, resumeScanner, switchToPhotoMode]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
     if (Platform.OS === 'ios' && bounds && scanFrameBounds.current) {
@@ -345,21 +389,30 @@ export function ScannerHomeScreen() {
           : 'Processing…';
 
   const isPhotoMode = scannerMode === 'photo';
+  const isAppActive = appState === 'active';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
+  const shouldSuspendCameraView =
+    !isAppActive || !isScreenFocused || isScannerPaused || (isLocked && isPhotoMode && !isCapturingPhoto);
+  const shouldRenderCameraView = !shouldSuspendCameraView;
+  const showCameraBlackout = !isAppActive || !isScreenFocused || (isLocked && (isPhotoMode || isScannerPaused));
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView
-        ref={cameraRef}
-        active={!isScannerPaused}
-        barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
-        }}
-        enableTorch={isTorchEnabled}
-        facing="back"
-        onBarcodeScanned={!isScannerPaused && !isPhotoMode ? handleBarcodeScanned : undefined}
-        style={{ flex: 1 }}
-      />
+      {shouldRenderCameraView ? (
+        <CameraView
+          ref={cameraRef}
+          active
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+          }}
+          enableTorch={isTorchEnabled}
+          facing="back"
+          onBarcodeScanned={!isPhotoMode ? handleBarcodeScanned : undefined}
+          style={{ flex: 1 }}
+        />
+      ) : null}
+
+      {showCameraBlackout ? <View pointerEvents="none" className="absolute inset-0 bg-black" /> : null}
 
       {isLocked && isProcessing ? (
         <View className="absolute inset-0 items-center justify-center px-6">

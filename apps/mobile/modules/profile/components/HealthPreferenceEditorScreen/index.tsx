@@ -73,6 +73,7 @@ export function HealthPreferenceEditorScreen({
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
+          paddingBottom: 140,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -96,7 +97,7 @@ export function HealthPreferenceEditorScreen({
           ) : null}
         </Pressable>
 
-        <View className="mt-auto pt-6 pb-12">
+        <View className="pt-6 pb-12">
           <Button
             fullWidth
             label="Save changes"

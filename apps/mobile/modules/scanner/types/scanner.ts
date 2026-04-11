@@ -1,7 +1,6 @@
 import type {
   AnalysisJobResponse,
   BarcodeLookupResponse,
-  ProductComparisonResult,
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
@@ -37,8 +36,10 @@ export interface ProductDecisionSheetPayload {
   onDismiss?: () => void;
 }
 
-export interface ComparisonResultSheetPayload {
-  result?: ProductComparisonResult;
-  scanId?: string;
-  comparisonId?: string;
+export interface CompareProductPickerSheetPayload {
+  currentProduct: {
+    barcode: string;
+    productId?: string | null;
+    productName?: string | null;
+  };
 }
