@@ -19,8 +19,6 @@ export const COLORS = {
   accent400: '#FFC81B',
   accent500: '#FFAA00',
   accent600: '#E28200',
-  
-
 
   neutrals100: '#F1F1F1',
   neutrals200: '#E6E6E6',
@@ -29,7 +27,9 @@ export const COLORS = {
   neutrals700: '#434343',
   neutrals900: '#1A1A1A',
 
+  primary25: '#c8dcc9',
   primary300: '#94E197',
+  primary700: '#237227',
   primary900: '#1C4B1F',
   profileChipGoodBorder: '#94E197',
   profileChipBadBorder: '#FF9292',

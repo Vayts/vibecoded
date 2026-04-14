@@ -1,25 +1,27 @@
-import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
 import { Typography } from '../../../../shared/components/Typography';
+import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
+import { FamilyMemberList } from '../../../family/components/FamilyMemberList';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
-import { FamilyMemberList } from '../../../family/components/FamilyMemberList';
 import { useCurrentUserQuery } from '../../api/profileQueries';
+import { ProfileGoalCard } from '../ProfileGoalCard';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
-import { ProfileMenuRow } from '../ProfileMenuRow';
-import { ProfileMenuSection } from '../ProfileMenuSection';
+import { ProfileLogoutButton } from '../ProfileLogoutButton';
+import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 
 const getHealthSummary = (onboarding: ReturnType<typeof useOnboardingQuery>['data']): string => {
   if (!onboarding?.mainGoal) {
-    return 'Review and update your nutrition preferences.';
+    return 'Set your health goal';
   }
 
-  return `Goal: ${MAIN_GOAL_LABELS[onboarding.mainGoal]}`;
+  return MAIN_GOAL_LABELS[onboarding.mainGoal];
 };
 
 export function ProfileScreen() {
@@ -45,80 +47,77 @@ export function ProfileScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentInsetAdjustmentBehavior="never"
-      contentContainerStyle={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom + 140,
-      }}
-    >
-      <View className="px-4 pb-2 pt-4">
-        <Typography variant="hero" className="text-gray-900">
-          Profile
-        </Typography>
+    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+      <View className="px-4 mb-4">
+        <Typography variant="pageTitle">Profile</Typography>
       </View>
 
-      <View className="px-4">
-        <ProfileHeaderCard
-          name={user.name || 'Your account'}
-          email={user.email}
-          avatarUrl={user.avatarUrl}
-          fallbackImageUrl={user.image}
-          statusText={onboardingQuery.data?.onboardingCompleted ? 'Health profile saved' : null}
-        />
+      <ScreenSheet>
+      <ScrollView
+        className="flex-1"
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 140,
+        }}
+      >
+        <View className="px-4">
+          <View className="mt-6">
+            <ProfileHeaderCard
+              name={user.name || 'Your account'}
+              email={user.email}
+              avatarUrl={user.avatarUrl}
+              fallbackImageUrl={getUserFallbackAvatarImage(user)}
+              onEditPress={() => {
+                router.push('/(tabs)/profile/edit-account');
+              }}
+            />
+          </View>
 
-        <ProfileMenuSection title="Account">
-          <ProfileMenuRow
-            label="Edit profile"
-            subtitle="Update your photo and display name"
-            onPress={() => {
-              router.push('/(tabs)/profile/edit-account');
-            }}
-          />
-        </ProfileMenuSection>
+          <View className="mt-8">
+            <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
+              Preferences
+            </Typography>
+            <ProfileGoalCard
+              label="Your goal"
+              description={getHealthSummary(onboardingQuery.data)}
+              helperText="Your product analysis will be personalized based on your preferences."
+              onPress={() => {
+                router.push('/(tabs)/profile/edit-health');
+              }}
+            />
+          </View>
 
-        <ProfileMenuSection title="Preferences">
-          <ProfileMenuRow
-            label="Health profile"
-            subtitle={getHealthSummary(onboardingQuery.data)}
-            onPress={() => {
-              router.push('/(tabs)/profile/edit-health');
-            }}
-          />
-        </ProfileMenuSection>
+          <View className="mt-8">
+            <Typography variant="sectionTitle" className="text-neutrals-900">
+              Family members
+            </Typography>
+            <View className="mt-3">
+              <FamilyMemberList
+                onAdd={() => {
+                  router.push('/(tabs)/profile/add-family-member');
+                }}
+                onEdit={(member) => {
+                  router.push({
+                    pathname: '/(tabs)/profile/edit-family-member',
+                    params: { id: member.id },
+                  });
+                }}
+              />
+            </View>
+          </View>
 
-        <ProfileMenuSection title="Family members">
-          <FamilyMemberList
-            onAdd={() => {
-              router.push('/(tabs)/profile/add-family-member');
-            }}
-            onEdit={(member) => {
-              router.push({
-                pathname: '/(tabs)/profile/edit-family-member',
-                params: { id: member.id },
-              });
-            }}
-          />
-        </ProfileMenuSection>
-
-        <ProfileMenuSection title="Session">
-          <ProfileMenuRow
-            label="Log out"
-            subtitle={isLoading ? 'Signing you out...' : 'End the current session on this device'}
-            destructive
-            onPress={() => {
-              void signOut();
-            }}
-          />
-        </ProfileMenuSection>
-
-        <View className="mt-6 px-1">
-          <Typography variant="caption" className="text-gray-400">
-            Keep your preferences up to date so product analysis stays relevant.
-          </Typography>
+          <View className="mt-8">
+            <ProfileLogoutButton
+              disabled={isLoading}
+              onPress={() => {
+                void signOut();
+              }}
+            />
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+      </ScreenSheet>
+    </View>
   );
 }

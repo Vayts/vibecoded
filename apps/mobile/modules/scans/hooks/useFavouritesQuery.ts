@@ -79,9 +79,11 @@ const optimisticToggle = (
       ...data,
       pages: data.pages.map((page) => ({
         ...page,
-        items: page.items.map((item) =>
-          item.product?.id === productId ? { ...item, isFavourite: newValue } : item,
-        ),
+        items: newValue
+          ? page.items.map((item) =>
+              item.product?.id === productId ? { ...item, isFavourite: true } : item,
+            )
+          : page.items.filter((item) => item.product?.id !== productId),
       })),
     });
   }

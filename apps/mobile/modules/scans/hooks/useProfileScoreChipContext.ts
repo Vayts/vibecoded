@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import type { AuthUser } from '../../../shared/lib/auth/client';
+import { getUserFallbackAvatarImage } from '../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../profile/api/profileQueries';
 
 export interface ProfileScoreChipContext {
-  currentUser: Pick<AuthUser, 'avatarUrl' | 'image'> | null;
+  currentUser: { avatarUrl: string | null; fallbackImageUrl: string | null } | null;
   familyMembersById: Map<string, { avatarUrl: string | null }>;
 }
 
@@ -27,7 +27,7 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
     currentUser: currentUser
       ? {
           avatarUrl: currentUser.avatarUrl ?? null,
-          image: currentUser.image ?? null,
+          fallbackImageUrl: getUserFallbackAvatarImage(currentUser),
         }
       : null,
     familyMembersById,

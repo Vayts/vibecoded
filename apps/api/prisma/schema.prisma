@@ -13,20 +13,20 @@ datasource db {
 // ============================================================
 
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
   avatarUrl     String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Subscription fields
-  subscriptionStatus String?   // 'active' | 'expired' | 'cancelled' | null (free)
-  subscriptionPlan   String?   // 'pro_monthly' | 'pro_annual' | null
-  subscriptionExpiry DateTime?
-  revenuecatAppUserId String?  @unique // RevenueCat app_user_id
+  subscriptionStatus  String? // 'active' | 'expired' | 'cancelled' | null (free)
+  subscriptionPlan    String? // 'pro_monthly' | 'pro_annual' | null
+  subscriptionExpiry  DateTime?
+  revenuecatAppUserId String?   @unique // RevenueCat app_user_id
 
   // Generation balance (free tier)
   freeGenerationsBalance Int       @default(5) // starts at 5; +3 each month
@@ -96,18 +96,18 @@ enum NutritionPriority {
 }
 
 model UserProfile {
-  id                  String                @id @default(cuid())
-  userId              String                @unique
-  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  legacyDietType      DietType?             @map("dietType")
+  id                  String              @id @default(cuid())
+  userId              String              @unique
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legacyDietType      DietType?           @map("dietType")
   mainGoal            MainGoal?
-  restrictions        Restriction[]         @default([])
-  allergies           Allergy[]             @default([])
+  restrictions        Restriction[]       @default([])
+  allergies           Allergy[]           @default([])
   otherAllergiesText  String?
-  nutritionPriorities NutritionPriority[]   @default([])
-  onboardingCompleted Boolean               @default(false)
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  nutritionPriorities NutritionPriority[] @default([])
+  onboardingCompleted Boolean             @default(false)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   @@map("user_profiles")
 }
@@ -157,8 +157,8 @@ model Verification {
 }
 
 model Product {
-  id               String   @id @default(cuid())
-  barcode          String   @unique
+  id               String                       @id @default(cuid())
+  barcode          String                       @unique
   code             String
   product_name     String?
   brands           String?
@@ -170,18 +170,18 @@ model Product {
   categories       String?
   quantity         String?
   serving_size     String?
-  ingredients      String[] @default([])
-  allergens        String[] @default([])
-  additives        String[] @default([])
+  ingredients      String[]                     @default([])
+  allergens        String[]                     @default([])
+  additives        String[]                     @default([])
   additives_count  Int?
-  traces           String[] @default([])
-  countries        String[] @default([])
-  category_tags    String[] @default([])
+  traces           String[]                     @default([])
+  countries        String[]                     @default([])
+  category_tags    String[]                     @default([])
   images           Json
   nutrition        Json
   scores           Json
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
 
   scans                 Scan[]
   scansAsProduct2       Scan[]       @relation("ScanProduct2")
@@ -209,26 +209,26 @@ enum ScanType {
 }
 
 model Scan {
-  id                      String                  @id @default(cuid())
-  userId                  String
-  user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type                    ScanType                @default(product)
-  productId               String?
-  product                 Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
-  product2Id              String?
-  product2                Product?                @relation("ScanProduct2", fields: [product2Id], references: [id], onDelete: SetNull)
-  barcode                 String?
-  source                  ScanSource
-  overallScore            Int?
-  overallRating           String?
-  personalAnalysisStatus  PersonalAnalysisStatus?
-  personalAnalysisJobId   String?
-  evaluation              Json?
-  personalResult          Json?
-  multiProfileResult      Json?
-  comparisonResult        Json?
-  photoImagePath          String?
-  createdAt               DateTime                @default(now())
+  id                     String                  @id @default(cuid())
+  userId                 String
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                   ScanType                @default(product)
+  productId              String?
+  product                Product?                @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product2Id             String?
+  product2               Product?                @relation("ScanProduct2", fields: [product2Id], references: [id], onDelete: SetNull)
+  barcode                String?
+  source                 ScanSource
+  overallScore           Int?
+  overallRating          String?
+  personalAnalysisStatus PersonalAnalysisStatus?
+  personalAnalysisJobId  String?
+  evaluation             Json?
+  personalResult         Json?
+  multiProfileResult     Json?
+  comparisonResult       Json?
+  photoImagePath         String?
+  createdAt              DateTime                @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("scans")

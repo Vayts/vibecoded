@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useOpenComparisonRoute } from '../../../scanner/hooks/useOpenComparisonRoute';
@@ -19,9 +20,8 @@ import { FavouritesList } from '../FavouritesList';
 import { ComparisonsList } from '../ComparisonsList';
 import { DiscoverTabChips, type DiscoverTab } from '../DiscoverTabChips';
 import { ScansSearchInput } from '../ScansSearchInput';
-import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { Typography } from '../../../../shared/components/Typography';
 
 const TABS: DiscoverTab[] = ['history', 'comparisons', 'favourites'];
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -130,34 +130,11 @@ export function ScansTabScreen() {
         <ScansSearchInput className="mx-4 mt-4" value={searchQuery} onChangeText={setSearchQuery} />
         <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
           <Pressable className="flex-1 h-full" onPress={Keyboard.dismiss}>
-            <View
-              style={{
-                backgroundColor: COLORS.white,
-                borderTopRightRadius: 16,
-                borderTopLeftRadius: 16,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.1,
-                shadowRadius: 6,
-                elevation: 8,
-                gap: 12,
-                marginTop: 8,
-                flex: 1,
-              }}
-            >
-              <View
-                style={{
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  overflow: 'hidden',
-                  flex: 1,
-                }}
-              >
+            <ScreenSheet radius={16} shadowRadius={6}>
                 {activeTab === 'history' && historyPanel}
                 {activeTab === 'comparisons' && comparisonsPanel}
                 {activeTab === 'favourites' && favouritesPanel}
-              </View>
-            </View>
+            </ScreenSheet>
           </Pressable>
         </KeyboardAvoidingView>
       </View>
@@ -174,29 +151,7 @@ export function ScansTabScreen() {
       <ScansSearchInput className="mx-4 mb-4 mt-2" value={searchQuery} onChangeText={setSearchQuery} />
       <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-          <View
-            style={{
-              backgroundColor: COLORS.white,
-              borderTopLeftRadius: 32,
-              borderTopRightRadius: 32,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 8,
-              gap: 12,
-              marginTop: 8,
-              flex: 1,
-            }}
-          >
-            <View
-              style={{
-                borderTopLeftRadius: 32,
-                borderTopRightRadius: 32,
-                overflow: 'hidden',
-                flex: 1,
-              }}
-            >
+          <ScreenSheet>
               <View style={{ flex: 1, overflow: 'hidden' }}>
                 <Animated.View
                   style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
@@ -207,8 +162,7 @@ export function ScansTabScreen() {
                   <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{favouritesPanel}</View>
                 </Animated.View>
               </View>
-            </View>
-          </View>
+          </ScreenSheet>
         </Pressable>
       </KeyboardAvoidingView>
     </View>

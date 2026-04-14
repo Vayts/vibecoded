@@ -62,7 +62,7 @@ export function ComparisonProductCard({
   return (
     <View
       className="flex-1 rounded-[24px] border bg-white px-3 pb-4 pt-3"
-      style={{ borderColor, borderWidth: isWinner || isRejected ? 1.5 : 1 }}
+      style={{ borderColor, borderWidth: 1.5 }}
     >
       {badgeLabel ? (
         <View className="absolute -top-4 left-0 right-0 z-10 min-h-[28px] items-center justify-center">

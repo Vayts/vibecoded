@@ -1,6 +1,7 @@
 import type { AnalysisJobResponse, ProfileProductScore } from '@acme/shared';
 import { useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
+import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
@@ -37,6 +38,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
   const isIngredientAnalysisPending =
     !hasProductAnalysis || personalResult?.ingredientsStatus === 'pending';
   const currentUser = currentUserQuery.data ?? authUser;
+  const currentUserFallbackImageUrl = getUserFallbackAvatarImage(currentUser);
   const familyMembersById = useMemo(
     () => new Map((familyMembersQuery.data?.items ?? []).map((member) => [member.id, member])),
     [familyMembersQuery.data?.items],
@@ -53,10 +55,10 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
           name: profile.name,
           score: profile.score,
           imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
-          fallbackImageUrl: isCurrentUser ? currentUser?.image ?? null : null,
+          fallbackImageUrl: isCurrentUser ? currentUserFallbackImageUrl : null,
         };
       }) ?? [],
-    [currentUser?.avatarUrl, currentUser?.image, familyMembersById, profiles],
+    [currentUser?.avatarUrl, currentUserFallbackImageUrl, familyMembersById, profiles],
   );
 
   if (hasProductAnalysis && profiles) {

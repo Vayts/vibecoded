@@ -1,15 +1,12 @@
 import type { FamilyMember } from '@acme/shared';
+import { ChevronRight, Plus } from 'lucide-react-native';
 import { Alert, TouchableOpacity, View } from 'react-native';
-import { ChevronRight, Plus, Trash2 } from 'lucide-react-native';
 
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
-import {
-  useFamilyMembersQuery,
-  useDeleteFamilyMember,
-} from '../../hooks/useFamilyMembers';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
+import { useDeleteFamilyMember, useFamilyMembersQuery } from '../../hooks/useFamilyMembers';
 
 interface FamilyMemberListProps {
   onAdd: () => void;
@@ -40,80 +37,62 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
   const members = data?.items ?? [];
 
   return (
-    <View>
+    <View className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
       {isLoading ? (
-        <View className="px-4 py-4">
+        <View className="px-4 py-5">
           <Typography variant="bodySecondary" className="text-gray-500">
             Loading…
           </Typography>
         </View>
-      ) : members.length === 0 ? (
-        <View className="px-4 py-4">
-          <Typography variant="bodySecondary" className="text-gray-500">
-            Add family members to see how products fit their needs too.
-          </Typography>
-        </View>
-      ) : (
-        members.map((member) => (
-          <View
+      ) : members.length === 0 ? null : (
+        members.map((member, index) => (
+          <TouchableOpacity
             key={member.id}
-            className="flex-row items-center border-b border-gray-100 px-4 py-4"
+            activeOpacity={0.7}
+            className={`min-h-[68px] flex-row items-center mx-4 py-4 ${
+              index < members.length - 1 ? 'border-b border-gray-200' : ''
+            }`}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${member.name}`}
+            onLongPress={() => {
+              handleDelete(member);
+            }}
+            onPress={() => {
+              onEdit(member);
+            }}
           >
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="min-h-[44px] flex-1 flex-row items-center justify-between pr-2"
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${member.name}`}
-              onPress={() => {
-                onEdit(member);
-              }}
-            >
-              <View className="flex-1 flex-row items-center">
-                <UserAvatar
-                  imageUrl={member.avatarUrl}
-                  name={member.name}
-                  size="md"
-                  className="mr-3"
-                />
-                <View className="flex-1">
-                  <Typography variant="body" className="font-semibold text-gray-900">
-                    {member.name}
-                  </Typography>
-                  <Typography variant="bodySecondary" className="mt-0.5 text-gray-500">
-                    {member.mainGoal ? MAIN_GOAL_LABELS[member.mainGoal] : 'No goal set'}
-                  </Typography>
-                </View>
-              </View>
-              <ChevronRight color={COLORS.gray400} size={18} />
-            </TouchableOpacity>
+            <UserAvatar imageUrl={member.avatarUrl} name={member.name} size="md" className="mr-3" />
 
-            <TouchableOpacity
-              activeOpacity={0.7}
-              className="ml-2 h-11 w-11 items-center justify-center rounded-full"
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${member.name}`}
-              onPress={() => {
-                handleDelete(member);
-              }}
-            >
-              <Trash2 color={COLORS.danger} size={18} />
-            </TouchableOpacity>
-          </View>
+            <View className="flex-1 pr-3">
+              <Typography variant="body" className="font-semibold text-neutrals-900">
+                {member.name}
+              </Typography>
+              <Typography variant="bodySecondary" className="mt-1 text-neutrals-500">
+                {member.mainGoal ? MAIN_GOAL_LABELS[member.mainGoal] : 'No goal set'}
+              </Typography>
+            </View>
+
+            <ChevronRight color={COLORS.gray500} size={18} strokeWidth={2} />
+          </TouchableOpacity>
         ))
       )}
 
       <TouchableOpacity
         activeOpacity={0.7}
-        className="min-h-[52px] flex-row items-center px-4 py-4"
+        className="min-h-[52px] flex-row items-center justify-center border-gray-200 mx-4 py-4"
+        style={{ borderTopWidth: members.length > 0 ? 1 : 0 }}
         accessibilityRole="button"
         accessibilityLabel="Add family member"
         onPress={onAdd}
       >
-        <View className="mr-3 h-8 w-8 items-center justify-center rounded-full bg-blue-50">
-          <Plus color={COLORS.primary} size={18} />
+        <View
+          className="mr-2 h-6 w-6 items-center justify-center rounded-full"
+          style={{ backgroundColor: COLORS.primary25 }}
+        >
+          <Plus color={COLORS.primary} size={16} strokeWidth={2.5} />
         </View>
-        <Typography variant="body" className="font-semibold" style={{ color: COLORS.primary }}>
-          Add member
+        <Typography variant="button" style={{ color: COLORS.primary }}>
+          Add a member
         </Typography>
       </TouchableOpacity>
     </View>
