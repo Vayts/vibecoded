@@ -1,4 +1,5 @@
 import type { ScanHistoryItem } from '@acme/shared';
+import { useEffect, useState } from 'react';
 import { Barcode, ClockFading, Heart } from 'lucide-react-native';
 import { Image, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
@@ -7,7 +8,6 @@ import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorage
 import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
 import { ProfileScoreChips } from '../ProfileScoreChips';
-import { colors } from 'react-native-keyboard-controller/lib/typescript/components/KeyboardToolbar/colors';
 
 interface ScanHistoryRowProps {
   item: ScanHistoryItem;
@@ -49,11 +49,19 @@ export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanH
 
   const productId = item.product?.id ?? null;
   const isFavourite = item.isFavourite ?? false;
-  const { toggle } = useToggleFavouriteMutation();
+  const { isLoading, toggle } = useToggleFavouriteMutation();
+  const [optimisticFavourite, setOptimisticFavourite] = useState(isFavourite);
+
+  useEffect(() => {
+    setOptimisticFavourite(isFavourite);
+  }, [isFavourite]);
 
   const handleToggleFavourite = () => {
-    if (!productId) return;
-    toggle(productId, isFavourite);
+    if (!productId || isLoading) return;
+
+    const nextFavourite = !optimisticFavourite;
+    setOptimisticFavourite(nextFavourite);
+    toggle(productId, optimisticFavourite);
   };
 
   return (
@@ -119,12 +127,12 @@ export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanH
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="ml-2 h-11 w-11 items-center self-start justify-center"
           accessibilityRole="button"
-          accessibilityLabel={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+          accessibilityLabel={optimisticFavourite ? 'Remove from favourites' : 'Add to favourites'}
         >
           <Heart
             size={20}
-            color={isFavourite ? COLORS.accent500 : COLORS.neutrals900}
-            fill={isFavourite ? COLORS.accent500 : 'none'}
+            color={optimisticFavourite ? COLORS.accent500 : COLORS.neutrals900}
+            fill={optimisticFavourite ? COLORS.accent500 : 'none'}
           />
         </TouchableOpacity>
       ) : null}

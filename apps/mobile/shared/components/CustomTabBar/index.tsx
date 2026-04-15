@@ -10,6 +10,9 @@ const FLOATING_GAP = 8;
 const TAB_BAR_SIDE_INSET = 14;
 const TAB_BAR_HEIGHT = 80;
 
+export const CUSTOM_TAB_BAR_HEIGHT = TAB_BAR_HEIGHT;
+export const CUSTOM_TAB_BAR_FLOATING_GAP = FLOATING_GAP;
+
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {

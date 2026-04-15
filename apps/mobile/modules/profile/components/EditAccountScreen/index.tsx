@@ -1,71 +1,133 @@
+import { Stack, useRouter } from 'expo-router';
+import { Pen } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
-import { Keyboard, Pressable, View } from 'react-native';
+import { Keyboard, Pressable, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AvatarField } from '../../../../shared/components/AvatarField';
 import { Button } from '../../../../shared/components/Button';
-import { Input } from '../../../../shared/components/Input';
+import {
+  CUSTOM_TAB_BAR_FLOATING_GAP,
+  CUSTOM_TAB_BAR_HEIGHT,
+} from '../../../../shared/components/CustomTabBar';
+import { ScreenHeader } from '../../../../shared/components/ScreenHeader';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
 import { Typography } from '../../../../shared/components/Typography';
-import { selectAndUploadAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
+import { UserAvatar } from '../../../../shared/components/UserAvatar';
+import { COLORS } from '../../../../shared/constants/colors';
+import {
+  getUserFallbackAvatarImage,
+  pickAndUploadAvatarImage,
+  type AvatarImageSource,
+} from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useCurrentUserQuery } from '../../api/profileQueries';
+import {
+  type UpdateProfilePayload,
+} from '../../api/profileMutations';
 import { useUpdateProfile } from '../../hooks/useUpdateProfile';
+import { EditAvatarOptionsMenu } from './EditAvatarOptionsMenu';
+import { EditAccountField } from './EditAccountField';
+
+const UPDATE_PROFILE_ERROR_MESSAGE = 'Unable to update profile';
+const UPLOAD_AVATAR_ERROR_MESSAGE = 'Unable to upload avatar';
 
 export function EditAccountScreen() {
   const router = useRouter();
-  const { setUser, user: authUser } = useAuthStore();
+  const insets = useSafeAreaInsets();
+  const authUser = useAuthStore((state) => state.user);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
-  const mutation = useUpdateProfile(authUser?.id);
+  const updateProfileMutation = useUpdateProfile(authUser?.id);
   const user = currentUserQuery.data ?? authUser;
   const [name, setName] = useState(user?.name ?? '');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const [isAvatarActionPending, setIsAvatarActionPending] = useState(false);
+  const tabBarClearance = CUSTOM_TAB_BAR_HEIGHT + CUSTOM_TAB_BAR_FLOATING_GAP + 20;
 
   useEffect(() => {
     setName(user?.name ?? '');
-    setAvatarUrl(user?.avatarUrl ?? null);
-  }, [user?.avatarUrl, user?.name]);
+  }, [user?.name]);
 
-  const handleChangeAvatar = async () => {
+  const currentName = user?.name ?? '';
+  const currentAvatarUrl = user?.avatarUrl ?? null;
+  const fallbackImageUrl = getUserFallbackAvatarImage(user);
+  const isBusy = updateProfileMutation.isPending || isAvatarActionPending;
+  const isNameChanged = name.trim() !== currentName.trim();
+
+  const closeAvatarMenu = () => {
+    setIsAvatarMenuOpen(false);
+  };
+
+  const persistProfileUpdate = async (
+    payload: UpdateProfilePayload,
+  ): Promise<boolean> => {
     setErrorMessage(null);
-    setIsUploadingAvatar(true);
 
     try {
-      const nextAvatarUrl = await selectAndUploadAvatarImage();
-
-      if (nextAvatarUrl) {
-        setAvatarUrl(nextAvatarUrl);
-      }
+      await updateProfileMutation.mutateAsync(payload);
+      return true;
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to upload avatar');
+      setErrorMessage(
+        error instanceof Error ? error.message : UPDATE_PROFILE_ERROR_MESSAGE,
+      );
+      return false;
+    }
+  };
+
+  const handleAvatarSelection = async (source: AvatarImageSource) => {
+    closeAvatarMenu();
+    setErrorMessage(null);
+    setIsAvatarActionPending(true);
+
+    try {
+      const nextAvatarUrl = await pickAndUploadAvatarImage(source);
+
+      if (!nextAvatarUrl) {
+        return;
+      }
+
+      await persistProfileUpdate({ avatarUrl: nextAvatarUrl });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : UPLOAD_AVATAR_ERROR_MESSAGE,
+      );
     } finally {
-      setIsUploadingAvatar(false);
+      setIsAvatarActionPending(false);
+    }
+  };
+
+  const handleAvatarDelete = async () => {
+    closeAvatarMenu();
+    setIsAvatarActionPending(true);
+
+    try {
+      await persistProfileUpdate({ avatarUrl: null });
+    } finally {
+      setIsAvatarActionPending(false);
     }
   };
 
   const handleSave = async () => {
     const trimmedName = name.trim();
+
     if (!trimmedName) {
       setNameError('Name is required');
       return;
     }
 
     setNameError(null);
-    setErrorMessage(null);
 
-    try {
-      const updatedUser = await mutation.mutateAsync({
-        name: trimmedName,
-        avatarUrl,
-      });
-      setUser(updatedUser);
+    if (!isNameChanged) {
       router.back();
-    } catch (saveError) {
-      setErrorMessage(saveError instanceof Error ? saveError.message : 'Unable to update profile');
+      return;
+    }
+
+    const didUpdate = await persistProfileUpdate({ name: trimmedName });
+
+    if (didUpdate) {
+      router.back();
     }
   };
 
@@ -74,69 +136,116 @@ export function EditAccountScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background">
-      <KeyboardAwareScrollView
-        bottomOffset={60}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 16,
+    <View className="flex-1 bg-white">
+      <Stack.Screen
+        options={{
+          header: () => <ScreenHeader title="Edit profile" centerTitle />,
         }}
+      />
+
+      <KeyboardAwareScrollView
+        className="flex-1"
+        bottomOffset={-(24 + tabBarClearance)}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 24 + tabBarClearance,
+          flex: 1,
+        }}
+        extraKeyboardSpace={-(24 + tabBarClearance + (insets.bottom / 2))}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={Keyboard.dismiss}>
-          <View className="mt-6">
-            <Typography variant="pageTitle">Edit profile</Typography>
-            <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-              Update the photo and name shown across your account.
-            </Typography>
+        <Pressable
+          className="flex-1"
+          style={{ flex: 1 }}
+          onPress={() => {
+            Keyboard.dismiss();
+
+            if (isAvatarMenuOpen) {
+              closeAvatarMenu();
+            }
+          }}
+        >
+          <View className="items-center pt-0" style={{ zIndex: isAvatarMenuOpen ? 20 : 1 }}>
+            <View className="relative items-center">
+              <TouchableOpacity
+                activeOpacity={0.9}
+                accessibilityRole="button"
+                accessibilityLabel="Edit profile photo"
+                disabled={isBusy}
+                onPress={() => {
+                  setIsAvatarMenuOpen((current) => !current);
+                }}
+              >
+                <UserAvatar
+                  imageUrl={currentAvatarUrl}
+                  fallbackImageUrl={fallbackImageUrl}
+                  name={name || user.name}
+                  size="xl"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile photo options"
+                className="absolute -bottom-0.5 right-0 h-9 w-9 items-center justify-center rounded-full"
+                style={{ backgroundColor: COLORS.primary }}
+                disabled={isBusy}
+                onPress={() => {
+                  setIsAvatarMenuOpen((current) => !current);
+                }}
+              >
+                <Pen color={COLORS.white} size={16} strokeWidth={2.2} />
+              </TouchableOpacity>
+
+              {isAvatarMenuOpen ? (
+                <EditAvatarOptionsMenu
+                  canDelete={Boolean(currentAvatarUrl || fallbackImageUrl)}
+                  onDelete={() => {
+                    void handleAvatarDelete();
+                  }}
+                  onSelectCamera={() => {
+                    void handleAvatarSelection('camera');
+                  }}
+                  onSelectGallery={() => {
+                    void handleAvatarSelection('gallery');
+                  }}
+                />
+              ) : null}
+            </View>
           </View>
 
-          <View className="mt-8 gap-5">
-            <AvatarField
-              name={name || user.name}
-              imageUrl={avatarUrl}
-              fallbackImageUrl={user.image}
-              isUploading={isUploadingAvatar}
-              canRemove={Boolean(avatarUrl)}
-              helperText="Used in your profile header and profile comparison chips."
-              onChangePress={() => {
-                void handleChangeAvatar();
-              }}
-              onRemovePress={() => {
-                setErrorMessage(null);
-                setAvatarUrl(null);
-              }}
-            />
-
-            <Input
-              label="Display name"
+          <View className="mt-4">
+            <EditAccountField
+              label="Name"
               value={name}
+              error={nameError}
               onChangeText={(value) => {
                 setName(value);
+
                 if (nameError) {
                   setNameError(null);
                 }
               }}
-              placeholder="Your name"
-              error={nameError ?? undefined}
             />
 
-            <Input label="Email" value={user?.email ?? ''} editable={false} />
+            <EditAccountField label="Email" value={user.email ?? ''} editable={false} />
 
             {errorMessage ? (
-              <Typography variant="bodySecondary" className="text-center text-red-500">
+              <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
                 {errorMessage}
               </Typography>
             ) : null}
           </View>
         </Pressable>
 
-        <View className="mt-auto pt-6 pb-12">
+        <View className="pt-4 flex justify-center items-center" style={{ paddingBottom: insets.bottom }}>
           <Button
             fullWidth
             label="Save changes"
-            loading={mutation.isPending}
+            disabled={!isNameChanged}
+            loading={isBusy}
             onPress={() => {
               void handleSave();
             }}

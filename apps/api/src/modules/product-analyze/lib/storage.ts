@@ -178,3 +178,40 @@ export const getStoredObject = async (
     throw error;
   }
 };
+
+export const deleteStoredObject = async (objectPath: string): Promise<void> => {
+  await ensureBucket();
+
+  const normalizedPath = normalizeObjectPath(objectPath);
+
+  if (!normalizedPath) {
+    return;
+  }
+
+  if (STORAGE_BACKEND === 'gcs') {
+    const file = gcsClient.bucket(BUCKET).file(normalizedPath);
+    const [exists] = await file.exists();
+
+    if (!exists) {
+      return;
+    }
+
+    await file.delete();
+    return;
+  }
+
+  try {
+    await minioClient.removeObject(BUCKET, normalizedPath);
+  } catch (error) {
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: string }).code)
+        : undefined;
+
+    if (code === 'NotFound' || code === 'NoSuchKey' || code === 'NoSuchObject') {
+      return;
+    }
+
+    throw error;
+  }
+};

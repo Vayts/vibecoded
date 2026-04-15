@@ -5,22 +5,26 @@ import { COLORS } from '../../constants/colors';
 import { resolveStorageUri } from '../../lib/storage/resolveStorageUri';
 import { Typography } from '../Typography';
 
-type UserAvatarSize = 'xss' | 'xs' | 'sm' | 'md' | 'lg';
+type UserAvatarSize = 'xss' | 'xs' | 's' | 'sm' | 'md' | 'lg' | 'xl';
 
 const AVATAR_SIZE_MAP: Record<UserAvatarSize, number> = {
   xss: 20,
   xs: 26,
+  s: 28,
   sm: 32,
   md: 44,
   lg: 64,
+  xl: 72,
 };
 
 const AVATAR_TEXT_VARIANT: Record<UserAvatarSize, 'caption' | 'buttonSmall' | 'sectionTitle'> = {
   xss: 'caption',
   xs: 'caption',
+  s: 'caption',
   sm: 'caption',
   md: 'buttonSmall',
   lg: 'sectionTitle',
+  xl: 'sectionTitle',
 };
 
 export interface UserAvatarProps {

@@ -1,22 +1,17 @@
 import type { ProductComparisonResult, ProfileComparisonResult } from '@acme/shared';
 import { useLocalSearchParams } from 'expo-router';
-import { ArrowLeftRight, CircleX } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CustomLoader } from '../../../../shared/components/CustomLoader';
-import { COLORS } from '../../../../shared/constants/colors';
+import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { useComparisonDetailQuery } from '../../../scans/hooks/useComparisonsQuery';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useComparisonResultStore } from '../../stores/comparisonResultStore';
-import { ComparisonProductCard } from './ComparisonProductCard';
-import { ComparisonProfileSelector } from './ComparisonProfileSelector';
-import { NutritionComparison } from './MetricRow';
-import { VerdictCard } from './VerdictCard';
-import { Typography } from '../../../../shared/components/Typography';
+import { ComparisonResultContent } from './ComparisonResultContent';
+import { ComparisonStatusView } from './ComparisonStatusView';
 
 type ProductKey = 'product1' | 'product2';
 type DisplayWinner = 'left' | 'right' | 'tie' | 'neither';
@@ -29,25 +24,33 @@ export function ComparisonResultScreen() {
   const params = useLocalSearchParams<{ comparisonId?: string | string[]; scanId?: string | string[] }>();
   const authUser = useAuthStore((s) => s.user);
   const clearLiveResult = useComparisonResultStore((state) => state.clearLiveResult);
+  const liveErrorMessage = useComparisonResultStore((state) => state.liveErrorMessage);
   const liveResult = useComparisonResultStore((state) => state.liveResult);
+  const liveStatus = useComparisonResultStore((state) => state.liveStatus);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
   const familyMembersQuery = useFamilyMembersQuery();
+  const contentOpacity = useRef(new Animated.Value(1)).current;
+  const loaderOpacity = useRef(new Animated.Value(0)).current;
+  const [isLoaderOverlayVisible, setIsLoaderOverlayVisible] = useState(false);
 
   const comparisonId = getParamValue(params.comparisonId);
   const scanId = getParamValue(params.scanId);
   const { data: scanDetail, isLoading: isScanLoading } = useScanDetailQuery(scanId);
   const { data: comparisonDetail, isLoading: isComparisonLoading } = useComparisonDetailQuery(comparisonId);
 
-  const isLoading = (scanId && isScanLoading) || (comparisonId && isComparisonLoading);
+  const isHistoryLoading = Boolean((scanId && isScanLoading) || (comparisonId && isComparisonLoading));
+  const isLiveRoute = !comparisonId && !scanId;
+  const isPendingLiveComparison = isLiveRoute && liveStatus === 'loading';
   const result: ProductComparisonResult | undefined =
     (comparisonDetail?.comparisonResult as ProductComparisonResult | undefined) ??
     (scanDetail?.comparisonResult as ProductComparisonResult | undefined) ??
-    (!comparisonId && !scanId ? liveResult ?? undefined : undefined);
+    (isLiveRoute ? liveResult ?? undefined : undefined);
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [isSwapped, setIsSwapped] = useState(false);
   const profiles = result?.profiles;
   const currentUser = currentUserQuery.data ?? authUser;
+  const currentUserFallbackImageUrl = getUserFallbackAvatarImage(currentUser);
   const familyMembersById = useMemo(
     () => new Map((familyMembersQuery.data?.items ?? []).map((member) => [member.id, member])),
     [familyMembersQuery.data?.items],
@@ -62,10 +65,10 @@ export function ComparisonResultScreen() {
           id: profile.profileId,
           name: profile.profileName,
           imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
-          fallbackImageUrl: isCurrentUser ? currentUser?.image ?? null : null,
+          fallbackImageUrl: isCurrentUser ? currentUserFallbackImageUrl : null,
         };
       }) ?? [],
-    [currentUser?.avatarUrl, currentUser?.image, familyMembersById, profiles],
+    [currentUser?.avatarUrl, currentUserFallbackImageUrl, familyMembersById, profiles],
   );
   useEffect(() => {
     setSelectedProfileId('');
@@ -73,25 +76,79 @@ export function ComparisonResultScreen() {
   }, [comparisonDetail?.id, comparisonId, liveResult, scanDetail?.id, scanId]);
   useEffect(() => () => clearLiveResult(), [clearLiveResult]);
 
-  if ((scanId || comparisonId) && isLoading) {
+  useEffect(() => {
+    if (!isLiveRoute) {
+      contentOpacity.setValue(1);
+      loaderOpacity.setValue(0);
+      setIsLoaderOverlayVisible(false);
+      return;
+    }
+
+    if (isPendingLiveComparison) {
+      contentOpacity.setValue(0);
+      loaderOpacity.setValue(1);
+      setIsLoaderOverlayVisible(true);
+      return;
+    }
+
+    if (liveStatus === 'ready' && result && isLoaderOverlayVisible) {
+      const animation = Animated.parallel([
+        Animated.timing(contentOpacity, {
+          duration: 220,
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+        Animated.timing(loaderOpacity, {
+          duration: 220,
+          toValue: 0,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      animation.start(({ finished }) => {
+        if (finished) {
+          setIsLoaderOverlayVisible(false);
+          loaderOpacity.setValue(0);
+        }
+      });
+
+      return () => animation.stop();
+    }
+
+    contentOpacity.setValue(1);
+    loaderOpacity.setValue(0);
+    setIsLoaderOverlayVisible(false);
+  }, [contentOpacity, isLiveRoute, isLoaderOverlayVisible, isPendingLiveComparison, liveStatus, loaderOpacity, result]);
+
+  if (isHistoryLoading) {
+    return <ComparisonStatusView description="Loading comparison..." showLoader />;
+  }
+
+  if (isLiveRoute && liveStatus === 'error') {
     return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1 items-center justify-center px-6 py-12">
-          <CustomLoader size="md" isReversed />
-          <Typography variant="bodySecondary" className="mt-3 text-gray-500">Loading comparison…</Typography>
-        </View>
-      </View>
+      <ComparisonStatusView
+        title="Couldn't prepare comparison"
+        description={liveErrorMessage ?? 'Please go back and try comparing these products again.'}
+      />
     );
   }
 
   if (!result || !profiles) {
-    return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1 items-center justify-center px-8">
-          <Typography variant="sectionTitle" className="text-center">No comparison data available</Typography>
-          <Typography variant="bodySecondary" className="mt-2 text-center text-gray-500">Go back and open a comparison from scanner or history.</Typography>
+    if (isPendingLiveComparison) {
+      return (
+        <View className="flex-1 bg-background">
+          <Animated.View className="flex-1" style={{ opacity: loaderOpacity }}>
+            <ComparisonStatusView description="Preparing comparison..." showLoader />
+          </Animated.View>
         </View>
-      </View>
+      );
+    }
+
+    return (
+      <ComparisonStatusView
+        title="No comparison data available"
+        description="Go back and open a comparison from scanner or history."
+      />
     );
   }
 
@@ -110,119 +167,30 @@ export function ComparisonResultScreen() {
       : activeProfile.winner === leftKey
         ? 'left'
         : 'right';
-  const showNoMatchesBadge = displayWinner === 'neither';
 
   return (
     <View className="flex-1 bg-background">
-      <View
-                  style={{
-                    backgroundColor: COLORS.white,
-                    borderTopLeftRadius: 32,
-                    borderTopRightRadius: 32,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 8,
-                    gap: 12,
-                    marginTop: 8,
-                    flex: 1,
-                  }}
-                >
-                  <View
-                    style={{
-                      borderTopLeftRadius: 32,
-                      borderTopRightRadius: 32,
-                      overflow: 'hidden',
-                      flex: 1,
-                    }}
-                  >
-        <ComparisonProfileSelector profiles={chipItems} selectedProfileId={activeProfileId} onSelect={setSelectedProfileId} />
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: insets.bottom + 28, paddingTop: 32 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="px-4">
-            {activeProfile && leftComparison && rightComparison ? (
-              <View>
-                {showNoMatchesBadge ? (
-                  <View className="absolute -top-4 left-0 right-0 z-20 items-center">
-                    <View
-                      className="flex-row items-center rounded-full border-[3px] border-white px-4 py-2"
-                      style={{ backgroundColor: COLORS.danger800 }}
-                    >
-                      <CircleX color={COLORS.white} size={18} strokeWidth={2.25} />
-                      <Typography variant="buttonSmall" className="ml-2 text-white">
-                        No matches
-                      </Typography>
-                    </View>
-                  </View>
-                ) : null}
-                <View className="relative mb-7 flex-row gap-3 pt-1">
-                  <ComparisonProductCard
-                    product={leftProduct}
-                    tone={
-                      displayWinner === 'left'
-                        ? 'winner'
-                        : displayWinner === 'neither'
-                          ? 'not-suitable'
-                          : 'neutral'
-                    }
-                    badgeLabel={
-                      displayWinner === 'left'
-                        ? 'Best choice'
-                        : undefined
-                    }
-                  />
-                  <ComparisonProductCard
-                    product={rightProduct}
-                    tone={
-                      displayWinner === 'right'
-                        ? 'winner'
-                        : displayWinner === 'neither'
-                          ? 'not-suitable'
-                          : 'neutral'
-                    }
-                    badgeLabel={
-                      displayWinner === 'right'
-                        ? 'Best choice'
-                        : undefined
-                    }
-                  />
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel="Swap compared products"
-                    activeOpacity={0.8}
-                    className="absolute left-1/2 h-10 w-10 items-center justify-center rounded-full border bg-white"
-                    style={{
-                      borderColor: COLORS.gray200,
-                      top: '50%',
-                      marginTop: -20,
-                      marginLeft: -20,
-                    }}
-                    onPress={() => setIsSwapped((current) => !current)}
-                  >
-                    <ArrowLeftRight color={COLORS.gray700} size={18} strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
-                <NutritionComparison
-                  leftProduct={leftProduct}
-                  rightProduct={rightProduct}
-                  leftComparison={leftComparison}
-                  rightComparison={rightComparison}
-                  displayWinner={displayWinner}
-                />
-                <VerdictCard profile={activeProfile} product1={result.product1} product2={result.product2} />
-              </View>
-            ) : (
-              <View className="items-center py-8">
-                <Typography variant="bodySecondary" className="text-gray-400">No comparison data available</Typography>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-        </View>
-      </View>
+      <Animated.View className="flex-1" style={{ opacity: isLiveRoute ? contentOpacity : 1 }}>
+        <ComparisonResultContent
+          activeProfile={activeProfile}
+          chipItems={chipItems}
+          displayWinner={displayWinner}
+          insetsBottom={insets.bottom}
+          leftComparison={leftComparison}
+          leftProduct={leftProduct}
+          onSelectProfile={setSelectedProfileId}
+          onSwapProducts={() => setIsSwapped((current) => !current)}
+          result={result}
+          rightComparison={rightComparison}
+          rightProduct={rightProduct}
+          selectedProfileId={activeProfileId}
+        />
+      </Animated.View>
+      {isLoaderOverlayVisible ? (
+        <Animated.View className="absolute inset-0" pointerEvents="none" style={{ opacity: loaderOpacity }}>
+          <ComparisonStatusView description="Preparing comparison..." showLoader />
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

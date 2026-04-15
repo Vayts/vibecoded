@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import React from 'react';
 
 interface ComparisonConclusionProps {
   conclusion: string;

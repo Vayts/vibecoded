@@ -12,8 +12,7 @@ import {
 } from '../../stores/familyMemberFormStore';
 import { FamilyMemberStepContent } from './steps';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-
-const STEP_TITLES = ['Name', 'Main goal', 'Restrictions', 'Allergies', 'Nutrition priorities'];
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface FamilyMemberFormProps {
   initialData?: FamilyMember;
@@ -37,6 +36,7 @@ export function FamilyMemberForm({
   const toPayload = useFamilyMemberFormStore((s) => s.toPayload);
   const scrollViewRef = useRef<ScrollView>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (initialData) {
@@ -57,9 +57,15 @@ export function FamilyMemberForm({
   }, [step]);
 
   const isLastStep = step === FAMILY_MEMBER_STEP_COUNT - 1;
-  const canContinue = step === 0 ? isNameStepValid(draft) : true;
+  const isAvatarStep = step === 1;
+  const canContinue = step === 0 ? isNameStepValid(draft) : isAvatarStep ? Boolean(draft.avatarUrl) : true;
 
   const handleContinue = () => {
+    setErrorMessage(null);
+    nextStep();
+  };
+
+  const handleSkipAvatarStep = () => {
     setErrorMessage(null);
     nextStep();
   };
@@ -77,10 +83,8 @@ export function FamilyMemberForm({
     }
   };
 
-  const progress = `${((step + 1) / FAMILY_MEMBER_STEP_COUNT) * 100}%` as const;
-
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-white" style={{paddingTop: insets.top}}>
       <Pressable className="flex-1" onPress={Keyboard.dismiss}>
         <KeyboardAwareScrollView
           bottomOffset={120}
@@ -91,28 +95,11 @@ export function FamilyMemberForm({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-            <View className="flex-1 px-5 pb-8 pt-4">
-              <View>
-                <View className="mb-3 flex-row items-center justify-between">
-                  <Typography variant="fieldLabel">
-                    Step {step + 1} of {FAMILY_MEMBER_STEP_COUNT}
-                  </Typography>
-                  <Typography variant="caption" className="text-gray-500">
-                    {STEP_TITLES[step]}
-                  </Typography>
-                </View>
-                <View className="h-2 overflow-hidden rounded-full bg-gray-100">
-                  <View
-                    className="h-full rounded-full bg-blue-600"
-                    style={{ width: progress }}
-                  />
-                </View>
-              </View>
-
+            <View className="flex-1 px-4">
               <Animated.View
                 key={step}
                 entering={FadeInDown.duration(240)}
-                className="mt-6 flex-1 rounded-xl border border-gray-100 bg-white px-5 py-6"
+                className="flex-1 rounded-xl border border-gray-100 bg-white px-5 py-6"
               >
                 <FamilyMemberStepContent step={step} />
               </Animated.View>
@@ -133,6 +120,24 @@ export function FamilyMemberForm({
                       void handleSubmit();
                     }}
                   />
+                ) : isAvatarStep ? (
+                  <>
+                    <Button
+                      fullWidth
+                      disabled={!canContinue}
+                      label="Continue"
+                      onPress={handleContinue}
+                    />
+
+                    {!draft.avatarUrl ? (
+                      <Button
+                        fullWidth
+                        label="Skip for now"
+                        onPress={handleSkipAvatarStep}
+                        variant="secondary"
+                      />
+                    ) : null}
+                  </>
                 ) : (
                   <Button
                     fullWidth
@@ -142,7 +147,7 @@ export function FamilyMemberForm({
                   />
                 )}
 
-                {step > 0 ? (
+                {step > 0 && !isAvatarStep ? (
                   <Button fullWidth label="Back" onPress={prevStep} variant="ghost" />
                 ) : null}
               </View>

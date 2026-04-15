@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';
 import { prisma } from '../product-analyze/lib/prisma';
+import { deleteStoredObject } from '../product-analyze/lib/storage';
 import { updateUserRequestSchema } from './user.schemas';
 
 export interface SerializedUser {
@@ -73,7 +74,20 @@ export class UserService {
       );
     }
 
-    const data: { name?: string; avatarUrl?: string | null } = {};
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userSelect,
+    });
+
+    if (!existingUser) {
+      throw ApiError.notFound('User not found');
+    }
+
+    const data: {
+      name?: string;
+      avatarUrl?: string | null;
+      image?: string | null;
+    } = {};
 
     if (parsed.data.name !== undefined) {
       data.name = parsed.data.name;
@@ -81,6 +95,7 @@ export class UserService {
 
     if (parsed.data.avatarUrl !== undefined) {
       data.avatarUrl = parsed.data.avatarUrl;
+      data.image = null;
     }
 
     const updated = await prisma.user.update({
@@ -88,6 +103,20 @@ export class UserService {
       select: userSelect,
       data,
     });
+
+    if (
+      existingUser.avatarUrl &&
+      existingUser.avatarUrl !== updated.avatarUrl
+    ) {
+      try {
+        await deleteStoredObject(existingUser.avatarUrl);
+      } catch (error) {
+        console.warn(
+          `[user] failed to delete previous avatar ${existingUser.avatarUrl}`,
+          error,
+        );
+      }
+    }
 
     return serializeUser(updated);
   }

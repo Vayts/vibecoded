@@ -49,7 +49,7 @@ function BestFitAvatarStack({
           >
             <UserAvatar
               imageUrl={isCurrentUser ? context.currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null}
-              fallbackImageUrl={isCurrentUser ? context.currentUser?.image ?? null : null}
+              fallbackImageUrl={isCurrentUser ? context.currentUser?.fallbackImageUrl ?? null : null}
               name={profile.profileName}
               size="xss"
               className="border-2 border-neutrals-300"

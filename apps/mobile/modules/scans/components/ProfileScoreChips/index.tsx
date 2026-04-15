@@ -45,7 +45,7 @@ const getAvatarProps = (chip: ProfileScoreChip, context: ProfileScoreChipContext
   if (chip.profileId === 'you') {
     return {
       imageUrl: context.currentUser?.avatarUrl ?? null,
-      fallbackImageUrl: context.currentUser?.image ?? null,
+      fallbackImageUrl: context.currentUser?.fallbackImageUrl ?? null,
     };
   }
 

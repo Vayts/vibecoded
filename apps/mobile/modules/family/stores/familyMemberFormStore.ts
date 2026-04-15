@@ -12,8 +12,8 @@ export interface FamilyMemberDraft {
   nutritionPriorities: NutritionPriority[];
 }
 
-export const FAMILY_MEMBER_STEP_COUNT = 5;
-export const FAMILY_MEMBER_REVIEW_STEP = 4;
+export const FAMILY_MEMBER_STEP_COUNT = 6;
+export const FAMILY_MEMBER_REVIEW_STEP = 5;
 
 const createInitialDraft = (): FamilyMemberDraft => ({
   name: '',

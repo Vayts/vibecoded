@@ -2,6 +2,7 @@ import type { ProductComparisonResult } from '@acme/shared';
 import type { Href } from 'expo-router';
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback } from 'react';
+import { InteractionManager } from 'react-native';
 import { useComparisonResultStore } from '../stores/comparisonResultStore';
 import { SheetsEnum } from '../../../shared/types/sheets';
 import { SheetManager } from 'react-native-actions-sheet/dist/src/sheetmanager';
@@ -13,14 +14,21 @@ interface ComparisonRouteParams {
   scanId?: string;
 }
 
+interface ComparisonNavigationOptions {
+  closeScannerResultSheet?: boolean;
+}
+
 export function useOpenComparisonRoute() {
   const router = useRouter();
   const pathname = usePathname();
+  const beginLiveComparison = useComparisonResultStore((state) => state.beginLiveComparison);
   const clearLiveResult = useComparisonResultStore((state) => state.clearLiveResult);
+  const failLiveComparison = useComparisonResultStore((state) => state.failLiveComparison);
+  const resolveLiveComparison = useComparisonResultStore((state) => state.resolveLiveComparison);
   const setLiveResult = useComparisonResultStore((state) => state.setLiveResult);
 
   const navigateToComparison = useCallback(
-    async (params?: ComparisonRouteParams) => {
+    (params?: ComparisonRouteParams, options?: ComparisonNavigationOptions) => {
       const href: Href = params?.comparisonId
         ? (`${COMPARISON_PATH}?comparisonId=${encodeURIComponent(params.comparisonId)}` as Href)
         : params?.scanId
@@ -29,11 +37,17 @@ export function useOpenComparisonRoute() {
 
       if (pathname === COMPARISON_PATH) {
         router.replace(href);
+      } else {
+        router.push(href);
+      }
+
+      if (!options?.closeScannerResultSheet) {
         return;
       }
 
-      router.push(href);
-      await SheetManager.hide(SheetsEnum.ScannerResultSheet);
+      InteractionManager.runAfterInteractions(() => {
+        void SheetManager.hide(SheetsEnum.ScannerResultSheet);
+      });
     },
     [pathname, router],
   );
@@ -62,9 +76,36 @@ export function useOpenComparisonRoute() {
     [navigateToComparison, setLiveResult],
   );
 
+  const beginPendingComparison = useCallback(() => beginLiveComparison(), [beginLiveComparison]);
+
+  const navigateToLiveComparison = useCallback(
+    (options?: ComparisonNavigationOptions) => {
+      navigateToComparison(undefined, options);
+    },
+    [navigateToComparison],
+  );
+
+  const rejectPendingComparison = useCallback(
+    (requestId: number, errorMessage: string) => {
+      failLiveComparison(requestId, errorMessage);
+    },
+    [failLiveComparison],
+  );
+
+  const resolvePendingComparison = useCallback(
+    (requestId: number, result: ProductComparisonResult) => {
+      resolveLiveComparison(requestId, result);
+    },
+    [resolveLiveComparison],
+  );
+
   return {
+    beginPendingComparison,
+    navigateToLiveComparison,
     openComparisonById,
     openComparisonByScanId,
     openLiveComparison,
+    rejectPendingComparison,
+    resolvePendingComparison,
   };
 }
