@@ -7,6 +7,9 @@ import ActionSheet, {
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import { ProductResultContent } from './ProductResultContent';
+import { getPreviewProductConflictTitle } from './ProductConflictAlert';
+import { hasProductResult } from './productResultHelpers';
+import { getActiveProfile } from './productResultPreviewHelpers';
 import { ScanDetailLoader } from './ScanDetailLoader';
 import { getPreviewSnapPoint } from './previewSnapPoint';
 
@@ -134,7 +137,12 @@ export function ScannerResultSheet() {
       hasSummaryContent,
       nutriScoreGrade: previewNutriScoreGrade,
     });
-  }, [hasPreviewState, hasSummaryContent, previewNutriScoreGrade, windowHeight]);
+  }, [
+    hasPreviewState,
+    hasSummaryContent,
+    previewNutriScoreGrade,
+    windowHeight,
+  ]);
   const detailState = useMemo(() => {
     if (!isLoadingInitialResult || scanId || resolvedResult || !hasPreviewState) {
       return undefined;
@@ -159,7 +167,7 @@ export function ScannerResultSheet() {
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
       onSnapIndexChange={handleSnapIndexChange}
-      containerStyle={{height: '100%'}}
+      containerStyle={{height: '100%', borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
     >
       {scanId ? (
           <ScanDetailLoader
@@ -174,6 +182,7 @@ export function ScannerResultSheet() {
           <ProductResultContent
             previewItem={item}
             result={resolvedResult}
+            scanId={scanId}
             previewProduct={previewProduct}
             previewImageUri={previewImageUri}
             resolvedPersonalResult={resolvedPersonalResult}

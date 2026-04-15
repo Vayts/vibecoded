@@ -14,7 +14,6 @@ export default function ProfileLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="add-family-member" options={{ headerShown: false }} />
       </Stack>
     </>
   );

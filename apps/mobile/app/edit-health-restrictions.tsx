@@ -1,5 +1,5 @@
-import { RestrictionsField } from '../../../modules/onboarding/components/OnboardingFields';
-import { HealthPreferenceEditorScreen } from '../../../modules/profile/components/HealthPreferenceEditorScreen';
+import { RestrictionsField } from '../modules/onboarding/components/OnboardingFields';
+import { HealthPreferenceEditorScreen } from '../modules/profile/components/HealthPreferenceEditorScreen';
 
 export default function EditHealthRestrictionsRoute() {
   return (

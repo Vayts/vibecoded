@@ -1,23 +1,29 @@
+import { memo } from 'react';
 import type { ScanHistoryItem } from '@acme/shared';
-import { useEffect, useState } from 'react';
+import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN } from '@acme/shared';
+import { Image as ExpoImage } from 'expo-image';
 import { Barcode, ClockFading, Heart } from 'lucide-react-native';
-import { Image, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
-import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
 import { ProfileScoreChips } from '../ProfileScoreChips';
 
 interface ScanHistoryRowProps {
   item: ScanHistoryItem;
   onPress: (item: ScanHistoryItem) => void;
   profileScoreChipContext: ProfileScoreChipContext;
+  onToggleFavourite: (productId: string, currentlyFavourite: boolean) => void;
 }
 
+const IMAGE_PLACEHOLDER_COLOR = COLORS.neutrals100;
+const SCAN_IMAGE_SIZE = 74;
+const SCAN_IMAGE_RADIUS = 12;
+
 const getScoreColor = (score: number): string => {
-  if (score >= 70) return COLORS.success;
-  if (score >= 40) return COLORS.warning;
+  if (score >= GOOD_FIT_SCORE_MIN) return COLORS.success;
+  if (score >= NEUTRAL_FIT_SCORE_MIN) return COLORS.neutrals700;
   return COLORS.danger;
 };
 
@@ -39,7 +45,12 @@ const formatRelativeTime = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString();
 };
 
-export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanHistoryRowProps) {
+export const ScanHistoryRow = memo(function ScanHistoryRow({
+  item,
+  onPress,
+  profileScoreChipContext,
+  onToggleFavourite,
+}: ScanHistoryRowProps) {
   const imageUri = resolveStorageUri(item.product?.image_url) ?? null;
   const productName = item.product?.product_name ?? 'Unknown product';
   const brands = item.product?.brands ?? null;
@@ -49,19 +60,13 @@ export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanH
 
   const productId = item.product?.id ?? null;
   const isFavourite = item.isFavourite ?? false;
-  const { isLoading, toggle } = useToggleFavouriteMutation();
-  const [optimisticFavourite, setOptimisticFavourite] = useState(isFavourite);
-
-  useEffect(() => {
-    setOptimisticFavourite(isFavourite);
-  }, [isFavourite]);
 
   const handleToggleFavourite = () => {
-    if (!productId || isLoading) return;
+    if (!productId) {
+      return;
+    }
 
-    const nextFavourite = !optimisticFavourite;
-    setOptimisticFavourite(nextFavourite);
-    toggle(productId, optimisticFavourite);
+    onToggleFavourite(productId, isFavourite);
   };
 
   return (
@@ -73,10 +78,19 @@ export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanH
       accessibilityLabel={`View scan result for ${productName}`}
     >
       {imageUri ? (
-        <Image
+        <ExpoImage
           source={{ uri: imageUri }}
-          className="h-[74px] w-[74px] rounded-xl bg-gray-100 self-start"
-          resizeMode="cover"
+          style={{
+            width: SCAN_IMAGE_SIZE,
+            height: SCAN_IMAGE_SIZE,
+            borderRadius: SCAN_IMAGE_RADIUS,
+            alignSelf: 'flex-start',
+            backgroundColor: COLORS.neutrals100,
+          }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={120}
+          placeholder={IMAGE_PLACEHOLDER_COLOR}
         />
       ) : (
         <View className="h-[74px] w-[74px] items-center justify-center rounded-xl bg-blue-50">
@@ -127,15 +141,15 @@ export function ScanHistoryRow({ item, onPress, profileScoreChipContext }: ScanH
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           className="ml-2 h-11 w-11 items-center self-start justify-center"
           accessibilityRole="button"
-          accessibilityLabel={optimisticFavourite ? 'Remove from favourites' : 'Add to favourites'}
+          accessibilityLabel={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
         >
           <Heart
             size={20}
-            color={optimisticFavourite ? COLORS.accent500 : COLORS.neutrals900}
-            fill={optimisticFavourite ? COLORS.accent500 : 'none'}
+            color={isFavourite ? COLORS.accent500 : COLORS.neutrals900}
+            fill={isFavourite ? COLORS.accent500 : 'none'}
           />
         </TouchableOpacity>
       ) : null}
     </TouchableOpacity>
   );
-}
+});

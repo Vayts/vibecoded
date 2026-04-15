@@ -1,10 +1,6 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import { View } from 'react-native';
 import { Button } from '../../../../shared/components/Button';
-import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
-import { ProfileScoreChips } from '../../../scans/components/ProfileScoreChips';
-import type { ProfileScoreChipContext } from '../../../scans/hooks/useProfileScoreChipContext';
 import { PersonalAnalysisLoader } from './PersonalAnalysisLoader';
 
 export const PREVIEW_SUMMARY_ESTIMATED_HEIGHT = 190;
@@ -13,7 +9,6 @@ interface PreviewSummaryContentProps {
   chips?: NonNullable<ScanHistoryItem['profileChips']>;
   score: number | null;
   showPendingSummary: boolean;
-  context: ProfileScoreChipContext;
   isLoading?: boolean;
   showActions?: boolean;
   onComparePress?: () => void;
@@ -21,17 +16,10 @@ interface PreviewSummaryContentProps {
   onExpandDetails: () => void;
 }
 
-const getSummaryScoreColor = (score: number): string => {
-  if (score >= 70) return COLORS.success;
-  if (score >= 40) return COLORS.warning;
-  return COLORS.danger;
-};
-
 export function PreviewSummaryContent({
   chips,
   score,
   showPendingSummary,
-  context,
   isLoading = false,
   showActions = true,
   onComparePress,

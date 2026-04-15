@@ -11,6 +11,11 @@ import type {
   ScoreBreakdownStep,
   IngredientAnalysis,
 } from '@acme/shared';
+import {
+  GOOD_FIT_SCORE_MIN,
+  GREAT_FIT_SCORE_MIN,
+  NEUTRAL_FIT_SCORE_MIN,
+} from '@acme/shared';
 import type { OnboardingResponse } from '@acme/shared';
 
 // ============================================================
@@ -25,9 +30,9 @@ const clamp = (score: number): number =>
   Math.max(MIN_SCORE, Math.min(MAX_SCORE, score));
 
 const getFitLabel = (score: number): FitLabel => {
-  if (score >= 80) return 'great_fit';
-  if (score >= 60) return 'good_fit';
-  if (score >= 40) return 'neutral';
+  if (score >= GREAT_FIT_SCORE_MIN) return 'great_fit';
+  if (score >= GOOD_FIT_SCORE_MIN) return 'good_fit';
+  if (score >= NEUTRAL_FIT_SCORE_MIN) return 'neutral';
   return 'poor_fit';
 };
 
@@ -295,6 +300,10 @@ type InternalScoreReason = Omit<ScoreReason, 'category'> & {
   category?: ScoreReasonCategory;
   displayGroupKey?: string;
   hidden?: boolean;
+  restrictionDisplayState?: 'conflict' | 'unclear' | 'match';
+  restrictionLabel?: string;
+  restrictionDetail?: string | null;
+  restrictionFactValues?: string[];
 };
 
 const escapeRegExp = (value: string): string =>
@@ -367,6 +376,99 @@ const joinDescriptions = (
   ).join('. ');
 };
 
+const formatLabelList = (values: string[]): string => {
+  return uniqueValues(values)
+    .map((value) => value.toLowerCase())
+    .join(', ');
+};
+
+const splitFactValues = (value: string): string[] => {
+  return uniqueValues(
+    value
+      .split(/\s*(?:,|;)\s*|\s+(?:and|or)\s+/i)
+      .map((item) => item.trim()),
+  );
+};
+
+const extractContainedFactValues = (
+  description: string | null | undefined,
+): string[] => {
+  const trimmed = description ? trimSentence(description) : '';
+  const match = trimmed.match(/^contains\s+(.+)$/i);
+
+  if (!match) {
+    return [];
+  }
+
+  return splitFactValues(match[1]);
+};
+
+const buildRestrictionGroupDescription = (
+  group: InternalScoreReason[],
+): string => {
+  const conflictLabels = uniqueValues(
+    group
+      .filter((reason) => reason.restrictionDisplayState === 'conflict')
+      .map((reason) => reason.restrictionLabel ?? reason.label),
+  );
+  const unclearLabels = uniqueValues(
+    group
+      .filter((reason) => reason.restrictionDisplayState === 'unclear')
+      .map((reason) => reason.restrictionLabel ?? reason.label),
+  );
+  const matchLabels = uniqueValues(
+    group
+      .filter((reason) => reason.restrictionDisplayState === 'match')
+      .map((reason) => reason.restrictionLabel ?? reason.label),
+  );
+  const factValues = uniqueValues([
+    ...group.flatMap((reason) =>
+      extractContainedFactValues(reason.restrictionDetail),
+    ),
+    ...group.flatMap((reason) => reason.restrictionFactValues ?? []),
+  ]);
+  const fallbackDetailReasons = uniqueValues(
+    group.flatMap((reason) => {
+      if (
+        !reason.restrictionDetail ||
+        extractContainedFactValues(reason.restrictionDetail).length > 0
+      ) {
+        return [];
+      }
+
+      return [reason.restrictionDetail];
+    }),
+  );
+
+  const descriptions: Array<string | null | undefined> = [];
+
+  if (conflictLabels.length > 0) {
+    descriptions.push(
+      `Conflicts with your diet (${formatLabelList(conflictLabels)})`,
+    );
+  }
+
+  if (unclearLabels.length > 0) {
+    descriptions.push(
+      `Cannot confirm compatibility with your diet (${formatLabelList(
+        unclearLabels,
+      )})`,
+    );
+  }
+
+  if (matchLabels.length > 0) {
+    descriptions.push(`Matches your diet (${formatLabelList(matchLabels)})`);
+  }
+
+  if (factValues.length > 0) {
+    descriptions.push(`Contains ${formatFactList(factValues)}`);
+  }
+
+  descriptions.push(...fallbackDetailReasons);
+
+  return joinDescriptions(descriptions) || joinDescriptions(group.map((reason) => reason.description));
+};
+
 const buildDisplayReasons = (
   reasons: InternalScoreReason[],
   kinds: Array<ScoreReason['kind']>,
@@ -378,7 +480,7 @@ const buildDisplayReasons = (
       continue;
     }
 
-    const groupKey = `${reason.kind}:${reason.displayGroupKey ?? reason.category}`;
+    const groupKey = reason.displayGroupKey ?? reason.category;
     const existing = grouped.get(groupKey);
 
     if (existing) {
@@ -392,17 +494,36 @@ const buildDisplayReasons = (
   return Array.from(grouped.values()).map((group) => {
     const first = group[0];
     const category = first.category as ScoreReasonCategory;
-    const valueReason = group.find((reason) => reason.value != null);
+    const dominantReason = group.reduce((best, current) => {
+      const bestPriority =
+        best.kind === 'negative' ? 3 : best.kind === 'positive' ? 2 : 1;
+      const currentPriority =
+        current.kind === 'negative' ? 3 : current.kind === 'positive' ? 2 : 1;
+
+      if (currentPriority !== bestPriority) {
+        return currentPriority > bestPriority ? current : best;
+      }
+
+      return Math.abs(current.impact) > Math.abs(best.impact) ? current : best;
+    });
+    const valueReason =
+      group.find((reason) => reason.value != null && reason.key === dominantReason.key) ??
+      group.find((reason) => reason.value != null);
+    const description =
+      category === 'diet-matching' &&
+      group.some((reason) => reason.source === 'restriction')
+        ? buildRestrictionGroupDescription(group)
+        : joinDescriptions(group.map((reason) => reason.description));
 
     return {
       key: first.displayGroupKey ?? first.key,
       label: SCORE_REASON_CATEGORY_LABELS[category],
-      description: joinDescriptions(group.map((reason) => reason.description)),
+      description,
       value: valueReason?.value ?? null,
       unit: valueReason?.unit ?? null,
       impact: group.reduce((sum, reason) => sum + reason.impact, 0),
-      kind: first.kind,
-      source: first.source,
+      kind: dominantReason.kind,
+      source: dominantReason.source,
       category,
     };
   });
@@ -984,6 +1105,7 @@ const evaluateRestrictions = (
   ingredientAnalysis?: IngredientAnalysis,
 ): InternalScoreReason[] => {
   const reasons: InternalScoreReason[] = [];
+  const displayGroupKey = 'diet-matching';
 
   for (const restriction of onboarding.restrictions) {
     const dietKey = RESTRICTION_TO_DIET_KEY[restriction];
@@ -1012,7 +1134,11 @@ const evaluateRestrictions = (
         kind: 'negative',
         source: 'restriction',
         category: 'diet-matching',
-        displayGroupKey: key,
+        displayGroupKey,
+        restrictionDisplayState: 'conflict',
+        restrictionLabel: label,
+        restrictionDetail: aiReason,
+        restrictionFactValues: ingredientNames,
       });
     } else if (compat === 'unclear') {
       reasons.push({
@@ -1025,7 +1151,10 @@ const evaluateRestrictions = (
         kind: 'negative',
         source: 'restriction',
         category: 'diet-matching',
-        displayGroupKey: key,
+        displayGroupKey,
+        restrictionDisplayState: 'unclear',
+        restrictionLabel: label,
+        restrictionDetail: aiReason,
       });
     } else if (compat === 'compatible') {
       reasons.push({
@@ -1038,7 +1167,9 @@ const evaluateRestrictions = (
         kind: 'positive',
         source: 'restriction',
         category: 'diet-matching',
-        displayGroupKey: key,
+        displayGroupKey,
+        restrictionDisplayState: 'match',
+        restrictionLabel: label,
       });
     }
   }

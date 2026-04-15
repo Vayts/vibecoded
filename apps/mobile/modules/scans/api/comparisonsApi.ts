@@ -50,3 +50,14 @@ export const fetchComparisonDetail = async (
   const json = await response.json();
   return comparisonDetailResponseSchema.parse(json);
 };
+
+export const deleteComparison = async (comparisonId: string): Promise<void> => {
+  const response = await apiFetch(`/api/comparisons/${comparisonId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const json = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(json?.error ?? 'Failed to delete comparison');
+  }
+};

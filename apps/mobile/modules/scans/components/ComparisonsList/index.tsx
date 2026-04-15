@@ -1,19 +1,30 @@
 import type { ComparisonHistoryItem } from '@acme/shared';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useComparisonsQuery } from '../../hooks/useComparisonsQuery';
-import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
+import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { ComparisonHistoryRow } from '../ComparisonHistoryRow';
 import { GitCompareArrows } from 'lucide-react-native';
 
 interface ComparisonsListProps {
   onItemPress: (item: ComparisonHistoryItem) => void;
+  profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
 }
+
+const EMPTY_CONTENT_STYLE = {
+  flex: 1,
+};
+
+const LIST_CONTENT_STYLE = {
+  paddingHorizontal: 12,
+  paddingTop: 16,
+  paddingBottom: 160,
+};
 
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
@@ -53,8 +64,9 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function ComparisonsList({
+export const ComparisonsList = memo(function ComparisonsList({
   onItemPress,
+  profileScoreChipContext,
   searchQuery,
   enabled = true,
 }: ComparisonsListProps) {
@@ -66,18 +78,41 @@ export function ComparisonsList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isRefetching,
     refetch,
   } = useComparisonsQuery(searchQuery, enabled);
-  const profileScoreChipContext = useProfileScoreChipContext();
 
-  const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
 
-  const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
     await refetch();
-    setRefreshing(false);
   }, [refetch]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ComparisonHistoryItem }) => (
+      <ComparisonHistoryRow
+        item={item}
+        onPress={onItemPress}
+        profileScoreChipContext={profileScoreChipContext}
+      />
+    ),
+    [onItemPress, profileScoreChipContext],
+  );
+
+  const keyExtractor = useCallback((item: ComparisonHistoryItem) => item.id, []);
+
+  const renderSeparator = useCallback(() => <View style={{ height: 12 }} />, []);
+
+  const contentContainerStyle = useMemo(
+    () => (items.length === 0 ? EMPTY_CONTENT_STYLE : LIST_CONTENT_STYLE),
+    [items.length],
+  );
 
   if (isLoading) {
     return (
@@ -107,43 +142,29 @@ export function ComparisonsList({
     return <EmptyState searchQuery={searchQuery} />;
   }
 
-  const handleEndReached = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
-    }
-  };
-
   return (
     <FlatList
       data={items}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <ComparisonHistoryRow
-          item={item}
-          onPress={onItemPress}
-          profileScoreChipContext={profileScoreChipContext}
-        />
-      )}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      removeClippedSubviews
+      initialNumToRender={4}
+      maxToRenderPerBatch={4}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
+      keyboardShouldPersistTaps="handled"
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
+          refreshing={isRefetching && !isFetchingNextPage}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      contentContainerStyle={
-        items.length === 0
-          ? { flex: 1 }
-          : {
-              paddingHorizontal: 12,
-              paddingTop: 16,
-              paddingBottom: 160,
-            }
-      }
+      ItemSeparatorComponent={renderSeparator}
+      contentContainerStyle={contentContainerStyle}
     />
   );
-}
+});

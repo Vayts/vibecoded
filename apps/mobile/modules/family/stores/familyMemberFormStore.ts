@@ -26,8 +26,10 @@ const createInitialDraft = (): FamilyMemberDraft => ({
 });
 
 interface FamilyMemberFormStore {
+  memberId: string | null;
   step: number;
   draft: FamilyMemberDraft;
+  setDraft: (draft: FamilyMemberDraft) => void;
   setStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
@@ -44,8 +46,11 @@ interface FamilyMemberFormStore {
 }
 
 export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get) => ({
+  memberId: null,
   step: 0,
   draft: createInitialDraft(),
+
+  setDraft: (draft) => set({ draft }),
 
   setStep: (step) => set({ step: Math.max(0, Math.min(FAMILY_MEMBER_REVIEW_STEP, step)) }),
   nextStep: () => set((s) => ({ step: Math.min(FAMILY_MEMBER_REVIEW_STEP, s.step + 1) })),
@@ -102,6 +107,7 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
 
   hydrateFromMember: (member) =>
     set({
+      memberId: member.id,
       step: 0,
       draft: {
         name: member.name,
@@ -114,7 +120,7 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
       },
     }),
 
-  reset: () => set({ step: 0, draft: createInitialDraft() }),
+  reset: () => set({ memberId: null, step: 0, draft: createInitialDraft() }),
 
   toPayload: () => {
     const { draft } = get();
@@ -133,5 +139,7 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
 }));
 
 export const isNameStepValid = (draft: FamilyMemberDraft): boolean => {
-  return draft.name.trim().length > 0;
+  const trimmedName = draft.name.trim();
+
+  return trimmedName.length > 0 && trimmedName.length <= 30;
 };

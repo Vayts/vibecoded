@@ -97,6 +97,48 @@ const FACTS: ProductFacts = {
   nutriGrade: null,
 };
 
+const MEAT_FACTS: ProductFacts = {
+  productType: 'meat',
+  dietCompatibility: {
+    vegan: 'incompatible',
+    vegetarian: 'compatible',
+    halal: 'compatible',
+    kosher: 'compatible',
+    glutenFree: 'compatible',
+    dairyFree: 'compatible',
+    nutFree: 'compatible',
+  },
+  dietCompatibilityReasons: {
+    vegan: 'Contains meat',
+    vegetarian: null,
+    halal: null,
+    kosher: null,
+    glutenFree: null,
+    dairyFree: null,
+    nutFree: null,
+  },
+  nutritionFacts: {
+    calories: 122,
+    protein: 24,
+    fat: 2.5,
+    saturatedFat: 0.9,
+    carbs: 0.9,
+    sugars: 0.9,
+    fiber: 0,
+    salt: 1.4,
+    sodium: 0.56,
+  },
+  nutritionSummary: {
+    sugarLevel: 'low',
+    saltLevel: 'moderate',
+    calorieLevel: 'moderate',
+    proteinLevel: 'moderate',
+    fiberLevel: 'low',
+    saturatedFatLevel: 'low',
+  },
+  nutriGrade: null,
+};
+
 const ONBOARDING: OnboardingResponse = {
   mainGoal: null,
   restrictions: ['HALAL'],
@@ -168,5 +210,55 @@ describe('computeProfileScore', () => {
     expect(additiveItems[0].value).toBe(2);
     expect(additiveItems[0].description.toLowerCase()).toContain('e330');
     expect(additiveItems[0].description.toLowerCase()).toContain('e202');
+  });
+
+  it('merges multiple restriction conflicts into one diet matching negative', () => {
+    const multiRestrictionProfile: ScoreProfileInput = {
+      ...PROFILE,
+      onboarding: {
+        ...ONBOARDING,
+        restrictions: ['VEGAN', 'HALAL', 'KOSHER'],
+        allergies: [],
+      },
+    };
+
+    const result = computeProfileScore(
+      PRODUCT,
+      FACTS,
+      multiRestrictionProfile,
+      INGREDIENT_ANALYSIS,
+    );
+
+    const dietItems = result.negatives.filter(
+      (item) => item.category === 'diet-matching',
+    );
+
+    expect(dietItems).toHaveLength(1);
+    expect(dietItems[0].label).toBe('Diet matching');
+    expect(dietItems[0].description).toBe(
+      'Conflicts with your diet (vegan, halal, kosher). Contains milk, gelatin, alcohol-based flavoring, pork-derived enzyme',
+    );
+  });
+
+  it('merges neutral nutrition and goal reasons for the same category', () => {
+    const lowSugarProfile: ScoreProfileInput = {
+      ...PROFILE,
+      onboarding: {
+        ...ONBOARDING,
+        restrictions: [],
+        allergies: [],
+        nutritionPriorities: ['LOW_SUGAR'],
+      },
+    };
+
+    const result = computeProfileScore(PRODUCT, MEAT_FACTS, lowSugarProfile);
+
+    const sugarItems = result.positives.filter((item) => item.category === 'sugar');
+
+    expect(sugarItems).toHaveLength(1);
+    expect(sugarItems[0].key).toBe('sugar');
+    expect(sugarItems[0].kind).toBe('positive');
+    expect(sugarItems[0].description).toContain('Sugar content for meat products');
+    expect(sugarItems[0].description).toContain('Fits your low sugar preference');
   });
 });

@@ -18,7 +18,7 @@ export function EditAvatarOptionsMenu({
 }: EditAvatarOptionsMenuProps) {
   return (
     <View
-      className="absolute top-[92px] z-30 w-[250px] overflow-hidden rounded-[18px] bg-white"
+      className="absolute top-[92px] z-30 w-[250px] rounded-[16px] bg-white"
       onStartShouldSetResponder={() => true}
       style={{
         elevation: 14,
@@ -30,10 +30,10 @@ export function EditAvatarOptionsMenu({
     >
       <TouchableOpacity
         activeOpacity={0.7}
-        className="min-h-[56px] flex-row items-center justify-between px-4"
+        className="min-h-[40px] flex-row items-center justify-between px-4"
         onPress={onSelectGallery}
       >
-        <Typography variant="body" className="font-medium text-neutrals-900">
+        <Typography variant="body" className="font-semibold text-neutrals-900">
           Select from gallery
         </Typography>
         <ImageIcon color={COLORS.neutrals700} size={20} strokeWidth={1.9} />
@@ -43,10 +43,10 @@ export function EditAvatarOptionsMenu({
 
       <TouchableOpacity
         activeOpacity={0.7}
-        className="min-h-[56px] flex-row items-center justify-between px-4"
+        className="min-h-[40px] flex-row items-center justify-between px-4"
         onPress={onSelectCamera}
       >
-        <Typography variant="body" className="font-medium text-neutrals-900">
+        <Typography variant="body" className="font-semibold text-neutrals-900">
           Take a photo
         </Typography>
         <Camera color={COLORS.neutrals700} size={20} strokeWidth={1.9} />
@@ -57,10 +57,10 @@ export function EditAvatarOptionsMenu({
           <View className="h-px bg-gray-200" />
           <TouchableOpacity
             activeOpacity={0.7}
-            className="min-h-[56px] flex-row items-center justify-between px-4"
+            className="min-h-[40px] flex-row items-center justify-between px-4"
             onPress={onDelete}
           >
-            <Typography variant="body" className="font-medium text-red-600">
+            <Typography variant="body" className="font-semibold text-red-600">
               Delete image
             </Typography>
             <Trash2 color={COLORS.danger} size={20} strokeWidth={1.9} />

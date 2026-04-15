@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Keyboard, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../../shared/components/Button';
+import { ScreenHeader } from '../../../../shared/components/ScreenHeader';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
+import {
+  DEFAULT_STICKY_FOOTER_HEIGHT,
+  StickyFooter,
+} from '../../../../shared/components/StickyFooter';
 import { Typography } from '../../../../shared/components/Typography';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
@@ -25,11 +31,13 @@ export function HealthPreferenceEditorScreen({
   children,
 }: HealthPreferenceEditorScreenProps) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const onboardingQuery = useOnboardingQuery(user?.id);
   const hydrateFromServer = useOnboardingStore((state) => state.hydrateFromServer);
   const draft = useOnboardingStore((state) => state.draft);
   const submitMutation = useSubmitOnboardingMutation();
+  const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,18 +75,25 @@ export function HealthPreferenceEditorScreen({
   }
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-white">
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          header: () => <ScreenHeader />,
+        }}
+      />
+
       <KeyboardAwareScrollView
-        bottomOffset={60}
+        className="flex-1"
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
-          paddingBottom: 140,
+          paddingBottom: footerHeight + 16,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={Keyboard.dismiss}>
+        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
           <View className="mt-2">
             <Typography variant="pageTitle">{title}</Typography>
             <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
@@ -86,18 +101,20 @@ export function HealthPreferenceEditorScreen({
             </Typography>
           </View>
 
-          <View className="mt-6 rounded-2xl border border-gray-100 bg-white px-4 py-5">
+          <View className="mt-2 rounded-2xl border-gray-100 bg-white">
             {children}
           </View>
-
-          {submitMessage ? (
-            <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
-              {submitMessage}
-            </Typography>
-          ) : null}
         </Pressable>
 
-        <View className="pt-6 pb-12">
+        <View className="flex-1" />
+      </KeyboardAwareScrollView>
+
+      <StickyFooter
+        bottomInset={insets.bottom}
+        errorMessage={submitMessage}
+        onLayoutHeight={setFooterHeight}
+      >
+        <View className="pb-0">
           <Button
             fullWidth
             label="Save changes"
@@ -107,7 +124,7 @@ export function HealthPreferenceEditorScreen({
             }}
           />
         </View>
-      </KeyboardAwareScrollView>
+      </StickyFooter>
     </View>
   );
 }

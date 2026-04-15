@@ -9,11 +9,13 @@ import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
 import { fetchScanDetail, fetchScanHistory } from '../api/scansApi';
 
 export const SCAN_HISTORY_QUERY_KEY = ['scans', 'history'] as const;
+const HISTORY_STALE_TIME_MS = 30_000;
 
 export const useScanHistoryQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
     queryKey: [...SCAN_HISTORY_QUERY_KEY, search],
     enabled,
+    staleTime: HISTORY_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
       fetchScanHistory({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,
@@ -26,8 +28,16 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 export const useScanDetailQuery = (scanId: string | undefined) => {
   const queryClient = useQueryClient();
   const hasInvalidatedRef = useRef(false);
+  const previousStatusRef = useRef<ScanDetailResponse['personalAnalysisStatus'] | undefined>(
+    undefined,
+  );
 
   const queryKey = useMemo(() => ['scans', 'detail', scanId] as const, [scanId]);
+
+  useEffect(() => {
+    hasInvalidatedRef.current = false;
+    previousStatusRef.current = undefined;
+  }, [scanId]);
 
   const query = useQuery({
     queryKey,
@@ -109,10 +119,16 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
   useEffect(() => {
     const status = query.data?.personalAnalysisStatus;
 
-    if (!hasInvalidatedRef.current && (status === 'completed' || status === 'failed')) {
+    if (
+      !hasInvalidatedRef.current &&
+      previousStatusRef.current === 'pending' &&
+      (status === 'completed' || status === 'failed')
+    ) {
       hasInvalidatedRef.current = true;
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     }
+
+    previousStatusRef.current = status;
   }, [query.data?.personalAnalysisStatus, queryClient]);
 
   return query;

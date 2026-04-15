@@ -4,27 +4,27 @@ export const MAIN_GOAL_OPTIONS: Array<{ value: MainGoal; label: string; descript
   {
     value: 'GENERAL_HEALTH',
     label: 'General health',
-    description: 'Keep recommendations balanced and sustainable.',
+    description: 'Keep product analysis balanced around overall wellness.',
   },
   {
     value: 'WEIGHT_LOSS',
     label: 'Weight loss',
-    description: 'Bias toward lighter, calorie-aware choices.',
+    description: 'Focus on lighter, more calorie-conscious options.',
   },
   {
     value: 'DIABETES_CONTROL',
     label: 'Diabetes control',
-    description: 'Favor steadier blood-sugar-friendly options.',
+    description: 'Prioritize options that better align with blood sugar goals.',
   },
   {
     value: 'PREGNANCY',
     label: 'Pregnancy',
-    description: 'Focus on pregnancy-appropriate nutrition guidance.',
+    description: 'Consider pregnancy-related nutrition needs and restrictions.',
   },
   {
     value: 'MUSCLE_GAIN',
     label: 'Muscle gain',
-    description: 'Lean toward recovery and muscle-supporting meals.',
+    description: 'Focus on nutrition that supports muscle growth and recovery.',
   },
 ];
 

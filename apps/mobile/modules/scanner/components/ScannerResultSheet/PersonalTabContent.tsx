@@ -1,5 +1,6 @@
-import type { AnalysisJobResponse, ProfileProductScore } from '@acme/shared';
-import { useMemo, useState } from 'react';
+import type { AnalysisJobResponse, IngredientAnalysis, ProfileProductScore } from '@acme/shared';
+import type { ReactNode } from 'react';
+import { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
@@ -14,20 +15,31 @@ import {
   ProfileScoreSelector,
   type ProfileScoreSelectorItem,
 } from './ProfileScoreSelector';
+import { getEvaluationBlockConfigs } from './evaluationBlockConfigs';
 import { ScoreSummary } from './ScoreSummary';
-import { Button } from '../../../../shared/components/Button';
+import { getActiveProfile } from './productResultPreviewHelpers';
 
 interface PersonalTabContentProps {
+  bottomAction?: ReactNode;
   personalResult?: AnalysisJobResponse;
   isError: boolean;
   onRetry: () => void;
+  onSelectProfile: (profileId: string) => void;
   rawIngredients: string[];
-  onComparePress?: () => void;
+  selectedProfileId: string;
   rawIngredientsText: string | null;
 }
 
-export function PersonalTabContent({ personalResult, isError, onRetry, rawIngredients, onComparePress, rawIngredientsText }: PersonalTabContentProps) {
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('you');
+export function PersonalTabContent({
+  bottomAction,
+  personalResult,
+  isError,
+  onRetry,
+  onSelectProfile,
+  rawIngredients,
+  selectedProfileId,
+  rawIngredientsText,
+}: PersonalTabContentProps) {
   const authUser = useAuthStore((s) => s.user);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
   const familyMembersQuery = useFamilyMembersQuery();
@@ -63,10 +75,7 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
 
   if (hasProductAnalysis && profiles) {
     const hasMultipleProfiles = profiles.length > 1;
-
-    // Ensure selected profile exists, fallback to first
-    const activeProfile =
-      profiles.find((p) => p.profileId === selectedProfileId) ?? profiles[0];
+    const activeProfile = getActiveProfile(profiles, selectedProfileId);
 
     if (!activeProfile) {
       return <PersonalAnalysisFallback onRetry={onRetry} />;
@@ -82,29 +91,26 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
           <View className="h-[1px] w-full bg-neutrals-200 mb-4"/>
         </View>
 
-        <Text className="px-4 mb-4 font-bold text-lg">Analysis results</Text>
+        <Text className="px-4 font-bold text-lg">Analysis results</Text>
 
         {hasMultipleProfiles ? (
           <ProfileScoreSelector
             profiles={chipItems}
             selectedProfileId={activeProfile.profileId}
-            onSelect={setSelectedProfileId}
+            onSelect={onSelectProfile}
           />
         ) : null}
 
         <View className="px-4">
-          <ProfileDetail profile={activeProfile} />
-
-          <IngredientsSection
+          <ProfileDetail
+            profile={activeProfile}
             rawIngredients={rawIngredients}
             rawIngredientsText={rawIngredientsText}
-            isPending={isIngredientAnalysisPending}
-            analysis={profileIngredientAnalysis}
+            isIngredientAnalysisPending={isIngredientAnalysisPending}
+            profileIngredientAnalysis={profileIngredientAnalysis}
           />
 
-          <View className="mt-4">
-            <Button onPress={onComparePress} fullWidth label="Compare with another" variant="secondary"/>
-          </View>
+          {bottomAction}
         </View>
       </View>
     );
@@ -135,21 +141,44 @@ export function PersonalTabContent({ personalResult, isError, onRetry, rawIngred
 
 interface ProfileDetailProps {
   profile: ProfileProductScore;
+  rawIngredients: string[];
+  rawIngredientsText: string | null;
+  isIngredientAnalysisPending: boolean;
+  profileIngredientAnalysis?: IngredientAnalysis | null;
 }
 
-function ProfileDetail({ profile }: ProfileDetailProps) {
+function ProfileDetail({
+  profile,
+  rawIngredients,
+  rawIngredientsText,
+  isIngredientAnalysisPending,
+  profileIngredientAnalysis,
+}: ProfileDetailProps) {
   const forLabel = `For ${profile.name.toLowerCase() === 'you' ? 'you' : profile.name}`;
+  const evaluationBlocks = getEvaluationBlockConfigs(profile);
 
   return (
     <View>
       <ScoreSummary
-        title="Fit score"
         score={profile.score}
         label={profile.fitLabel}
         toneKey={mapFitLabelToToneKey(profile.fitLabel)}
+        insight={profile.summary}
       />
-      <EvaluationSection title="Positives" items={profile.positives} rightLabel={forLabel} />
-      <EvaluationSection title="Negatives" items={profile.negatives} rightLabel={forLabel} />
+      <IngredientsSection
+        rawIngredients={rawIngredients}
+        rawIngredientsText={rawIngredientsText}
+        isPending={isIngredientAnalysisPending}
+        analysis={profileIngredientAnalysis}
+      />
+      {evaluationBlocks.map((block) => (
+        <EvaluationSection
+          key={block.key}
+          title={block.title}
+          items={block.items}
+          rightLabel={forLabel}
+        />
+      ))}
     </View>
   );
 }

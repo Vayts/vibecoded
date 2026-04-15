@@ -15,6 +15,16 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
   const familyMembersQuery = useFamilyMembersQuery();
 
   const currentUser = currentUserQuery.data ?? authUser ?? null;
+  const currentUserContext = useMemo(
+    () =>
+      currentUser
+        ? {
+            avatarUrl: currentUser.avatarUrl ?? null,
+            fallbackImageUrl: getUserFallbackAvatarImage(currentUser),
+          }
+        : null,
+    [currentUser],
+  );
   const familyMembersById = useMemo(
     () =>
       new Map(
@@ -23,13 +33,11 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
     [familyMembersQuery.data?.items],
   );
 
-  return {
-    currentUser: currentUser
-      ? {
-          avatarUrl: currentUser.avatarUrl ?? null,
-          fallbackImageUrl: getUserFallbackAvatarImage(currentUser),
-        }
-      : null,
-    familyMembersById,
-  };
+  return useMemo(
+    () => ({
+      currentUser: currentUserContext,
+      familyMembersById,
+    }),
+    [currentUserContext, familyMembersById],
+  );
 };

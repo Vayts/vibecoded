@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Search, X } from 'lucide-react-native';
 import { TextInput, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -8,7 +9,11 @@ interface ScansSearchInputProps {
   className?: string;
 }
 
-export function ScansSearchInput({ value, onChangeText, className }: ScansSearchInputProps) {
+export const ScansSearchInput = memo(function ScansSearchInput({
+  value,
+  onChangeText,
+  className,
+}: ScansSearchInputProps) {
   return (
     <View className={className}>
       <View
@@ -45,4 +50,4 @@ export function ScansSearchInput({ value, onChangeText, className }: ScansSearch
       </View>
     </View>
   );
-}
+});

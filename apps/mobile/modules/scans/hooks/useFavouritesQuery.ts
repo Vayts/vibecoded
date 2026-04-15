@@ -1,15 +1,18 @@
 import type { FavouritesResponse, ScanDetailResponse, ScanHistoryResponse } from '@acme/shared';
 import type { InfiniteData } from '@tanstack/react-query';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
 import { addFavourite, fetchFavourites, removeFavourite } from '../api/favouritesApi';
 import { SCAN_HISTORY_QUERY_KEY } from './useScanHistoryQuery';
 
 export const FAVOURITES_QUERY_KEY = ['favourites'] as const;
+const FAVOURITES_STALE_TIME_MS = 30_000;
 
 export const useFavouritesQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
     queryKey: [...FAVOURITES_QUERY_KEY, search],
     enabled,
+    staleTime: FAVOURITES_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
       fetchFavourites({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,
@@ -107,9 +110,22 @@ const rollback = (
 };
 
 const invalidateAll = (queryClient: ReturnType<typeof useQueryClient>) => {
-  void queryClient.invalidateQueries({ queryKey: [...FAVOURITES_QUERY_KEY] });
-  void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
-  void queryClient.invalidateQueries({ queryKey: ['scans', 'detail'] });
+  void queryClient.invalidateQueries({
+    queryKey: [...FAVOURITES_QUERY_KEY],
+    refetchType: 'none',
+  });
+  void queryClient.invalidateQueries({
+    queryKey: [...SCAN_HISTORY_QUERY_KEY],
+    refetchType: 'none',
+  });
+  void queryClient.invalidateQueries({
+    queryKey: ['scans', 'detail'],
+    refetchType: 'none',
+  });
+};
+
+const settleToggle = (queryClient: ReturnType<typeof useQueryClient>) => {
+  invalidateAll(queryClient);
 };
 
 export const useToggleFavouriteMutation = () => {
@@ -121,7 +137,7 @@ export const useToggleFavouriteMutation = () => {
     onError: (_err, _productId, context) => {
       if (context) rollback(queryClient, context);
     },
-    onSettled: () => invalidateAll(queryClient),
+    onSettled: () => settleToggle(queryClient),
   });
 
   const removeMutation = useMutation({
@@ -130,19 +146,25 @@ export const useToggleFavouriteMutation = () => {
     onError: (_err, _productId, context) => {
       if (context) rollback(queryClient, context);
     },
-    onSettled: () => invalidateAll(queryClient),
+    onSettled: () => settleToggle(queryClient),
   });
 
-  const toggle = (productId: string, currentlyFavourite: boolean) => {
-    if (currentlyFavourite) {
-      removeMutation.mutate(productId);
-    } else {
-      addMutation.mutate(productId);
-    }
-  };
+  const toggle = useCallback(
+    (productId: string, currentlyFavourite: boolean) => {
+      if (currentlyFavourite) {
+        removeMutation.mutate(productId);
+      } else {
+        addMutation.mutate(productId);
+      }
+    },
+    [addMutation.mutate, removeMutation.mutate],
+  );
 
-  return {
-    toggle,
-    isLoading: addMutation.isPending || removeMutation.isPending,
-  };
+  return useMemo(
+    () => ({
+      toggle,
+      isLoading: addMutation.isPending || removeMutation.isPending,
+    }),
+    [addMutation.isPending, removeMutation.isPending, toggle],
+  );
 };

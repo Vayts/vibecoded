@@ -104,7 +104,7 @@ export function CompareProductPickerSheet() {
       gestureEnabled={!isPending}
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
-      containerStyle={{ height: '88%' }}
+      containerStyle={{ height: '88%', borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
       isModal={true}
       overdrawEnabled={false}
       disableElevation

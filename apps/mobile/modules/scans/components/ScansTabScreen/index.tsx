@@ -1,14 +1,8 @@
 import type { ComparisonHistoryItem } from '@acme/shared';
 import type { ScanHistoryItem } from '@acme/shared';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Dimensions, Keyboard, Platform, Pressable, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  Easing,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { startTransition, useCallback, useMemo, useRef, useState } from 'react';
+import { Keyboard, Pressable, View } from 'react-native';
+import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { SheetManager } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
@@ -22,28 +16,22 @@ import { DiscoverTabChips, type DiscoverTab } from '../DiscoverTabChips';
 import { ScansSearchInput } from '../ScansSearchInput';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Typography } from '../../../../shared/components/Typography';
+import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
+import { useToggleFavouriteMutation } from '../../hooks/useFavouritesQuery';
 
 const TABS: DiscoverTab[] = ['history', 'comparisons', 'favourites'];
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const TIMING_CONFIG = { duration: 250, easing: Easing.bezier(0.25, 0.1, 0.25, 1) };
-const IS_IOS = Platform.OS === 'ios';
 
 export function ScansTabScreen() {
   const insets = useSafeAreaInsets();
   const { openComparisonById, openComparisonByScanId } = useOpenComparisonRoute();
+  const profileScoreChipContext = useProfileScoreChipContext();
+  const { toggle } = useToggleFavouriteMutation();
   const [activeTab, setActiveTab] = useState<DiscoverTab>('history');
   const [searchQuery, setSearchQuery] = useState('');
   const activeIndexRef = useRef(0);
   const activeIndex = useSharedValue(0);
   const debouncedSearchQuery = useDebounce(searchQuery.trim(), 300);
-
-  const commitActiveTab = useCallback((tab: DiscoverTab, index: number) => {
-    if (activeIndexRef.current !== index) {
-      return;
-    }
-
-    setActiveTab(tab);
-  }, []);
 
   const handleScanPress = useCallback((item: ScanHistoryItem) => {
     if (item.type === 'comparison') {
@@ -63,83 +51,71 @@ export function ScansTabScreen() {
     openComparisonById(item.id);
   }, [openComparisonById]);
 
+  const handleToggleFavourite = useCallback(
+    (productId: string, currentlyFavourite: boolean) => {
+      toggle(productId, currentlyFavourite);
+    },
+    [toggle],
+  );
+
   const handleTabSelect = useCallback(
     (tab: DiscoverTab) => {
       const index = TABS.indexOf(tab);
-      if (index === -1 || index === activeIndexRef.current) return;
-      activeIndexRef.current = index;
-      if (IS_IOS) {
-        activeIndex.value = withTiming(index, TIMING_CONFIG, (finished) => {
-          if (finished) {
-            runOnJS(commitActiveTab)(tab, index);
-          }
-        });
-
+      if (index === -1 || index === activeIndexRef.current) {
         return;
       }
 
+      activeIndexRef.current = index;
       activeIndex.value = withTiming(index, TIMING_CONFIG);
 
-      setActiveTab(tab);
+      startTransition(() => {
+        setActiveTab(tab);
+      });
     },
-    [activeIndex, commitActiveTab],
+    [activeIndex],
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: -activeIndex.value * SCREEN_WIDTH }],
-  }));
-
-  const historyPanel = useMemo(
-    () => (
-      <ScanHistoryList
-        onScanPress={handleScanPress}
-        searchQuery={debouncedSearchQuery}
-        enabled={activeTab === 'history'}
-      />
-    ),
-    [activeTab, debouncedSearchQuery, handleScanPress],
-  );
-  const favouritesPanel = useMemo(
-    () => (
-      <FavouritesList
-        onItemPress={handleScanPress}
-        searchQuery={debouncedSearchQuery}
-        enabled={activeTab === 'favourites'}
-      />
-    ),
-    [activeTab, debouncedSearchQuery, handleScanPress],
-  );
-  const comparisonsPanel = useMemo(
-    () => (
-      <ComparisonsList
-        onItemPress={handleComparisonPress}
-        searchQuery={debouncedSearchQuery}
-        enabled={activeTab === 'comparisons'}
-      />
-    ),
-    [activeTab, debouncedSearchQuery, handleComparisonPress],
-  );
-
-  if (!IS_IOS) {
-    return (
-      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-        <View className="px-4">
-          <Typography variant="pageTitle">Discover</Typography>
-        </View>
-        <DiscoverTabChips selected={activeTab} selectedIndex={activeIndex} onSelect={handleTabSelect} />
-        <ScansSearchInput className="mx-4 mt-4" value={searchQuery} onChangeText={setSearchQuery} />
-        <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
-          <Pressable className="flex-1 h-full" onPress={Keyboard.dismiss}>
-            <ScreenSheet radius={16} shadowRadius={6}>
-                {activeTab === 'history' && historyPanel}
-                {activeTab === 'comparisons' && comparisonsPanel}
-                {activeTab === 'favourites' && favouritesPanel}
-            </ScreenSheet>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </View>
-    );
-  }
+  const activePanel = useMemo(() => {
+    switch (activeTab) {
+      case 'comparisons':
+        return (
+          <ComparisonsList
+            onItemPress={handleComparisonPress}
+            profileScoreChipContext={profileScoreChipContext}
+            searchQuery={debouncedSearchQuery}
+            enabled
+          />
+        );
+      case 'favourites':
+        return (
+          <FavouritesList
+            onItemPress={handleScanPress}
+            onToggleFavourite={handleToggleFavourite}
+            profileScoreChipContext={profileScoreChipContext}
+            searchQuery={debouncedSearchQuery}
+            enabled
+          />
+        );
+      case 'history':
+      default:
+        return (
+          <ScanHistoryList
+            onScanPress={handleScanPress}
+            onToggleFavourite={handleToggleFavourite}
+            profileScoreChipContext={profileScoreChipContext}
+            searchQuery={debouncedSearchQuery}
+            enabled
+          />
+        );
+    }
+  }, [
+    activeTab,
+    debouncedSearchQuery,
+    handleComparisonPress,
+    handleScanPress,
+    handleToggleFavourite,
+    profileScoreChipContext,
+  ]);
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -151,18 +127,7 @@ export function ScansTabScreen() {
       <ScansSearchInput className="mx-4 mb-4 mt-2" value={searchQuery} onChangeText={setSearchQuery} />
       <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-          <ScreenSheet>
-              <View style={{ flex: 1, overflow: 'hidden' }}>
-                <Animated.View
-                  style={[{ flexDirection: 'row', width: SCREEN_WIDTH * TABS.length }, animatedStyle]}
-                  className="flex-1"
-                >
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{historyPanel}</View>
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{comparisonsPanel}</View>
-                  <View style={{ width: SCREEN_WIDTH, flex: 1 }}>{favouritesPanel}</View>
-                </Animated.View>
-              </View>
-          </ScreenSheet>
+          <ScreenSheet>{activePanel}</ScreenSheet>
         </Pressable>
       </KeyboardAvoidingView>
     </View>

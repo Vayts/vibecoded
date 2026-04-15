@@ -10,6 +10,7 @@ import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { useComparisonDetailQuery } from '../../../scans/hooks/useComparisonsQuery';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { useComparisonResultStore } from '../../stores/comparisonResultStore';
+import { ComparisonDeleteAction } from './ComparisonDeleteAction';
 import { ComparisonResultContent } from './ComparisonResultContent';
 import { ComparisonStatusView } from './ComparisonStatusView';
 
@@ -173,6 +174,7 @@ export function ComparisonResultScreen() {
       <Animated.View className="flex-1" style={{ opacity: isLiveRoute ? contentOpacity : 1 }}>
         <ComparisonResultContent
           activeProfile={activeProfile}
+          bottomAction={<ComparisonDeleteAction comparisonId={comparisonId} scanId={scanId} />}
           chipItems={chipItems}
           displayWinner={displayWinner}
           insetsBottom={insets.bottom}

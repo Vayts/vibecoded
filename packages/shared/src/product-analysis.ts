@@ -195,6 +195,7 @@ export const profileProductScoreSchema = z.object({
   name: z.string(),
   score: z.number().min(0).max(100),
   fitLabel: fitLabelSchema,
+  summary: z.string().nullable().optional(),
   positives: z.array(scoreReasonSchema),
   negatives: z.array(scoreReasonSchema),
   scoreBreakdown: scoreBreakdownSchema.optional(),

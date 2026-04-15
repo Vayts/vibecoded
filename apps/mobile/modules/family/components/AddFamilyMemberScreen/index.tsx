@@ -9,7 +9,7 @@ export function AddFamilyMemberScreen() {
 
   return (
     <FamilyMemberForm
-      submitLabel="Add member"
+      submitLabel="Finish"
       isSubmitting={createMutation.isPending}
       onSubmit={async (data) => {
         await createMutation.mutateAsync(data);

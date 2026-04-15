@@ -10,6 +10,7 @@ import {
 import { getProductFactsService } from './product-facts-ai';
 import { searchNutritionData } from './nutrition-websearch';
 import { analyzeIngredients } from './ingredient-analysis-ai';
+import { generateProfileFitSummary } from './profile-fit-summary-ai';
 import { getProfileInputs } from './profileInputs';
 import {
   buildClassificationFromData,
@@ -50,7 +51,21 @@ export class AnalysisPipelineService {
       profiles,
       ingredientAnalyses,
     );
-    const initialProfileScores = profileScores.map(({ ingredientAnalysis: _ignored, ...score }) => score);
+    const initialProfileScores = await Promise.all(
+      profileScores.map(async (profileScore, index) => {
+        const { ingredientAnalysis: _ignored, ...score } = profileScore;
+        const summary = await generateProfileFitSummary({
+          product,
+          onboarding: profiles[index].onboarding,
+          profileScore: score,
+        });
+
+        return {
+          ...score,
+          summary,
+        };
+      }),
+    );
 
     return {
       result: {
