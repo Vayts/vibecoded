@@ -1,4 +1,5 @@
 import { ActivityIndicator, View } from 'react-native';
+import type { ReactNode } from 'react';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -12,9 +13,10 @@ export interface ProductResultDetailState {
 
 interface DetailStateContentProps {
   detailState?: ProductResultDetailState;
+  bottomAction?: ReactNode;
 }
 
-export function DetailStateContent({ detailState }: DetailStateContentProps) {
+export function DetailStateContent({ detailState, bottomAction }: DetailStateContentProps) {
   if (!detailState?.isLoading && !detailState?.isError) {
     return null;
   }
@@ -43,6 +45,7 @@ export function DetailStateContent({ detailState }: DetailStateContentProps) {
           <Button label="Retry" onPress={() => void detailState.onRetry?.()} />
         </View>
       ) : null}
+      {bottomAction ? <View className="mt-6">{bottomAction}</View> : null}
     </View>
   );
 }

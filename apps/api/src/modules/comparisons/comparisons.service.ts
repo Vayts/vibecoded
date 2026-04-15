@@ -155,6 +155,19 @@ export class ComparisonsService {
     };
   }
 
+  async deleteComparison(userId: string, comparisonId: string): Promise<void> {
+    const comparison = await prisma.comparison.findFirst({
+      where: { id: comparisonId, userId },
+      select: { id: true },
+    });
+
+    if (!comparison) {
+      throw ApiError.notFound('Comparison not found');
+    }
+
+    await prisma.comparison.delete({ where: { id: comparison.id } });
+  }
+
   private serializeHistoryItem(comparison: {
     id: string;
     createdAt: Date;

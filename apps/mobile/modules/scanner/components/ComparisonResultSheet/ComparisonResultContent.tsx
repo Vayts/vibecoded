@@ -1,4 +1,5 @@
 import type { ProductComparisonResult, ProfileComparisonResult } from '@acme/shared';
+import type { ReactNode } from 'react';
 import { ArrowLeftRight, CircleX } from 'lucide-react-native';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
@@ -22,6 +23,7 @@ interface ComparisonChipItem {
 
 interface ComparisonResultContentProps {
   activeProfile?: ProfileComparisonResult;
+  bottomAction?: ReactNode;
   chipItems: ComparisonChipItem[];
   displayWinner: DisplayWinner;
   insetsBottom: number;
@@ -37,6 +39,7 @@ interface ComparisonResultContentProps {
 
 export function ComparisonResultContent({
   activeProfile,
+  bottomAction,
   chipItems,
   displayWinner,
   insetsBottom,
@@ -126,6 +129,7 @@ export function ComparisonResultContent({
                     displayWinner={displayWinner}
                   />
                   <VerdictCard profile={activeProfile} product1={result.product1} product2={result.product2} />
+                  {bottomAction}
                 </View>
               ) : (
                 <View className="items-center py-8">

@@ -28,6 +28,7 @@ export const COLORS = {
   neutrals900: '#1A1A1A',
 
   primary25: '#c8dcc9',
+  primary100: '#E0F8E0',
   primary300: '#94E197',
   primary700: '#237227',
   primary900: '#1C4B1F',
@@ -58,6 +59,7 @@ export const COLORS = {
   warningSoft: '#FEF5E7',
   warningBorder: '#F6D6A8',
   danger: '#DC2626', // red-600 — errors, destructive actions, "Again" rating
+  danger50: '#c72a2a',
   danger800: '#B60000',
   dangerSoft: '#FDECEC',
   dangerBorder: '#F5C5C5',

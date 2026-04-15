@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Keyboard, Pressable, ScrollView, View } from 'react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  View,
+} from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import type { CreateFamilyMemberRequest, FamilyMember } from '@acme/shared';
 
@@ -11,8 +17,16 @@ import {
   FAMILY_MEMBER_STEP_COUNT,
 } from '../../stores/familyMemberFormStore';
 import { FamilyMemberStepContent } from './steps';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BackButton } from '../../../../shared/components/BackButton';
+import {
+  DEFAULT_STICKY_FOOTER_HEIGHT,
+  FamilyMemberStickyFooter,
+} from '../FamilyMemberStickyFooter';
 
 interface FamilyMemberFormProps {
   initialData?: FamilyMember;
@@ -30,12 +44,12 @@ export function FamilyMemberForm({
   const step = useFamilyMemberFormStore((s) => s.step);
   const draft = useFamilyMemberFormStore((s) => s.draft);
   const nextStep = useFamilyMemberFormStore((s) => s.nextStep);
-  const prevStep = useFamilyMemberFormStore((s) => s.prevStep);
   const hydrateFromMember = useFamilyMemberFormStore((s) => s.hydrateFromMember);
   const reset = useFamilyMemberFormStore((s) => s.reset);
   const toPayload = useFamilyMemberFormStore((s) => s.toPayload);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -61,8 +75,17 @@ export function FamilyMemberForm({
   const canContinue = step === 0 ? isNameStepValid(draft) : isAvatarStep ? Boolean(draft.avatarUrl) : true;
 
   const handleContinue = () => {
-    setErrorMessage(null);
-    nextStep();
+    if (step === 0) {
+      Keyboard.dismiss();
+
+      setTimeout(() => {
+        setErrorMessage(null);
+        nextStep();
+      }, 220);
+    } else {
+      setErrorMessage(null);
+      nextStep();
+    } 
   };
 
   const handleSkipAvatarStep = () => {
@@ -72,7 +95,7 @@ export function FamilyMemberForm({
 
   const handleSubmit = async () => {
     if (!isNameStepValid(draft)) {
-      setErrorMessage('Please enter a name.');
+      setErrorMessage('Please enter a name up to 30 characters.');
       return;
     }
     setErrorMessage(null);
@@ -83,77 +106,94 @@ export function FamilyMemberForm({
     }
   };
 
+  const footerActions = isLastStep ? (
+    <View className="gap-3">
+      <Button
+        fullWidth
+        label={submitLabel}
+        loading={isSubmitting}
+        onPress={() => {
+          void handleSubmit();
+        }}
+      />
+
+      {step > 0 ? (
+        <Button
+          fullWidth
+          label="Skip and finish"
+          onPress={() => {
+            void handleSubmit();
+          }}
+          variant="secondary"
+        />
+      ) : null}
+    </View>
+  ) : isAvatarStep ? (
+    <View className="gap-3">
+      <Button fullWidth disabled={!canContinue} label="Continue" onPress={handleContinue} />
+
+      <Button
+        fullWidth
+        label="Skip for now"
+        onPress={handleSkipAvatarStep}
+        variant="secondary"
+        disabled={draft.avatarUrl !== null}
+      />
+    </View>
+  ) : (
+    <View className="gap-3">
+      <Button fullWidth disabled={!canContinue} label="Continue" onPress={handleContinue} />
+
+      {step > 0 ? (
+        <Button
+          fullWidth
+          label="Skip for now"
+          onPress={canContinue ? handleContinue : undefined}
+          variant="secondary"
+        />
+      ) : null}
+    </View>
+  );
+
   return (
-    <View className="flex-1 bg-white" style={{paddingTop: insets.top}}>
-      <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-        <KeyboardAwareScrollView
-          bottomOffset={120}
-          automaticallyAdjustContentInsets={false}
-          automaticallyAdjustsScrollIndicatorInsets={false}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 160 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+    <KeyboardAvoidingView
+      className="flex-1 bg-white"
+      style={{ paddingTop: insets.top }}
+    >
+      <View>
+        <BackButton />
+      </View>
+
+      <View className="flex-1">
+        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
+          <KeyboardAwareScrollView
+            ref={scrollViewRef}
+            automaticallyAdjustContentInsets={false}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+            contentInsetAdjustmentBehavior="never"
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: footerHeight + 16 }}
+            keyboardShouldPersistTaps="handled"
+            extraKeyboardSpace={-(insets.bottom + 30)}
+            showsVerticalScrollIndicator={false}
+          >
             <View className="flex-1 px-4">
-              <Animated.View
-                key={step}
-                entering={FadeInDown.duration(240)}
-                className="flex-1 rounded-xl border border-gray-100 bg-white px-5 py-6"
-              >
-                <FamilyMemberStepContent step={step} />
-              </Animated.View>
-
-              {errorMessage ? (
-                <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
-                  {errorMessage}
-                </Typography>
-              ) : null}
-
-              <View className="mt-6 gap-1">
-                {isLastStep ? (
-                  <Button
-                    fullWidth
-                    label={submitLabel}
-                    loading={isSubmitting}
-                    onPress={() => {
-                      void handleSubmit();
-                    }}
-                  />
-                ) : isAvatarStep ? (
-                  <>
-                    <Button
-                      fullWidth
-                      disabled={!canContinue}
-                      label="Continue"
-                      onPress={handleContinue}
-                    />
-
-                    {!draft.avatarUrl ? (
-                      <Button
-                        fullWidth
-                        label="Skip for now"
-                        onPress={handleSkipAvatarStep}
-                        variant="secondary"
-                      />
-                    ) : null}
-                  </>
-                ) : (
-                  <Button
-                    fullWidth
-                    disabled={!canContinue}
-                    label="Continue"
-                    onPress={handleContinue}
-                  />
-                )}
-
-                {step > 0 && !isAvatarStep ? (
-                  <Button fullWidth label="Back" onPress={prevStep} variant="ghost" />
-                ) : null}
-              </View>
+              <FamilyMemberStepContent step={step} />
             </View>
           </KeyboardAwareScrollView>
         </Pressable>
-    </View>
+
+        <FamilyMemberStickyFooter
+          bottomInset={insets.bottom}
+          errorMessage={errorMessage}
+          onLayoutHeight={(nextHeight) => {
+            if (nextHeight !== footerHeight) {
+              setFooterHeight(nextHeight);
+            }
+          }}
+        >
+          {footerActions}
+        </FamilyMemberStickyFooter>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

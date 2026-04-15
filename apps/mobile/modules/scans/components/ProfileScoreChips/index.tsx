@@ -1,4 +1,6 @@
+import { memo } from 'react';
 import type { ScanHistoryItem } from '@acme/shared';
+import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN } from '@acme/shared';
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
@@ -18,7 +20,7 @@ const getPrimaryLabel = (chip: ProfileScoreChip): string => {
 };
 
 const getScoreTone = (score: number) => {
-  if (score >= 70) {
+  if (score >= GOOD_FIT_SCORE_MIN) {
     return {
       color: COLORS.primary900,
       backgroundColor: COLORS.successSoft,
@@ -26,7 +28,7 @@ const getScoreTone = (score: number) => {
     };
   }
 
-  if (score >= 40) {
+  if (score >= NEUTRAL_FIT_SCORE_MIN) {
     return {
       color: COLORS.neutrals700,
       backgroundColor: COLORS.neutrals100,
@@ -57,7 +59,10 @@ const getAvatarProps = (chip: ProfileScoreChip, context: ProfileScoreChipContext
   };
 };
 
-export function ProfileScoreChips({ chips, context }: ProfileScoreChipsProps) {
+export const ProfileScoreChips = memo(function ProfileScoreChips({
+  chips,
+  context,
+}: ProfileScoreChipsProps) {
   const primaryChip = chips.find((chip) => chip.profileId === 'you') ?? chips[0];
   const secondaryChips = chips.filter((chip) => chip.profileId !== primaryChip.profileId);
   const primaryTone = getScoreTone(primaryChip.score);
@@ -121,4 +126,4 @@ export function ProfileScoreChips({ chips, context }: ProfileScoreChipsProps) {
       ) : null}
     </View>
   );
-}
+});

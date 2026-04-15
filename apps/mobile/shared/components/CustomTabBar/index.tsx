@@ -35,8 +35,16 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
         target: route.key,
         canPreventDefault: true,
       });
+
       if (!isFocused && !event.defaultPrevented) {
-        navigation.navigate(route.name, route.params);
+        navigation.dispatch({
+          type: 'JUMP_TO',
+          payload: {
+            name: route.name,
+            params: route.params,
+          },
+          target: state.key,
+        });
       }
     };
 
@@ -47,6 +55,7 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
         accessibilityState={isFocused ? { selected: true } : {}}
         accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
         activeOpacity={0.7}
+        delayPressIn={0}
         onPress={onPress}
         className="flex-1 h-full items-center pt-1 pb-1 gap-1"
       >
@@ -104,6 +113,7 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
           accessibilityRole="button"
           accessibilityLabel="Scan"
           activeOpacity={0.7}
+          delayPressIn={0}
           onPress={() => {
             router.push('/scanner');
           }}

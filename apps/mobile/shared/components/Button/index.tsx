@@ -40,7 +40,7 @@ const variantClasses: Record<
     indicator: COLORS.primary,
   },
   destructive: {
-    container: 'border border-red-300 rounded-[30px] bg-white',
+    container: 'border border-neutrals-300 rounded-[30px] bg-white',
     text: 'text-red-600 font-semibold text-base',
     indicator: COLORS.danger,
   },

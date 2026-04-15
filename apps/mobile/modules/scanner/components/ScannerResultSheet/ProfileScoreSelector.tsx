@@ -1,4 +1,5 @@
 import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN } from '@acme/shared';
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -43,11 +44,11 @@ const getSelectorTone = (score?: number): SelectorTone => {
     return 'neutral';
   }
 
-  if (score >= 70) {
+  if (score >= GOOD_FIT_SCORE_MIN) {
     return 'good';
   }
 
-  if (score >= 40) {
+  if (score >= NEUTRAL_FIT_SCORE_MIN) {
     return 'neutral';
   }
 
@@ -69,7 +70,7 @@ export function ProfileScoreSelector({
       horizontal
       showsHorizontalScrollIndicator={false}
       className={className}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingTop: 16 }}
     >
       {profiles.map((profile) => {
         const tone = SELECTOR_TONES[getSelectorTone(profile.score)];
@@ -101,9 +102,8 @@ export function ProfileScoreSelector({
             />
             <View className="ml-1 flex-row gap-1 items-center shrink">
               <Typography
-                variant="buttonSmall"
                 numberOfLines={1}
-                style={{ color: tone.textColor, flexShrink: 1, fontWeight: '600', fontSize: 13 }}
+                style={{ color: tone.textColor, flexShrink: 1, fontSize: 13 }}
               >
                 {profile.name}
               </Typography>

@@ -6,12 +6,13 @@ import type {
 import { useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import type { ScannerResultSheetPayload } from '../../types/scanner';
+import { DetailStateContent } from './DetailStateContent';
 import { ProductResultContent } from './ProductResultContent';
+import { ScanDeleteAction } from './ScanDeleteAction';
 
 function buildResultFromScanDetail(scan: ScanDetailResponse): {
   result: BarcodeLookupResponse;
@@ -93,17 +94,15 @@ export function ScanDetailLoader({
 
   if (!hasPreviewState && isError) {
     return (
-      <View className="items-center justify-center px-4 py-12">
-        <Typography variant="sectionTitle" className="text-center">
-          Something went wrong
-        </Typography>
-        <Typography variant="bodySecondary" className="mt-2 text-center">
-          {error?.message ?? 'Failed to load scan details'}
-        </Typography>
-        <View className="mt-4">
-          <Button label="Retry" onPress={() => void refetch()} />
-        </View>
-      </View>
+      <DetailStateContent
+        detailState={{
+          isLoading: false,
+          isError: true,
+          errorMessage: error?.message ?? 'Failed to load scan details',
+          onRetry: () => void refetch(),
+        }}
+        bottomAction={<ScanDeleteAction scanId={scanId} />}
+      />
     );
   }
 

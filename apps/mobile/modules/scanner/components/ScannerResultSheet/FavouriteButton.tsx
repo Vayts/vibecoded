@@ -1,8 +1,8 @@
 import { Heart } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { TouchableOpacity } from 'react-native';
 import { COLORS } from '../../../../shared/constants/colors';
 import { useToggleFavouriteMutation } from '../../../scans/hooks/useFavouritesQuery';
+import { ResultSheetActionButton } from './ResultSheetActionButton';
 
 interface FavouriteButtonProps {
   productId: string;
@@ -25,19 +25,18 @@ export function FavouriteButton({ productId, isFavourite }: FavouriteButtonProps
   };
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <ResultSheetActionButton
+      label={optimistic ? 'Remove from favourites' : 'Add to favourites'}
+      loading={isLoading}
       onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel={optimistic ? 'Remove from favourites' : 'Add to favourites'}
-      className="h-11 w-11 items-center justify-center rounded-full"
-    >
-      <Heart
-        size={20}
-        strokeWidth={1.5}
-        color={optimistic ? COLORS.accent : COLORS.neutrals500}
-        fill={optimistic ? COLORS.accent : 'none'}
-      />
-    </TouchableOpacity>
+      icon={
+        <Heart
+          size={18}
+          strokeWidth={1.8}
+          color={optimistic ? COLORS.neutrals900 : COLORS.neutrals900}
+          fill={optimistic ? COLORS.neutrals900 : 'none'}
+        />
+      }
+    />
   );
 }

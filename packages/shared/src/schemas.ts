@@ -53,6 +53,7 @@ export const scanHistoryItemSchema = z.object({
   personalScore: z.number().nullable(),
   personalRating: fitLabelSchema.nullable(),
   personalAnalysisStatus: analysisJobStatusSchema.nullable(),
+  mainUserHasDietConflict: z.boolean().optional(),
   isFavourite: z.boolean().optional(),
   profileChips: z.array(profileChipSchema).optional(),
   product: scanHistoryProductSchema.nullable(),

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Req } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query, Req } from '@nestjs/common';
 import type {
   ComparisonDetailResponse,
   ComparisonHistoryResponse,
@@ -33,5 +33,15 @@ export class ComparisonsController {
   ): Promise<ComparisonDetailResponse> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.comparisonsService.getDetail(userId, comparisonId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteComparison(
+    @Param('id') comparisonId: string,
+    @Req() request: Request,
+  ): Promise<void> {
+    const userId = await this.authSessionService.requireUserId(request);
+    await this.comparisonsService.deleteComparison(userId, comparisonId);
   }
 }

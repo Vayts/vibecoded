@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, View } from 'react-native';
 import Animated, {
   interpolateColor,
@@ -36,7 +37,7 @@ interface DiscoverTabChipProps {
   onSelect: (tab: DiscoverTab) => void;
 }
 
-function DiscoverTabChip({
+const DiscoverTabChip = memo(function DiscoverTabChip({
   index,
   isSelected,
   selectedIndex,
@@ -57,7 +58,6 @@ function DiscoverTabChip({
 
   return (
     <Pressable
-      onPressIn={handleSelect}
       onPress={handleSelect}
       accessibilityRole="button"
       accessibilityLabel={`${tab.label} tab`}
@@ -84,9 +84,13 @@ function DiscoverTabChip({
       />
     </Pressable>
   );
-}
+});
 
-export function DiscoverTabChips({ selected, selectedIndex, onSelect }: DiscoverTabChipsProps) {
+export const DiscoverTabChips = memo(function DiscoverTabChips({
+  selected,
+  selectedIndex,
+  onSelect,
+}: DiscoverTabChipsProps) {
   return (
     <View className="mt-2 bg-background relative mx-4 mb-2">
       <View className="h-0.5 w-full bg-neutral-200 absolute -bottom-[0] rounded-full" />
@@ -104,4 +108,4 @@ export function DiscoverTabChips({ selected, selectedIndex, onSelect }: Discover
       </View>
     </View>
   );
-}
+});

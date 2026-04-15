@@ -48,3 +48,14 @@ export const fetchScanDetail = async (scanId: string): Promise<ScanDetailRespons
   const json = await response.json();
   return scanDetailResponseSchema.parse(json);
 };
+
+export const deleteScan = async (scanId: string): Promise<void> => {
+  const response = await apiFetch(`/api/scans/${scanId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const json = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(json?.error ?? 'Failed to delete history entry');
+  }
+};

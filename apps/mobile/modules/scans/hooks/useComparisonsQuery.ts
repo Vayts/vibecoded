@@ -3,11 +3,13 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { fetchComparisons, fetchComparisonDetail } from '../api/comparisonsApi';
 
 export const COMPARISONS_QUERY_KEY = ['comparisons'] as const;
+const COMPARISONS_STALE_TIME_MS = 30_000;
 
 export const useComparisonsQuery = (search: string, enabled = true) => {
   return useInfiniteQuery({
     queryKey: [...COMPARISONS_QUERY_KEY, search],
     enabled,
+    staleTime: COMPARISONS_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
       fetchComparisons({ cursor: pageParam, search, signal }),
     initialPageParam: undefined as string | undefined,

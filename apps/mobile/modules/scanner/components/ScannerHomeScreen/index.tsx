@@ -1,6 +1,7 @@
 import {
   CameraView,
   type BarcodeScanningResult,
+  useCameraFormat,
   useCameraPermissions,
 } from 'expo-camera';
 import { useFocusEffect } from 'expo-router';
@@ -335,7 +336,7 @@ export function ScannerHomeScreen() {
   }, [compareMutation, lookupMutation, openLiveComparison, resetCompare, resumeScanner, switchToPhotoMode]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
-    if (Platform.OS === 'ios' && bounds && scanFrameBounds.current) {
+    if (Platform.OS !== 'ios' && bounds && scanFrameBounds.current) {
       const frame = scanFrameBounds.current;
       const centerX = bounds.origin.x + bounds.size.width / 2;
       const centerY = bounds.origin.y + bounds.size.height / 2;

@@ -1,8 +1,10 @@
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ConfirmationDialog } from '../../../../shared/components/ConfirmationDialog';
+import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
 import { Typography } from '../../../../shared/components/Typography';
 import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
@@ -14,7 +16,6 @@ import { useCurrentUserQuery } from '../../api/profileQueries';
 import { ProfileGoalCard } from '../ProfileGoalCard';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
 import { ProfileLogoutButton } from '../ProfileLogoutButton';
-import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 
 const getHealthSummary = (onboarding: ReturnType<typeof useOnboardingQuery>['data']): string => {
   if (!onboarding?.mainGoal) {
@@ -31,12 +32,39 @@ export function ProfileScreen() {
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
   const user = currentUserQuery.data ?? authUser;
   const onboardingQuery = useOnboardingQuery(user?.id);
+  const [isLogoutDialogVisible, setIsLogoutDialogVisible] = useState(false);
+  const [logoutErrorMessage, setLogoutErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentUserQuery.data) {
       setUser(currentUserQuery.data);
     }
   }, [currentUserQuery.data, setUser]);
+
+  const handleOpenLogoutDialog = () => {
+    setLogoutErrorMessage(null);
+    setIsLogoutDialogVisible(true);
+  };
+
+  const handleCloseLogoutDialog = () => {
+    if (isLoading) {
+      return;
+    }
+
+    setIsLogoutDialogVisible(false);
+    setLogoutErrorMessage(null);
+  };
+
+  const handleConfirmLogout = async () => {
+    setLogoutErrorMessage(null);
+
+    try {
+      await signOut();
+      setIsLogoutDialogVisible(false);
+    } catch (error) {
+      setLogoutErrorMessage(error instanceof Error ? error.message : 'Unable to log out');
+    }
+  };
 
   if (!user) {
     return <ScreenSpinner />;
@@ -53,71 +81,79 @@ export function ProfileScreen() {
       </View>
 
       <ScreenSheet>
-      <ScrollView
-        className="flex-1"
-        contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 140,
-        }}
-      >
-        <View className="px-4">
-          <View className="mt-6">
-            <ProfileHeaderCard
-              name={user.name || 'Your account'}
-              email={user.email}
-              avatarUrl={user.avatarUrl}
-              fallbackImageUrl={getUserFallbackAvatarImage(user)}
-              onEditPress={() => {
-                router.push('/(tabs)/profile/edit-account');
-              }}
-            />
-          </View>
-
-          <View className="mt-8">
-            <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
-              Preferences
-            </Typography>
-            <ProfileGoalCard
-              label="Your goal"
-              description={getHealthSummary(onboardingQuery.data)}
-              helperText="Your product analysis will be personalized based on your preferences."
-              onPress={() => {
-                router.push('/(tabs)/profile/edit-health');
-              }}
-            />
-          </View>
-
-          <View className="mt-8">
-            <Typography variant="sectionTitle" className="text-neutrals-900">
-              Family members
-            </Typography>
-            <View className="mt-3">
-              <FamilyMemberList
-                onAdd={() => {
-                  router.push('/(tabs)/profile/add-family-member');
-                }}
-                onEdit={(member) => {
-                  router.push({
-                    pathname: '/(tabs)/profile/edit-family-member',
-                    params: { id: member.id },
-                  });
+        <ScrollView
+          className="flex-1"
+          contentInsetAdjustmentBehavior="never"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: insets.bottom + 140,
+          }}
+        >
+          <View className="px-4">
+            <View className="mt-6">
+              <ProfileHeaderCard
+                name={user.name || 'Your account'}
+                email={user.email}
+                avatarUrl={user.avatarUrl}
+                fallbackImageUrl={getUserFallbackAvatarImage(user)}
+                onEditPress={() => {
+                  router.push('/edit-account');
                 }}
               />
             </View>
-          </View>
 
-          <View className="mt-8">
-            <ProfileLogoutButton
-              disabled={isLoading}
-              onPress={() => {
-                void signOut();
-              }}
-            />
+            <View className="mt-8">
+              <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
+                Preferences
+              </Typography>
+              <ProfileGoalCard
+                label="Your goal"
+                description={getHealthSummary(onboardingQuery.data)}
+                helperText="Your product analysis will be personalized based on your preferences."
+                onPress={() => {
+                  router.push('/edit-health');
+                }}
+              />
+            </View>
+
+            <View className="mt-8">
+              <Typography variant="sectionTitle" className="text-neutrals-900">
+                Family members
+              </Typography>
+              <View className="mt-3">
+                <FamilyMemberList
+                  onAdd={() => {
+                    router.push('/add-family-member');
+                  }}
+                  onEdit={(member) => {
+                    router.push({
+                      pathname: '/edit-family-member',
+                      params: { id: member.id },
+                    });
+                  }}
+                />
+              </View>
+            </View>
+
+            <View className="mt-8">
+              <ProfileLogoutButton disabled={isLoading} onPress={handleOpenLogoutDialog} />
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </ScreenSheet>
+
+      <ConfirmationDialog
+        visible={isLogoutDialogVisible}
+        title="Log out?"
+        description="You will need to sign in again to access your account."
+        confirmLabel="Log out"
+        errorMessage={logoutErrorMessage}
+        isPending={isLoading}
+        onCancel={handleCloseLogoutDialog}
+        onConfirm={() => {
+          void handleConfirmLogout();
+        }}
+      />
     </View>
   );
 }

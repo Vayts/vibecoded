@@ -1,20 +1,32 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useFavouritesQuery } from '../../hooks/useFavouritesQuery';
-import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
+import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
-import { Heart } from 'lucide-react-native';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface FavouritesListProps {
   onItemPress: (item: ScanHistoryItem) => void;
+  onToggleFavourite: (productId: string, currentlyFavourite: boolean) => void;
+  profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
 }
+
+const LIST_CONTENT_STYLE = {
+  paddingBottom: 160,
+  paddingTop: 16,
+};
+
+const FAVOURITE_ROW_HEIGHT = 98;
+
+const EMPTY_CONTENT_STYLE = {
+  flex: 1,
+};
 
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
@@ -56,8 +68,10 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function FavouritesList({
+export const FavouritesList = memo(function FavouritesList({
   onItemPress,
+  onToggleFavourite,
+  profileScoreChipContext,
   searchQuery,
   enabled = true,
 }: FavouritesListProps) {
@@ -69,18 +83,49 @@ export function FavouritesList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isRefetching,
     refetch,
   } = useFavouritesQuery(searchQuery, enabled);
-  const profileScoreChipContext = useProfileScoreChipContext();
 
-  const items = data?.pages.flatMap((page) => page.items) ?? [];
+  const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
 
-  const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
     await refetch();
-    setRefreshing(false);
   }, [refetch]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ScanHistoryItem }) => (
+      <ScanHistoryRow
+        item={item}
+        onPress={onItemPress}
+        onToggleFavourite={onToggleFavourite}
+        profileScoreChipContext={profileScoreChipContext}
+      />
+    ),
+    [onItemPress, onToggleFavourite, profileScoreChipContext],
+  );
+
+  const keyExtractor = useCallback((item: ScanHistoryItem) => item.id, []);
+
+  const getItemLayout = useCallback(
+    (_: ArrayLike<ScanHistoryItem> | null | undefined, index: number) => ({
+      length: FAVOURITE_ROW_HEIGHT,
+      offset: FAVOURITE_ROW_HEIGHT * index,
+      index,
+    }),
+    [],
+  );
+
+  const contentContainerStyle = useMemo(
+    () => (items.length === 0 ? EMPTY_CONTENT_STYLE : LIST_CONTENT_STYLE),
+    [items.length],
+  );
 
   if (isLoading) {
     return (
@@ -110,37 +155,29 @@ export function FavouritesList({
     return <EmptyState searchQuery={searchQuery} />;
   }
 
-  const handleEndReached = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
-    }
-  };
-
   return (
     <FlatList
       data={items}
-      keyExtractor={(item) => item.favouriteId ?? item.id}
-      renderItem={({ item }) => (
-        <ScanHistoryRow
-          item={item}
-          onPress={onItemPress}
-          profileScoreChipContext={profileScoreChipContext}
-        />
-      )}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
+      removeClippedSubviews
+      initialNumToRender={6}
+      maxToRenderPerBatch={6}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
+      getItemLayout={getItemLayout}
+      keyboardShouldPersistTaps="handled"
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
+          refreshing={isRefetching && !isFetchingNextPage}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { flex: 1 } : {
-        paddingBottom: 160,
-        paddingTop: 16,
-      }}
+      contentContainerStyle={contentContainerStyle}
     />
   );
-}
+});

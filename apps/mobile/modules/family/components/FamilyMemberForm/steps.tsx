@@ -1,42 +1,80 @@
-import { useState } from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { TouchableOpacity, View, Text } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Pen } from 'lucide-react-native';
+import { Info, Pen } from 'lucide-react-native';
+import { Controller, useForm } from 'react-hook-form';
 
-import { Input } from '../../../../shared/components/Input';
+import { TextField } from '../../../../shared/components/TextField';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { selectAndUploadAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
-import {
-  ALLERGY_OPTIONS,
-  MAIN_GOAL_OPTIONS,
-  NUTRITION_PRIORITY_OPTIONS,
-  RESTRICTION_OPTIONS,
-} from '../../../onboarding/components/options';
-import { SelectableChip } from '../../../onboarding/components/SelectableChip';
 import { useFamilyMemberFormStore } from '../../stores/familyMemberFormStore';
+import {
+  FamilyMemberAllergiesField,
+  FamilyMemberMainGoalField,
+  FamilyMemberPreferencesField,
+  FamilyMemberRestrictionsField,
+} from '../FamilyMemberHealthFields';
+
+interface NameStepFormValues {
+  name: string;
+}
 
 function NameStep() {
   const draft = useFamilyMemberFormStore((s) => s.draft);
   const setName = useFamilyMemberFormStore((s) => s.setName);
+  const {
+    control,
+    setValue,
+  } = useForm<NameStepFormValues>({
+    defaultValues: {
+      name: draft.name,
+    },
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
+  });
+
+  useEffect(() => {
+    setValue('name', draft.name);
+  }, [draft.name, setValue]);
 
   return (
     <View>
-      <Typography variant="pageTitle">What's their name?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+      <Text className="text-[26px] font-bold text-neutral-900">What's their name?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
         Enter the name of the family member you'd like to track.
-      </Typography>
-      <View className="mt-6">
-        <Input
-          label="Name"
-          placeholder="e.g. Alex"
-          value={draft.name}
-          onChangeText={setName}
-          maxLength={50}
-          autoFocus
-        />
-      </View>
+      </Text>
+
+      <Controller
+        control={control}
+        name="name"
+        rules={{
+          required: 'Name is required.',
+          validate: (value) =>
+            value.trim().length > 0 || 'Name is required.',
+          maxLength: {
+            value: 30,
+            message: 'Name cannot be longer than 30 characters.',
+          },
+        }}
+        render={({ field: { onBlur, onChange, value }, fieldState: { error, isTouched } }) => (
+          <TextField
+            containerClassName="mt-6"
+            label="Name"
+            placeholder="E.g. Alex"
+            value={value}
+            error={isTouched ? error?.message : undefined}
+            maxLength={30}
+            autoFocus
+            onBlur={onBlur}
+            onChangeText={(nextValue) => {
+              onChange(nextValue);
+              setName(nextValue);
+            }}
+          />
+        )}
+      />
     </View>
   );
 }
@@ -70,10 +108,10 @@ function AvatarStep() {
 
   return (
     <View className="flex-1">
-      <Typography variant="pageTitle">Add a photo for {displayName}</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+      <Text className="text-[26px] font-bold text-neutral-900">Add a photo for {displayName}</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
         Upload a photo that will appear as {possessiveName} profile picture in the app.
-      </Typography>
+      </Text>
 
       <View className="flex-1 items-center justify-center pt-16 pb-6">
         <TouchableOpacity
@@ -87,7 +125,7 @@ function AvatarStep() {
         >
           <View className="relative">
             <View
-              className="h-28 w-28 items-center justify-center overflow-hidden rounded-full"
+              className="h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-full"
               style={{ backgroundColor: COLORS.neutrals300 }}
             >
               {avatarUri ? (
@@ -112,30 +150,6 @@ function AvatarStep() {
           </View>
         </TouchableOpacity>
 
-        {draft.avatarUrl ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Remove family member photo"
-            activeOpacity={0.7}
-            className="mt-4"
-            disabled={isUploadingAvatar}
-            onPress={() => {
-              setAvatarError(null);
-              setAvatarUrl(null);
-            }}
-          >
-            <Typography variant="buttonSmall" className="text-red-600">
-              Remove photo
-            </Typography>
-          </TouchableOpacity>
-        ) : null}
-
-        {isUploadingAvatar ? (
-          <Typography variant="bodySecondary" className="mt-4 text-center text-gray-500">
-            Uploading photo...
-          </Typography>
-        ) : null}
-
         {avatarError ? (
           <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
             {avatarError}
@@ -147,111 +161,68 @@ function AvatarStep() {
 }
 
 function MainGoalStep() {
-  const draft = useFamilyMemberFormStore((s) => s.draft);
-  const setMainGoal = useFamilyMemberFormStore((s) => s.setMainGoal);
-
   return (
     <View>
-      <Typography variant="pageTitle">What is their main goal?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-        Pick the primary outcome to optimize for.
-      </Typography>
-      <View className="mt-6 gap-3">
-        {MAIN_GOAL_OPTIONS.map((option) => (
-          <SelectableChip
-            key={option.value}
-            label={option.label}
-            description={option.description}
-            selected={draft.mainGoal === option.value}
-            onPress={() => setMainGoal(draft.mainGoal === option.value ? null : option.value)}
-          />
-        ))}
+      <Text className="text-[26px] font-bold text-neutral-900">What is their main goal?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
+         Pick the primary outcome to optimize for.
+      </Text>
+      <View className="mt-6">
+        <FamilyMemberMainGoalField />
       </View>
     </View>
   );
 }
 
 function RestrictionsStep() {
-  const draft = useFamilyMemberFormStore((s) => s.draft);
-  const toggleRestriction = useFamilyMemberFormStore((s) => s.toggleRestriction);
-
   return (
     <View>
-      <Typography variant="pageTitle">Any dealbreakers?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+      <Text className="text-[26px] font-bold text-neutral-900">Any dealbreakers?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
         Hard constraints — we'll exclude anything that violates them.
-      </Typography>
-      <View className="mt-6 gap-3">
-        {RESTRICTION_OPTIONS.map((option) => (
-          <SelectableChip
-            key={option.value}
-            label={option.label}
-            description={option.description}
-            selected={draft.restrictions.includes(option.value)}
-            onPress={() => toggleRestriction(option.value)}
-          />
-        ))}
+      </Text>
+      <View className="flex-row items-center gap-1 mt-4 text-primary-700">
+        <Info size={16} color={COLORS.primary700}/>
+        <Text className="text-primary-700 font-semibold">Select all that apply, or skip this step</Text>
+      </View>
+      <View className="mt-6">
+        <FamilyMemberRestrictionsField />
       </View>
     </View>
   );
 }
 
 function AllergiesStep() {
-  const draft = useFamilyMemberFormStore((s) => s.draft);
-  const toggleAllergy = useFamilyMemberFormStore((s) => s.toggleAllergy);
-  const setOtherAllergiesText = useFamilyMemberFormStore((s) => s.setOtherAllergiesText);
-
   return (
     <View>
-      <Typography variant="pageTitle">Any allergies or intolerances?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+      <Text className="text-[26px] font-bold text-neutral-900">Any allergies or intolerances?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
         Add any ingredients to avoid. Skip if none.
-      </Typography>
-      <View className="mt-6 gap-3">
-        {ALLERGY_OPTIONS.map((option) => (
-          <SelectableChip
-            key={option.value}
-            label={option.label}
-            selected={draft.allergies.includes(option.value)}
-            onPress={() => toggleAllergy(option.value)}
-          />
-        ))}
+      </Text>
+      <View className="flex-row items-center gap-1 mt-4 text-primary-700">
+        <Info size={16} color={COLORS.primary700}/>
+        <Text className="text-primary-700 font-semibold">Select all that apply, or skip this step</Text>
       </View>
-      {draft.allergies.includes('OTHER') ? (
-        <View className="mt-5">
-          <Input
-            label="Other allergy details"
-            maxLength={120}
-            onChangeText={setOtherAllergiesText}
-            placeholder="Tell us what to watch for"
-            value={draft.otherAllergiesText}
-          />
-        </View>
-      ) : null}
+      <View className="mt-6">
+        <FamilyMemberAllergiesField />
+      </View>
     </View>
   );
 }
 
 function NutritionPrioritiesStep() {
-  const draft = useFamilyMemberFormStore((s) => s.draft);
-  const toggleNutritionPriority = useFamilyMemberFormStore((s) => s.toggleNutritionPriority);
-
   return (
     <View>
-      <Typography variant="pageTitle">What do they prefer?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
+      <Text className="text-[26px] font-bold text-neutral-900">What do they prefer?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
         Soft preferences that influence ranking but don't hard-exclude items.
-      </Typography>
-      <View className="mt-6 gap-3">
-        {NUTRITION_PRIORITY_OPTIONS.map((option) => (
-          <SelectableChip
-            key={option.value}
-            label={option.label}
-            description={option.description}
-            selected={draft.nutritionPriorities.includes(option.value)}
-            onPress={() => toggleNutritionPriority(option.value)}
-          />
-        ))}
+      </Text>
+      <View className="flex-row items-center gap-1 mt-4 text-primary-700">
+        <Info size={16} color={COLORS.primary700}/>
+        <Text className="text-primary-700 font-semibold">Select all that apply, or skip this step</Text>
+      </View>
+      <View className="mt-6">
+        <FamilyMemberPreferencesField />
       </View>
     </View>
   );

@@ -17,6 +17,7 @@ import {
   normalizeSearchQuery,
 } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
+import { buildHistoryAnalysisSummary } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -203,48 +204,27 @@ export class ScansService {
     };
   }
 
+  async deleteScan(userId: string, scanId: string): Promise<void> {
+    const scan = await prisma.scan.findFirst({
+      where: { id: scanId, userId },
+      select: { id: true },
+    });
+
+    if (!scan) {
+      throw ApiError.notFound('History entry not found');
+    }
+
+    await prisma.scan.delete({ where: { id: scan.id } });
+  }
+
   private serializeHistoryItem(
     scan: ProductScanHistoryRecord,
     favouriteSet: Set<string>,
   ): ScanHistoryItem {
-    const rawPersonalResult = scan.personalResult as {
-      profiles?: Array<{ score?: number; fitLabel?: string }>;
-    } | null;
-    const firstProfile = rawPersonalResult?.profiles?.[0];
-
-    let profileChips: ScanHistoryItem['profileChips'];
-    if (
-      scan.multiProfileResult &&
-      typeof scan.multiProfileResult === 'object'
-    ) {
-      const multiProfileResult = scan.multiProfileResult as {
-        profiles?: unknown[];
-      };
-      if (Array.isArray(multiProfileResult.profiles)) {
-        const parsedProfiles = multiProfileResult.profiles
-          .map((profile) => {
-            const parsed = profileProductScoreSchema.safeParse(profile);
-            if (!parsed.success) {
-              return null;
-            }
-
-            return {
-              profileId: parsed.data.profileId,
-              name: parsed.data.name,
-              score: parsed.data.score,
-              fitLabel: parsed.data.fitLabel,
-            };
-          })
-          .filter(
-            (profile): profile is NonNullable<typeof profile> =>
-              profile != null,
-          );
-
-        if (parsedProfiles.length > 0) {
-          profileChips = parsedProfiles;
-        }
-      }
-    }
+    const analysisSummary = buildHistoryAnalysisSummary(
+      scan.personalResult,
+      scan.multiProfileResult,
+    );
 
     return {
       id: scan.id,
@@ -254,12 +234,12 @@ export class ScansService {
       source: scan.source,
       overallScore: scan.overallScore,
       overallRating: scan.overallRating,
-      personalScore: firstProfile?.score ?? null,
-      personalRating: (firstProfile?.fitLabel ??
-        null) as ScanHistoryItem['personalRating'],
+      personalScore: analysisSummary.personalScore,
+      personalRating: analysisSummary.personalRating,
       personalAnalysisStatus: scan.personalAnalysisStatus,
+      mainUserHasDietConflict: analysisSummary.mainUserHasDietConflict,
       isFavourite: scan.product ? favouriteSet.has(scan.product.id) : false,
-      profileChips,
+      profileChips: analysisSummary.profileChips,
       product: scan.product ? serializeHistoryProduct(scan.product) : null,
       product2: scan.product2 ? serializeHistoryProduct(scan.product2) : null,
     };

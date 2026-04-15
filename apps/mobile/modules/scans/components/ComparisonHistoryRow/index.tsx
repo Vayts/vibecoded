@@ -1,6 +1,8 @@
+import { memo } from 'react';
 import type { ComparisonHistoryItem } from '@acme/shared';
+import { Image as ExpoImage } from 'expo-image';
 import { ArrowLeftRight, Barcode } from 'lucide-react-native';
-import { Image, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -13,9 +15,12 @@ interface ComparisonHistoryRowProps {
   profileScoreChipContext: ProfileScoreChipContext;
 }
 
+const COMPARISON_IMAGE_PLACEHOLDER_COLOR = COLORS.neutrals100;
+const COMPARISON_IMAGE_RADIUS = 10;
+
 type BestFitProfile = ComparisonHistoryItem['product1BestFitProfiles'][number];
 
-function BestFitAvatarStack({
+const BestFitAvatarStack = memo(function BestFitAvatarStack({
   profiles,
   context,
 }: {
@@ -70,9 +75,9 @@ function BestFitAvatarStack({
       ) : null}
     </View>
   );
-}
+});
 
-function ComparisonProductCard({
+const ComparisonProductCard = memo(function ComparisonProductCard({
   imageUrl,
   name,
   brand,
@@ -101,7 +106,14 @@ function ComparisonProductCard({
     >
       <View className="h-[68px] overflow-hidden rounded-[10px] bg-gray-100">
         {uri ? (
-          <Image source={{ uri }} className="h-full w-full" resizeMode="cover" />
+          <ExpoImage
+            source={{ uri }}
+            style={{ width: '100%', height: '100%', borderRadius: COMPARISON_IMAGE_RADIUS }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={120}
+            placeholder={COMPARISON_IMAGE_PLACEHOLDER_COLOR}
+          />
         ) : (
           <View className="h-full w-full items-center justify-center bg-blue-50">
             <Barcode color={COLORS.primary} size={22} />
@@ -128,9 +140,9 @@ function ComparisonProductCard({
       </View>
     </View>
   );
-}
+});
 
-export function ComparisonHistoryRow({
+export const ComparisonHistoryRow = memo(function ComparisonHistoryRow({
   item,
   onPress,
   profileScoreChipContext,
@@ -177,4 +189,4 @@ export function ComparisonHistoryRow({
       </View>
     </TouchableOpacity>
   );
-}
+});

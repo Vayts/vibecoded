@@ -1,61 +1,110 @@
+import { CircleAlert, CircleCheck, HeartCrack, HeartHandshake, ThumbsUp } from 'lucide-react-native';
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { getFitLabelText } from './evaluationHelpers';
-import { Sparkles } from 'lucide-react-native';
 
 interface ScoreSummaryProps {
-  title: string;
+  title?: string;
   score: number;
   label: string;
   toneKey: 'excellent' | 'good' | 'average' | 'bad';
+  insight?: string | null;
+  isInsightPending?: boolean;
 }
 
-const SCORE_SUMMARY_LABEL_COLORS: Record<ScoreSummaryProps['toneKey'], string> = {
-  excellent: COLORS.primary,
-  good: COLORS.primary,
-  average: COLORS.warning,
-  bad: COLORS.danger,
+interface ScoreSummaryTone {
+  backgroundColor: string;
+  textColor: string;
+}
+
+const SCORE_SUMMARY_TONES: Record<ScoreSummaryProps['toneKey'], ScoreSummaryTone> = {
+  excellent: {
+    backgroundColor: COLORS.primary100,
+    textColor: COLORS.primary900,
+  },
+  good: {
+    backgroundColor: COLORS.primary100,
+    textColor: COLORS.primary900,
+  },
+  average: {
+    backgroundColor: COLORS.gray100,
+    textColor: COLORS.neutrals900,
+  },
+  bad: {
+    backgroundColor: COLORS.dangerSoft,
+    textColor: COLORS.danger800,
+  },
 };
 
-export function ScoreSummary({ title, score, label, toneKey }: ScoreSummaryProps) {
-  const fitLabelColor = SCORE_SUMMARY_LABEL_COLORS[toneKey];
+const getScoreSummaryLabel = (label: string): string => {
+  const fitLabel = getFitLabelText(label);
+  return fitLabel === 'Neutral fit' ? 'Normal fit' : fitLabel;
+};
+
+const getDefaultInsight = (toneKey: ScoreSummaryProps['toneKey']): string => {
+  if (toneKey === 'bad') {
+    return 'This product is a poor fit because a few key nutrition signals clash with your preferences.';
+  }
+
+  if (toneKey === 'average') {
+    return 'This product is a decent fit because it has some strengths, but there are still a couple of trade-offs.';
+  }
+
+  return 'This product is a good fit because its overall nutrition profile lines up well with your preferences.';
+};
+
+export function ScoreSummary({
+  score,
+  label,
+  toneKey,
+  insight,
+  isInsightPending = false,
+}: ScoreSummaryProps) {
+  const tone = SCORE_SUMMARY_TONES[toneKey];
+  const fitLabel = getScoreSummaryLabel(label);
+  const resolvedInsight = isInsightPending
+    ? 'Preparing a short fit summary for this product.'
+    : insight?.trim() || getDefaultInsight(toneKey);
+
+  const Icon = toneKey === 'bad' ? HeartCrack : toneKey === 'average' ? CircleAlert : HeartHandshake;
 
   return (
     <View
       className="mt-4 overflow-hidden rounded-[16px] bg-white"
-      style={{ borderWidth: 1, borderColor: COLORS.gray200 }}
+      style={{ borderWidth: 1, borderTopWidth: 0, borderColor: COLORS.gray200 }}
     >
       <View
-        className="flex-row items-center px-5 py-3 bg-neutrals-100 gap-2"
+        className="flex-row items-center justify-between rounded-[16px] px-5 py-4"
+        style={{ backgroundColor: tone.backgroundColor }}
       >
-        <Sparkles size={16} color={COLORS.neutrals500} strokeWidth={1.8} />
-        <Typography
-          style={{ color: COLORS.neutrals500, fontWeight: '500' }}
-        >
-          {title}
-        </Typography>
-      </View>
+        <View className="flex-row items-center gap-3">
+          <Icon size={18} color={tone.textColor} strokeWidth={2.2} />
+          <Typography
+            className="text-[19px] font-semibold"
+            style={{ color: tone.textColor }}
+          >
+            {fitLabel}
+          </Typography>
+        </View>
 
-      <View className="px-4 pt-2 pb-4">
         <Typography
-          style={{
-            color: COLORS.neutrals900,
-            fontSize: 24,
-            fontWeight: '700',
-          }}
+          className="text-[19px] font-semibold"
+          style={{ color: tone.textColor }}
         >
           {score}/100
         </Typography>
+      </View>
+
+      <View className="px-5 pb-5 pt-4">
         <Typography
+          variant="body"
           style={{
-            color: fitLabelColor,
-            fontSize: 14,
-            marginTop: 2,
-            fontWeight: '600',
+            color: COLORS.neutrals900,
+            lineHeight: 22,
           }}
         >
-          {getFitLabelText(label)}
+          {resolvedInsight}
         </Typography>
       </View>
     </View>

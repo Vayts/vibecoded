@@ -11,6 +11,7 @@ import {
   normalizeSearchQuery,
 } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
+import { buildHistoryAnalysisSummary } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -180,44 +181,10 @@ export class FavouritesService {
     },
     scan?: LatestScanRecord,
   ): FavouriteItem {
-    const rawPersonalResult = scan?.personalResult as {
-      profiles?: Array<{ score?: number; fitLabel?: string }>;
-    } | null;
-    const firstProfile = rawPersonalResult?.profiles?.[0];
-
-    let profileChips: FavouriteItem['profileChips'];
-    if (
-      scan?.multiProfileResult &&
-      typeof scan.multiProfileResult === 'object'
-    ) {
-      const multiProfileResult = scan.multiProfileResult as {
-        profiles?: unknown[];
-      };
-      if (Array.isArray(multiProfileResult.profiles)) {
-        const parsedProfiles = multiProfileResult.profiles
-          .map((profile) => {
-            const parsed = profileProductScoreSchema.safeParse(profile);
-            if (!parsed.success) {
-              return null;
-            }
-
-            return {
-              profileId: parsed.data.profileId,
-              name: parsed.data.name,
-              score: parsed.data.score,
-              fitLabel: parsed.data.fitLabel,
-            };
-          })
-          .filter(
-            (profile): profile is NonNullable<typeof profile> =>
-              profile != null,
-          );
-
-        if (parsedProfiles.length > 0) {
-          profileChips = parsedProfiles;
-        }
-      }
-    }
+    const analysisSummary = buildHistoryAnalysisSummary(
+      scan?.personalResult,
+      scan?.multiProfileResult,
+    );
 
     return {
       favouriteId: favourite.id,
@@ -227,12 +194,12 @@ export class FavouritesService {
       source: scan?.source ?? 'barcode',
       overallScore: scan?.overallScore ?? null,
       overallRating: scan?.overallRating ?? null,
-      personalScore: firstProfile?.score ?? null,
-      personalRating: (firstProfile?.fitLabel ??
-        null) as FavouriteItem['personalRating'],
+      personalScore: analysisSummary.personalScore,
+      personalRating: analysisSummary.personalRating,
       personalAnalysisStatus: scan?.personalAnalysisStatus ?? null,
+      mainUserHasDietConflict: analysisSummary.mainUserHasDietConflict,
       isFavourite: true,
-      profileChips,
+      profileChips: analysisSummary.profileChips,
       product: favourite.product ? serializeProduct(favourite.product) : null,
     };
   }

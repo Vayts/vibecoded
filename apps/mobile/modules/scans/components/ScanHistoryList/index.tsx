@@ -1,23 +1,36 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useScanHistoryQuery } from '../../hooks/useScanHistoryQuery';
-import { useProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
+import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import ScanningArrow from '../../../../assets/scanning_arrow.svg';
 
 interface ScanHistoryListProps {
   onScanPress: (item: ScanHistoryItem) => void;
+  onToggleFavourite: (productId: string, currentlyFavourite: boolean) => void;
+  profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
   filterItem?: (item: ScanHistoryItem) => boolean;
   renderEmptyState?: (searchQuery: string) => ReactNode;
   contentPaddingBottom?: number;
 }
+
+const LIST_CONTENT_STYLE = {
+  paddingBottom: 160,
+  paddingTop: 16,
+};
+
+const HISTORY_ROW_HEIGHT = 98;
+
+const EMPTY_CONTENT_STYLE = {
+  flex: 1,
+};
 
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
@@ -62,8 +75,10 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
   );
 }
 
-export function ScanHistoryList({
+export const ScanHistoryList = memo(function ScanHistoryList({
   onScanPress,
+  onToggleFavourite,
+  profileScoreChipContext,
   searchQuery,
   enabled = true,
   filterItem,
@@ -78,20 +93,61 @@ export function ScanHistoryList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isRefetching,
     refetch,
   } = useScanHistoryQuery(searchQuery, enabled);
-  const profileScoreChipContext = useProfileScoreChipContext();
 
-  const items = (data?.pages.flatMap((page) => page.items) ?? []).filter((item) =>
-    filterItem ? filterItem(item) : true,
+  const items = useMemo(
+    () =>
+      (data?.pages.flatMap((page) => page.items) ?? []).filter((item) =>
+        filterItem ? filterItem(item) : true,
+      ),
+    [data?.pages, filterItem],
   );
 
-  const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
     await refetch();
-    setRefreshing(false);
   }, [refetch]);
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ScanHistoryItem }) => (
+      <ScanHistoryRow
+        item={item}
+        onPress={onScanPress}
+        onToggleFavourite={onToggleFavourite}
+        profileScoreChipContext={profileScoreChipContext}
+      />
+    ),
+    [onScanPress, onToggleFavourite, profileScoreChipContext],
+  );
+
+  const keyExtractor = useCallback((item: ScanHistoryItem) => item.id, []);
+
+  const getItemLayout = useCallback(
+    (_: ArrayLike<ScanHistoryItem> | null | undefined, index: number) => ({
+      length: HISTORY_ROW_HEIGHT,
+      offset: HISTORY_ROW_HEIGHT * index,
+      index,
+    }),
+    [],
+  );
+
+  const contentContainerStyle = useMemo(
+    () =>
+      items.length === 0
+        ? EMPTY_CONTENT_STYLE
+        : {
+            ...LIST_CONTENT_STYLE,
+            paddingBottom: contentPaddingBottom,
+          },
+    [contentPaddingBottom, items.length],
+  );
 
   if (isLoading) {
     return (
@@ -121,41 +177,31 @@ export function ScanHistoryList({
     return renderEmptyState ? <>{renderEmptyState(searchQuery)}</> : <EmptyState searchQuery={searchQuery} />;
   }
 
-  const handleEndReached = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
-    }
-  };
-
   return (
     <FlatList
       data={items}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <ScanHistoryRow
-          item={item}
-          onPress={onScanPress}
-          profileScoreChipContext={profileScoreChipContext}
-        />
-      )}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
       automaticallyAdjustContentInsets={false}
       contentInsetAdjustmentBehavior="never"
+      removeClippedSubviews
+      initialNumToRender={6}
+      maxToRenderPerBatch={6}
+      windowSize={5}
+      updateCellsBatchingPeriod={50}
+      getItemLayout={getItemLayout}
+      keyboardShouldPersistTaps="handled"
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={refreshing}
+          refreshing={isRefetching && !isFetchingNextPage}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
-      contentContainerStyle={items.length === 0 ? { 
-        flex: 1 
-      } : {
-        paddingBottom: contentPaddingBottom,
-        paddingTop: 16,
-      }}
+      contentContainerStyle={contentContainerStyle}
     />
   );
-}
+});

@@ -1,13 +1,7 @@
-import type {
-  AnalysisJobResponse,
-  BarcodeLookupResponse,
-  ProductPreview,
-  ScanHistoryItem,
-} from '@acme/shared';
-import { useEffect, useRef } from 'react';
+import type { AnalysisJobResponse, BarcodeLookupResponse, ProductPreview, ScanHistoryItem } from '@acme/shared';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
-import { useProfileScoreChipContext } from '../../../scans/hooks/useProfileScoreChipContext';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
 import { DetailStateContent, type ProductResultDetailState } from './DetailStateContent';
 import { hasProductResult } from './productResultHelpers';
@@ -15,16 +9,20 @@ import { NotFoundContent } from './NotFoundContent';
 import { ScrollView } from 'react-native-actions-sheet';
 import { PersonalTabContent } from './PersonalTabContent';
 import { PreviewSummaryContent } from './PreviewSummaryContent';
-import { ProductResultHeader } from './ProductResultHeader';
-import { NutriScoreBlock } from './NutriScoreBlock';
+import { ProductResultBottomActions } from './ProductResultBottomActions';
+import { ProductResultHero } from './ProductResultHero';
+import { ScanDeleteAction } from './ScanDeleteAction';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { getCompareSource, getDisplayedNutriScoreGrade, getPreviewHistoryProduct, getPreviewSummaryState } from './productResultPreviewHelpers';
 
 const TRANSITION_DURATION_MS = 200;
+const DEFAULT_PROFILE_ID = 'you';
 
 interface ProductResultContentProps {
   previewItem?: ScanHistoryItem;
   result?: BarcodeLookupResponse;
+  scanId?: string;
   previewProduct?: ProductPreview;
   previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
@@ -34,17 +32,10 @@ interface ProductResultContentProps {
   detailState?: ProductResultDetailState;
 }
 
-const getPreviewHistoryProduct = (previewItem?: ScanHistoryItem) => {
-  if (previewItem?.type !== 'product') {
-    return null;
-  }
-
-  return previewItem.product;
-};
-
 export function ProductResultContent({
   previewItem,
   result,
+  scanId,
   previewProduct,
   previewImageUri,
   resolvedPersonalResult,
@@ -54,43 +45,21 @@ export function ProductResultContent({
   detailState,
 }: ProductResultContentProps) {
   const insets = useSafeAreaInsets();
-  const profileScoreChipContext = useProfileScoreChipContext();
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(DEFAULT_PROFILE_ID);
   const successResult = result && hasProductResult(result) ? result : undefined;
   const initialAnalysis = resolvedPersonalResult
     ? resolvedPersonalResult
-    : successResult
-      ? successResult.personalAnalysis
-      : undefined;
+    : successResult ? successResult.personalAnalysis : undefined;
   const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
-
   const personalData = personalQuery.data ?? initialAnalysis;
   const personalError =
     Boolean(initialAnalysis?.analysisId) &&
-    !personalData?.result &&
-    (personalData?.status === 'failed' || personalQuery.isError);
+    !personalData?.result && (personalData?.status === 'failed' || personalQuery.isError);
   const personalRetry = () => {};
   const isExpanded = snapIndex > 0;
   const previewHistoryProduct = getPreviewHistoryProduct(previewItem);
-  const isLiveFlow = Boolean(previewProduct) && !previewItem;
-  const previewChips = previewItem?.type === 'product' ? previewItem.profileChips : undefined;
-  const previewScore =
-    previewItem?.type === 'product'
-      ? previewItem.personalScore ?? previewItem.overallScore
-      : null;
-  const showHistoryPendingSummary =
-    previewItem?.type === 'product' &&
-    !previewChips?.length &&
-    previewScore == null &&
-    previewItem.personalAnalysisStatus === 'pending';
-  const hasHistorySummaryContent = Boolean(
-    previewChips?.length || previewScore != null || showHistoryPendingSummary,
-  );
-  const showLivePendingSummary =
-    isLiveFlow &&
-    !isInitialLoadingResult &&
-    personalData?.status === 'pending';
-  const hasLiveSummaryContent = isLiveFlow;
-  const hasSummaryContent = hasHistorySummaryContent || hasLiveSummaryContent;
+  const summaryState = getPreviewSummaryState({ previewItem, previewProduct, isInitialLoadingResult, personalStatus: personalData?.status });
+  const resolvedScanId = scanId ?? successResult?.scanId ?? (previewItem?.type === 'product' ? previewItem.id : undefined);
   const summaryOpacity = useRef(new Animated.Value(isExpanded ? 0 : 1)).current;
   const detailOpacity = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
@@ -114,39 +83,23 @@ export function ProductResultContent({
   }
 
   const product = successResult?.product ?? previewProduct ?? previewHistoryProduct;
-  const compareSource = product
-    ? {
-        barcode: successResult?.barcode ?? previewProduct?.barcode ?? previewHistoryProduct?.barcode ?? '',
-        productId:
-          successResult?.productId ??
-          (previewProduct?.productId?.trim() ? previewProduct.productId : null) ??
-          previewHistoryProduct?.id ??
-          null,
-        productName: product.product_name ?? null,
-      }
-    : null;
-  const expandedNutriScoreGrade =
-    successResult?.product.scores.nutriscore_grade ??
-    previewProduct?.nutriscore_grade ??
-    previewHistoryProduct?.nutriscore_grade ??
-    null;
-  const previewNutriScoreGrade =
-    previewHistoryProduct?.nutriscore_grade ??
-    previewProduct?.nutriscore_grade ??
-    (!previewHistoryProduct && !previewProduct
-      ? successResult?.product.scores.nutriscore_grade ?? null
-      : null);
-  const nutriScoreGrade = isExpanded ? expandedNutriScoreGrade : previewNutriScoreGrade;
+  const resolvedProductId = successResult?.productId ?? previewProduct?.productId ?? previewHistoryProduct?.id;
+  const resolvedIsFavourite =
+    successResult?.isFavourite ??
+    (previewItem?.type === 'product' ? previewItem.isFavourite : false) ??
+    false;
+  const compareSource = getCompareSource({ product, previewHistoryProduct, previewProduct, successResult });
+  const nutriScoreGrade = getDisplayedNutriScoreGrade({ isExpanded, previewHistoryProduct, previewProduct, successResult });
+  const errorBottomAction = resolvedScanId ? <ScanDeleteAction scanId={resolvedScanId} /> : null;
 
   if (!product) {
-    return <DetailStateContent detailState={detailState} />;
+    return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;
   }
 
   const handleComparePress = () => {
     if (!compareSource?.barcode) {
       return;
     }
-
     void SheetManager.show(SheetsEnum.CompareProductPickerSheet, {
       payload: {
         currentProduct: compareSource,
@@ -162,33 +115,30 @@ export function ProductResultContent({
       contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
     >
       <View>
-        <View className="px-4 pb-4">
-          <ProductResultHeader
-            product={product}
-            previewImageUri={previewImageUri}
-            productId={successResult?.productId}
-            isFavourite={successResult?.isFavourite}
-          />
-          <NutriScoreBlock grade={nutriScoreGrade} />
-        </View>
+        <ProductResultHero
+          nutriScoreGrade={nutriScoreGrade}
+          previewImageUri={previewImageUri}
+          product={product}
+        />
         <View className="relative">
-          {hasSummaryContent ? (
+          {summaryState.hasSummaryContent ? (
             <Animated.View
               pointerEvents={isExpanded ? 'none' : 'auto'}
               className="absolute left-4 right-4 -top-4 z-10"
               style={{ opacity: summaryOpacity }}
             >
-              <PreviewSummaryContent
-                chips={previewChips}
-                score={previewScore}
-                showPendingSummary={showHistoryPendingSummary || showLivePendingSummary}
-                context={profileScoreChipContext}
-                isLoading={isInitialLoadingResult}
-                showActions={!isInitialLoadingResult && !showLivePendingSummary}
-                onComparePress={handleComparePress}
-                isCompareDisabled={!compareSource?.barcode}
-                onExpandDetails={onExpandDetails}
-              />
+              {summaryState.hasSummaryContent ? (
+                <PreviewSummaryContent
+                  chips={summaryState.previewChips}
+                  score={summaryState.previewScore}
+                  showPendingSummary={summaryState.showHistoryPendingSummary || summaryState.showLivePendingSummary}
+                  isLoading={isInitialLoadingResult}
+                  showActions={!isInitialLoadingResult && !summaryState.showLivePendingSummary}
+                  onComparePress={handleComparePress}
+                  isCompareDisabled={!compareSource?.barcode}
+                  onExpandDetails={onExpandDetails}
+                />
+              ) : null}
             </Animated.View>
           ) : null}
           <Animated.View
@@ -196,15 +146,25 @@ export function ProductResultContent({
             style={{ opacity: detailOpacity }}
           >
             {detailState?.isLoading || detailState?.isError ? (
-              <DetailStateContent detailState={detailState} />
+              <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />
             ) : (
               <PersonalTabContent
+                bottomAction={
+                  <ProductResultBottomActions
+                    scanId={resolvedScanId}
+                    productId={resolvedProductId}
+                    isFavourite={resolvedIsFavourite}
+                    isCompareDisabled={!compareSource?.barcode}
+                    onComparePress={handleComparePress}
+                  />
+                }
                 personalResult={personalData}
                 isError={personalError}
                 onRetry={personalRetry}
-                onComparePress={handleComparePress}
+                onSelectProfile={setSelectedProfileId}
                 rawIngredients={successResult?.product.ingredients ?? []}
                 rawIngredientsText={successResult?.product.ingredients_text ?? null}
+                selectedProfileId={selectedProfileId}
               />
             )}
           </Animated.View>

@@ -1,17 +1,22 @@
 import { Stack, useRouter } from 'expo-router';
 import { Pen } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Keyboard, Pressable, TouchableOpacity, View } from 'react-native';
+import {
+  Keyboard,
+  Pressable,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../../shared/components/Button';
-import {
-  CUSTOM_TAB_BAR_FLOATING_GAP,
-  CUSTOM_TAB_BAR_HEIGHT,
-} from '../../../../shared/components/CustomTabBar';
 import { ScreenHeader } from '../../../../shared/components/ScreenHeader';
 import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
+import {
+  DEFAULT_STICKY_FOOTER_HEIGHT,
+  StickyFooter,
+} from '../../../../shared/components/StickyFooter';
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -44,7 +49,7 @@ export function EditAccountScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
   const [isAvatarActionPending, setIsAvatarActionPending] = useState(false);
-  const tabBarClearance = CUSTOM_TAB_BAR_HEIGHT + CUSTOM_TAB_BAR_FLOATING_GAP + 20;
+  const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
 
   useEffect(() => {
     setName(user?.name ?? '');
@@ -138,109 +143,112 @@ export function EditAccountScreen() {
   return (
     <View className="flex-1 bg-white">
       <Stack.Screen
-        options={{
+        options={{  
+          headerShown: true,
           header: () => <ScreenHeader title="Edit profile" centerTitle />,
         }}
       />
 
-      <KeyboardAwareScrollView
-        className="flex-1"
-        bottomOffset={-(24 + tabBarClearance)}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 24 + tabBarClearance,
-          flex: 1,
-        }}
-        extraKeyboardSpace={-(24 + tabBarClearance + (insets.bottom / 2))}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Pressable
+      <View className="flex-1">
+        <KeyboardAwareScrollView
           className="flex-1"
-          style={{ flex: 1 }}
-          onPress={() => {
-            Keyboard.dismiss();
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: footerHeight + 16,
+            flexGrow: 1,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            className="flex-1"
+            style={{ flex: 1 }}
+            onPress={() => {
+              Keyboard.dismiss();
 
-            if (isAvatarMenuOpen) {
-              closeAvatarMenu();
+              if (isAvatarMenuOpen) {
+                closeAvatarMenu();
+              }
+            }}
+          >
+            <View className="items-center pt-0" style={{ zIndex: isAvatarMenuOpen ? 20 : 1 }}>
+              <View className="relative items-center">
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit profile photo"
+                  disabled={isBusy}
+                  onPress={() => {
+                    setIsAvatarMenuOpen((current) => !current);
+                  }}
+                >
+                  <UserAvatar
+                    imageUrl={currentAvatarUrl}
+                    fallbackImageUrl={fallbackImageUrl}
+                    name={name || user.name}
+                    size="xl"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open profile photo options"
+                  className="absolute -bottom-0.5 right-0 h-9 w-9 items-center justify-center rounded-full"
+                  style={{ backgroundColor: COLORS.primary }}
+                  disabled={isBusy}
+                  onPress={() => {
+                    setIsAvatarMenuOpen((current) => !current);
+                  }}
+                >
+                  <Pen color={COLORS.white} size={16} strokeWidth={2.2} />
+                </TouchableOpacity>
+
+                {isAvatarMenuOpen ? (
+                  <EditAvatarOptionsMenu
+                    canDelete={Boolean(currentAvatarUrl || fallbackImageUrl)}
+                    onDelete={() => {
+                      void handleAvatarDelete();
+                    }}
+                    onSelectCamera={() => {
+                      void handleAvatarSelection('camera');
+                    }}
+                    onSelectGallery={() => {
+                      void handleAvatarSelection('gallery');
+                    }}
+                  />
+                ) : null}
+              </View>
+            </View>
+
+            <View className="mt-4">
+              <EditAccountField
+                label="Name"
+                value={name}
+                error={nameError}
+                onChangeText={(value) => {
+                  setName(value);
+
+                  if (nameError) {
+                    setNameError(null);
+                  }
+                }}
+              />
+
+              <EditAccountField label="Email" value={user.email ?? ''} editable={false} />
+            </View>
+          </Pressable>
+        </KeyboardAwareScrollView>
+
+        <StickyFooter
+          bottomInset={insets.bottom}
+          errorMessage={errorMessage}
+          onLayoutHeight={(nextHeight) => {
+            if (nextHeight !== footerHeight) {
+              setFooterHeight(nextHeight);
             }
           }}
         >
-          <View className="items-center pt-0" style={{ zIndex: isAvatarMenuOpen ? 20 : 1 }}>
-            <View className="relative items-center">
-              <TouchableOpacity
-                activeOpacity={0.9}
-                accessibilityRole="button"
-                accessibilityLabel="Edit profile photo"
-                disabled={isBusy}
-                onPress={() => {
-                  setIsAvatarMenuOpen((current) => !current);
-                }}
-              >
-                <UserAvatar
-                  imageUrl={currentAvatarUrl}
-                  fallbackImageUrl={fallbackImageUrl}
-                  name={name || user.name}
-                  size="xl"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel="Open profile photo options"
-                className="absolute -bottom-0.5 right-0 h-9 w-9 items-center justify-center rounded-full"
-                style={{ backgroundColor: COLORS.primary }}
-                disabled={isBusy}
-                onPress={() => {
-                  setIsAvatarMenuOpen((current) => !current);
-                }}
-              >
-                <Pen color={COLORS.white} size={16} strokeWidth={2.2} />
-              </TouchableOpacity>
-
-              {isAvatarMenuOpen ? (
-                <EditAvatarOptionsMenu
-                  canDelete={Boolean(currentAvatarUrl || fallbackImageUrl)}
-                  onDelete={() => {
-                    void handleAvatarDelete();
-                  }}
-                  onSelectCamera={() => {
-                    void handleAvatarSelection('camera');
-                  }}
-                  onSelectGallery={() => {
-                    void handleAvatarSelection('gallery');
-                  }}
-                />
-              ) : null}
-            </View>
-          </View>
-
-          <View className="mt-4">
-            <EditAccountField
-              label="Name"
-              value={name}
-              error={nameError}
-              onChangeText={(value) => {
-                setName(value);
-
-                if (nameError) {
-                  setNameError(null);
-                }
-              }}
-            />
-
-            <EditAccountField label="Email" value={user.email ?? ''} editable={false} />
-
-            {errorMessage ? (
-              <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
-                {errorMessage}
-              </Typography>
-            ) : null}
-          </View>
-        </Pressable>
-
-        <View className="pt-4 flex justify-center items-center" style={{ paddingBottom: insets.bottom }}>
           <Button
             fullWidth
             label="Save changes"
@@ -250,8 +258,8 @@ export function EditAccountScreen() {
               void handleSave();
             }}
           />
-        </View>
-      </KeyboardAwareScrollView>
+        </StickyFooter>
+      </View>
     </View>
   );
 }
