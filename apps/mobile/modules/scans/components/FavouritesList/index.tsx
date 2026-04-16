@@ -31,7 +31,7 @@ const EMPTY_CONTENT_STYLE = {
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
-      <View className="flex-1 items-center justify-center pb-[120px] px-8 py-4">
+      <View className="flex-1 items-center justify-center pb-[140px] px-8 py-4">
         <Typography variant="sectionTitle" className="text-center">
           No favourites found
         </Typography>
@@ -43,7 +43,7 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   }
 
   return (
-    <View className="flex-1 items-center justify-center pb-[120px] px-8">
+    <View className="flex-1 items-center justify-center pb-[140px] px-8">
       <View
         className="w-24 h-24 rounded-md bg-gray-100 mb-6"
       />

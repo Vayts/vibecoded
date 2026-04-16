@@ -19,7 +19,6 @@ import {
 import { FamilyMemberStepContent } from './steps';
 import {
   KeyboardAwareScrollView,
-  type KeyboardAwareScrollViewRef,
 } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
@@ -27,6 +26,7 @@ import {
   DEFAULT_STICKY_FOOTER_HEIGHT,
   FamilyMemberStickyFooter,
 } from '../FamilyMemberStickyFooter';
+import { ScrollView } from 'react-native-gesture-handler';
 
 interface FamilyMemberFormProps {
   initialData?: FamilyMember;
@@ -47,7 +47,7 @@ export function FamilyMemberForm({
   const hydrateFromMember = useFamilyMemberFormStore((s) => s.hydrateFromMember);
   const reset = useFamilyMemberFormStore((s) => s.reset);
   const toPayload = useFamilyMemberFormStore((s) => s.toPayload);
-  const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
   const insets = useSafeAreaInsets();

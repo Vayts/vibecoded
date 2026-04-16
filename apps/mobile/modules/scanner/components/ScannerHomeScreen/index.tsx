@@ -362,7 +362,7 @@ export function ScannerHomeScreen() {
     return (
       <ScannerPermissionState
         title="Camera access required"
-        description="Allow camera access to scan barcodes and analyze products."
+        description="We’ll need access to your camera to scan barcodes and take photos."
         buttonLabel="Allow camera"
         onPress={() => {
           void requestPermission();

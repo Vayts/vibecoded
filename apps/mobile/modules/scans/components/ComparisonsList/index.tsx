@@ -29,7 +29,7 @@ const LIST_CONTENT_STYLE = {
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
-      <View className="flex-1 items-center justify-center px-8 py-20">
+      <View className="flex-1 items-center justify-center pb-[140px] px-8 py-4">
         <Typography variant="sectionTitle" className="text-center">
           No comparisons found
         </Typography>
@@ -41,16 +41,18 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   }
 
   return (
-    <View className="flex-1 items-center justify-center px-8 py-20">
-      <View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-        <GitCompareArrows color={COLORS.primary} size={28} />
-      </View>
-      <Typography variant="sectionTitle" className="text-center">
+    <View className="flex-1 items-center justify-center pb-[140px] px-8">
+      <View
+        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
+      />
+
+      <Typography variant="hero" className="text-center">
         No comparisons yet
       </Typography>
-      <Typography variant="bodySecondary" className="mt-2 text-center">
-        Compare two products to see which one is better for you.
+      <Typography className="text-center mt-4 px-4">
+        Start comparing products to see which one is better for you.
       </Typography>
+
     </View>
   );
 }

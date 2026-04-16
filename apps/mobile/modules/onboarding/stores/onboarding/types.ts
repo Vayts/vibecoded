@@ -19,7 +19,7 @@ export interface OnboardingStore {
   setStep: (step: number) => void;
   nextStep: () => void;
   prevStep: () => void;
-  setMainGoal: (value: MainGoal) => void;
+  setMainGoal: (value: MainGoal | null) => void;
   toggleRestriction: (value: Restriction) => void;
   toggleAllergy: (value: Allergy) => void;
   setOtherAllergiesText: (value: string) => void;
@@ -28,8 +28,7 @@ export interface OnboardingStore {
   resetOnboardingDraft: () => void;
 }
 
-export const ONBOARDING_STEP_COUNT = 5;
-export const REVIEW_STEP_INDEX = 4;
+export const ONBOARDING_STEP_COUNT = 4;
 
 export const createInitialOnboardingDraft = (): OnboardingDraft => ({
   mainGoal: null,

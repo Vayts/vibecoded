@@ -1,16 +1,22 @@
-import { View } from 'react-native';
-import { Typography } from '../../../../shared/components/Typography';
+import { Info } from 'lucide-react-native';
+import { Text, View } from 'react-native';
+import { COLORS } from '../../../../shared/constants/colors';
 import { AllergiesField } from '../OnboardingFields';
 
 export function AllergiesStep() {
   return (
     <View>
-      <Typography variant="pageTitle">Any allergies or intolerances?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-        Add any ingredients you want us to avoid. Leave this blank if there are no restrictions.
-      </Typography>
-
-      <AllergiesField />
+      <Text className="text-[26px] font-bold text-neutral-900">Any allergies or intolerances?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
+        Add any ingredients to avoid. Skip if none.
+      </Text>
+      <View className="mt-4 flex-row items-center gap-1">
+        <Info size={16} color={COLORS.primary700} />
+        <Text className="font-semibold text-primary-700">Select all that apply, or skip this step</Text>
+      </View>
+      <View className="mt-6">
+        <AllergiesField />
+      </View>
     </View>
   );
 }

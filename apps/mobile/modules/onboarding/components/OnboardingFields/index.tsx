@@ -17,14 +17,14 @@ export function MainGoalField() {
   const setMainGoal = useOnboardingStore((state) => state.setMainGoal);
 
   return (
-    <View className="mt-6 gap-3">
+    <View className="gap-3">
       {MAIN_GOAL_OPTIONS.map((option) => (
         <SelectableChip
           key={option.value}
           label={option.label}
           description={option.description}
           selected={draft.mainGoal === option.value}
-          onPress={() => setMainGoal(option.value)}
+          onPress={() => setMainGoal(draft.mainGoal === option.value ? null : option.value)}
         />
       ))}
     </View>
@@ -36,13 +36,14 @@ export function RestrictionsField() {
   const toggleRestriction = useOnboardingStore((state) => state.toggleRestriction);
 
   return (
-    <View className="mt-6 gap-3">
+    <View className="gap-3">
       {RESTRICTION_OPTIONS.map((option) => (
         <SelectableChip
           key={option.value}
           label={option.label}
           description={option.description}
           selected={draft.restrictions.includes(option.value)}
+          withCheckIcon
           onPress={() => toggleRestriction(option.value)}
         />
       ))}
@@ -58,12 +59,14 @@ export function AllergiesField() {
 
   return (
     <>
-      <View className="mt-6 gap-3">
+      <View className="gap-3">
         {ALLERGY_OPTIONS.map((option) => (
           <SelectableChip
+            isBig
             key={option.value}
             label={option.label}
             selected={draft.allergies.includes(option.value)}
+            withCheckIcon
             onPress={() => toggleAllergy(option.value)}
           />
         ))}
@@ -89,13 +92,14 @@ export function PreferencesField() {
   const toggleNutritionPriority = useOnboardingStore((state) => state.toggleNutritionPriority);
 
   return (
-    <View className="mt-6 gap-3">
+    <View className="gap-3">
       {NUTRITION_PRIORITY_OPTIONS.map((option) => (
         <SelectableChip
           key={option.value}
           label={option.label}
           description={option.description}
           selected={draft.nutritionPriorities.includes(option.value)}
+          withCheckIcon
           onPress={() => toggleNutritionPriority(option.value)}
         />
       ))}

@@ -1,17 +1,17 @@
-import { View } from 'react-native';
-import { Typography } from '../../../../shared/components/Typography';
-import { MainGoalField, MainGoalHint } from '../OnboardingFields';
+import { Text, View } from 'react-native';
+import { MainGoalField } from '../OnboardingFields';
 
 export function MainGoalStep() {
   return (
     <View>
-      <Typography variant="pageTitle">What is your main goal?</Typography>
-      <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-        Pick the primary outcome you want the app to optimize for.
-      </Typography>
+      <Text className="text-[26px] font-bold text-neutral-900">What is your main goal?</Text>
+      <Text className="mt-3 text-[16px] text-gray-500">
+        Pick the primary outcome to optimize for.
+      </Text>
 
-      <MainGoalField />
-      <MainGoalHint />
+      <View className="mt-6">
+        <MainGoalField />
+      </View>
     </View>
   );
 }
