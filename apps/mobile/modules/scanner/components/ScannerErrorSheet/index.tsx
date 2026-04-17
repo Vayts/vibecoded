@@ -7,7 +7,7 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 
 export interface ScannerErrorSheetPayload {
-  variant?: 'generic' | 'not-found' | 'not-food';
+  variant?: 'generic' | 'not-found' | 'not-food' | 'same-product';
   title?: string;
   message: string;
   onDismiss?: () => void;
@@ -20,6 +20,7 @@ export function ScannerErrorSheet() {
   );
   const isNotFound = variant === 'not-found';
   const isNotFood = variant === 'not-food';
+  const isSameProduct = variant === 'same-product';
   const hasPhotoAction = Boolean(onPhotoPress);
   const actionTakenRef = useRef(false);
 
@@ -27,6 +28,8 @@ export function ScannerErrorSheet() {
     ? (title ?? 'Product not found')
     : isNotFood
       ? 'This is not a food product'
+      : isSameProduct
+        ? (title ?? 'This is the same product')
       : (title ?? 'Something went wrong');
   const resolvedMessage =
     isNotFound && hasPhotoAction
@@ -55,9 +58,9 @@ export function ScannerErrorSheet() {
     <ActionSheet gestureEnabled useBottomSafeAreaPadding onClose={handleSheetClose}>
       <View className="items-center px-6 pb-4 pt-6">
         <View
-          className={`mb-4 h-14 w-14 items-center justify-center rounded-full ${isNotFound ? 'bg-amber-100' : 'bg-red-100'}`}
+          className={`mb-4 h-14 w-14 items-center justify-center rounded-full ${isNotFound || isSameProduct ? 'bg-amber-100' : 'bg-red-100'}`}
         >
-          <AlertTriangle color={isNotFound ? COLORS.warning : COLORS.danger} size={28} />
+          <AlertTriangle color={isNotFound || isSameProduct ? COLORS.warning : COLORS.danger} size={28} />
         </View>
 
         <Typography variant="sectionTitle" className="mb-2 text-center">
@@ -105,7 +108,7 @@ export function ScannerErrorSheet() {
             onPress={handleClose}
           >
             <Typography variant="button" className="text-white">
-              Try again
+              {isSameProduct ? 'Scan another product' : 'Try again'}
             </Typography>
           </TouchableOpacity>
         )}

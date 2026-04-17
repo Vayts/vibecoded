@@ -9,8 +9,8 @@ import {
 } from '@acme/shared';
 import { getProductFactsService } from './product-facts-ai';
 import { searchNutritionData } from './nutrition-websearch';
-import { analyzeIngredients } from './ingredient-analysis-ai';
-import { generateProfileFitSummary } from './profile-fit-summary-ai';
+import { analyzeIngredientsForProfiles } from './ingredient-analysis-ai';
+import { generateProfileFitSummaries } from './profile-fit-summary-ai';
 import { getProfileInputs } from './profileInputs';
 import {
   buildClassificationFromData,
@@ -45,27 +45,25 @@ export class AnalysisPipelineService {
       ingredientAnalysesPromise,
     ]);
 
-    const profileScores = computeAllProfileScores(
+    const profileScores = computeAllProfileScores(product, facts, profiles, ingredientAnalyses);
+    const scoresWithoutIngredientAnalysis = profileScores.map((profileScore) => {
+      const score = { ...profileScore };
+      delete score.ingredientAnalysis;
+      return score;
+    });
+    const summaries = await generateProfileFitSummaries({
       product,
-      facts,
-      profiles,
-      ingredientAnalyses,
-    );
-    const initialProfileScores = await Promise.all(
-      profileScores.map(async (profileScore, index) => {
-        const { ingredientAnalysis: _ignored, ...score } = profileScore;
-        const summary = await generateProfileFitSummary({
-          product,
-          onboarding: profiles[index].onboarding,
-          profileScore: score,
-        });
-
-        return {
-          ...score,
-          summary,
-        };
-      }),
-    );
+      profiles: scoresWithoutIngredientAnalysis.map((profileScore, index) => ({
+        onboarding: profiles[index].onboarding,
+        profileScore,
+      })),
+    });
+    const initialProfileScores = scoresWithoutIngredientAnalysis.map((profileScore) => ({
+      ...profileScore,
+      summary:
+        summaries.get(profileScore.profileId) ??
+        'This product is a good fit because its overall nutrition profile lines up well with your preferences.',
+    }));
 
     return {
       result: {
@@ -90,13 +88,12 @@ export class AnalysisPipelineService {
       precomputedIngredientAnalyses ??
       (await this.buildProfileIngredientAnalyses(product, profiles));
 
-    const hasAnyIngredientAnalysis = Array.from(
-      perProfileIngredients.values(),
-    ).some((ingredientAnalysis) => Boolean(ingredientAnalysis));
+    const hasAnyIngredientAnalysis = Array.from(perProfileIngredients.values()).some(
+      (ingredientAnalysis) => Boolean(ingredientAnalysis),
+    );
 
     const profileScores = baseResult.profiles.map((profileScore) => {
-      const ingredientAnalysis =
-        perProfileIngredients.get(profileScore.profileId) ?? undefined;
+      const ingredientAnalysis = perProfileIngredients.get(profileScore.profileId) ?? undefined;
 
       if (!ingredientAnalysis) {
         return profileScore;
@@ -109,18 +106,14 @@ export class AnalysisPipelineService {
     });
 
     const selfProfileId =
-      profiles.find((profile) => profile.profileType === 'self')?.profileId ??
-      'you';
-    const selfIngredientAnalysis =
-      perProfileIngredients.get(selfProfileId) ?? undefined;
+      profiles.find((profile) => profile.profileType === 'self')?.profileId ?? 'you';
+    const selfIngredientAnalysis = perProfileIngredients.get(selfProfileId) ?? undefined;
 
     return {
       result: {
         productFacts: baseResult.productFacts,
         profiles: profileScores,
-        ...(selfIngredientAnalysis
-          ? { ingredientAnalysis: selfIngredientAnalysis }
-          : {}),
+        ...(selfIngredientAnalysis ? { ingredientAnalysis: selfIngredientAnalysis } : {}),
       },
       hasAnyIngredientAnalysis,
     };
@@ -130,26 +123,16 @@ export class AnalysisPipelineService {
     product: NormalizedProduct,
     profiles: ScoreProfileInput[],
   ): Promise<Map<string, IngredientAnalysis | null>> {
-    if (
-      product.ingredients.length === 0 &&
-      !product.ingredients_text?.trim()
-    ) {
-      return new Map(
-        profiles.map((profile) => [profile.profileId, null] as const),
-      );
+    if (product.ingredients.length === 0 && !product.ingredients_text?.trim()) {
+      return new Map(profiles.map((profile) => [profile.profileId, null] as const));
     }
 
-    const ingredientResults = await Promise.all(
-      profiles.map((profile) =>
-        analyzeIngredients(product, profile.onboarding).catch(() => null),
-      ),
-    );
-
-    return new Map(
-      profiles.map((profile, index) => [
-        profile.profileId,
-        ingredientResults[index] ?? null,
-      ]),
+    return analyzeIngredientsForProfiles(
+      product,
+      profiles.map((profile) => ({
+        profileId: profile.profileId,
+        onboarding: profile.onboarding,
+      })),
     );
   }
 
@@ -185,14 +168,12 @@ export class AnalysisPipelineService {
     }));
   }
 
-  private async buildProductFacts(
-    product: NormalizedProduct,
-  ): Promise<ProductFacts> {
+  private async buildProductFacts(product: NormalizedProduct): Promise<ProductFacts> {
     const productName = product.product_name ?? product.code ?? 'unknown';
     const productHasNutrition = hasNutritionData(product);
 
     let nutritionFacts: NutritionFacts;
-    let classification;
+    let classification: ReturnType<typeof buildClassificationFromData>;
 
     if (productHasNutrition) {
       nutritionFacts = buildNutritionFacts(product);

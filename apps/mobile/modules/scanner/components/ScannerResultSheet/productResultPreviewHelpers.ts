@@ -31,6 +31,29 @@ interface PreviewSummaryState {
   showLivePendingSummary: boolean;
 }
 
+const getPrimaryPreviewProfile = (profiles: ProductAnalysisProfiles | undefined) => {
+  if (!profiles?.length) {
+    return undefined;
+  }
+
+  return profiles.find((profile) => profile.profileId === 'you') ?? profiles[0];
+};
+
+const toPreviewProfileChips = (
+  profiles: ProductAnalysisProfiles | undefined,
+): NonNullable<ScanHistoryItem['profileChips']> | undefined => {
+  if (!profiles?.length) {
+    return undefined;
+  }
+
+  return profiles.map((profile) => ({
+    profileId: profile.profileId,
+    name: profile.name,
+    score: profile.score,
+    fitLabel: profile.fitLabel,
+  }));
+};
+
 export const getPreviewHistoryProduct = (previewItem?: ScanHistoryItem) => {
   if (previewItem?.type !== 'product') {
     return null;
@@ -58,31 +81,40 @@ export const getPreviewSummaryState = ({
   previewItem,
   previewProduct,
   isInitialLoadingResult,
+  personalResult,
   personalStatus,
 }: {
   previewItem?: ScanHistoryItem;
   previewProduct?: ProductPreview;
   isInitialLoadingResult: boolean;
+  personalResult?: AnalysisJobResponse;
   personalStatus?: AnalysisJobResponse['status'];
 }): PreviewSummaryState => {
-  const previewChips =
+  const historyPreviewChips =
     previewItem?.type === 'product' ? previewItem.profileChips : undefined;
-  const previewScore =
+  const historyPreviewScore =
     previewItem?.type === 'product'
       ? previewItem.personalScore ?? previewItem.overallScore
       : null;
+  const livePreviewChips = toPreviewProfileChips(personalResult?.result?.profiles);
+  const livePreviewPrimaryProfile = getPrimaryPreviewProfile(personalResult?.result?.profiles);
+  const livePreviewScore = livePreviewPrimaryProfile?.score ?? null;
+  const previewChips = historyPreviewChips ?? livePreviewChips;
+  const previewScore = historyPreviewScore ?? livePreviewScore;
   const showHistoryPendingSummary =
     previewItem?.type === 'product' &&
-    !previewChips?.length &&
-    previewScore == null &&
+    !historyPreviewChips?.length &&
+    historyPreviewScore == null &&
     previewItem.personalAnalysisStatus === 'pending';
   const hasHistorySummaryContent = Boolean(
-    previewChips?.length || previewScore != null || showHistoryPendingSummary,
+    historyPreviewChips?.length || historyPreviewScore != null || showHistoryPendingSummary,
   );
   const hasLiveSummaryContent = Boolean(previewProduct) && !previewItem;
   const showLivePendingSummary =
     hasLiveSummaryContent &&
     !isInitialLoadingResult &&
+    !livePreviewChips?.length &&
+    livePreviewScore == null &&
     personalStatus === 'pending';
 
   return {
@@ -150,8 +182,7 @@ export const getDisplayedNutriScoreGrade = ({
   return (
     previewHistoryProduct?.nutriscore_grade ??
     previewProduct?.nutriscore_grade ??
-    (!previewHistoryProduct && !previewProduct
-      ? successResult?.product.scores.nutriscore_grade ?? null
-      : null)
+    successResult?.product.scores.nutriscore_grade ??
+    null
   );
 };

@@ -20,7 +20,7 @@ export function OnboardingProgress({ step }: OnboardingProgressProps) {
         </Typography>
       </View>
       <View className="h-2 overflow-hidden rounded-full bg-gray-100">
-        <View className="h-full rounded-full bg-blue-600" style={{ width: progress }} />
+        <View className="h-full rounded-full bg-primary-700" style={{ width: progress }} />
       </View>
     </View>
   );

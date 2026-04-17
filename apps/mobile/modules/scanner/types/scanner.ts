@@ -25,6 +25,7 @@ export interface ScannerResultSheetPayload {
   previewProduct?: ProductPreview;
   previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
+  initialSnapIndex?: number;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
 }

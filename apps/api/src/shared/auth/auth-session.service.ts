@@ -8,9 +8,7 @@ import { ApiError } from '../errors/api-error';
 
 @Injectable()
 export class AuthSessionService {
-  async getOptionalUserIdFromHeaders(
-    headers: IncomingHttpHeaders,
-  ): Promise<string | undefined> {
+  async getOptionalUserIdFromHeaders(headers: IncomingHttpHeaders): Promise<string | undefined> {
     const session = await auth.api.getSession({
       headers: fromNodeHeaders(headers),
     });
@@ -22,9 +20,7 @@ export class AuthSessionService {
     return this.getOptionalUserIdFromHeaders(request.headers);
   }
 
-  async requireUserIdFromHeaders(
-    headers: IncomingHttpHeaders,
-  ): Promise<string> {
+  async requireUserIdFromHeaders(headers: IncomingHttpHeaders): Promise<string> {
     const userId = await this.getOptionalUserIdFromHeaders(headers);
 
     if (!userId) {

@@ -1,32 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  View,
-} from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Keyboard, KeyboardAvoidingView, Pressable, View } from 'react-native';
 import type { CreateFamilyMemberRequest, FamilyMember } from '@acme/shared';
 
 import { Button } from '../../../../shared/components/Button';
-import { Typography } from '../../../../shared/components/Typography';
 import {
   useFamilyMemberFormStore,
   isNameStepValid,
   FAMILY_MEMBER_STEP_COUNT,
 } from '../../stores/familyMemberFormStore';
 import { FamilyMemberStepContent } from './steps';
-import {
-  KeyboardAwareScrollView,
-  type KeyboardAwareScrollViewRef,
-} from 'react-native-keyboard-controller';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BackButton } from '../../../../shared/components/BackButton';
 import {
   DEFAULT_STICKY_FOOTER_HEIGHT,
   FamilyMemberStickyFooter,
 } from '../FamilyMemberStickyFooter';
+import { ScrollView } from 'react-native-gesture-handler';
+import { FamilyMemberFormHeader } from './FamilyMemberFormHeader';
 
 interface FamilyMemberFormProps {
   initialData?: FamilyMember;
@@ -47,7 +37,7 @@ export function FamilyMemberForm({
   const hydrateFromMember = useFamilyMemberFormStore((s) => s.hydrateFromMember);
   const reset = useFamilyMemberFormStore((s) => s.reset);
   const toPayload = useFamilyMemberFormStore((s) => s.toPayload);
-  const scrollViewRef = useRef<KeyboardAwareScrollViewRef>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
   const insets = useSafeAreaInsets();
@@ -72,7 +62,8 @@ export function FamilyMemberForm({
 
   const isLastStep = step === FAMILY_MEMBER_STEP_COUNT - 1;
   const isAvatarStep = step === 1;
-  const canContinue = step === 0 ? isNameStepValid(draft) : isAvatarStep ? Boolean(draft.avatarUrl) : true;
+  const canContinue =
+    step === 0 ? isNameStepValid(draft) : isAvatarStep ? Boolean(draft.avatarUrl) : true;
 
   const handleContinue = () => {
     if (step === 0) {
@@ -85,7 +76,7 @@ export function FamilyMemberForm({
     } else {
       setErrorMessage(null);
       nextStep();
-    } 
+    }
   };
 
   const handleSkipAvatarStep = () => {
@@ -156,13 +147,8 @@ export function FamilyMemberForm({
   );
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      style={{ paddingTop: insets.top }}
-    >
-      <View>
-        <BackButton />
-      </View>
+    <KeyboardAvoidingView className="flex-1 bg-white" style={{ paddingTop: insets.top }}>
+      <FamilyMemberFormHeader step={step} />
 
       <View className="flex-1">
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>

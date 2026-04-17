@@ -4,6 +4,13 @@ import type { NormalizedProduct, ProfileComparisonResult } from '@acme/shared';
 import { AI_MODELS } from '../constants/models';
 import type { ProfileInput } from './profileInputs';
 
+export class SameProductComparisonError extends Error {
+  constructor(message = 'You scanned the same product twice. Scan a different product to compare.') {
+    super(message);
+    this.name = 'SameProductComparisonError';
+  }
+}
+
 const PROFILE_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const getProfileLabel = (index: number): string =>
   PROFILE_LABELS[index] ?? `P${index}`;
@@ -125,7 +132,22 @@ const profileComparisonOutputSchema = z.object({
     ),
 });
 
+const sameProductOutputSchema = z.object({
+  isSameProduct: z
+    .boolean()
+    .describe(
+      'True when the two inputs most likely refer to the same real-world product despite OCR mistakes, spacing differences, transliteration, or missing barcode.',
+    ),
+  reason: z
+    .string()
+    .nullable()
+    .describe(
+      'Short reason why these appear to be the same product, or null when they are clearly different.',
+    ),
+});
+
 const comparisonOutputSchema = z.object({
+  sameProduct: sameProductOutputSchema,
   profiles: z.array(profileComparisonOutputSchema),
 });
 
@@ -159,6 +181,19 @@ Only flag allergens listed in the profile's "Allergies:" line.
 No allergies listed → ignore allergen data entirely. Do NOT mention traces.
 
 ═══ COMPARISON RULES ═══
+
+Before comparing, determine whether both inputs are likely the SAME real product.
+Treat them as the same product when the differences are likely caused by OCR, transliteration, spacing, punctuation, case, or minor spelling variation.
+Examples of same-product signals: nearly identical brand, same product type, highly overlapping ingredients, very similar nutrition, one name being a spaced/corrected version of the other.
+If they are likely the same product:
+- set sameProduct.isSameProduct=true
+- provide a short sameProduct.reason
+- return profiles=[]
+- do not perform a comparison
+If they are different products:
+- set sameProduct.isSameProduct=false
+- set sameProduct.reason=null unless there is a useful brief note
+- return the normal per-profile comparison
 
 For each product, produce 2-4 positives and 0-4 negatives. All bullets must be COMPARATIVE (relative to the other product).
 - The tokens product1/product2 are INTERNAL identifiers only. Use them only in the structured winner field and object keys, never in natural-language text.
@@ -479,6 +514,15 @@ export const compareProductsForProfiles = async (
   console.log(
     `[Compare] ✅ AI responded  ${Date.now() - t0}ms  profiles=${parsed.profiles.length}`,
   );
+
+  if (parsed.sameProduct.isSameProduct) {
+    console.log(
+      `[Compare] ⛔ same-product detected  reason="${parsed.sameProduct.reason ?? 'AI marked as same product'}"`,
+    );
+    throw new SameProductComparisonError(
+      parsed.sameProduct.reason ?? undefined,
+    );
+  }
 
   return parsed.profiles.map((profileResult) => {
     const profileIndex = profiles.findIndex(

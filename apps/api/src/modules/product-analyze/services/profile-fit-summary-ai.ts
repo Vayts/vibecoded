@@ -9,14 +9,34 @@ import { z } from 'zod';
 
 import { AI_MODELS } from '../constants/models';
 
+export interface ProfileFitSummaryInput {
+  onboarding: OnboardingResponse;
+  profileScore: ProfileProductScore;
+}
+
 type MainGoalValue = NonNullable<OnboardingResponse['mainGoal']>;
 type RestrictionValue = OnboardingResponse['restrictions'][number];
 type AllergyValue = Exclude<OnboardingResponse['allergies'][number], 'OTHER'>;
 type NutritionPriorityValue = OnboardingResponse['nutritionPriorities'][number];
 
-const summaryOutputSchema = z.object({
+const profileSummaryOutputSchema = z.object({
+  profileId: z.string(),
   summary: z.string().nullable(),
 });
+
+const summaryBatchOutputSchema = z.object({
+  profiles: z.array(profileSummaryOutputSchema),
+});
+
+type SummaryBatchOutput = z.infer<typeof summaryBatchOutputSchema>;
+
+interface StructuredSummaryRunner {
+  invoke(messages: Array<{ role: string; content: string }>): Promise<SummaryBatchOutput>;
+}
+
+interface StructuredSummaryModel {
+  withStructuredOutput(schema: typeof summaryBatchOutputSchema): StructuredSummaryRunner;
+}
 
 const SUMMARY_OPENINGS: Record<FitLabel, string> = {
   great_fit: 'This product is an excellent fit because',
@@ -68,8 +88,10 @@ const SYSTEM_PROMPT = `You write short, human product fit summaries for a food s
 
 Rules:
 - Return JSON only.
-- summary must be exactly one sentence.
-- Start with the required opening provided by the user.
+- Return exactly one summary for every provided profileId.
+- Use the exact profileId values from the input.
+- Each summary must be exactly one sentence.
+- Each summary must start with the required opening provided for that profile.
 - Keep it concise and natural, around 14 to 28 words.
 - Explain the main reasons the product fits or does not fit.
 - Use everyday language.
@@ -78,8 +100,7 @@ Rules:
 - Do not say the text was generated.
 - Prefer specific product reasons over generic wellness advice.`;
 
-const stripTrailingPunctuation = (value: string): string =>
-  value.trim().replace(/[.!?]+$/g, '');
+const stripTrailingPunctuation = (value: string): string => value.trim().replace(/[.!?]+$/g, '');
 
 const lowerFirst = (value: string): string =>
   value.length > 0 ? value.charAt(0).toLowerCase() + value.slice(1) : value;
@@ -93,15 +114,13 @@ const joinReasonFragments = (reasons: string[]): string => {
     return lowerFirst(stripTrailingPunctuation(reasons[0]));
   }
 
-  const normalized = reasons.map((reason) =>
-    lowerFirst(stripTrailingPunctuation(reason)),
-  );
+  const normalized = reasons.map((reason) => lowerFirst(stripTrailingPunctuation(reason)));
 
   return `${normalized.slice(0, -1).join(', ')} and ${normalized[normalized.length - 1]}`;
 };
 
 const pickTopReasons = (
-  reasons: ProfileProductScore['positives'] | ProfileProductScore['negatives'],
+  reasons: ProfileProductScore['positives'],
   limit: number,
   kind?: 'positive' | 'neutral',
 ): string[] => {
@@ -144,9 +163,7 @@ const buildProfileContext = (onboarding: OnboardingResponse): string => {
   return parts.length > 0 ? parts.join('\n') : 'No strong dietary preferences provided.';
 };
 
-const buildFallbackProfileSummary = (
-  profileScore: ProfileProductScore,
-): string => {
+const buildFallbackProfileSummary = (profileScore: ProfileProductScore): string => {
   const opening = SUMMARY_OPENINGS[profileScore.fitLabel];
   const positives = pickTopReasons(profileScore.positives, 2, 'positive');
   const negatives = pickTopReasons(profileScore.negatives, 2);
@@ -178,23 +195,13 @@ const buildFallbackProfileSummary = (
   return 'This product is a good fit because its overall nutrition profile lines up well with your preferences.';
 };
 
-export async function generateProfileFitSummary(input: {
-  product: NormalizedProduct;
-  onboarding: OnboardingResponse;
-  profileScore: ProfileProductScore;
-}): Promise<string> {
-  const fallbackSummary = buildFallbackProfileSummary(input.profileScore);
-
-  if (!process.env.OPENAI_API_KEY) {
-    return fallbackSummary;
-  }
-
+const buildSummaryPromptSection = (input: ProfileFitSummaryInput, index: number): string => {
   const positives = pickTopReasons(input.profileScore.positives, 3, 'positive');
   const neutrals = pickTopReasons(input.profileScore.positives, 2, 'neutral');
   const negatives = pickTopReasons(input.profileScore.negatives, 3);
 
-  const userPrompt = `Product: ${input.product.product_name ?? 'Unknown product'}
-Brand: ${input.product.brands ?? 'Unknown'}
+  return `Profile ${index + 1}:
+Profile ID: ${input.profileScore.profileId}
 Required opening: ${SUMMARY_OPENINGS[input.profileScore.fitLabel]}
 
 Profile context:
@@ -212,6 +219,32 @@ ${negatives.length > 0 ? negatives.map((reason) => `- ${stripTrailingPunctuation
 
 Extra context:
 ${neutrals.length > 0 ? neutrals.map((reason) => `- ${stripTrailingPunctuation(reason)}`).join('\n') : '- none'}`;
+};
+
+export async function generateProfileFitSummaries(input: {
+  product: NormalizedProduct;
+  profiles: ProfileFitSummaryInput[];
+}): Promise<Map<string, string>> {
+  const fallbackSummaries = new Map(
+    input.profiles.map(
+      (profile) =>
+        [
+          profile.profileScore.profileId,
+          buildFallbackProfileSummary(profile.profileScore),
+        ] as const,
+    ),
+  );
+
+  if (input.profiles.length === 0 || !process.env.OPENAI_API_KEY) {
+    return fallbackSummaries;
+  }
+
+  const userPrompt = `Product: ${input.product.product_name ?? 'Unknown product'}
+Brand: ${input.product.brands ?? 'Unknown'}
+
+Write one summary for each profile below:
+
+${input.profiles.map((profile, index) => buildSummaryPromptSection(profile, index)).join('\n\n')}`;
 
   try {
     const model = new ChatOpenAI({
@@ -221,16 +254,54 @@ ${neutrals.length > 0 ? neutrals.map((reason) => `- ${stripTrailingPunctuation(r
       reasoning: { effort: 'low' },
     });
 
-    const structured = (model as any).withStructuredOutput(summaryOutputSchema);
-    const result = await structured.invoke([
+    const structured = (model as unknown as StructuredSummaryModel).withStructuredOutput(
+      summaryBatchOutputSchema,
+    );
+    const raw = await structured.invoke([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt },
     ]);
 
-    const parsed = summaryOutputSchema.parse(result);
-    return parsed.summary?.trim() || fallbackSummary;
+    const parsed = summaryBatchOutputSchema.parse(raw);
+    const summariesByProfileId = new Map(
+      parsed.profiles.map((profile) => [profile.profileId, profile.summary?.trim() ?? null]),
+    );
+
+    return new Map(
+      input.profiles.map((profile) => {
+        const fallbackSummary =
+          fallbackSummaries.get(profile.profileScore.profileId) ??
+          buildFallbackProfileSummary(profile.profileScore);
+        const summary = summariesByProfileId.get(profile.profileScore.profileId);
+
+        return [
+          profile.profileScore.profileId,
+          summary && summary.length > 0 ? summary : fallbackSummary,
+        ] as const;
+      }),
+    );
   } catch (error) {
     console.error('[ProfileFitSummary] Failed:', error);
-    return fallbackSummary;
+    return fallbackSummaries;
   }
+}
+
+export async function generateProfileFitSummary(input: {
+  product: NormalizedProduct;
+  onboarding: OnboardingResponse;
+  profileScore: ProfileProductScore;
+}): Promise<string> {
+  const summaries = await generateProfileFitSummaries({
+    product: input.product,
+    profiles: [
+      {
+        onboarding: input.onboarding,
+        profileScore: input.profileScore,
+      },
+    ],
+  });
+
+  return (
+    summaries.get(input.profileScore.profileId) ?? buildFallbackProfileSummary(input.profileScore)
+  );
 }

@@ -14,7 +14,7 @@ export function ProfileLogoutButton({ disabled = false, onPress }: ProfileLogout
       activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel="Log out"
-      className="min-h-[52px] rounded-full border border-neutrals-300 px-5 py-4"
+      className="min-h-[44px] rounded-full border border-neutrals-300 px-5 items-center justify-center"
       style={{
         opacity: disabled ? 0.4 : 1,
       }}

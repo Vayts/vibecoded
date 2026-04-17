@@ -59,6 +59,10 @@ interface ScanDetailLoaderProps {
   previewImageUri?: ScannerResultSheetPayload['previewImageUri'];
   snapIndex: number;
   onExpandDetails: () => void;
+  onPreviewStateChange?: (state: {
+    hasSummaryContent: boolean;
+    nutriScoreGrade: string | null | undefined;
+  }) => void;
 }
 
 export function ScanDetailLoader({
@@ -68,6 +72,7 @@ export function ScanDetailLoader({
   previewImageUri,
   snapIndex,
   onExpandDetails,
+  onPreviewStateChange,
 }: ScanDetailLoaderProps) {
   const { data, isLoading, isError, error, refetch } = useScanDetailQuery(scanId);
   const safeAreaInsets = useSafeAreaInsets();
@@ -119,6 +124,7 @@ export function ScanDetailLoader({
       resolvedPersonalResult={mapped?.resolvedPersonalResult}
       snapIndex={snapIndex}
       onExpandDetails={onExpandDetails}
+      onPreviewStateChange={onPreviewStateChange}
       detailState={
         mapped
           ? undefined

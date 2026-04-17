@@ -41,15 +41,15 @@ const variantClasses: Record<
   },
   destructive: {
     container: 'border border-neutrals-300 rounded-[30px] bg-white',
-    text: 'text-red-600 font-semibold text-base',
+    text: 'text-danger-800 font-semibold text-base',
     indicator: COLORS.danger,
   },
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'py-2 px-4 h-10',
-  md: 'py-3 px-6 h-12',
-  lg: 'py-4 px-6 h-14',
+  sm: 'px-4 h-[44px]',
+  md: 'px-6 h-[44px]',
+  lg: 'px-6 h-[44px]',
 };
 
 export function Button({

@@ -1,7 +1,6 @@
 import {
   CameraView,
   type BarcodeScanningResult,
-  useCameraFormat,
   useCameraPermissions,
 } from 'expo-camera';
 import { useFocusEffect } from 'expo-router';
@@ -11,6 +10,7 @@ import {
   AppState,
   type AppStateStatus,
   Dimensions,
+  Linking,
   Platform,
   TouchableOpacity,
   Vibration,
@@ -42,7 +42,7 @@ const BARCODE_DETECTION_PADDING = 20;
 
 export function ScannerHomeScreen() {
   const insets = useSafeAreaInsets();
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission, getPermission] = useCameraPermissions();
   const lookupMutation = useProductLookupMutation();
   const compareMutation = useCompareProductsMutation();
   const { openLiveComparison } = useOpenComparisonRoute();
@@ -75,6 +75,23 @@ export function ScannerHomeScreen() {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (appState !== 'active') {
+      return;
+    }
+
+    void getPermission();
+  }, [appState, getPermission]);
+
+  const handleCameraPermissionPress = useCallback(() => {
+    if (permission && !permission.granted && permission.canAskAgain === false) {
+      void Linking.openSettings().catch(() => undefined);
+      return;
+    }
+
+    void requestPermission();
+  }, [permission, requestPermission]);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -152,6 +169,43 @@ export function ScannerHomeScreen() {
     resumeScanner();
   }, [resumeScanner]);
 
+  const openScannerErrorSheet = useCallback(
+    async (error: unknown, fallbackMessage: string) => {
+      const errorMessage = error instanceof Error ? error.message : fallbackMessage;
+      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
+      const isRetriableNotFound =
+        errorCode === 'PRODUCT_NOT_FOUND' ||
+        errorMessage.toLowerCase().includes('not found');
+      const isSameProduct = errorCode === 'SAME_PRODUCT';
+
+      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
+        payload: {
+          variant: errorCode === 'NOT_FOOD'
+            ? 'not-food'
+            : isRetriableNotFound
+              ? 'not-found'
+              : isSameProduct
+                ? 'same-product'
+                : 'generic',
+          title: errorCode === 'NOT_FOOD'
+            ? 'This is not a food product'
+            : isSameProduct
+              ? 'This is the same product'
+              : undefined,
+          message:
+            errorCode === 'NOT_FOOD'
+              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
+              : isSameProduct
+                ? 'We identified the same product in both scans. Scan a different product to compare.'
+                : errorMessage,
+          onDismiss: resumeScanner,
+          onPhotoPress: isRetriableNotFound ? switchToPhotoMode : undefined,
+        },
+      });
+    },
+    [resumeScanner, switchToPhotoMode],
+  );
+
   const toggleTorch = useCallback(() => {
     if (scanLockRef.current) {
       return;
@@ -222,31 +276,16 @@ export function ScannerHomeScreen() {
         resetCompare();
       }
 
-      const errorMessage = error instanceof Error ? error.message : 'Unable to identify product';
-      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
-      const isRetriableNotFound = errorCode === 'PRODUCT_NOT_FOUND';
-
-      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
-        payload: {
-          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isRetriableNotFound ? 'not-found' : 'generic',
-          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
-          message:
-            errorCode === 'NOT_FOOD'
-              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
-              : errorMessage,
-          onDismiss: resumeScanner,
-          onPhotoPress: isRetriableNotFound ? switchToPhotoMode : undefined,
-        },
-      });
+      await openScannerErrorSheet(error, 'Unable to identify product');
     }
   }, [
     captureAndCompress,
     capturePhotoPreview,
     compareMutation,
+    openScannerErrorSheet,
     openLiveComparison,
     resetCompare,
     resumeScanner,
-    switchToPhotoMode,
   ]);
 
   const handlePhotoPress = useCallback(async () => {
@@ -297,6 +336,11 @@ export function ScannerHomeScreen() {
           barcode1 = first.barcode;
         }
 
+        if (barcode1.trim() === normalized) {
+          resumeScanner();
+          return;
+        }
+
         const result = await compareMutation.mutateAsync({
           barcode1,
           barcode2: normalized,
@@ -315,25 +359,9 @@ export function ScannerHomeScreen() {
         resetCompare();
       }
 
-      const errorMessage = error instanceof Error ? error.message : 'Unable to submit barcode';
-      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
-      const isNotFound =
-        errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
-
-      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
-        payload: {
-          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isNotFound ? 'not-found' : 'generic',
-          title: errorCode === 'NOT_FOOD' ? 'This is not a food product' : undefined,
-          message:
-            errorCode === 'NOT_FOOD'
-              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
-              : errorMessage,
-          onDismiss: resumeScanner,
-          onPhotoPress: isNotFound ? switchToPhotoMode : undefined,
-        },
-      });
+      await openScannerErrorSheet(error, 'Unable to submit barcode');
     }
-  }, [compareMutation, lookupMutation, openLiveComparison, resetCompare, resumeScanner, switchToPhotoMode]);
+  }, [compareMutation, lookupMutation, openLiveComparison, openScannerErrorSheet, resetCompare, resumeScanner]);
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
     if (Platform.OS !== 'ios' && bounds && scanFrameBounds.current) {
@@ -359,14 +387,18 @@ export function ScannerHomeScreen() {
   }
 
   if (!permission.granted) {
+    const isCameraPermissionBlocked = permission.canAskAgain === false;
+
     return (
       <ScannerPermissionState
-        title="Camera access required"
-        description="Allow camera access to scan barcodes and analyze products."
-        buttonLabel="Allow camera"
-        onPress={() => {
-          void requestPermission();
-        }}
+        title={isCameraPermissionBlocked ? 'Turn on camera access' : 'Camera access required'}
+        description={
+          isCameraPermissionBlocked
+            ? 'Camera access is turned off for this app. Enable it in Settings to scan barcodes and take photos.'
+            : 'We’ll need access to your camera to scan barcodes and take photos.'
+        }
+        buttonLabel={isCameraPermissionBlocked ? 'Open Settings' : 'Allow camera'}
+        onPress={handleCameraPermissionPress}
       />
     );
   }

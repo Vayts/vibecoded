@@ -14,10 +14,7 @@ export class ApiError extends HttpException {
     return new ApiError(HttpStatus.BAD_REQUEST, { error, code });
   }
 
-  static unauthorized(
-    error = 'Authentication required',
-    code = 'UNAUTHORIZED',
-  ): ApiError {
+  static unauthorized(error = 'Authentication required', code = 'UNAUTHORIZED'): ApiError {
     return new ApiError(HttpStatus.UNAUTHORIZED, { error, code });
   }
 

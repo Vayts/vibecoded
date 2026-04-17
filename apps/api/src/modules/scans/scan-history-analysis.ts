@@ -33,9 +33,7 @@ const getParsedProfiles = (value: unknown): ProfileProductScore[] => {
     .filter((profile): profile is ProfileProductScore => profile != null);
 };
 
-const isDietConflictReason = (
-  reason: ProfileProductScore['negatives'][number],
-): boolean => {
+const isDietConflictReason = (reason: ProfileProductScore['negatives'][number]): boolean => {
   if (reason.description.toLowerCase().startsWith(UNCLEAR_DIET_PREFIX)) {
     return false;
   }

@@ -29,6 +29,10 @@ interface ProductResultContentProps {
   isInitialLoadingResult?: boolean;
   snapIndex: number;
   onExpandDetails: () => void;
+  onPreviewStateChange?: (state: {
+    hasSummaryContent: boolean;
+    nutriScoreGrade: string | null | undefined;
+  }) => void;
   detailState?: ProductResultDetailState;
 }
 
@@ -42,6 +46,7 @@ export function ProductResultContent({
   isInitialLoadingResult = false,
   snapIndex,
   onExpandDetails,
+  onPreviewStateChange,
   detailState,
 }: ProductResultContentProps) {
   const insets = useSafeAreaInsets();
@@ -58,7 +63,13 @@ export function ProductResultContent({
   const personalRetry = () => {};
   const isExpanded = snapIndex > 0;
   const previewHistoryProduct = getPreviewHistoryProduct(previewItem);
-  const summaryState = getPreviewSummaryState({ previewItem, previewProduct, isInitialLoadingResult, personalStatus: personalData?.status });
+  const summaryState = getPreviewSummaryState({
+    previewItem,
+    previewProduct,
+    isInitialLoadingResult,
+    personalResult: personalData,
+    personalStatus: personalData?.status,
+  });
   const resolvedScanId = scanId ?? successResult?.scanId ?? (previewItem?.type === 'product' ? previewItem.id : undefined);
   const summaryOpacity = useRef(new Animated.Value(isExpanded ? 0 : 1)).current;
   const detailOpacity = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
@@ -91,6 +102,13 @@ export function ProductResultContent({
   const compareSource = getCompareSource({ product, previewHistoryProduct, previewProduct, successResult });
   const nutriScoreGrade = getDisplayedNutriScoreGrade({ isExpanded, previewHistoryProduct, previewProduct, successResult });
   const errorBottomAction = resolvedScanId ? <ScanDeleteAction scanId={resolvedScanId} /> : null;
+
+  useEffect(() => {
+    onPreviewStateChange?.({
+      hasSummaryContent: summaryState.hasSummaryContent,
+      nutriScoreGrade,
+    });
+  }, [nutriScoreGrade, onPreviewStateChange, summaryState.hasSummaryContent]);
 
   if (!product) {
     return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;

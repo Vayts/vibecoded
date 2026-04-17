@@ -48,10 +48,7 @@ export class StorageController {
       limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
     }),
   )
-  async uploadAvatar(
-    @UploadedFile() file: UploadedPhotoFile | undefined,
-    @Req() request: Request,
-  ) {
+  async uploadAvatar(@UploadedFile() file: UploadedPhotoFile | undefined, @Req() request: Request) {
     await this.authSessionService.requireUserId(request);
     return this.storageService.uploadAvatar(file);
   }

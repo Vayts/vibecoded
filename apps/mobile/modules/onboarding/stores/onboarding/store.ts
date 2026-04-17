@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import type { OnboardingStore } from './types';
-import { createInitialOnboardingDraft, REVIEW_STEP_INDEX } from './types';
+import { createInitialOnboardingDraft, ONBOARDING_STEP_COUNT } from './types';
+
+const LAST_ONBOARDING_STEP_INDEX = ONBOARDING_STEP_COUNT - 1;
 
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
   step: 0,
   draft: createInitialOnboardingDraft(),
 
-  setStep: (step) => set({ step: Math.max(0, Math.min(REVIEW_STEP_INDEX, step)) }),
-  nextStep: () => set((state) => ({ step: Math.min(REVIEW_STEP_INDEX, state.step + 1) })),
+  setStep: (step) => set({ step: Math.max(0, Math.min(LAST_ONBOARDING_STEP_INDEX, step)) }),
+  nextStep: () => set((state) => ({ step: Math.min(LAST_ONBOARDING_STEP_INDEX, state.step + 1) })),
   prevStep: () => set((state) => ({ step: Math.max(0, state.step - 1) })),
 
   setMainGoal: (value) => set((state) => ({ draft: { ...state.draft, mainGoal: value } })),

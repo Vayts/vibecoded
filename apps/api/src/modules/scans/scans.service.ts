@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type {
-  ScanDetailResponse,
-  ScanHistoryItem,
-  ScanHistoryResponse,
-} from '@acme/shared';
+import type { ScanDetailResponse, ScanHistoryItem, ScanHistoryResponse } from '@acme/shared';
 import {
   normalizedProductSchema,
   productAnalysisResultSchema,
@@ -12,10 +8,7 @@ import {
   profileProductScoreSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
-import {
-  buildProductSearchFilter,
-  normalizeSearchQuery,
-} from '../../shared/utils/product-search';
+import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 import { buildHistoryAnalysisSummary } from './scan-history-analysis';
 
@@ -172,19 +165,15 @@ export class ScansService {
       : null;
 
     const analysisResult = scan.personalResult
-      ? (productAnalysisResultSchema.safeParse(scan.personalResult).data ??
-        null)
+      ? (productAnalysisResultSchema.safeParse(scan.personalResult).data ?? null)
       : null;
 
     const comparisonResult =
       scan.type === 'comparison' && scan.comparisonResult
-        ? (productComparisonResultSchema.safeParse(scan.comparisonResult)
-            .data ?? null)
+        ? (productComparisonResultSchema.safeParse(scan.comparisonResult).data ?? null)
         : null;
 
-    const isFavourite = scan.productId
-      ? await this.isFavourite(userId, scan.productId)
-      : false;
+    const isFavourite = scan.productId ? await this.isFavourite(userId, scan.productId) : false;
 
     return {
       id: scan.id,
@@ -245,10 +234,7 @@ export class ScansService {
     };
   }
 
-  private async isFavourite(
-    userId: string,
-    productId: string,
-  ): Promise<boolean> {
+  private async isFavourite(userId: string, productId: string): Promise<boolean> {
     const favourite = await prisma.favorite.findUnique({
       where: { userId_productId: { userId, productId } },
       select: { id: true },
@@ -257,10 +243,7 @@ export class ScansService {
     return favourite != null;
   }
 
-  private async getFavouriteProductIds(
-    userId: string,
-    productIds: string[],
-  ): Promise<Set<string>> {
+  private async getFavouriteProductIds(userId: string, productIds: string[]): Promise<Set<string>> {
     if (productIds.length === 0) {
       return new Set();
     }

@@ -5,6 +5,50 @@ interface CanonicalProductTextInput {
   brand?: string | null;
 }
 
+interface CanonicalProductIdentityInput extends CanonicalProductTextInput {
+  quantity?: string | null;
+}
+
+const CYRILLIC_TO_LATIN_MAP: Record<string, string> = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'h',
+  ґ: 'g',
+  д: 'd',
+  е: 'e',
+  є: 'ye',
+  ж: 'zh',
+  з: 'z',
+  и: 'y',
+  і: 'i',
+  ї: 'yi',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'kh',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'shch',
+  ь: '',
+  ю: 'yu',
+  я: 'ya',
+  ё: 'yo',
+  ы: 'y',
+  э: 'e',
+  ъ: '',
+};
+
 const HTML_ENTITY_PATTERN = /&(#x?[0-9a-f]+|[a-z]+);/gi;
 const NAMED_HTML_ENTITIES: Record<string, string> = {
   amp: '&',
@@ -111,6 +155,42 @@ const normalizeSegment = (value?: string | null): string => {
   return sanitizedValue.toLowerCase();
 };
 
+const transliterateCyrillicToLatin = (value: string): string => {
+  return Array.from(value)
+    .map((character) => CYRILLIC_TO_LATIN_MAP[character] ?? character)
+    .join('');
+};
+
+const normalizeIdentitySegment = (value?: string | null): string => {
+  const normalized = normalizeSegment(value);
+
+  if (!normalized) {
+    return '';
+  }
+
+  return transliterateCyrillicToLatin(normalized)
+    .normalize('NFKD')
+    .replace(/\p{Mark}+/gu, '')
+    .replace(/[^\p{Letter}\p{Number}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const buildCanonicalProductIdentityText = ({
+  productName,
+  brand,
+}: CanonicalProductTextInput): string | null => {
+  const normalizedName = normalizeIdentitySegment(productName);
+  const normalizedBrand = normalizeIdentitySegment(brand);
+  const parts = [normalizedName, normalizedBrand].filter(Boolean);
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return parts.join(' ');
+};
+
 export const buildCanonicalProductText = ({
   productName,
   brand,
@@ -124,4 +204,25 @@ export const buildCanonicalProductText = ({
   }
 
   return parts.join(' ');
+};
+
+export const hasSameCanonicalProductIdentity = (
+  left: CanonicalProductIdentityInput,
+  right: CanonicalProductIdentityInput,
+): boolean => {
+  const leftText = buildCanonicalProductIdentityText(left);
+  const rightText = buildCanonicalProductIdentityText(right);
+
+  if (!leftText || !rightText || leftText !== rightText) {
+    return false;
+  }
+
+  const leftQuantity = normalizeIdentitySegment(left.quantity);
+  const rightQuantity = normalizeIdentitySegment(right.quantity);
+
+  if (leftQuantity && rightQuantity && leftQuantity !== rightQuantity) {
+    return false;
+  }
+
+  return true;
 };

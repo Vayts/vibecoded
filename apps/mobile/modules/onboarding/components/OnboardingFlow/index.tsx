@@ -1,10 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useEffect, useRef, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { ScrollView } from 'react-native-gesture-handler';
 import { Button } from '../../../../shared/components/Button';
-import { Typography } from '../../../../shared/components/Typography';
-import { REVIEW_STEP_INDEX } from '../../stores/onboarding/types';
+import {
+  DEFAULT_STICKY_FOOTER_HEIGHT,
+  StickyFooter,
+} from '../../../../shared/components/StickyFooter';
+import { ONBOARDING_STEP_COUNT } from '../../stores/onboarding/types';
 import {
   normalizeDraftToPayload,
   selectCurrentStepValid,
@@ -17,7 +21,6 @@ import { MainGoalStep } from '../MainGoalStep';
 import { RestrictionsStep } from '../RestrictionsStep';
 import { AllergiesStep } from '../AllergiesStep';
 import { PreferencesStep } from '../PreferencesStep';
-import { OnboardingReviewStep } from '../OnboardingReviewStep';
 import { useSubmitOnboardingMutation } from '../../hooks/useCompleteOnboarding';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,27 +34,35 @@ const StepContent = ({ step }: { step: number }) => {
       return <AllergiesStep />;
     case 3:
       return <PreferencesStep />;
-    case 4:
-      return <OnboardingReviewStep />;
     default:
-      return <OnboardingReviewStep />;
+      return <PreferencesStep />;
   }
 };
+
+const OnboardingFlowContent = ({ step }: { step: number }) => (
+  <View className="flex-1 px-4 pb-4">
+    <View className="mt-8">
+      <StepContent step={step} />
+    </View>
+  </View>
+);
 
 export function OnboardingFlow() {
   const router = useRouter();
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
   const step = useOnboardingStore(selectOnboardingStep);
   const draft = useOnboardingStore(selectOnboardingDraft);
   const isCurrentStepValid = useOnboardingStore(selectCurrentStepValid);
   const nextStep = useOnboardingStore((state) => state.nextStep);
-  const prevStep = useOnboardingStore((state) => state.prevStep);
   const resetOnboardingDraft = useOnboardingStore((state) => state.resetOnboardingDraft);
   const submitMutation = useSubmitOnboardingMutation();
   const insets = useSafeAreaInsets();
+  const isLastStep = step === ONBOARDING_STEP_COUNT - 1;
 
   const handleContinue = () => {
+    Keyboard.dismiss();
     setSubmitMessage(null);
     nextStep();
   };
@@ -69,8 +80,6 @@ export function OnboardingFlow() {
     }
   };
 
-  const isReviewStep = step === REVIEW_STEP_INDEX;
-
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
@@ -81,72 +90,76 @@ export function OnboardingFlow() {
     };
   }, [step]);
 
-  return (
-    <View className="flex-1 bg-background">
-      <View className="absolute -left-10 top-8 h-36 w-36 rounded-full bg-blue-50" />
-      <View className="absolute right-0 top-24 h-24 w-24 rounded-full bg-gray-50" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
-        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
-        <ScrollView
-          ref={scrollViewRef}
-          automaticallyAdjustContentInsets={false}
-          automaticallyAdjustsScrollIndicatorInsets={false}
-          contentInsetAdjustmentBehavior="never"
-          contentContainerStyle={{
-            flexGrow: 1,
-            paddingTop: insets.top,
-            paddingBottom: insets.bottom,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="flex-1 px-5 pb-8 pt-4">
-            <OnboardingProgress step={step} />
-
-            <Animated.View
-              key={step}
-              entering={FadeInDown.duration(240)}
-              className="mt-6 flex-1 rounded-xl border border-gray-100 bg-white px-5 py-6"
-            >
-              <StepContent step={step} />
-            </Animated.View>
-
-            {submitMessage ? (
-              <Typography variant="bodySecondary" className="mt-4 text-center text-red-500">
-                {submitMessage}
-              </Typography>
-            ) : null}
-
-            <View className="mt-6 gap-3">
-              {step > 0 ? (
-                <Button fullWidth label="Back" onPress={prevStep} variant="ghost" />
-              ) : null}
-
-              {isReviewStep ? (
-                <Button
-                  fullWidth
-                  label="Finish setup"
-                  loading={submitMutation.isPending}
-                  onPress={() => {
-                    void handleSubmit();
-                  }}
-                />
-              ) : (
-                <Button
-                  fullWidth
-                  disabled={!isCurrentStepValid}
-                  label="Continue"
-                  onPress={handleContinue}
-                />
-              )}
-            </View>
-          </View>
-        </ScrollView>
-        </Pressable>
-      </KeyboardAvoidingView>
+  const footerActions = isLastStep ? (
+    <View className="gap-3">
+      <Button
+        fullWidth
+        label="Finish setup"
+        loading={submitMutation.isPending}
+        onPress={() => {
+          void handleSubmit();
+        }}
+      />
+      <Button
+        fullWidth
+        label="Skip and finish"
+        variant="secondary"
+        onPress={() => {
+          void handleSubmit();
+        }}
+      />
     </View>
+  ) : step > 0 ? (
+    <View className="gap-3">
+      <Button fullWidth label="Continue" onPress={handleContinue} />
+      <Button fullWidth label="Skip for now" variant="secondary" onPress={handleContinue} />
+    </View>
+  ) : (
+    <Button
+      fullWidth
+      disabled={!isCurrentStepValid}
+      label="Continue"
+      onPress={handleContinue}
+    />
+  );
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      className="flex-1 bg-white"
+      style={{ paddingTop: insets.top }}
+    >
+      <>
+        <Pressable className="flex-1" onPress={Keyboard.dismiss}>
+          <View className="px-4">
+            <OnboardingProgress step={step} />
+          </View>
+          <KeyboardAwareScrollView
+            ref={scrollViewRef}
+            automaticallyAdjustContentInsets={false}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+            contentInsetAdjustmentBehavior="never"
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: footerHeight + 16 }}
+            keyboardShouldPersistTaps="handled"
+            extraKeyboardSpace={-(insets.bottom + 30)}
+            showsVerticalScrollIndicator={false}
+          >
+            <OnboardingFlowContent step={step} />
+          </KeyboardAwareScrollView>
+        </Pressable>
+
+        <StickyFooter
+          bottomInset={insets.bottom}
+          errorMessage={submitMessage}
+          onLayoutHeight={(nextHeight) => {
+            if (nextHeight !== footerHeight) {
+              setFooterHeight(nextHeight);
+            }
+          }}
+        >
+          {footerActions}
+        </StickyFooter>
+      </>
+    </KeyboardAvoidingView>
   );
 }

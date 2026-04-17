@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
 import type { FavouritesResponse } from '@acme/shared';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
@@ -39,19 +30,13 @@ export class FavouritesController {
   }
 
   @Delete(':productId')
-  async removeFavourite(
-    @Param('productId') productId: string,
-    @Req() request: Request,
-  ) {
+  async removeFavourite(@Param('productId') productId: string, @Req() request: Request) {
     const userId = await this.authSessionService.requireUserId(request);
     return this.favouritesService.removeFavourite(userId, productId);
   }
 
   @Get('status/:productId')
-  async getFavouriteStatus(
-    @Param('productId') productId: string,
-    @Req() request: Request,
-  ) {
+  async getFavouriteStatus(@Param('productId') productId: string, @Req() request: Request) {
     const userId = await this.authSessionService.requireUserId(request);
     return this.favouritesService.getFavouriteStatus(userId, productId);
   }

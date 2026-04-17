@@ -56,9 +56,7 @@ const toRequestBody = (request: Request): BodyInit | undefined => {
   if (contentType.includes('application/x-www-form-urlencoded')) {
     const params = new URLSearchParams();
 
-    for (const [key, value] of Object.entries(
-      body as Record<string, unknown>,
-    )) {
+    for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
       if (value == null) {
         continue;
       }
@@ -80,9 +78,7 @@ const toRequestBody = (request: Request): BodyInit | undefined => {
 };
 
 const applyResponseHeaders = (response: Response, headers: Headers): void => {
-  const setCookieHeader = (
-    headers as Headers & { getSetCookie?: () => string[] }
-  ).getSetCookie?.();
+  const setCookieHeader = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.();
 
   if (setCookieHeader && setCookieHeader.length > 0) {
     response.setHeader('Set-Cookie', setCookieHeader);
@@ -115,10 +111,7 @@ export class AuthService {
     response.status(authResponse.status);
     applyResponseHeaders(response, authResponse.headers);
 
-    if (
-      request.method.toUpperCase() === 'HEAD' ||
-      authResponse.status === 204
-    ) {
+    if (request.method.toUpperCase() === 'HEAD' || authResponse.status === 204) {
       response.end();
       return;
     }

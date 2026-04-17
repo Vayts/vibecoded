@@ -34,10 +34,7 @@ export class ScansController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteScan(
-    @Param('id') scanId: string,
-    @Req() request: Request,
-  ): Promise<void> {
+  async deleteScan(@Param('id') scanId: string, @Req() request: Request): Promise<void> {
     const userId = await this.authSessionService.requireUserId(request);
     await this.scansService.deleteScan(userId, scanId);
   }

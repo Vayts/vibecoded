@@ -41,7 +41,7 @@ function NameStep() {
 
   return (
     <View>
-      <Text className="text-[26px] font-bold text-neutral-900">What's their name?</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">What's their name?</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
         Enter the name of the family member you'd like to track.
       </Text>
@@ -108,7 +108,7 @@ function AvatarStep() {
 
   return (
     <View className="flex-1">
-      <Text className="text-[26px] font-bold text-neutral-900">Add a photo for {displayName}</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">Add a photo for {displayName}</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
         Upload a photo that will appear as {possessiveName} profile picture in the app.
       </Text>
@@ -163,7 +163,7 @@ function AvatarStep() {
 function MainGoalStep() {
   return (
     <View>
-      <Text className="text-[26px] font-bold text-neutral-900">What is their main goal?</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">What is their main goal?</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
          Pick the primary outcome to optimize for.
       </Text>
@@ -177,7 +177,7 @@ function MainGoalStep() {
 function RestrictionsStep() {
   return (
     <View>
-      <Text className="text-[26px] font-bold text-neutral-900">Any dealbreakers?</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">Any dealbreakers?</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
         Hard constraints — we'll exclude anything that violates them.
       </Text>
@@ -195,7 +195,7 @@ function RestrictionsStep() {
 function AllergiesStep() {
   return (
     <View>
-      <Text className="text-[26px] font-bold text-neutral-900">Any allergies or intolerances?</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">Any allergies or intolerances?</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
         Add any ingredients to avoid. Skip if none.
       </Text>
@@ -213,7 +213,7 @@ function AllergiesStep() {
 function NutritionPrioritiesStep() {
   return (
     <View>
-      <Text className="text-[26px] font-bold text-neutral-900">What do they prefer?</Text>
+      <Text className="text-[18px] font-bold text-neutral-900">What do they prefer?</Text>
       <Text className="mt-3 text-[16px] text-gray-500">
         Soft preferences that influence ranking but don't hard-exclude items.
       </Text>

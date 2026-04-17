@@ -86,10 +86,10 @@ export function ProfileScreen() {
           contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
-            paddingBottom: insets.bottom + 140,
+            flexGrow: 1,
           }}
         >
-          <View className="px-4">
+          <View className="px-4 bg-white pb-4">
             <View className="mt-6">
               <ProfileHeaderCard
                 name={user.name || 'Your account'}
@@ -117,7 +117,7 @@ export function ProfileScreen() {
             </View>
 
             <View className="mt-8">
-              <Typography variant="sectionTitle" className="text-neutrals-900">
+              <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
                 Family members
               </Typography>
               <View className="mt-3">
@@ -134,10 +134,10 @@ export function ProfileScreen() {
                 />
               </View>
             </View>
+          </View>
 
-            <View className="mt-8">
-              <ProfileLogoutButton disabled={isLoading} onPress={handleOpenLogoutDialog} />
-            </View>
+          <View className="border border-neutrals-200 px-4 pt-4 bg-background flex-1 pb-[160px]">
+            <ProfileLogoutButton disabled={isLoading} onPress={handleOpenLogoutDialog} />
           </View>
         </ScrollView>
       </ScreenSheet>

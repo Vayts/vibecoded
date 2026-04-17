@@ -36,9 +36,7 @@ export class FamilyMembersService {
     const parsed = createFamilyMemberRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      throw ApiError.badRequest(
-        parsed.error.issues[0]?.message ?? 'Invalid family member payload',
-      );
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid family member payload');
     }
 
     const count = await prisma.familyMember.count({ where: { userId } });
@@ -72,9 +70,7 @@ export class FamilyMembersService {
     const parsed = updateFamilyMemberRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      throw ApiError.badRequest(
-        parsed.error.issues[0]?.message ?? 'Invalid update payload',
-      );
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid update payload');
     }
 
     const member = await prisma.familyMember.update({

@@ -7,10 +7,7 @@ import type {
 } from '@acme/shared';
 import { productComparisonResultSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
-import {
-  buildProductSearchFilter,
-  normalizeSearchQuery,
-} from '../../shared/utils/product-search';
+import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -130,10 +127,7 @@ export class ComparisonsService {
     };
   }
 
-  async getDetail(
-    userId: string,
-    comparisonId: string,
-  ): Promise<ComparisonDetailResponse> {
+  async getDetail(userId: string, comparisonId: string): Promise<ComparisonDetailResponse> {
     const comparison = await prisma.comparison.findFirst({
       where: { id: comparisonId, userId },
       include: {
@@ -150,8 +144,7 @@ export class ComparisonsService {
       id: comparison.id,
       createdAt: comparison.createdAt.toISOString(),
       comparisonResult:
-        productComparisonResultSchema.safeParse(comparison.comparisonResult)
-          .data ?? null,
+        productComparisonResultSchema.safeParse(comparison.comparisonResult).data ?? null,
     };
   }
 
@@ -178,12 +171,8 @@ export class ComparisonsService {
     return {
       id: comparison.id,
       createdAt: comparison.createdAt.toISOString(),
-      product1: comparison.product1
-        ? serializeComparisonProduct(comparison.product1)
-        : null,
-      product2: comparison.product2
-        ? serializeComparisonProduct(comparison.product2)
-        : null,
+      product1: comparison.product1 ? serializeComparisonProduct(comparison.product1) : null,
+      product2: comparison.product2 ? serializeComparisonProduct(comparison.product2) : null,
       product1BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product1'),
       product2BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product2'),
     };

@@ -8,7 +8,9 @@ import { findBestVectorMatchedProduct } from './product-vector-search.service';
 import {
   findByBarcode,
   createProduct,
+  findByCanonicalProductText,
 } from '../repositories/productRepository';
+import { resolveProduct } from '../utils/analysis-response.utils';
 
 // NOTE: Barcode detection is intentionally excluded from the photo flow.
 // Even if a barcode is visible on the photo, we do NOT use it.
@@ -167,6 +169,8 @@ const getSearchModel = () =>
     model: AI_MODELS.reason,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 1,
+    timeout: 12_000,
+    reasoning: { effort: 'low' },
   });
 
 const getVisionModel = () =>
@@ -254,7 +258,7 @@ const searchByExtractedText = async (
   console.log(`[PhotoID:search] start query="${searchQuery}" [${elapsed()}]`);
 
   const structuredModel = (getSearchModel() as any)
-    .bindTools([{ type: 'web_search_preview', search_context_size: 'high' }])
+    .bindTools([{ type: 'web_search_preview', search_context_size: 'low' }])
     .withStructuredOutput(websearchProductSchema, {
       method: 'jsonSchema',
       name: 'text_product_search',
@@ -313,6 +317,22 @@ Search for: "${searchQuery}"`,
 
   // Reject products without meaningful nutrition data — not worth saving
   if (!hasNutritionData(parsed.data)) {
+    if (!code.startsWith('photo-')) {
+      const resolvedByBarcode = await resolveProduct(code);
+
+      if (resolvedByBarcode) {
+        console.log(
+          `[PhotoID:search] ♻️ Resolved barcode-backed product with stable nutrition/source code=${code} sourceDb=${resolvedByBarcode.wasExistingInDb} [${elapsed()}]`,
+        );
+        return resolvedByBarcode.product;
+      }
+
+      console.log(
+        `[PhotoID:search] ⚠️ Keeping barcode-backed result despite missing nutrition code=${code} [${elapsed()}]`,
+      );
+      return parsed.data;
+    }
+
     console.log(
       `[PhotoID:search] ⚠️ Product found but has no nutrition data — treating as not found (code=${code})`,
     );
@@ -450,10 +470,21 @@ export const identifyProductByPhoto = async (
       return null;
     });
 
-    const [vector, websearch] = await Promise.all([
-      vectorPromise,
-      websearchPromise,
-    ]);
+    const vector = await vectorPromise;
+
+    if (vector && hasNutritionData(vector.product)) {
+      console.log(
+        `[PhotoID] 2/2 Vector lookup satisfied request early [${elapsed()}]`,
+      );
+
+      const vectorWinner = pickWinner({ vector, websearch: null }, elapsed);
+
+      if (vectorWinner) {
+        return vectorWinner;
+      }
+    }
+
+    const websearch = await websearchPromise;
 
     console.log(
       `[PhotoID] 2/2 Parallel lookup done [${elapsed()}] — vector=${vector ? `✅ sim=${vector.similarity.toFixed(3)}` : '❌'} websearch=${websearch ? '✅' : '❌'}`,
@@ -470,16 +501,28 @@ export const identifyProductByPhoto = async (
     // Step 3: Merge with DB if websearch found existing product
     // -----------------------------------------------------------------------
     if (winner.source === 'websearch') {
-      const existingProduct = await findByBarcode(winner.product.code);
+      const existingProductByBarcode = await findByBarcode(winner.product.code);
+      const existingProduct =
+        existingProductByBarcode ??
+        (await findByCanonicalProductText(
+          winner.product.product_name,
+          winner.product.brands,
+        ));
+
       if (existingProduct) {
+        const matchedBy = existingProductByBarcode ? 'barcode' : 'canonical-text';
         if (
-          hasNutritionData(winner.product) &&
-          !hasNutritionData(existingProduct)
+          (hasNutritionData(winner.product) &&
+            !hasNutritionData(existingProduct)) ||
+          (!hasValidImage(existingProduct) && hasValidImage(winner.product))
         ) {
           console.log(
-            `[PhotoID] 📝 DB product lacks nutrition — updating [${elapsed()}]`,
+            `[PhotoID] 📝 Existing DB product matched by ${matchedBy} needs refresh — updating code=${existingProduct.code} [${elapsed()}]`,
           );
-          const updated = await createProduct(winner.product);
+          const updated = await createProduct({
+            ...winner.product,
+            code: existingProduct.code,
+          });
           return {
             product: updated,
             shouldUploadPhoto: !hasValidImage(updated),
@@ -487,7 +530,7 @@ export const identifyProductByPhoto = async (
           };
         }
         console.log(
-          `[PhotoID] ♻️ Reusing existing DB product — code=${existingProduct.code} [${elapsed()}]`,
+          `[PhotoID] ♻️ Reusing existing DB product matched by ${matchedBy} — code=${existingProduct.code} [${elapsed()}]`,
         );
         return {
           product: existingProduct,

@@ -33,7 +33,7 @@ export const COLORS = {
   primary700: '#237227',
   primary900: '#1C4B1F',
   profileChipGoodBorder: '#94E197',
-  profileChipBadBorder: '#FF9292',
+  profileChipBadBorder: '#FCA5A7',
   profileChipNeutralBorder: '#D9D9D9',
   nutriScoreA: '#157F3E',
   nutriScoreB: '#83CB16',
@@ -60,8 +60,8 @@ export const COLORS = {
   warningBorder: '#F6D6A8',
   danger: '#DC2626', // red-600 — errors, destructive actions, "Again" rating
   danger50: '#c72a2a',
-  danger800: '#B60000',
-  dangerSoft: '#FDECEC',
+  danger800: '#991B1D',
+  dangerSoft: '#FEE2E2',
   dangerBorder: '#F5C5C5',
 
   // ── Accent ────────────────────────────────────────────
