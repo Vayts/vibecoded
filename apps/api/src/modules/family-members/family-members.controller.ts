@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Patch,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Patch, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { FAMILY_MEMBERS_ROUTE_BASE } from './family-members.constants';
@@ -33,11 +24,7 @@ export class FamilyMembersController {
   }
 
   @Patch(':id')
-  async update(
-    @Param('id') memberId: string,
-    @Body() body: unknown,
-    @Req() request: Request,
-  ) {
+  async update(@Param('id') memberId: string, @Body() body: unknown, @Req() request: Request) {
     const userId = await this.authSessionService.requireUserId(request);
     return this.familyMembersService.update(userId, memberId, body);
   }

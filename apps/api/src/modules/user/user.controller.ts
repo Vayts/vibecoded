@@ -19,18 +19,13 @@ export class UserController {
   }
 
   @Patch()
-  async updateProfile(
-    @Body() body: unknown,
-    @Req() request: Request,
-  ): Promise<SerializedUser> {
+  async updateProfile(@Body() body: unknown, @Req() request: Request): Promise<SerializedUser> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.userService.updateProfile(userId, body);
   }
 
   @Get('subscription')
-  async getSubscription(
-    @Req() request: Request,
-  ): Promise<UserSubscriptionResponse> {
+  async getSubscription(@Req() request: Request): Promise<UserSubscriptionResponse> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.userService.getSubscription(userId);
   }

@@ -33,23 +33,33 @@ export function ScansTabScreen() {
   const activeIndex = useSharedValue(0);
   const debouncedSearchQuery = useDebounce(searchQuery.trim(), 300);
 
-  const handleScanPress = useCallback((item: ScanHistoryItem) => {
-    if (item.type === 'comparison') {
-      openComparisonByScanId(item.id);
-      return;
-    }
+  const handleScanPress = useCallback(
+    (item: ScanHistoryItem) => {
+      if (item.type === 'comparison') {
+        openComparisonByScanId(item.id);
+        return;
+      }
 
-    void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-      payload: {
-        scanId: item.id,
-        item,
-      },
-    });
-  }, [openComparisonByScanId]);
+      const initialSnapIndex = item.product ? 1 : 0;
 
-  const handleComparisonPress = useCallback((item: ComparisonHistoryItem) => {
-    openComparisonById(item.id);
-  }, [openComparisonById]);
+      void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+        snapIndex: initialSnapIndex,
+        payload: {
+          scanId: item.id,
+          item,
+          initialSnapIndex,
+        },
+      });
+    },
+    [openComparisonByScanId],
+  );
+
+  const handleComparisonPress = useCallback(
+    (item: ComparisonHistoryItem) => {
+      openComparisonById(item.id);
+    },
+    [openComparisonById],
+  );
 
   const handleToggleFavourite = useCallback(
     (productId: string, currentlyFavourite: boolean) => {
@@ -123,8 +133,16 @@ export function ScansTabScreen() {
         <Typography variant="pageTitle">Discover</Typography>
       </View>
 
-      <DiscoverTabChips selected={activeTab} selectedIndex={activeIndex} onSelect={handleTabSelect} />
-      <ScansSearchInput className="mx-4 mb-4 mt-2" value={searchQuery} onChangeText={setSearchQuery} />
+      <DiscoverTabChips
+        selected={activeTab}
+        selectedIndex={activeIndex}
+        onSelect={handleTabSelect}
+      />
+      <ScansSearchInput
+        className="mx-4 mb-4 mt-2"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
       <KeyboardAvoidingView className="flex-1" behavior="padding" keyboardVerticalOffset={-80}>
         <Pressable className="flex-1" onPress={Keyboard.dismiss}>
           <ScreenSheet>{activePanel}</ScreenSheet>

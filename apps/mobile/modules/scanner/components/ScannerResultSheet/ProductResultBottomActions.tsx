@@ -23,7 +23,7 @@ export function ProductResultBottomActions({
   onComparePress,
 }: ProductResultBottomActionsProps) {
   return (
-    <View className="mt-4 gap-4">
+    <View className="pt-3 gap-4">
       <Typography variant="sectionTitle" className="text-gray-900 font-bold">
         Options
       </Typography>

@@ -9,6 +9,7 @@ interface ProfileMenuRowProps {
   subtitle?: string;
   destructive?: boolean;
   onPress: () => void;
+  hideBorder?: boolean;
 }
 
 export function ProfileMenuRow({
@@ -16,11 +17,12 @@ export function ProfileMenuRow({
   subtitle,
   destructive = false,
   onPress,
+  hideBorder,
 }: ProfileMenuRowProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      className="min-h-[56px] flex-row items-center justify-between border-b border-gray-100 px-4 py-4 last:border-b-0"
+      className={`flex-row items-center border-b border-gray-200 mx-4 py-3 ${hideBorder ? 'border-b-0' : ''}`}
       onPress={onPress}
     >
       <View className="flex-1 pr-4">

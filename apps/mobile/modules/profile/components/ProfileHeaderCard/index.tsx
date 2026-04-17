@@ -28,14 +28,14 @@ export function ProfileHeaderCard({
           fallbackImageUrl={fallbackImageUrl}
           name={name}
           size="lg"
-          className="border-2 border-white/70"
+          className="border-2 border-white"
         />
         <View className="flex-1">
           <Typography variant="sectionTitle" className="text-white">
             {name}
           </Typography>
           {email ? (
-            <Typography variant="bodySecondary" className="mt-1 text-white/80">
+            <Typography variant="bodySecondary" className="mt-1 text-white/80" numberOfLines={1}>
               {email}
             </Typography>
           ) : null}

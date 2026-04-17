@@ -1,6 +1,6 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import type { ReactNode } from 'react';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -8,6 +8,7 @@ import { ScanHistoryRow } from '../ScanHistoryRow';
 import { useScanHistoryQuery } from '../../hooks/useScanHistoryQuery';
 import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
+import { SkeletonRow } from '../../../../shared/components/SkeletonRow';
 import ScanningArrow from '../../../../assets/scanning_arrow.svg';
 
 interface ScanHistoryListProps {
@@ -27,6 +28,7 @@ const LIST_CONTENT_STYLE = {
 };
 
 const HISTORY_ROW_HEIGHT = 98;
+const SKELETON_ROW_KEYS = Array.from({ length: 6 }, (_, index) => `scan-skeleton-${index}`);
 
 const EMPTY_CONTENT_STYLE = {
   flex: 1,
@@ -48,18 +50,15 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
 
   return (
     <View className="flex-1 items-center px-8 mt-16">
-      
-      <View
-        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
-      />
+      <View className="w-24 h-24 rounded-md bg-gray-100 mb-6" />
 
       <Typography variant="hero" className="text-center">
         Start scanning your products
       </Typography>
       <Typography className="text-center mt-4 px-4">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Once you start scanning, all scanned items will appear here.
       </Typography>
-      <View className="mb-4">
+      <View className="mb-4 mt-2">
         <ScanningArrow width={80} height={160} />
       </View>
     </View>
@@ -93,9 +92,9 @@ export const ScanHistoryList = memo(function ScanHistoryList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isRefetching,
     refetch,
   } = useScanHistoryQuery(searchQuery, enabled);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const items = useMemo(
     () =>
@@ -106,7 +105,13 @@ export const ScanHistoryList = memo(function ScanHistoryList({
   );
 
   const handleRefresh = useCallback(async () => {
-    await refetch();
+    setIsPullRefreshing(true);
+
+    try {
+      await refetch();
+    } finally {
+      setIsPullRefreshing(false);
+    }
   }, [refetch]);
 
   const handleEndReached = useCallback(() => {
@@ -151,8 +156,13 @@ export const ScanHistoryList = memo(function ScanHistoryList({
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator color={COLORS.primary} size="large" />
+      <View
+        className="flex-1"
+        style={{ paddingTop: LIST_CONTENT_STYLE.paddingTop, paddingBottom: contentPaddingBottom }}
+      >
+        {SKELETON_ROW_KEYS.map((key) => (
+          <SkeletonRow key={key} />
+        ))}
       </View>
     );
   }
@@ -174,11 +184,16 @@ export const ScanHistoryList = memo(function ScanHistoryList({
   }
 
   if (items.length === 0) {
-    return renderEmptyState ? <>{renderEmptyState(searchQuery)}</> : <EmptyState searchQuery={searchQuery} />;
+    return renderEmptyState ? (
+      <>{renderEmptyState(searchQuery)}</>
+    ) : (
+      <EmptyState searchQuery={searchQuery} />
+    );
   }
 
   return (
-    <FlatList
+    <>
+      <FlatList
       data={items}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
@@ -195,13 +210,14 @@ export const ScanHistoryList = memo(function ScanHistoryList({
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={isRefetching && !isFetchingNextPage}
+          refreshing={isPullRefreshing}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
       contentContainerStyle={contentContainerStyle}
-    />
+      />
+    </>
   );
 });

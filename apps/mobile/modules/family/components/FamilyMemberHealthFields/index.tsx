@@ -19,7 +19,7 @@ export function FamilyMemberMainGoalField() {
       {MAIN_GOAL_OPTIONS.map((option) => (
         <SelectableChip
           key={option.value}
-          label={option.label}
+          label={option.label} 
           description={option.description}
           selected={draft.mainGoal === option.value}
           onPress={() => setMainGoal(draft.mainGoal === option.value ? null : option.value)}

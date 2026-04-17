@@ -101,7 +101,7 @@ export function PersonalTabContent({
           />
         ) : null}
 
-        <View className="px-4">
+        <View className="px-4 pb-4">
           <ProfileDetail
             profile={activeProfile}
             rawIngredients={rawIngredients}
@@ -110,6 +110,9 @@ export function PersonalTabContent({
             profileIngredientAnalysis={profileIngredientAnalysis}
           />
 
+        </View>
+
+        <View className="bg-background px-4 border-t border-neutrals-200">
           {bottomAction}
         </View>
       </View>
@@ -165,12 +168,6 @@ function ProfileDetail({
         toneKey={mapFitLabelToToneKey(profile.fitLabel)}
         insight={profile.summary}
       />
-      <IngredientsSection
-        rawIngredients={rawIngredients}
-        rawIngredientsText={rawIngredientsText}
-        isPending={isIngredientAnalysisPending}
-        analysis={profileIngredientAnalysis}
-      />
       {evaluationBlocks.map((block) => (
         <EvaluationSection
           key={block.key}
@@ -179,6 +176,12 @@ function ProfileDetail({
           rightLabel={forLabel}
         />
       ))}
+      <IngredientsSection
+        rawIngredients={rawIngredients}
+        rawIngredientsText={rawIngredientsText}
+        isPending={isIngredientAnalysisPending}
+        analysis={profileIngredientAnalysis}
+      />
     </View>
   );
 }

@@ -1,15 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { FavouriteItem, FavouritesResponse } from '@acme/shared';
-import {
-  addFavouriteRequestSchema,
-  profileProductScoreSchema,
-} from '@acme/shared';
+import { addFavouriteRequestSchema, profileProductScoreSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
-import {
-  buildProductSearchFilter,
-  normalizeSearchQuery,
-} from '../../shared/utils/product-search';
+import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 import { buildHistoryAnalysisSummary } from './scan-history-analysis';
 
@@ -105,10 +99,7 @@ export class FavouritesService {
     const productIds = items
       .map((favourite) => favourite.product?.id)
       .filter((productId): productId is string => productId != null);
-    const latestScansByProductId = await this.findLatestScansForProducts(
-      userId,
-      productIds,
-    );
+    const latestScansByProductId = await this.findLatestScansForProducts(userId, productIds);
 
     return {
       items: items.map((favourite) => {
@@ -121,16 +112,11 @@ export class FavouritesService {
     };
   }
 
-  async addFavourite(
-    userId: string,
-    body: unknown,
-  ): Promise<{ success: true }> {
+  async addFavourite(userId: string, body: unknown): Promise<{ success: true }> {
     const parsed = addFavouriteRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      throw ApiError.badRequest(
-        parsed.error.issues[0]?.message ?? 'Invalid payload',
-      );
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid payload');
     }
 
     await prisma.favorite.upsert({
@@ -150,10 +136,7 @@ export class FavouritesService {
     return { success: true };
   }
 
-  async removeFavourite(
-    userId: string,
-    productId: string,
-  ): Promise<{ success: true }> {
+  async removeFavourite(userId: string, productId: string): Promise<{ success: true }> {
     await prisma.favorite.deleteMany({
       where: { userId, productId },
     });
@@ -161,10 +144,7 @@ export class FavouritesService {
     return { success: true };
   }
 
-  async getFavouriteStatus(
-    userId: string,
-    productId: string,
-  ): Promise<{ isFavourite: boolean }> {
+  async getFavouriteStatus(userId: string, productId: string): Promise<{ isFavourite: boolean }> {
     const favourite = await prisma.favorite.findUnique({
       where: { userId_productId: { userId, productId } },
       select: { id: true },

@@ -1,4 +1,4 @@
-import { ActivityIndicator, Modal, Pressable, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, TouchableOpacity, View, Text } from 'react-native';
 
 import { COLORS } from '../../constants/colors';
 import { Typography } from '../Typography';
@@ -41,9 +41,9 @@ export function ConfirmationDialog({
         />
 
         <View className="w-full max-w-[500px] rounded-[28px] bg-white px-6 pb-6 pt-6">
-          <Typography variant="pageTitle" className="text-center text-neutrals-900">
+          <Text className="text-[16px] font-bold text-center text-neutrals-900">
             {title}
-          </Typography>
+          </Text>
 
           <Typography
             variant="body"

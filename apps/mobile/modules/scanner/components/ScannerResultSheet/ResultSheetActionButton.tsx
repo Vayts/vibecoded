@@ -29,12 +29,12 @@ export function ResultSheetActionButton({
     <TouchableOpacity
       activeOpacity={0.7}
       accessibilityRole="button"
-      className={`min-h-[48px] w-full rounded-full border bg-white px-5 ${isDisabled ? 'opacity-40' : ''}`}
+      className={`min-h-[44px] w-full rounded-full border bg-white px-5 ${isDisabled ? 'opacity-40' : ''}`}
       style={{ borderColor: COLORS.neutrals300 }}
       disabled={isDisabled}
       onPress={onPress}
     >
-      <View className="min-h-[48px] flex-row items-center justify-center gap-2.5">
+      <View className="min-h-[44px] flex-row items-center justify-center gap-2.5">
         {loading ? (
           <ActivityIndicator
             color={tone === 'destructive' ? COLORS.danger800 : COLORS.neutrals900}

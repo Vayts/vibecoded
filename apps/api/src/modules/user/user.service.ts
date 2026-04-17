@@ -69,9 +69,7 @@ export class UserService {
     const parsed = updateUserRequestSchema.safeParse(body);
 
     if (!parsed.success) {
-      throw ApiError.badRequest(
-        parsed.error.issues[0]?.message ?? 'Invalid user payload',
-      );
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid user payload');
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -104,17 +102,11 @@ export class UserService {
       data,
     });
 
-    if (
-      existingUser.avatarUrl &&
-      existingUser.avatarUrl !== updated.avatarUrl
-    ) {
+    if (existingUser.avatarUrl && existingUser.avatarUrl !== updated.avatarUrl) {
       try {
         await deleteStoredObject(existingUser.avatarUrl);
       } catch (error) {
-        console.warn(
-          `[user] failed to delete previous avatar ${existingUser.avatarUrl}`,
-          error,
-        );
+        console.warn(`[user] failed to delete previous avatar ${existingUser.avatarUrl}`, error);
       }
     }
 

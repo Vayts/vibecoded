@@ -5,17 +5,15 @@ import type {
   NormalizedProduct,
   ProductComparisonResult,
 } from '@acme/shared';
-import { compareProductsForProfiles } from './services/comparison-ai';
+import { compareProductsForProfiles, SameProductComparisonError } from './services/comparison-ai';
 import { isFoodProduct } from './services/is-food-product';
-import {
-  lookupBarcode,
-  OpenFoodFactsLookupError,
-} from './services/openfoodfacts-client';
+import { lookupBarcode, OpenFoodFactsLookupError } from './services/openfoodfacts-client';
 import {
   extractTextFromPhoto,
   identifyProductByPhoto,
   PhotoIdentificationError,
 } from './services/photo-product-identification';
+import { hasSameCanonicalProductIdentity } from './services/product-canonical-text';
 import { getProfileInputs } from './services/profileInputs';
 import { searchProductByBarcode } from './services/websearch-fallback';
 import { processProductImage } from './lib/image-processing';
@@ -26,10 +24,7 @@ import { createProduct, findByBarcode } from './repositories/productRepository';
 import { findProductIdByBarcode } from './repositories/scanRepository';
 import { AnalysisOrchestratorService } from './services/analysis-orchestrator.service';
 import { ApiError } from '../../shared/errors/api-error';
-import type {
-  AnalyzePhotoInput,
-  PhotoOcrPayload,
-} from './product-analyze.schemas';
+import type { AnalyzePhotoInput, PhotoOcrPayload } from './product-analyze.schemas';
 import {
   createNotFoundResponse,
   resolveProduct,
@@ -38,11 +33,30 @@ import {
 } from './utils/analysis-response.utils';
 import { attachPhotoImagePath } from './utils/attach-photo-image-path';
 
+const SAME_PRODUCT_ERROR_CODE = 'SAME_PRODUCT';
+const SAME_PRODUCT_ERROR_MESSAGE =
+  'You scanned the same product twice. Scan a different product to compare.';
+
 @Injectable()
 export class ProductAnalyzeService {
-  constructor(
-    private readonly analysisOrchestrator: AnalysisOrchestratorService,
-  ) {}
+  constructor(private readonly analysisOrchestrator: AnalysisOrchestratorService) {}
+
+  private syncPhotoImageInBackground(imageBase64: string, product: NormalizedProduct): void {
+    void (async () => {
+      const startedAt = Date.now();
+      const rawBuffer = Buffer.from(imageBase64, 'base64');
+      const processed = await processProductImage(rawBuffer);
+      const photoImagePath = await uploadProductImage(processed.buffer);
+
+      await createProduct(attachPhotoImagePath(product, photoImagePath));
+
+      console.log(
+        `[photo-scan] deferred photo image sync done code=${product.code} elapsed=${Date.now() - startedAt}ms`,
+      );
+    })().catch((error) => {
+      console.error('Deferred image processing/upload failed for a photo scan:', error);
+    });
+  }
 
   private async resolveNormalizedProductByBarcode(barcode: string): Promise<{
     product: NormalizedProduct | null;
@@ -89,16 +103,13 @@ export class ProductAnalyzeService {
     barcode: string,
     userId?: string,
   ): Promise<BarcodeLookupSuccessResponse | BarcodeLookupNotFoundResponse> {
-    const resolvedProduct =
-      await this.resolveNormalizedProductByBarcode(barcode);
+    const resolvedProduct = await this.resolveNormalizedProductByBarcode(barcode);
 
     if (!resolvedProduct.product) {
       return createNotFoundResponse(barcode, resolvedProduct.source);
     }
 
-    const productId = await findProductIdByBarcode(
-      resolvedProduct.product.code,
-    );
+    const productId = await findProductIdByBarcode(resolvedProduct.product.code);
     const [analysisState, isFavourite] = await Promise.all([
       this.analysisOrchestrator.startAnalysis({
         product: resolvedProduct.product,
@@ -137,16 +148,13 @@ export class ProductAnalyzeService {
     barcode: string,
   ): Promise<{ success: true; product: ReturnType<typeof toProductPreview> }> {
     try {
-      const resolvedProduct =
-        await this.resolveNormalizedProductByBarcode(barcode);
+      const resolvedProduct = await this.resolveNormalizedProductByBarcode(barcode);
 
       if (!resolvedProduct.product) {
         throw ApiError.notFound('Product not found', 'PRODUCT_NOT_FOUND');
       }
 
-      const productId = await findProductIdByBarcode(
-        resolvedProduct.product.code,
-      );
+      const productId = await findProductIdByBarcode(resolvedProduct.product.code);
 
       if (!productId) {
         throw ApiError.notFound('Product not found', 'PRODUCT_NOT_FOUND');
@@ -170,9 +178,11 @@ export class ProductAnalyzeService {
     barcode2: string,
     userId: string,
   ): Promise<ProductComparisonResult> {
+    const normalizedBarcode1 = barcode1.trim();
+    const normalizedBarcode2 = barcode2.trim();
     const [resolved1, resolved2] = await Promise.all([
-      resolveProduct(barcode1),
-      resolveProduct(barcode2),
+      resolveProduct(normalizedBarcode1),
+      resolveProduct(normalizedBarcode2),
     ]);
 
     if (!resolved1) {
@@ -183,22 +193,49 @@ export class ProductAnalyzeService {
       throw ApiError.notFound('Second product not found', 'PRODUCT_NOT_FOUND');
     }
 
+    const isSameProduct =
+      normalizedBarcode1 === normalizedBarcode2 ||
+      resolved1.product.code === resolved2.product.code ||
+      hasSameCanonicalProductIdentity(
+        {
+          productName: resolved1.product.product_name,
+          brand: resolved1.product.brands,
+          quantity: resolved1.product.quantity,
+        },
+        {
+          productName: resolved2.product.product_name,
+          brand: resolved2.product.brands,
+          quantity: resolved2.product.quantity,
+        },
+      ) ||
+      (resolved1.productId != null &&
+        resolved2.productId != null &&
+        resolved1.productId === resolved2.productId);
+
+    if (isSameProduct) {
+      throw ApiError.unprocessable(SAME_PRODUCT_ERROR_MESSAGE, SAME_PRODUCT_ERROR_CODE);
+    }
+
     const profiles = await getProfileInputs(userId);
-    const comparisonProfiles = await compareProductsForProfiles(
-      resolved1.product,
-      resolved2.product,
-      profiles,
-    );
+    let comparisonProfiles: ProductComparisonResult['profiles'];
+
+    try {
+      comparisonProfiles = await compareProductsForProfiles(
+        resolved1.product,
+        resolved2.product,
+        profiles,
+      );
+    } catch (error) {
+      if (error instanceof SameProductComparisonError) {
+        throw ApiError.unprocessable(error.message, SAME_PRODUCT_ERROR_CODE);
+      }
+
+      throw error;
+    }
 
     const result: ProductComparisonResult = {
-      product1: toComparisonProductPreview(
-        resolved1.product,
-        resolved1.productId,
-      ),
-      product2: toComparisonProductPreview(
-        resolved2.product,
-        resolved2.productId,
-      ),
+      product1: toComparisonProductPreview(resolved1.product, resolved1.productId),
+      product2: toComparisonProductPreview(resolved2.product, resolved2.productId),
       profiles: comparisonProfiles,
     };
 
@@ -206,8 +243,8 @@ export class ProductAnalyzeService {
       userId,
       product1Id: resolved1.productId ?? undefined,
       product2Id: resolved2.productId ?? undefined,
-      barcode1,
-      barcode2,
+      barcode1: normalizedBarcode1,
+      barcode2: normalizedBarcode2,
       comparisonResult: result,
     });
 
@@ -218,17 +255,11 @@ export class ProductAnalyzeService {
     const ocr = await extractTextFromPhoto(imageBase64);
 
     if (!ocr) {
-      throw ApiError.unprocessable(
-        'Could not read text from photo',
-        'OCR_FAILED',
-      );
+      throw ApiError.unprocessable('Could not read text from photo', 'OCR_FAILED');
     }
 
     if (!ocr.isFoodProduct) {
-      throw ApiError.unprocessable(
-        'Product does not appear to be a food item',
-        'NOT_FOOD',
-      );
+      throw ApiError.unprocessable('Product does not appear to be a food item', 'NOT_FOOD');
     }
 
     return {
@@ -245,70 +276,42 @@ export class ProductAnalyzeService {
     const ocr = input.ocr ?? (await extractTextFromPhoto(input.imageBase64));
 
     if (!ocr) {
-      throw ApiError.unprocessable(
-        'Could not read text from photo',
-        'OCR_FAILED',
-      );
+      throw ApiError.unprocessable('Could not read text from photo', 'OCR_FAILED');
     }
 
     if (!ocr.isFoodProduct) {
-      throw ApiError.unprocessable(
-        'This product does not appear to be a food item',
-        'NOT_FOOD',
-      );
+      throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
     }
 
     try {
-      const identification = await identifyProductByPhoto(
-        input.imageBase64,
-        ocr,
-      );
+      const identification = await identifyProductByPhoto(input.imageBase64, ocr);
 
       if (!identification) {
-        throw ApiError.notFound(
-          'Could not identify product from photo',
-          'PRODUCT_NOT_FOUND',
-        );
+        throw ApiError.notFound('Could not identify product from photo', 'PRODUCT_NOT_FOUND');
       }
 
       if (!isFoodProduct(identification.product)) {
-        throw ApiError.unprocessable(
-          'This product does not appear to be a food item',
-          'NOT_FOOD',
-        );
+        throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
       }
 
       let savedProduct = identification.product;
-      let photoImagePath: string | null = null;
+      let productId = await findProductIdByBarcode(savedProduct.code);
 
-      if (identification.shouldUploadPhoto) {
-        try {
-          const rawBuffer = Buffer.from(input.imageBase64, 'base64');
-          const processed = await processProductImage(rawBuffer);
-          photoImagePath = await uploadProductImage(processed.buffer);
-          savedProduct = await createProduct(
-            attachPhotoImagePath(identification.product, photoImagePath),
-          );
-        } catch (error) {
-          console.error(
-            'Image processing/upload failed for a photo scan:',
-            error,
-          );
-          throw ApiError.badGateway(
-            'Failed to store product image',
-            'IMAGE_UPLOAD_FAILED',
-          );
-        }
+      if (!productId) {
+        savedProduct = await createProduct(savedProduct);
+        productId = await findProductIdByBarcode(savedProduct.code);
       }
 
-      const productId = await findProductIdByBarcode(savedProduct.code);
+      if (identification.shouldUploadPhoto) {
+        this.syncPhotoImageInBackground(input.imageBase64, savedProduct);
+      }
+
       const [analysisState, isFavourite] = await Promise.all([
         this.analysisOrchestrator.startAnalysis({
           product: savedProduct,
           productId: productId ?? undefined,
           userId: input.userId,
           scanSource: 'photo',
-          photoImagePath: photoImagePath ?? undefined,
         }),
         isFavouriteByBarcode(input.userId, savedProduct.code),
       ]);
@@ -322,7 +325,6 @@ export class ProductAnalyzeService {
         scanId: analysisState.scanId,
         isFavourite,
         productId: productId ?? undefined,
-        photoImagePath: photoImagePath ?? undefined,
       };
     } catch (error) {
       if (error instanceof PhotoIdentificationError) {

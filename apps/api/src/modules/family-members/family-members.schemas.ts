@@ -1,4 +1,1 @@
-export {
-  createFamilyMemberRequestSchema,
-  updateFamilyMemberRequestSchema,
-} from '@acme/shared';
+export { createFamilyMemberRequestSchema, updateFamilyMemberRequestSchema } from '@acme/shared';

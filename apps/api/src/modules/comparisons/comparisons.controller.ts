@@ -1,8 +1,5 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query, Req } from '@nestjs/common';
-import type {
-  ComparisonDetailResponse,
-  ComparisonHistoryResponse,
-} from '@acme/shared';
+import type { ComparisonDetailResponse, ComparisonHistoryResponse } from '@acme/shared';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { COMPARISONS_ROUTE_BASE } from './comparisons.constants';

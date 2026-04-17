@@ -49,7 +49,7 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
           <TouchableOpacity
             key={member.id}
             activeOpacity={0.7}
-            className={`min-h-[68px] flex-row items-center mx-4 py-4 ${
+            className={`flex-row items-center mx-4 py-3 ${
               index < members.length - 1 ? 'border-b border-gray-200' : ''
             }`}
             accessibilityRole="button"
@@ -79,7 +79,7 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
 
       <TouchableOpacity
         activeOpacity={0.7}
-        className="min-h-[52px] flex-row items-center justify-center border-gray-200 mx-4 py-4"
+        className="flex-row items-center justify-center border-gray-200 mx-4 py-3"
         style={{ borderTopWidth: members.length > 0 ? 1 : 0 }}
         accessibilityRole="button"
         accessibilityLabel="Add family member"

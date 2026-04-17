@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Req,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
@@ -27,10 +20,7 @@ export class ScannerPhotoController {
       limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
     }),
   )
-  extractPhotoOcr(
-    @Body() body: unknown,
-    @UploadedFile() file?: UploadedPhotoFile,
-  ) {
+  extractPhotoOcr(@Body() body: unknown, @UploadedFile() file?: UploadedPhotoFile) {
     return this.scannerPhotoService.extractPhotoOcr(body, file);
   }
 

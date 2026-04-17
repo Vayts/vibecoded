@@ -1,5 +1,5 @@
 import type { ComparisonHistoryItem } from '@acme/shared';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -8,6 +8,7 @@ import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipCon
 import { Button } from '../../../../shared/components/Button';
 import { ComparisonHistoryRow } from '../ComparisonHistoryRow';
 import { GitCompareArrows } from 'lucide-react-native';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface ComparisonsListProps {
   onItemPress: (item: ComparisonHistoryItem) => void;
@@ -80,14 +81,20 @@ export const ComparisonsList = memo(function ComparisonsList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isRefetching,
     refetch,
   } = useComparisonsQuery(searchQuery, enabled);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
 
   const handleRefresh = useCallback(async () => {
-    await refetch();
+    setIsPullRefreshing(true);
+
+    try {
+      await refetch();
+    } finally {
+      setIsPullRefreshing(false);
+    }
   }, [refetch]);
 
   const handleEndReached = useCallback(() => {
@@ -118,8 +125,8 @@ export const ComparisonsList = memo(function ComparisonsList({
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator color={COLORS.primary} size="large" />
+      <View className="flex-1 items-center justify-center pb-[140px]">
+        <CustomLoader isReversed/>
       </View>
     );
   }
@@ -159,7 +166,7 @@ export const ComparisonsList = memo(function ComparisonsList({
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={isRefetching && !isFetchingNextPage}
+          refreshing={isPullRefreshing}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />

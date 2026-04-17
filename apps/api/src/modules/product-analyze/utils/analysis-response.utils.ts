@@ -5,10 +5,7 @@ import {
   type ProductPreview,
   type ScannerLookupSource,
 } from '@acme/shared';
-import {
-  createProduct,
-  findByBarcode,
-} from '../repositories/productRepository';
+import { createProduct, findByBarcode } from '../repositories/productRepository';
 import { findProductIdByBarcode } from '../repositories/scanRepository';
 import { lookupBarcode } from '../services/openfoodfacts-client';
 import { searchProductByBarcode } from '../services/websearch-fallback';
@@ -30,9 +27,7 @@ export const createNotFoundResponse = (
   error: 'PRODUCT_NOT_FOUND',
 });
 
-export const resolveProduct = async (
-  barcode: string,
-): Promise<ResolvedProductResult | null> => {
+export const resolveProduct = async (barcode: string): Promise<ResolvedProductResult | null> => {
   let product: NormalizedProduct | null = await findByBarcode(barcode);
   const wasExistingInDb = Boolean(product);
 

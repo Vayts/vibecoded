@@ -28,25 +28,6 @@ export const buildProductFactsPrompt = (product: NormalizedProduct): string => {
     parts.push(`Traces: ${product.traces.join(', ')}`);
   }
 
-  const nutritionLines: string[] = [];
-  const n = product.nutrition;
-  if (n.energy_kcal_100g != null)
-    nutritionLines.push(`calories: ${n.energy_kcal_100g} kcal`);
-  if (n.proteins_100g != null)
-    nutritionLines.push(`protein: ${n.proteins_100g}g`);
-  if (n.fat_100g != null) nutritionLines.push(`fat: ${n.fat_100g}g`);
-  if (n.saturated_fat_100g != null)
-    nutritionLines.push(`saturated fat: ${n.saturated_fat_100g}g`);
-  if (n.carbohydrates_100g != null)
-    nutritionLines.push(`carbs: ${n.carbohydrates_100g}g`);
-  if (n.sugars_100g != null) nutritionLines.push(`sugars: ${n.sugars_100g}g`);
-  if (n.fiber_100g != null) nutritionLines.push(`fiber: ${n.fiber_100g}g`);
-  if (n.salt_100g != null) nutritionLines.push(`salt: ${n.salt_100g}g`);
-  if (n.sodium_100g != null) nutritionLines.push(`sodium: ${n.sodium_100g}g`);
-  if (nutritionLines.length > 0) {
-    parts.push(`Nutrition per 100g: ${nutritionLines.join(', ')}`);
-  }
-
   if (product.scores.nutriscore_grade) {
     parts.push(`Nutri-Score: ${product.scores.nutriscore_grade.toUpperCase()}`);
   }

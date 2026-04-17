@@ -1,5 +1,5 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -83,14 +83,20 @@ export const FavouritesList = memo(function FavouritesList({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isRefetching,
     refetch,
   } = useFavouritesQuery(searchQuery, enabled);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
 
   const handleRefresh = useCallback(async () => {
-    await refetch();
+    setIsPullRefreshing(true);
+
+    try {
+      await refetch();
+    } finally {
+      setIsPullRefreshing(false);
+    }
   }, [refetch]);
 
   const handleEndReached = useCallback(() => {
@@ -129,8 +135,8 @@ export const FavouritesList = memo(function FavouritesList({
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator color={COLORS.primary} size="large" />
+      <View className="flex-1 items-center justify-center pb-[140px]">
+        <CustomLoader isReversed/>
       </View>
     );
   }
@@ -171,7 +177,7 @@ export const FavouritesList = memo(function FavouritesList({
       onEndReachedThreshold={0.5}
       refreshControl={
         <RefreshControl
-          refreshing={isRefetching && !isFetchingNextPage}
+          refreshing={isPullRefreshing}
           onRefresh={() => void handleRefresh()}
           tintColor={COLORS.primary}
         />

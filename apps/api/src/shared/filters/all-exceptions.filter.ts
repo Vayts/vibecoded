@@ -1,10 +1,4 @@
-import {
-  ArgumentsHost,
-  Catch,
-  ExceptionFilter,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import type { Response } from 'express';
 
 interface ErrorPayload {
@@ -44,9 +38,7 @@ const toErrorPayload = (exception: HttpException): ErrorPayload => {
     return {
       error: normalizedMessage,
       code:
-        typeof payload.code === 'string'
-          ? payload.code
-          : (STATUS_CODE_MAP[status] ?? 'HTTP_ERROR'),
+        typeof payload.code === 'string' ? payload.code : (STATUS_CODE_MAP[status] ?? 'HTTP_ERROR'),
     };
   }
 

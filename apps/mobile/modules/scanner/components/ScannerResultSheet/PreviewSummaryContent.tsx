@@ -122,7 +122,7 @@ export function PreviewSummaryContent({
       : previewFitTone === 'neutral'
         ? CircleAlert
         : HeartHandshake;
-
+        
   return (
     <View className="min-h-[32px] items-start justify-center" style={{ paddingTop: 16 }}>
       {shouldShowLoader ? (

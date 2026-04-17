@@ -2,7 +2,11 @@ import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../lib/prisma';
-import { sanitizeNormalizedProductTextFields } from '../services/product-canonical-text';
+import {
+  hasSameCanonicalProductIdentity,
+  sanitizeProductText,
+  sanitizeNormalizedProductTextFields,
+} from '../services/product-canonical-text';
 import { syncProductEmbedding } from '../services/product-embedding.service';
 
 const toNormalizedProduct = (product: {
@@ -144,6 +148,73 @@ export const findByBarcode = async (
   return normalizedProduct;
 };
 
+export const findByCanonicalProductText = async (
+  productName?: string | null,
+  brand?: string | null,
+): Promise<NormalizedProduct | null> => {
+  const sanitizedProductName = sanitizeProductText(productName);
+  const sanitizedBrand = sanitizeProductText(brand);
+
+  if (!sanitizedProductName && !sanitizedBrand) {
+    return null;
+  }
+
+  const candidates = await prisma.product.findMany({
+    where: sanitizedProductName
+      ? {
+          product_name: {
+            equals: sanitizedProductName,
+            mode: 'insensitive',
+          },
+        }
+      : {
+          brands: {
+            equals: sanitizedBrand,
+            mode: 'insensitive',
+          },
+        },
+    orderBy: { updatedAt: 'desc' },
+    take: 20,
+  });
+
+  const matchingProduct = candidates.find((candidate) =>
+    hasSameCanonicalProductIdentity(
+      {
+        productName,
+        brand,
+      },
+      {
+        productName: candidate.product_name,
+        brand: candidate.brands,
+        quantity: candidate.quantity,
+      },
+    ),
+  );
+
+  if (!matchingProduct) {
+    console.log(
+      `[productRepository] No product found in DB for canonical identity productName="${sanitizedProductName ?? ''}" brand="${sanitizedBrand ?? ''}"`,
+    );
+
+    return null;
+  }
+
+  console.log(
+    `[productRepository] Found product in DB for canonical identity code=${matchingProduct.code} name="${matchingProduct.product_name ?? ''}" brand="${matchingProduct.brands ?? ''}"`,
+  );
+
+  const normalizedProduct = toNormalizedProduct(matchingProduct);
+
+  if (needsSanitizedTextRepair(matchingProduct, normalizedProduct)) {
+    console.log(
+      `[productRepository] repairing sanitized text fields for canonical identity code=${matchingProduct.code}`,
+    );
+    return createProduct(normalizedProduct);
+  }
+
+  return normalizedProduct;
+};
+
 export const createProduct = async (
   product: NormalizedProduct,
 ): Promise<NormalizedProduct> => {
@@ -176,21 +247,22 @@ export const createProduct = async (
   const hasEmbedding = !!existing?.embeddingText;
 
   if (!hasEmbedding || nameChanged) {
-    try {
-      await syncProductEmbedding(
-        savedProduct.id,
-        savedProduct.product_name,
-        savedProduct.brands,
-      );
-      console.log(
-        `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
-      );
-    } catch (error) {
-      console.error(
-        '[productRepository] Failed to sync product embedding:',
-        error instanceof Error ? error.message : error,
-      );
-    }
+    void syncProductEmbedding(
+      savedProduct.id,
+      savedProduct.product_name,
+      savedProduct.brands,
+    )
+      .then(() => {
+        console.log(
+          `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
+        );
+      })
+      .catch((error) => {
+        console.error(
+          '[productRepository] Failed to sync product embedding:',
+          error instanceof Error ? error.message : error,
+        );
+      });
   } else {
     console.log(
       `[productRepository] embedding skip (unchanged) id=${savedProduct.id} code=${savedProduct.code}`,

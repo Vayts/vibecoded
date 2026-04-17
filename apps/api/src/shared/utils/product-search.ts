@@ -5,9 +5,7 @@ export const normalizeSearchQuery = (search?: string): string | undefined => {
   return normalized ? normalized : undefined;
 };
 
-export const buildProductSearchFilter = (
-  search: string,
-): Prisma.ProductWhereInput => ({
+export const buildProductSearchFilter = (search: string): Prisma.ProductWhereInput => ({
   OR: [
     {
       product_name: {

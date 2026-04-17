@@ -124,6 +124,7 @@ export function EditHealthPreferencesScreen() {
                 onPress={() => {
                   router.push('/edit-health-preferences');
                 }}
+                hideBorder
               />
             </ProfileMenuSection>
 

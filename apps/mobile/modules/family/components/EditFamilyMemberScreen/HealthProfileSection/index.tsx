@@ -19,20 +19,21 @@ interface HealthProfileRowProps {
   label: string;
   summary: string;
   onPress: () => void;
+  hideBorder?: boolean;
 }
 
-function HealthProfileRow({ label, summary, onPress }: HealthProfileRowProps) {
+function HealthProfileRow({ label, summary, onPress, hideBorder }: HealthProfileRowProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      className="min-h-[72px] flex-row items-center border-b border-gray-200 px-4 py-4 last:border-b-0"
+      className={`flex-row items-center border-b border-gray-200 px-4 py-3 ${hideBorder ? 'border-b-0' : ''}`}
       onPress={onPress}
     >
       <View className="flex-1 pr-4">
         <Typography variant="bodySecondary" className="text-neutrals-500">
           {label}
         </Typography>
-        <Typography variant="body" className="mt-1 font-semibold text-neutrals-900">
+        <Typography variant="body" className="mt-0.5 font-semibold text-neutrals-900">
           {summary}
         </Typography>
       </View>
@@ -53,8 +54,8 @@ export function HealthProfileSection({
 }: HealthProfileSectionProps) {
   return (
     <View className="mt-8">
-      <Typography variant="sectionTitle" className="text-neutrals-900">
-        Health profile
+      <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
+        Preferences
       </Typography>
 
       <View className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-white">
@@ -77,6 +78,7 @@ export function HealthProfileSection({
           label="Preferences"
           summary={preferencesSummary}
           onPress={onPressPreferences}
+          hideBorder
         />
       </View>
     </View>

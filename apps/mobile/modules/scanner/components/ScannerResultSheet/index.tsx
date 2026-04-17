@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import ActionSheet, {
-  type ActionSheetRef,
-  useSheetPayload,
-} from 'react-native-actions-sheet';
+import ActionSheet, { type ActionSheetRef, useSheetPayload } from 'react-native-actions-sheet';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
-import { ProductResultContent } from './ProductResultContent';
-import { getPreviewProductConflictTitle } from './ProductConflictAlert';
-import { hasProductResult } from './productResultHelpers';
-import { getActiveProfile } from './productResultPreviewHelpers';
-import { ScanDetailLoader } from './ScanDetailLoader';
+import { ScannerResultSheetContent } from './ScannerResultSheetContent';
+import { getDisplayedNutriScoreGrade, getPreviewSummaryState } from './productResultPreviewHelpers';
 import { getPreviewSnapPoint } from './previewSnapPoint';
 
 const MIN_AUTO_EXPAND_DELAY_MS = 250;
 const FAST_RESPONSE_SETTLE_DELAY_MS = 180;
+
+type PreviewLayoutState = {
+  hasSummaryContent: boolean;
+  nutriScoreGrade: string | null | undefined;
+};
 
 export function ScannerResultSheet() {
   const payload = useSheetPayload(SheetsEnum.ScannerResultSheet);
@@ -23,38 +22,51 @@ export function ScannerResultSheet() {
   const autoExpandFrameRef = useRef<number | null>(null);
   const autoExpandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialLoadingStartedAtRef = useRef<number | null>(null);
+  const previousPreviewSnapPointRef = useRef<number | null>(null);
   const reset = useScannerResultSheetStore((s) => s.reset);
-  const isLoadingInitialResult = useScannerResultSheetStore(
-    (s) => s.isLoadingInitialResult,
-  );
+  const isLoadingInitialResult = useScannerResultSheetStore((s) => s.isLoadingInitialResult);
   const storeResult = useScannerResultSheetStore((s) => s.result);
-  const storeResolvedPersonalResult = useScannerResultSheetStore(
-    (s) => s.resolvedPersonalResult,
-  );
-  const [snapIndex, setSnapIndex] = useState(0);
+  const storeResolvedPersonalResult = useScannerResultSheetStore((s) => s.resolvedPersonalResult);
+  const payloadInitialSnapIndex = payload?.initialSnapIndex ?? 0;
+  const [snapIndex, setSnapIndex] = useState(payloadInitialSnapIndex);
+  const [previewLayoutState, setPreviewLayoutState] = useState<PreviewLayoutState | null>(null);
   const previousInitialLoadingRef = useRef(false);
   const resolvedResult = storeResult ?? payload?.result;
-  const resolvedPersonalResult =
-    storeResolvedPersonalResult ?? payload?.resolvedPersonalResult;
+  const resolvedPersonalResult = storeResolvedPersonalResult ?? payload?.resolvedPersonalResult;
+  const initialAnalysis =
+    resolvedPersonalResult ??
+    (resolvedResult?.success ? resolvedResult.personalAnalysis : undefined);
   const scanId = payload?.scanId;
   const item = payload?.item;
   const previewProduct = payload?.previewProduct;
   const previewImageUri = payload?.previewImageUri;
+  const previewStateKey = `${scanId ?? 'live'}:${item?.id ?? 'none'}:${previewProduct?.barcode ?? 'none'}:${previewImageUri ?? 'none'}`;
   const hasPreviewState = Boolean(item?.product || previewProduct || resolvedResult?.success);
-  const hasHistorySummaryContent = Boolean(
-    item?.type === 'product' &&
-      (item.profileChips?.length || item.personalScore != null || item.overallScore != null || item.personalAnalysisStatus === 'pending'),
+  const fallbackPreviewSummaryState = useMemo(
+    () =>
+      getPreviewSummaryState({
+        previewItem: item,
+        previewProduct,
+        isInitialLoadingResult: isLoadingInitialResult,
+        personalResult: initialAnalysis,
+        personalStatus: initialAnalysis?.status,
+      }),
+    [initialAnalysis, isLoadingInitialResult, item, previewProduct],
   );
-  const hasLiveSummaryContent = Boolean(previewProduct && !scanId);
-  const hasSummaryContent = hasHistorySummaryContent || hasLiveSummaryContent;
+  const fallbackPreviewNutriScoreGrade = useMemo(
+    () =>
+      getDisplayedNutriScoreGrade({
+        isExpanded: false,
+        previewHistoryProduct: item?.type === 'product' ? item.product : null,
+        previewProduct,
+        successResult: resolvedResult?.success ? resolvedResult : undefined,
+      }),
+    [item, previewProduct, resolvedResult],
+  );
+  const previewSummaryState =
+    previewLayoutState?.hasSummaryContent ?? fallbackPreviewSummaryState.hasSummaryContent;
   const previewNutriScoreGrade =
-    (item?.type === 'product' ? item.product?.nutriscore_grade : null) ??
-    previewProduct?.nutriscore_grade ??
-    (resolvedResult?.success ? resolvedResult.product.scores.nutriscore_grade : null);
-
-  const handleSnapIndexChange = useCallback((nextSnapIndex: number) => {
-    setSnapIndex(nextSnapIndex);
-  }, []);
+    previewLayoutState?.nutriScoreGrade ?? fallbackPreviewNutriScoreGrade;
 
   const clearScheduledAutoExpand = useCallback(() => {
     if (autoExpandTimeoutRef.current != null) {
@@ -71,9 +83,24 @@ export function ScannerResultSheet() {
   const handleClose = useCallback(() => {
     clearScheduledAutoExpand();
     initialLoadingStartedAtRef.current = null;
+    previousPreviewSnapPointRef.current = null;
+    setPreviewLayoutState(null);
     setSnapIndex(0);
     reset();
   }, [clearScheduledAutoExpand, reset]);
+
+  const handlePreviewStateChange = useCallback((state: PreviewLayoutState) => {
+    setPreviewLayoutState((current) => {
+      if (
+        current?.hasSummaryContent === state.hasSummaryContent &&
+        current?.nutriScoreGrade === state.nutriScoreGrade
+      ) {
+        return current;
+      }
+
+      return state;
+    });
+  }, []);
 
   const handleExpandDetails = useCallback(() => {
     if (!hasPreviewState) {
@@ -86,11 +113,7 @@ export function ScannerResultSheet() {
   useEffect(() => {
     const wasLoadingInitialResult = previousInitialLoadingRef.current;
 
-    if (
-      !wasLoadingInitialResult &&
-      isLoadingInitialResult &&
-      !scanId
-    ) {
+    if (!wasLoadingInitialResult && isLoadingInitialResult && !scanId) {
       clearScheduledAutoExpand();
       initialLoadingStartedAtRef.current = Date.now();
     }
@@ -106,9 +129,7 @@ export function ScannerResultSheet() {
       const elapsed = Date.now() - startedAt;
       const remainingDelay = Math.max(0, MIN_AUTO_EXPAND_DELAY_MS - elapsed);
       const autoExpandDelay =
-        remainingDelay > 0
-          ? remainingDelay + FAST_RESPONSE_SETTLE_DELAY_MS
-          : 0;
+        remainingDelay > 0 ? remainingDelay + FAST_RESPONSE_SETTLE_DELAY_MS : 0;
 
       clearScheduledAutoExpand();
       autoExpandTimeoutRef.current = setTimeout(() => {
@@ -125,39 +146,51 @@ export function ScannerResultSheet() {
   }, [clearScheduledAutoExpand, hasPreviewState, isLoadingInitialResult, scanId, snapIndex]);
 
   useEffect(() => {
-    return () => {
-      clearScheduledAutoExpand();
-    };
-  }, [clearScheduledAutoExpand]);
+    previousPreviewSnapPointRef.current = null;
+    setPreviewLayoutState(null);
+    setSnapIndex(payloadInitialSnapIndex);
+  }, [payloadInitialSnapIndex, previewStateKey]);
 
-  const previewSnapPoint = useMemo(() => {
-    return getPreviewSnapPoint({
-      windowHeight,
-      hasPreviewState,
-      hasSummaryContent,
-      nutriScoreGrade: previewNutriScoreGrade,
-    });
-  }, [
-    hasPreviewState,
-    hasSummaryContent,
-    previewNutriScoreGrade,
-    windowHeight,
-  ]);
-  const detailState = useMemo(() => {
-    if (!isLoadingInitialResult || scanId || resolvedResult || !hasPreviewState) {
-      return undefined;
+  useEffect(() => () => clearScheduledAutoExpand(), [clearScheduledAutoExpand]);
+
+  const previewSnapPoint = useMemo(
+    () =>
+      getPreviewSnapPoint({
+        windowHeight,
+        hasPreviewState,
+        hasSummaryContent: previewSummaryState,
+        nutriScoreGrade: previewNutriScoreGrade,
+      }),
+    [hasPreviewState, previewNutriScoreGrade, previewSummaryState, windowHeight],
+  );
+  const detailState =
+    !isLoadingInitialResult || scanId || resolvedResult || !hasPreviewState
+      ? undefined
+      : { isLoading: true, isError: false };
+
+  const snapPoints = hasPreviewState ? [previewSnapPoint, 100] : [100];
+
+  useEffect(() => {
+    const previousPreviewSnapPoint = previousPreviewSnapPointRef.current;
+    previousPreviewSnapPointRef.current = previewSnapPoint;
+
+    if (
+      !hasPreviewState ||
+      snapIndex !== 0 ||
+      previousPreviewSnapPoint == null ||
+      previousPreviewSnapPoint === previewSnapPoint
+    ) {
+      return;
     }
 
-    return {
-      isLoading: true,
-      isError: false,
-    };
-  }, [hasPreviewState, isLoadingInitialResult, resolvedResult, scanId]);
+    const frameId = requestAnimationFrame(() => {
+      sheetRef.current?.snapToIndex(0);
+    });
 
-  const snapPoints = useMemo(
-    () => (hasPreviewState ? [previewSnapPoint, 100] : [100]),
-    [hasPreviewState, previewSnapPoint],
-  );
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [hasPreviewState, previewSnapPoint, snapIndex]);
 
   return (
     <ActionSheet
@@ -166,32 +199,22 @@ export function ScannerResultSheet() {
       gestureEnabled
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
-      onSnapIndexChange={handleSnapIndexChange}
-      containerStyle={{height: '100%', borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
+      onSnapIndexChange={setSnapIndex}
+      containerStyle={{ height: '100%', borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
     >
-      {scanId ? (
-          <ScanDetailLoader
-            scanId={scanId}
-            previewItem={item}
-            previewProduct={previewProduct}
-            previewImageUri={previewImageUri}
-            snapIndex={snapIndex}
-            onExpandDetails={handleExpandDetails}
-          />
-        ) : resolvedResult || previewProduct || item ? (
-          <ProductResultContent
-            previewItem={item}
-            result={resolvedResult}
-            scanId={scanId}
-            previewProduct={previewProduct}
-            previewImageUri={previewImageUri}
-            resolvedPersonalResult={resolvedPersonalResult}
-            isInitialLoadingResult={!scanId && isLoadingInitialResult}
-            snapIndex={snapIndex}
-            onExpandDetails={handleExpandDetails}
-            detailState={detailState}
-          />
-        ) : null}
+      <ScannerResultSheetContent
+        scanId={scanId}
+        item={item}
+        previewProduct={previewProduct}
+        previewImageUri={previewImageUri}
+        snapIndex={snapIndex}
+        result={resolvedResult}
+        resolvedPersonalResult={resolvedPersonalResult}
+        isLoadingInitialResult={isLoadingInitialResult}
+        onExpandDetails={handleExpandDetails}
+        onPreviewStateChange={handlePreviewStateChange}
+        detailState={detailState}
+      />
     </ActionSheet>
   );
 }

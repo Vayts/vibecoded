@@ -29,7 +29,7 @@ export function TextField({
   const [isFocused, setIsFocused] = useState(false);
 
   const inputClassName = [
-    multiline ? 'min-h-[56px] py-4' : 'h-14',
+    multiline ? 'min-h-[56px] py-4' : 'h-[48px]',
     'rounded-2xl pl-4 text-[17px] text-neutrals-900',
     editable ? 'pr-4' : 'pr-12',
     error ? 'border border-red-300' : 'border border-transparent',
