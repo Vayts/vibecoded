@@ -6,6 +6,8 @@ import { Button } from '../../../../shared/components/Button';
 import { ConfirmationDialog } from '../../../../shared/components/ConfirmationDialog';
 import { useDeleteComparisonMutation } from '../../hooks/useDeleteComparisonMutation';
 import { useDeleteScanMutation } from '../../hooks/useDeleteScanMutation';
+import { Trash2 } from 'lucide-react-native';
+import { COLORS } from '../../../../shared/constants/colors';
 
 interface DeleteHistoryActionProps {
   entryId: string;
@@ -72,6 +74,7 @@ export function DeleteHistoryAction({
             fullWidth
             label={buttonLabel}
             variant="destructive"
+            Icon={<Trash2 color={COLORS.danger800} size={18} strokeWidth={1.9} />}
             disabled={activeMutation.isPending}
             onPress={handleOpen}
           />

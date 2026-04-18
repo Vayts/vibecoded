@@ -235,6 +235,38 @@ export const comparisonProductPreviewSchema = productPreviewSchema.extend({
 });
 export type ComparisonProductPreview = z.infer<typeof comparisonProductPreviewSchema>;
 
+export const comparisonProductKeySchema = z.enum(['product1', 'product2']);
+export type ComparisonProductKey = z.infer<typeof comparisonProductKeySchema>;
+
+export const comparisonSummaryToneSchema = z.enum(['positive', 'negative', 'neutral']);
+export type ComparisonSummaryTone = z.infer<typeof comparisonSummaryToneSchema>;
+
+export const comparisonSummaryItemSchema = z.object({
+  text: z.string(),
+  tone: comparisonSummaryToneSchema.nullable().optional(),
+  productId: z.string().nullable().optional(),
+  productKey: comparisonProductKeySchema.nullable().optional(),
+});
+export type ComparisonSummaryItem = z.infer<typeof comparisonSummaryItemSchema>;
+
+const comparisonMetricValueSchema = z.union([z.string(), z.number()]);
+
+export const comparisonNutritionWinnerSchema = z.enum(['product1', 'product2', 'tie', 'none']);
+export type ComparisonNutritionWinner = z.infer<typeof comparisonNutritionWinnerSchema>;
+
+export const comparisonNutritionRowSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  icon: z.string().nullable().optional(),
+  unit: z.string().nullable().optional(),
+  product1Value: comparisonMetricValueSchema.nullable().optional(),
+  product2Value: comparisonMetricValueSchema.nullable().optional(),
+  product1DisplayValue: z.string().nullable().optional(),
+  product2DisplayValue: z.string().nullable().optional(),
+  winner: comparisonNutritionWinnerSchema.nullable().optional(),
+});
+export type ComparisonNutritionRow = z.infer<typeof comparisonNutritionRowSchema>;
+
 export const productComparisonItemSchema = z.object({
   positives: z.array(z.string()),
   negatives: z.array(z.string()),
@@ -248,6 +280,9 @@ export const profileComparisonResultSchema = z.object({
   product2: productComparisonItemSchema,
   winner: z.enum(['product1', 'product2', 'tie', 'neither']),
   conclusion: z.string(),
+  bestProductId: z.string().nullable().optional(),
+  comparisonSummary: z.array(comparisonSummaryItemSchema).optional(),
+  nutritionComparison: z.array(comparisonNutritionRowSchema).optional(),
 });
 export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
 

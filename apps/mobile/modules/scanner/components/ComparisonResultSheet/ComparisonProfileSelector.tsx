@@ -21,54 +21,55 @@ export function ComparisonProfileSelector({
   selectedProfileId,
   onSelect,
 }: ComparisonProfileSelectorProps) {
-  if (profiles.length <= 1) {
+  if (profiles.length === 0) {
     return null;
   }
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-    >
-      {profiles.map((profile) => {
-        const isSelected = profile.id === selectedProfileId;
-        const backgroundColor = isSelected ? COLORS.successSoft : COLORS.neutrals100;
-        const borderColor = isSelected ? COLORS.profileChipGoodBorder : COLORS.transparent;
-        const textColor = isSelected ? COLORS.primary900 : COLORS.neutrals700;
+    <View className="px-4">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 10 }}
+      >
+        {profiles.map((profile) => {
+          const isSelected = profile.id === selectedProfileId;
+          const borderColor = isSelected ? COLORS.profileChipGoodBorder : 'transparent';
+          const textColor = isSelected ? COLORS.primary900 : COLORS.neutrals700;
 
-        return (
-          <TouchableOpacity
-            key={profile.id}
-            accessibilityRole="button"
-            accessibilityLabel={`Show comparison for ${profile.name}`}
-            activeOpacity={0.7}
-            className="flex-row items-center rounded-lg px-2 py-1 pr-3"
-            style={{
-              backgroundColor,
-              borderWidth: 1.5,
-              borderColor,
-            }}
-            onPress={() => onSelect(profile.id)}
-          >
-            <UserAvatar
-              imageUrl={profile.imageUrl}
-              fallbackImageUrl={profile.fallbackImageUrl}
-              name={profile.name}
-              size="s"
-            />
-            <View className="ml-1 flex-row items-center gap-1 shrink">
-              <Typography
-                variant="buttonSmall"
-                numberOfLines={1}
-                style={{ color: textColor, flexShrink: 1, fontWeight: '600', fontSize: 13 }}
-              >
-                {profile.name}
-              </Typography>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+          return (
+            <TouchableOpacity
+              key={profile.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Show comparison for ${profile.name}`}
+              activeOpacity={0.7}
+              className="flex-row items-center bg-neutrals-50 rounded-[6px] px-3 py-1 pr-4"
+              style={{
+                borderWidth: 1.5,
+                borderColor,
+              }}
+              disabled={profiles.length === 1}
+              onPress={() => onSelect(profile.id)}
+            >
+              <UserAvatar
+                imageUrl={profile.imageUrl}
+                fallbackImageUrl={profile.fallbackImageUrl}
+                name={profile.name}
+                size="s"
+              />
+              <View className="ml-2 shrink">
+                <Typography
+                  variant="buttonSmall"
+                  numberOfLines={1}
+                  style={{ color: textColor, flexShrink: 1, fontWeight: '600' }}
+                >
+                  {profile.name}
+                </Typography>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }

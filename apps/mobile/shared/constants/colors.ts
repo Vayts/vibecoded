@@ -20,9 +20,11 @@ export const COLORS = {
   accent500: '#FFAA00',
   accent600: '#E28200',
 
+  neutrals50: '#FAFAFA', // backgrounds, grouped rows
   neutrals100: '#F1F1F1',
   neutrals200: '#E6E6E6',
   neutrals300: '#D6D6D6',
+  neutrals400: '#A5A5A5',
   neutrals500: '#767676',
   neutrals700: '#434343',
   neutrals900: '#1A1A1A',
@@ -59,7 +61,8 @@ export const COLORS = {
   warningSoft: '#FEF5E7',
   warningBorder: '#F6D6A8',
   danger: '#DC2626', // red-600 — errors, destructive actions, "Again" rating
-  danger50: '#c72a2a',
+  danger50: '#FEF2F2',
+  danger500: '#EE4548',
   danger800: '#991B1D',
   dangerSoft: '#FEE2E2',
   dangerBorder: '#F5C5C5',
