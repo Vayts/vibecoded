@@ -146,6 +146,7 @@ export const scoreReasonCategorySchema = z.enum([
   'salt',
   'saturated-fat',
   'sugar',
+  'fiber',
 ]);
 export type ScoreReasonCategory = z.infer<typeof scoreReasonCategorySchema>;
 
