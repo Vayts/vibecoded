@@ -290,6 +290,7 @@ const SCORE_REASON_CATEGORY_LABELS: Record<ScoreReasonCategory, string> = {
   carbohydrates: 'Carbohydrates',
   'diet-matching': 'Diet matching',
   fat: 'Fat',
+  fiber: 'Fiber',
   protein: 'Protein',
   salt: 'Salt',
   'saturated-fat': 'Saturated fat',
