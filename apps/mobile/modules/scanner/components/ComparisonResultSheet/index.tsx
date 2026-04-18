@@ -14,9 +14,6 @@ import { ComparisonDeleteAction } from './ComparisonDeleteAction';
 import { ComparisonResultContent } from './ComparisonResultContent';
 import { ComparisonStatusView } from './ComparisonStatusView';
 
-type ProductKey = 'product1' | 'product2';
-type DisplayWinner = 'left' | 'right' | 'tie' | 'neither';
-
 const getParamValue = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
@@ -155,19 +152,6 @@ export function ComparisonResultScreen() {
 
   const activeProfileId = profiles.find((p) => p.profileId === selectedProfileId)?.profileId ?? profiles[0]?.profileId ?? '';
   const activeProfile: ProfileComparisonResult | undefined = profiles.find((p) => p.profileId === activeProfileId);
-  const leftKey: ProductKey = isSwapped ? 'product2' : 'product1';
-  const rightKey: ProductKey = isSwapped ? 'product1' : 'product2';
-  const leftProduct = result[leftKey];
-  const rightProduct = result[rightKey];
-  const leftComparison = activeProfile ? activeProfile[leftKey] : null;
-  const rightComparison = activeProfile ? activeProfile[rightKey] : null;
-  const displayWinner: DisplayWinner = !activeProfile
-    ? 'tie'
-    : activeProfile.winner === 'tie' || activeProfile.winner === 'neither'
-      ? activeProfile.winner
-      : activeProfile.winner === leftKey
-        ? 'left'
-        : 'right';
 
   return (
     <View className="flex-1 bg-background">
@@ -176,15 +160,11 @@ export function ComparisonResultScreen() {
           activeProfile={activeProfile}
           bottomAction={<ComparisonDeleteAction comparisonId={comparisonId} scanId={scanId} />}
           chipItems={chipItems}
-          displayWinner={displayWinner}
           insetsBottom={insets.bottom}
-          leftComparison={leftComparison}
-          leftProduct={leftProduct}
+          isSwapped={isSwapped}
           onSelectProfile={setSelectedProfileId}
           onSwapProducts={() => setIsSwapped((current) => !current)}
           result={result}
-          rightComparison={rightComparison}
-          rightProduct={rightProduct}
           selectedProfileId={activeProfileId}
         />
       </Animated.View>

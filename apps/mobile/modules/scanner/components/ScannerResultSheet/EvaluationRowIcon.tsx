@@ -3,6 +3,7 @@ import AdditivesIcon from '../../../../assets/icons/additives.svg';
 import AllergensIcon from '../../../../assets/icons/allergens.svg';
 import CaloriesIcon from '../../../../assets/icons/calories.svg';
 import CarbohydratesIcon from '../../../../assets/icons/carbohydrates.svg';
+import FiberIcon from '../../../../assets/icons/fiber.svg';
 import DietMatchIcon from '../../../../assets/icons/diet-match.svg';
 import FatIcon from '../../../../assets/icons/fat.svg';
 import ProteinIcon from '../../../../assets/icons/protein.svg';
@@ -12,13 +13,14 @@ import SugarIcon from '../../../../assets/icons/sugar.svg';
 import { Sparkle } from 'lucide-react-native';
 import { View } from 'react-native';
 import { getScoreReasonCategory } from './evaluationHelpers';
+import { COLORS } from '../../../../shared/constants/colors';
 
 interface EvaluationRowIconProps {
   item: ScoreReason;
 }
 
 const renderCategoryIcon = (category: ScoreReasonCategory | null) => {
-  const iconProps = { width: 20, height: 20 };
+  const iconProps = { width: 20, height: 20, color: COLORS.neutrals600 };
 
   switch (category) {
     case 'additives':
@@ -31,6 +33,8 @@ const renderCategoryIcon = (category: ScoreReasonCategory | null) => {
       return <CarbohydratesIcon {...iconProps} />;
     case 'diet-matching':
       return <DietMatchIcon {...iconProps} />;
+    case 'fiber':
+      return <FiberIcon {...iconProps} />;
     case 'fat':
       return <FatIcon {...iconProps} />;
     case 'protein':

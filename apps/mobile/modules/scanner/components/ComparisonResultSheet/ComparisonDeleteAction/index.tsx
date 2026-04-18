@@ -23,7 +23,7 @@ export function ComparisonDeleteAction({
     <DeleteHistoryAction
       entryId={entryId}
       entryType={entryType}
-      buttonLabel="Delete comparison"
+      buttonLabel="Delete from history"
       dialogTitle="Delete comparison?"
       dialogDescription="This comparison and its result will be removed from your history."
       confirmLabel="Delete"
