@@ -28,6 +28,7 @@ import type { AnalyzePhotoInput, PhotoOcrPayload } from './product-analyze.schem
 import {
   createNotFoundResponse,
   resolveProduct,
+  toBarcodeLookupProduct,
   toComparisonProductPreview,
   toProductPreview,
 } from './utils/analysis-response.utils';
@@ -63,6 +64,7 @@ export class ProductAnalyzeService {
     source: 'openfoodfacts' | 'websearch';
   }> {
     let product = await findByBarcode(barcode);
+    const wasExistingInDb = Boolean(product);
     let source: 'openfoodfacts' | 'websearch' = 'openfoodfacts';
 
     if (!product) {
@@ -89,6 +91,15 @@ export class ProductAnalyzeService {
     if (!product || !isFoodProduct(product)) {
       return {
         product: null,
+        source,
+      };
+    }
+
+    if (wasExistingInDb) {
+      console.log(`[scanner] Reusing existing DB product for barcode=${barcode}; skipping upsert`);
+
+      return {
+        product,
         source,
       };
     }
@@ -126,7 +137,7 @@ export class ProductAnalyzeService {
       success: true as const,
       barcode,
       source: resolvedProduct.source,
-      product: resolvedProduct.product,
+      product: toBarcodeLookupProduct(resolvedProduct.product),
       personalAnalysis: analysisState.analysis,
       scanId: analysisState.scanId,
       productId: productId ?? undefined,
@@ -320,7 +331,7 @@ export class ProductAnalyzeService {
         success: true,
         barcode: savedProduct.code,
         source: 'photo',
-        product: savedProduct,
+        product: toBarcodeLookupProduct(savedProduct),
         personalAnalysis: analysisState.analysis,
         scanId: analysisState.scanId,
         isFavourite,

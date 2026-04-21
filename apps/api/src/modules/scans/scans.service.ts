@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Product } from '@prisma/client';
 import type {
+  BarcodeLookupProduct,
   ScanDetailResponse,
   ScanHistoryItem,
   ScanHistoryResponse,
@@ -12,8 +13,13 @@ import {
   productComparisonResultSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import {
+  getProductImageUrl,
+  resolveCanonicalProductImageUrl,
+} from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
+import { toBarcodeLookupProduct } from '../product-analyze/utils/analysis-response.utils';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -25,6 +31,7 @@ type HistoryProduct = {
   product_name: string | null;
   brands: string | null;
   image_url: string | null;
+  images: unknown;
   nutriscore_grade: string | null;
 };
 
@@ -48,9 +55,41 @@ const serializeHistoryProduct = (product: HistoryProduct) => ({
   barcode: product.barcode,
   product_name: product.product_name,
   brands: product.brands,
-  image_url: product.image_url,
+  image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
   nutriscore_grade: product.nutriscore_grade,
 });
+
+const serializeDetailProduct = (product: Product): BarcodeLookupProduct | null => {
+  const canonicalImageUrl = resolveCanonicalProductImageUrl(product.image_url, product.images);
+
+  const parsedProduct = normalizedProductSchema.safeParse({
+    code: product.code,
+    product_name: product.product_name,
+    brands: product.brands,
+    image_url: canonicalImageUrl,
+    ingredients_text: product.ingredients_text,
+    nutriscore_grade: product.nutriscore_grade,
+    categories: product.categories,
+    quantity: product.quantity,
+    serving_size: product.serving_size,
+    ingredients: product.ingredients,
+    allergens: product.allergens,
+    additives: product.additives,
+    additives_count: product.additives_count,
+    traces: product.traces,
+    countries: product.countries,
+    category_tags: product.category_tags,
+    images: {
+      front_url: canonicalImageUrl,
+      ingredients_url: getProductImageUrl(product.images, 'ingredients_url'),
+      nutrition_url: getProductImageUrl(product.images, 'nutrition_url'),
+    },
+    nutrition: product.nutrition,
+    scores: product.scores,
+  });
+
+  return parsedProduct.success ? toBarcodeLookupProduct(parsedProduct.data) : null;
+};
 
 const getValidLimit = (limit?: string): number | undefined => {
   if (!limit) {
@@ -182,6 +221,7 @@ export class ScansService {
             product_name: true,
             brands: true,
             image_url: true,
+            images: true,
             nutriscore_grade: true,
           },
         },
@@ -192,6 +232,7 @@ export class ScansService {
             product_name: true,
             brands: true,
             image_url: true,
+            images: true,
             nutriscore_grade: true,
           },
         },
@@ -251,29 +292,7 @@ export class ScansService {
       throw ApiError.notFound('Scan not found');
     }
 
-    const product = scan.product
-      ? (normalizedProductSchema.safeParse({
-          code: scan.product.code,
-          product_name: scan.product.product_name,
-          brands: scan.product.brands,
-          image_url: scan.product.image_url,
-          ingredients_text: scan.product.ingredients_text,
-          nutriscore_grade: scan.product.nutriscore_grade,
-          categories: scan.product.categories,
-          quantity: scan.product.quantity,
-          serving_size: scan.product.serving_size,
-          ingredients: scan.product.ingredients,
-          allergens: scan.product.allergens,
-          additives: scan.product.additives,
-          additives_count: scan.product.additives_count,
-          traces: scan.product.traces,
-          countries: scan.product.countries,
-          category_tags: scan.product.category_tags,
-          images: scan.product.images,
-          nutrition: scan.product.nutrition,
-          scores: scan.product.scores,
-        }).data ?? null)
-      : null;
+    const product = scan.product ? serializeDetailProduct(scan.product) : null;
 
     const analysisResult = scan.personalResult
       ? (productAnalysisResultSchema.safeParse(scan.personalResult).data ?? null)
@@ -307,7 +326,11 @@ export class ScansService {
   async deleteScan(userId: string, scanId: string): Promise<void> {
     const scan = await prisma.scan.findFirst({
       where: { id: scanId, userId },
-      select: { id: true },
+      select: {
+        id: true,
+        type: true,
+        productId: true,
+      },
     });
 
     if (!scan) {
@@ -315,6 +338,33 @@ export class ScansService {
     }
 
     await prisma.scan.delete({ where: { id: scan.id } });
+
+    if (scan.type !== 'product' || !scan.productId) {
+      return;
+    }
+
+    const remainingProductScanCount = await prisma.scan.count({
+      where: {
+        userId,
+        type: 'product',
+        productId: scan.productId,
+      },
+    });
+
+    if (remainingProductScanCount > 0) {
+      return;
+    }
+
+    await prisma.favorite.deleteMany({
+      where: {
+        userId,
+        productId: scan.productId,
+      },
+    });
+
+    console.log(
+      `[scans] Removed favourite for productId=${scan.productId} after deleting the last product scan`,
+    );
   }
 
   private serializeHistoryItem(

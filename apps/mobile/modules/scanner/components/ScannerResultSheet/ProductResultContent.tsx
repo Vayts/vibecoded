@@ -24,7 +24,6 @@ interface ProductResultContentProps {
   result?: BarcodeLookupResponse;
   scanId?: string;
   previewProduct?: ProductPreview;
-  previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
   isInitialLoadingResult?: boolean;
   snapIndex: number;
@@ -41,7 +40,6 @@ export function ProductResultContent({
   result,
   scanId,
   previewProduct,
-  previewImageUri,
   resolvedPersonalResult,
   isInitialLoadingResult = false,
   snapIndex,
@@ -136,7 +134,6 @@ export function ProductResultContent({
       <View>
         <ProductResultHero
           nutriScoreGrade={nutriScoreGrade}
-          previewImageUri={previewImageUri}
           product={product}
         />
         <View className="relative">

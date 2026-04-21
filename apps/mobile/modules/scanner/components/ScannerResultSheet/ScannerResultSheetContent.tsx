@@ -11,7 +11,6 @@ interface ScannerResultSheetContentProps {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
-  previewImageUri?: string | null;
   snapIndex: number;
   result?: BarcodeLookupResponse;
   resolvedPersonalResult?: AnalysisJobResponse;
@@ -31,7 +30,6 @@ export function ScannerResultSheetContent({
   scanId,
   item,
   previewProduct,
-  previewImageUri,
   snapIndex,
   result,
   resolvedPersonalResult,
@@ -46,7 +44,6 @@ export function ScannerResultSheetContent({
         scanId={scanId}
         previewItem={item}
         previewProduct={previewProduct}
-        previewImageUri={previewImageUri}
         snapIndex={snapIndex}
         onExpandDetails={onExpandDetails}
         onPreviewStateChange={onPreviewStateChange}
@@ -61,7 +58,6 @@ export function ScannerResultSheetContent({
         result={result}
         scanId={scanId}
         previewProduct={previewProduct}
-        previewImageUri={previewImageUri}
         resolvedPersonalResult={resolvedPersonalResult}
         isInitialLoadingResult={!scanId && isLoadingInitialResult}
         snapIndex={snapIndex}

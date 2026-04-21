@@ -23,7 +23,6 @@ export interface ScannerResultSheetPayload {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
-  previewImageUri?: string | null;
   resolvedPersonalResult?: AnalysisJobResponse;
   initialSnapIndex?: number;
   presentationMode?: ScannerResultPresentationMode;

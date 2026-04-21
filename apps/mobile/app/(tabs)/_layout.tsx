@@ -4,9 +4,21 @@ import { ScreenSpinner } from '../../shared/components/ScreenSpinner';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { OnboardingGate } from '../../modules/onboarding/components/OnboardingGate';
 import { CustomTabBar } from '../../shared/components/CustomTabBar';
+import { useEffect } from 'react';
+import Purchases from 'react-native-purchases';
 
 export default function TabsLayout() {
   const { user, isInitialized } = useAuthStore();
+
+  useEffect(() => {
+    initUserPurchases();
+  }, [user]);
+
+  const initUserPurchases = async () => {
+    if (user?.id) {
+      await Purchases.logIn(user.id);
+    }
+  }
 
   if (!isInitialized) {
     return <ScreenSpinner />;

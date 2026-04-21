@@ -1,8 +1,4 @@
-import type {
-  AnalysisJobResponse,
-  NormalizedProduct,
-  ProductAnalysisResult,
-} from '@acme/shared';
+import type { AnalysisJobResponse, NormalizedProduct, ProductAnalysisResult } from '@acme/shared';
 import { Injectable } from '@nestjs/common';
 import type { ScanSource } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -19,9 +15,8 @@ import {
   hasIngredientData,
   parseStoredAnalysisResult,
 } from './analysis-state';
+import { getAnalysisCacheBoundaryForUser } from './analysis-cache';
 import type { ScoreProfileInput } from '../domain/score-engine/compute-score';
-
-const RESULT_CACHE_MS = 2 * 60 * 60 * 1000;
 
 interface StartAnalysisInput {
   product: NormalizedProduct;
@@ -44,14 +39,15 @@ export class AnalysisOrchestratorService {
   ) {}
 
   async startAnalysis(input: StartAnalysisInput): Promise<StartAnalysisResult> {
-    const existingScan = input.userId
-      ? await findRecentScanByBarcode(input.userId, input.product.code)
-      : null;
+    const cacheBoundary = input.userId ? await getAnalysisCacheBoundaryForUser(input.userId) : null;
+    const existingScan =
+      input.userId && cacheBoundary
+        ? await findRecentScanByBarcode(input.userId, input.product.code, cacheBoundary)
+        : null;
 
     if (
       existingScan &&
       input.scanSource !== 'photo' &&
-      Date.now() - existingScan.createdAt.getTime() < RESULT_CACHE_MS &&
       existingScan.personalAnalysisStatus === 'completed'
     ) {
       const cachedResult = parseStoredAnalysisResult(existingScan.multiProfileResult);
@@ -80,10 +76,12 @@ export class AnalysisOrchestratorService {
     });
 
     try {
-      const { result, profiles, ingredientAnalyses } = await this.analysisPipeline.buildInitialAnalysis(
-        input.product,
-        input.userId,
-      );
+      const { result, profiles, ingredientAnalyses } =
+        await this.analysisPipeline.buildInitialAnalysis(
+          input.product,
+          input.userId,
+          input.productId,
+        );
 
       const scanId = input.userId
         ? await this.persistInitialState({

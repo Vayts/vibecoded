@@ -1,4 +1,8 @@
-import type { OnboardingRequest, OnboardingResponse, UpdateFamilyMemberRequest } from '@acme/shared';
+import type {
+  OnboardingRequest,
+  OnboardingResponse,
+  UpdateFamilyMemberRequest,
+} from '@acme/shared';
 import { DEFAULT_ONBOARDING_RESPONSE } from '@acme/shared';
 import type { FamilyMember } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -19,8 +23,10 @@ const areStringArraysEqual = <T extends string>(left: T[], right: T[]): boolean 
   const normalizedLeft = getSortedUniqueValues(left);
   const normalizedRight = getSortedUniqueValues(right);
 
-  return normalizedLeft.length === normalizedRight.length &&
-    normalizedLeft.every((value, index) => value === normalizedRight[index]);
+  return (
+    normalizedLeft.length === normalizedRight.length &&
+    normalizedLeft.every((value, index) => value === normalizedRight[index])
+  );
 };
 
 export const hasAnalysisRelevantOnboardingChanges = (
@@ -54,11 +60,17 @@ export const hasAnalysisRelevantFamilyMemberChanges = (
     return true;
   }
 
-  if (next.otherAllergiesText !== undefined && next.otherAllergiesText !== current.otherAllergiesText) {
+  if (
+    next.otherAllergiesText !== undefined &&
+    next.otherAllergiesText !== current.otherAllergiesText
+  ) {
     return true;
   }
 
-  if (next.restrictions !== undefined && !areStringArraysEqual(current.restrictions, next.restrictions)) {
+  if (
+    next.restrictions !== undefined &&
+    !areStringArraysEqual(current.restrictions, next.restrictions)
+  ) {
     return true;
   }
 
@@ -66,8 +78,10 @@ export const hasAnalysisRelevantFamilyMemberChanges = (
     return true;
   }
 
-  return next.nutritionPriorities !== undefined &&
-    !areStringArraysEqual(current.nutritionPriorities, next.nutritionPriorities);
+  return (
+    next.nutritionPriorities !== undefined &&
+    !areStringArraysEqual(current.nutritionPriorities, next.nutritionPriorities)
+  );
 };
 
 export const getAnalysisCacheBoundary = (
@@ -103,4 +117,3 @@ export const touchUserAnalysisPreferencesUpdatedAt = async (
     data: { analysisPreferencesUpdatedAt: touchedAt },
   });
 };
-

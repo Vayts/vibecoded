@@ -1,4 +1,5 @@
 import {
+  type BarcodeLookupProduct,
   type BarcodeLookupNotFoundResponse,
   type ComparisonProductPreview,
   type NormalizedProduct,
@@ -47,6 +48,16 @@ export const resolveProduct = async (barcode: string): Promise<ResolvedProductRe
     return null;
   }
 
+  if (wasExistingInDb) {
+    const productId = await findProductIdByBarcode(product.code);
+
+    return {
+      product,
+      productId: productId!,
+      wasExistingInDb,
+    };
+  }
+
   const savedProduct = await createProduct(product);
   const productId = await findProductIdByBarcode(savedProduct.code);
 
@@ -56,6 +67,27 @@ export const resolveProduct = async (barcode: string): Promise<ResolvedProductRe
     wasExistingInDb,
   };
 };
+
+export const toBarcodeLookupProduct = (product: NormalizedProduct): BarcodeLookupProduct => ({
+  code: product.code,
+  product_name: product.product_name,
+  brands: product.brands,
+  image_url: product.image_url,
+  ingredients_text: product.ingredients_text,
+  nutriscore_grade: product.nutriscore_grade,
+  categories: product.categories,
+  quantity: product.quantity,
+  serving_size: product.serving_size,
+  ingredients: product.ingredients,
+  allergens: product.allergens,
+  additives: product.additives,
+  additives_count: product.additives_count,
+  traces: product.traces,
+  countries: product.countries,
+  category_tags: product.category_tags,
+  nutrition: product.nutrition,
+  scores: product.scores,
+});
 
 export const toProductPreview = (
   product: NormalizedProduct,

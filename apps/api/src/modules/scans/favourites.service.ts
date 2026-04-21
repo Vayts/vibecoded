@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { FavouriteItem, FavouritesResponse, SharedScanFilters } from '@acme/shared';
 import { addFavouriteRequestSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import { resolveCanonicalProductImageUrl } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
@@ -16,6 +17,7 @@ type FavouriteProduct = {
   product_name: string | null;
   brands: string | null;
   image_url: string | null;
+  images: unknown;
   nutriscore_grade: string | null;
 };
 
@@ -44,7 +46,7 @@ const serializeProduct = (product: FavouriteProduct) => ({
   barcode: product.barcode,
   product_name: product.product_name,
   brands: product.brands,
-  image_url: product.image_url,
+  image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
   nutriscore_grade: product.nutriscore_grade,
 });
 
@@ -60,6 +62,8 @@ export class FavouritesService {
     search?: string,
     filters: SharedScanFilters = { profileIds: [], fitBuckets: [] },
   ): Promise<FavouritesResponse> {
+    await this.cleanupOrphanedFavourites(userId);
+
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
     const normalizedSearch = normalizeSearchQuery(search);
     const where: Prisma.FavoriteWhereInput = {
@@ -167,6 +171,7 @@ export class FavouritesService {
             product_name: true,
             brands: true,
             image_url: true,
+            images: true,
             nutriscore_grade: true,
           },
         },
@@ -267,6 +272,26 @@ export class FavouritesService {
     return { isFavourite: favourite != null };
   }
 
+  private async cleanupOrphanedFavourites(userId: string): Promise<void> {
+    const result = await prisma.favorite.deleteMany({
+      where: {
+        userId,
+        product: {
+          scans: {
+            none: {
+              userId,
+              type: 'product',
+            },
+          },
+        },
+      },
+    });
+
+    if (result.count > 0) {
+      console.log(`[favourites] Removed ${result.count} orphaned favourite(s) for user=${userId}`);
+    }
+  }
+
   private serializeFavouriteItem(
     favourite: {
       id: string;
@@ -309,6 +334,7 @@ export class FavouritesService {
     const scans = await prisma.scan.findMany({
       where: {
         userId,
+        type: 'product',
         productId: { in: productIds },
       },
       orderBy: { createdAt: 'desc' },

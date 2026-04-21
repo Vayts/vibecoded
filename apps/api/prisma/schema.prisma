@@ -21,6 +21,7 @@ model User {
   avatarUrl     String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  analysisPreferencesUpdatedAt DateTime? @map("analysis_preferences_updated_at")
 
   // Subscription fields
   subscriptionStatus  String? // 'active' | 'expired' | 'cancelled' | null (free)
@@ -163,6 +164,7 @@ model Product {
   product_name     String?
   brands           String?
   image_url        String?
+  classificationCache       Json?                        @map("classification_cache")
   embeddingText    String?
   embeddingVector  Unsupported("vector(1536)")?
   ingredients_text String?

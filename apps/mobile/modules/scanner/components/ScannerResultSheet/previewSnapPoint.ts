@@ -21,6 +21,8 @@ export function getPreviewSnapPoint({
   hasSummaryContent,
   nutriScoreGrade,
 }: PreviewSnapPointParams): number {
+  console.log(nutriScoreGrade);
+
   if (!hasPreviewState || windowHeight <= 0) {
     return DEFAULT_PREVIEW_SNAP_POINT;
   }

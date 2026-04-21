@@ -11,18 +11,13 @@ type ProductHeaderData =
 
 interface ProductResultHeroProps {
   nutriScoreGrade: string | null | undefined;
-  previewImageUri?: string | null;
   product: ProductHeaderData;
 }
 
-export function ProductResultHero({
-  nutriScoreGrade,
-  previewImageUri,
-  product,
-}: ProductResultHeroProps) {
+export function ProductResultHero({ nutriScoreGrade, product }: ProductResultHeroProps) {
   return (
     <View className="px-4 pb-4">
-      <ProductResultHeader product={product} previewImageUri={previewImageUri} />
+      <ProductResultHeader product={product} />
       <NutriScoreBlock grade={nutriScoreGrade} />
     </View>
   );

@@ -21,7 +21,13 @@ export const scannerLookupSourceSchema = z.enum([
 ]);
 export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
 
-export const barcodeLookupProductSchema = z.object({
+const productImagesSchema = z.object({
+  front_url: z.string().nullable(),
+  ingredients_url: z.string().nullable(),
+  nutrition_url: z.string().nullable(),
+});
+
+const productCoreSchema = z.object({
   code: z.string(),
   product_name: z.string().nullable(),
   brands: z.string().nullable(),
@@ -38,11 +44,6 @@ export const barcodeLookupProductSchema = z.object({
   traces: z.array(z.string()),
   countries: z.array(z.string()),
   category_tags: z.array(z.string()),
-  images: z.object({
-    front_url: z.string().nullable(),
-    ingredients_url: z.string().nullable(),
-    nutrition_url: z.string().nullable(),
-  }),
   nutrition: z.object({
     energy_kcal_100g: z.number().nullable(),
     proteins_100g: z.number().nullable(),
@@ -61,8 +62,13 @@ export const barcodeLookupProductSchema = z.object({
     ecoscore_score: z.number().nullable(),
   }),
 });
+
+export const barcodeLookupProductSchema = productCoreSchema;
 export type BarcodeLookupProduct = z.infer<typeof barcodeLookupProductSchema>;
-export const normalizedProductSchema = barcodeLookupProductSchema;
+
+export const normalizedProductSchema = productCoreSchema.extend({
+  images: productImagesSchema,
+});
 export type NormalizedProduct = z.infer<typeof normalizedProductSchema>;
 
 export const evaluationItemSchema = z.object({

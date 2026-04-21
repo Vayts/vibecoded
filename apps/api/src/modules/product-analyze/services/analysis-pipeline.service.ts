@@ -13,6 +13,10 @@ import { analyzeIngredientsForProfiles } from './ingredient-analysis-ai';
 import { generateProfileFitSummaries } from './profile-fit-summary-ai';
 import { getProfileInputs } from './profileInputs';
 import {
+  findProductClassificationCache,
+  saveProductClassificationCache,
+} from '../repositories/productRepository';
+import {
   buildClassificationFromData,
   buildProductFacts,
   buildNutritionFacts,
@@ -22,19 +26,21 @@ import {
   computeAllProfileScores,
   type ScoreProfileInput,
 } from '../domain/score-engine/compute-score';
+import type { AiClassification } from '../domain/product-facts/schema';
 
 @Injectable()
 export class AnalysisPipelineService {
   async buildInitialAnalysis(
     product: NormalizedProduct,
     userId?: string,
+    productId?: string,
   ): Promise<{
     result: ProductAnalysisResult;
     profiles: ScoreProfileInput[];
     ingredientAnalyses: Map<string, IngredientAnalysis | null>;
   }> {
     const profilesPromise = this.buildProfiles(userId);
-    const factsPromise = this.buildProductFacts(product);
+    const factsPromise = this.buildProductFacts(product, productId);
     const ingredientAnalysesPromise = profilesPromise.then((profiles) =>
       this.buildProfileIngredientAnalyses(product, profiles),
     );
@@ -168,7 +174,50 @@ export class AnalysisPipelineService {
     }));
   }
 
-  private async buildProductFacts(product: NormalizedProduct): Promise<ProductFacts> {
+  private async resolveClassification(
+    product: NormalizedProduct,
+    productId?: string,
+  ): Promise<AiClassification> {
+    const cachedClassification = await findProductClassificationCache({
+      productId,
+      barcode: product.code,
+    });
+
+    if (cachedClassification) {
+      console.log(
+        `[analysis-pipeline] classification_cache hit barcode=${product.code} productId=${productId ?? 'unknown'}`,
+      );
+      return cachedClassification;
+    }
+
+    console.log(
+      `[analysis-pipeline] classification_cache miss barcode=${product.code} productId=${productId ?? 'unknown'}`,
+    );
+
+    const result = await getProductFactsService().extractClassificationWithSource(product);
+
+    if (result.source === 'ai') {
+      await saveProductClassificationCache({
+        productId,
+        barcode: product.code,
+        classification: result.classification,
+      });
+      console.log(
+        `[analysis-pipeline] classification_cache saved barcode=${product.code} productId=${productId ?? 'unknown'}`,
+      );
+    } else {
+      console.log(
+        `[analysis-pipeline] classification_cache not saved (source=${result.source}) barcode=${product.code} productId=${productId ?? 'unknown'}`,
+      );
+    }
+
+    return result.classification;
+  }
+
+  private async buildProductFacts(
+    product: NormalizedProduct,
+    productId?: string,
+  ): Promise<ProductFacts> {
     const productName = product.product_name ?? product.code ?? 'unknown';
     const productHasNutrition = hasNutritionData(product);
 
@@ -177,14 +226,14 @@ export class AnalysisPipelineService {
 
     if (productHasNutrition) {
       nutritionFacts = buildNutritionFacts(product);
-      classification = await getProductFactsService()
-        .extractClassification(product)
-        .catch(() => buildClassificationFromData(product));
+      classification = await this.resolveClassification(product, productId).catch(() =>
+        buildClassificationFromData(product),
+      );
     } else {
       const [classificationResult, webNutrition] = await Promise.all([
-        getProductFactsService()
-          .extractClassification(product)
-          .catch(() => buildClassificationFromData(product)),
+        this.resolveClassification(product, productId).catch(() =>
+          buildClassificationFromData(product),
+        ),
         searchNutritionData(productName, product.brands, product.code),
       ]);
 

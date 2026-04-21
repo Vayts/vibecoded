@@ -39,4 +39,3 @@ describe('product image canonicalization', () => {
     ).toBeNull();
   });
 });
-

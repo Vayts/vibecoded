@@ -26,18 +26,11 @@ interface PrepareScanForAnalysisInput {
 }
 
 const toJsonResult = (result?: ProductAnalysisResult) =>
-  result
-    ? (result as unknown as Prisma.InputJsonValue)
-    : Prisma.JsonNull;
+  result ? (result as unknown as Prisma.InputJsonValue) : Prisma.JsonNull;
 
-export const findRecentScanByBarcode = async (
-  userId: string,
-  barcode: string,
-  withinMs = 4 * 60 * 60 * 1000,
-) => {
-  const cutoff = new Date(Date.now() - withinMs);
+export const findRecentScanByBarcode = async (userId: string, barcode: string, boundary: Date) => {
   return prisma.scan.findFirst({
-    where: { userId, barcode, createdAt: { gte: cutoff } },
+    where: { userId, barcode, createdAt: { gte: boundary } },
     orderBy: { createdAt: 'desc' },
   });
 };
@@ -116,10 +109,7 @@ export const updateScanAnalysisState = async (
   });
 };
 
-export const findScanByAnalysisIdForUser = async (
-  userId: string,
-  analysisId: string,
-) => {
+export const findScanByAnalysisIdForUser = async (userId: string, analysisId: string) => {
   return prisma.scan.findFirst({
     where: {
       userId,
@@ -135,11 +125,7 @@ export const findScanByAnalysisIdForUser = async (
   });
 };
 
-const DEFAULT_PAGE_SIZE = 20;
-
-export const findProductIdByBarcode = async (
-  barcode: string,
-): Promise<string | null> => {
+export const findProductIdByBarcode = async (barcode: string): Promise<string | null> => {
   const product = await prisma.product.findUnique({
     where: { barcode },
     select: { id: true },

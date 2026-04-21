@@ -1,15 +1,4 @@
-import type { NormalizedProduct } from '@acme/shared';
-
-const NULL_LIKE_IMAGE_URLS = new Set([
-  '',
-  '/',
-  '/null',
-  'null',
-  'n/a',
-  'none',
-  'undefined',
-  '-',
-]);
+const NULL_LIKE_IMAGE_URLS = new Set(['', '/', '/null', 'null', 'n/a', 'none', 'undefined', '-']);
 
 export interface ProductImagesPayload {
   front_url: string | null;
@@ -21,6 +10,8 @@ interface ProductWithCanonicalImage {
   image_url: string | null;
   images: ProductImagesPayload;
 }
+
+type ProductImageKey = keyof ProductImagesPayload;
 
 export const normalizeImageUrl = (value: unknown): string | null => {
   if (typeof value !== 'string') {
@@ -36,14 +27,17 @@ export const normalizeImageUrl = (value: unknown): string | null => {
   return NULL_LIKE_IMAGE_URLS.has(normalized.toLowerCase()) ? null : normalized;
 };
 
-export const getFrontImageUrl = (images: unknown): string | null => {
+export const getProductImageUrl = (images: unknown, key: ProductImageKey): string | null => {
   if (!images || typeof images !== 'object' || Array.isArray(images)) {
     return null;
   }
 
-  const frontUrl = (images as { front_url?: unknown }).front_url;
-  return normalizeImageUrl(frontUrl);
+  const value = (images as Partial<Record<ProductImageKey, unknown>>)[key];
+  return normalizeImageUrl(value);
 };
+
+export const getFrontImageUrl = (images: unknown): string | null =>
+  getProductImageUrl(images, 'front_url');
 
 export const resolveCanonicalProductImageUrl = (
   imageUrl: unknown,
@@ -64,15 +58,3 @@ export const withCanonicalProductImage = <T extends ProductWithCanonicalImage>(p
     },
   };
 };
-
-export const toCanonicalImageFields = (
-  product: NormalizedProduct,
-): Pick<NormalizedProduct, 'image_url' | 'images'> => {
-  const canonicalProduct = withCanonicalProductImage(product);
-
-  return {
-    image_url: canonicalProduct.image_url,
-    images: canonicalProduct.images,
-  };
-};
-

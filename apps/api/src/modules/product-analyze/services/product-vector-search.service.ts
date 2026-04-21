@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { buildCanonicalProductText } from './product-canonical-text';
 import { generateEmbeddingForText } from './product-embedding.service';
+import { withCanonicalProductImage } from '../../../shared/utils/product-image';
 
 interface FindVectorMatchInput {
   productName?: string | null;
@@ -33,21 +34,16 @@ interface ProductVectorRow {
   similarity: number;
 }
 
-const DEFAULT_SIMILARITY_THRESHOLD = 0.9;
+const DEFAULT_SIMILARITY_THRESHOLD = 0.75;
 const DEFAULT_TOP_K = 5;
 
 const getSimilarityThreshold = (): number => {
-  const value = Number(
-    process.env.PRODUCT_VECTOR_MATCH_THRESHOLD ?? DEFAULT_SIMILARITY_THRESHOLD,
-  );
+  const value = Number(process.env.PRODUCT_VECTOR_MATCH_THRESHOLD ?? DEFAULT_SIMILARITY_THRESHOLD);
   return Number.isFinite(value) ? value : DEFAULT_SIMILARITY_THRESHOLD;
 };
 
 const getTopK = (): number => {
-  const value = Number.parseInt(
-    process.env.PRODUCT_VECTOR_MATCH_TOP_K ?? `${DEFAULT_TOP_K}`,
-    10,
-  );
+  const value = Number.parseInt(process.env.PRODUCT_VECTOR_MATCH_TOP_K ?? `${DEFAULT_TOP_K}`, 10);
   return Number.isFinite(value) && value > 0 ? value : DEFAULT_TOP_K;
 };
 
@@ -65,9 +61,7 @@ const toVectorSql = (embedding: number[]): Prisma.Sql => {
   return Prisma.raw(`'[${values}]'::vector`);
 };
 
-const toNormalizedProduct = (
-  row: ProductVectorRow,
-): NormalizedProduct | null => {
+const toNormalizedProduct = (row: ProductVectorRow): NormalizedProduct | null => {
   const parsed = normalizedProductSchema.safeParse({
     code: row.code,
     product_name: row.product_name,
@@ -90,7 +84,7 @@ const toNormalizedProduct = (
     scores: row.scores,
   });
 
-  return parsed.success ? parsed.data : null;
+  return parsed.success ? withCanonicalProductImage(parsed.data) : null;
 };
 
 export const findBestVectorMatchedProduct = async (
