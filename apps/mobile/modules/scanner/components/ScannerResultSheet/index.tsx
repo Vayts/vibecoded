@@ -39,8 +39,7 @@ export function ScannerResultSheet() {
   const scanId = payload?.scanId;
   const item = payload?.item;
   const previewProduct = payload?.previewProduct;
-  const previewImageUri = payload?.previewImageUri;
-  const previewStateKey = `${scanId ?? 'live'}:${item?.id ?? 'none'}:${previewProduct?.barcode ?? 'none'}:${previewImageUri ?? 'none'}`;
+  const previewStateKey = `${scanId ?? 'live'}:${item?.id ?? 'none'}:${previewProduct?.barcode ?? 'none'}:${previewProduct?.image_url ?? 'none'}`;
   const hasPreviewState = Boolean(item?.product || previewProduct || resolvedResult?.success);
   const fallbackPreviewSummaryState = useMemo(
     () =>
@@ -163,6 +162,7 @@ export function ScannerResultSheet() {
       }),
     [hasPreviewState, previewNutriScoreGrade, previewSummaryState, windowHeight],
   );
+
   const detailState =
     !isLoadingInitialResult || scanId || resolvedResult || !hasPreviewState
       ? undefined
@@ -206,7 +206,6 @@ export function ScannerResultSheet() {
         scanId={scanId}
         item={item}
         previewProduct={previewProduct}
-        previewImageUri={previewImageUri}
         snapIndex={snapIndex}
         result={resolvedResult}
         resolvedPersonalResult={resolvedPersonalResult}

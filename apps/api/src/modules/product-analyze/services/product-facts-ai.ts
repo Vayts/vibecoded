@@ -11,6 +11,11 @@ import type { NormalizedProduct } from '@acme/shared';
 
 type ProductFactsAiOutput = AiClassification;
 
+export interface ExtractClassificationResult {
+  classification: AiClassification;
+  source: 'ai' | 'fallback';
+}
+
 interface StructuredProductFactsRunner {
   invoke(messages: Array<{ role: string; content: string }>): Promise<ProductFactsAiOutput>;
 }
@@ -39,17 +44,31 @@ export class ProductFactsAiService {
    * Falls back to deterministic extraction if AI is unavailable.
    */
   async extractClassification(product: NormalizedProduct): Promise<AiClassification> {
+    const result = await this.extractClassificationWithSource(product);
+
+    return result.classification;
+  }
+
+  async extractClassificationWithSource(
+    product: NormalizedProduct,
+  ): Promise<ExtractClassificationResult> {
     const fallbackClassification = buildClassificationFromData(product);
 
     if (!process.env.OPENAI_API_KEY) {
       console.log('[ProductFacts] No API key, using deterministic fallback');
-      return fallbackClassification;
+      return {
+        classification: fallbackClassification,
+        source: 'fallback',
+      };
     }
 
     try {
       const userMessage = buildProductFactsPrompt(product);
       if (!userMessage) {
-        return fallbackClassification;
+        return {
+          classification: fallbackClassification,
+          source: 'fallback',
+        };
       }
       console.log('[ProductFacts] Prompt:\n', userMessage);
 
@@ -64,13 +83,19 @@ export class ProductFactsAiService {
 
       const parsed = productFactsAiOutputSchema.parse(result);
       console.log('[ProductFacts] AI result:', JSON.stringify(parsed, null, 2));
-      return parsed;
+      return {
+        classification: parsed,
+        source: 'ai',
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error(
         `[ProductFacts] AI extraction failed: ${message}, using deterministic fallback`,
       );
-      return fallbackClassification;
+      return {
+        classification: fallbackClassification,
+        source: 'fallback',
+      };
     }
   }
 }

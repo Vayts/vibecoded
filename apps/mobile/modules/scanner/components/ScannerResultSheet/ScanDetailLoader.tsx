@@ -56,7 +56,6 @@ interface ScanDetailLoaderProps {
   scanId: string;
   previewItem?: ScannerResultSheetPayload['item'];
   previewProduct?: ScannerResultSheetPayload['previewProduct'];
-  previewImageUri?: ScannerResultSheetPayload['previewImageUri'];
   snapIndex: number;
   onExpandDetails: () => void;
   onPreviewStateChange?: (state: {
@@ -69,7 +68,6 @@ export function ScanDetailLoader({
   scanId,
   previewItem,
   previewProduct,
-  previewImageUri,
   snapIndex,
   onExpandDetails,
   onPreviewStateChange,
@@ -120,7 +118,6 @@ export function ScanDetailLoader({
       previewItem={previewItem}
       result={mapped?.result}
       previewProduct={previewProduct}
-      previewImageUri={previewImageUri}
       resolvedPersonalResult={mapped?.resolvedPersonalResult}
       snapIndex={snapIndex}
       onExpandDetails={onExpandDetails}

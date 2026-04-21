@@ -1,17 +1,25 @@
-import type { ComparisonHistoryResponse } from '@acme/shared';
+import type { ComparisonFilters, ComparisonHistoryResponse } from '@acme/shared';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchComparisons, fetchComparisonDetail } from '../api/comparisonsApi';
 
 export const COMPARISONS_QUERY_KEY = ['comparisons'] as const;
 const COMPARISONS_STALE_TIME_MS = 30_000;
 
-export const useComparisonsQuery = (search: string, enabled = true) => {
+const EMPTY_COMPARISON_FILTERS: ComparisonFilters = {
+  profileIds: [],
+};
+
+export const useComparisonsQuery = (
+  search: string,
+  enabled = true,
+  filters: ComparisonFilters = EMPTY_COMPARISON_FILTERS,
+) => {
   return useInfiniteQuery({
-    queryKey: [...COMPARISONS_QUERY_KEY, search],
+    queryKey: [...COMPARISONS_QUERY_KEY, search, filters],
     enabled,
     staleTime: COMPARISONS_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
-      fetchComparisons({ cursor: pageParam, search, signal }),
+      fetchComparisons({ cursor: pageParam, search, filters, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: ComparisonHistoryResponse) => lastPage.nextCursor ?? undefined,
   });

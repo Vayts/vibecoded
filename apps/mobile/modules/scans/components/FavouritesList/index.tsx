@@ -1,6 +1,6 @@
-import type { ScanHistoryItem } from '@acme/shared';
-import { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import type { ScanHistoryItem, SharedScanFilters } from '@acme/shared';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { ScanHistoryRow } from '../ScanHistoryRow';
@@ -15,6 +15,8 @@ interface FavouritesListProps {
   profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
+  filters?: SharedScanFilters;
+  onTotalCountChange?: (count: number) => void;
 }
 
 const LIST_CONTENT_STYLE = {
@@ -74,6 +76,8 @@ export const FavouritesList = memo(function FavouritesList({
   profileScoreChipContext,
   searchQuery,
   enabled = true,
+  filters,
+  onTotalCountChange,
 }: FavouritesListProps) {
   const {
     data,
@@ -84,10 +88,15 @@ export const FavouritesList = memo(function FavouritesList({
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useFavouritesQuery(searchQuery, enabled);
+  } = useFavouritesQuery(searchQuery, enabled, filters);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
+  const totalCount = data?.pages[0]?.totalCount ?? 0;
+
+  useEffect(() => {
+    onTotalCountChange?.(totalCount);
+  }, [onTotalCountChange, totalCount]);
 
   const handleRefresh = useCallback(async () => {
     setIsPullRefreshing(true);

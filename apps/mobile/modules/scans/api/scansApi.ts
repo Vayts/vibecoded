@@ -1,6 +1,7 @@
 import {
   scanHistoryResponseSchema,
   scanDetailResponseSchema,
+  type SharedScanFilters,
   type ScanHistoryResponse,
   type ScanDetailResponse,
 } from '@acme/shared';
@@ -11,12 +12,14 @@ const DEFAULT_PAGE_SIZE = 20;
 interface FetchScanHistoryParams {
   cursor?: string;
   search?: string;
+  filters?: SharedScanFilters;
   signal?: AbortSignal;
 }
 
 export const fetchScanHistory = async ({
   cursor,
   search,
+  filters,
   signal,
 }: FetchScanHistoryParams): Promise<ScanHistoryResponse> => {
   const params = new URLSearchParams();
@@ -24,6 +27,8 @@ export const fetchScanHistory = async ({
 
   if (cursor) params.set('cursor', cursor);
   if (normalizedSearch) params.set('search', normalizedSearch);
+  if (filters?.profileIds.length) params.set('profileIds', filters.profileIds.join(','));
+  if (filters?.fitBuckets.length) params.set('fitBuckets', filters.fitBuckets.join(','));
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
   const response = await apiFetch(`/api/scans/history?${params.toString()}`, { signal });

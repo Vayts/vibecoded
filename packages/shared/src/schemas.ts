@@ -64,6 +64,7 @@ export type ScanHistoryItem = z.infer<typeof scanHistoryItemSchema>;
 export const scanHistoryResponseSchema = z.object({
   items: z.array(scanHistoryItemSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nonnegative(),
 });
 export type ScanHistoryResponse = z.infer<typeof scanHistoryResponseSchema>;
 export const scanDetailResponseSchema = z.object({
@@ -111,6 +112,7 @@ export type FavouriteItem = z.infer<typeof favouriteItemSchema>;
 export const favouritesResponseSchema = z.object({
   items: z.array(favouriteItemSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nonnegative(),
 });
 export type FavouritesResponse = z.infer<typeof favouritesResponseSchema>;
 
@@ -142,6 +144,7 @@ export type ComparisonHistoryItem = z.infer<typeof comparisonHistoryItemSchema>;
 export const comparisonHistoryResponseSchema = z.object({
   items: z.array(comparisonHistoryItemSchema),
   nextCursor: z.string().nullable(),
+  totalCount: z.number().int().nonnegative(),
 });
 export type ComparisonHistoryResponse = z.infer<typeof comparisonHistoryResponseSchema>;
 

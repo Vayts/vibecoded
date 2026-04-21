@@ -1,6 +1,7 @@
 import {
   comparisonHistoryResponseSchema,
   comparisonDetailResponseSchema,
+  type ComparisonFilters,
   type ComparisonHistoryResponse,
   type ComparisonDetailResponse,
 } from '@acme/shared';
@@ -11,12 +12,14 @@ const DEFAULT_PAGE_SIZE = 20;
 interface FetchComparisonsParams {
   cursor?: string;
   search?: string;
+  filters?: ComparisonFilters;
   signal?: AbortSignal;
 }
 
 export const fetchComparisons = async ({
   cursor,
   search,
+  filters,
   signal,
 }: FetchComparisonsParams): Promise<ComparisonHistoryResponse> => {
   const params = new URLSearchParams();
@@ -24,6 +27,7 @@ export const fetchComparisons = async ({
 
   if (cursor) params.set('cursor', cursor);
   if (normalizedSearch) params.set('search', normalizedSearch);
+  if (filters?.profileIds.length) params.set('profileIds', filters.profileIds.join(','));
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
   const response = await apiFetch(`/api/comparisons?${params.toString()}`, { signal });

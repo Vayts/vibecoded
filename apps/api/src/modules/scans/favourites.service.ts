@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { FavouriteItem, FavouritesResponse } from '@acme/shared';
-import { addFavouriteRequestSchema, profileProductScoreSchema } from '@acme/shared';
+import type { FavouriteItem, FavouritesResponse, SharedScanFilters } from '@acme/shared';
+import { addFavouriteRequestSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
+import { resolveCanonicalProductImageUrl } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
-import { buildHistoryAnalysisSummary } from './scan-history-analysis';
+import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
+const FILTERED_BATCH_MULTIPLIER = 3;
 
 type FavouriteProduct = {
   id: string;
@@ -15,6 +17,7 @@ type FavouriteProduct = {
   product_name: string | null;
   brands: string | null;
   image_url: string | null;
+  images: unknown;
   nutriscore_grade: string | null;
 };
 
@@ -43,9 +46,12 @@ const serializeProduct = (product: FavouriteProduct) => ({
   barcode: product.barcode,
   product_name: product.product_name,
   brands: product.brands,
-  image_url: product.image_url,
+  image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
   nutriscore_grade: product.nutriscore_grade,
 });
+
+const hasSharedScanFilters = (filters: SharedScanFilters): boolean =>
+  filters.profileIds.length > 0 || filters.fitBuckets.length > 0;
 
 @Injectable()
 export class FavouritesService {
@@ -54,7 +60,10 @@ export class FavouritesService {
     cursor?: string,
     limit?: string,
     search?: string,
+    filters: SharedScanFilters = { profileIds: [], fitBuckets: [] },
   ): Promise<FavouritesResponse> {
+    await this.cleanupOrphanedFavourites(userId);
+
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
     const normalizedSearch = normalizeSearchQuery(search);
     const where: Prisma.FavoriteWhereInput = {
@@ -68,29 +77,12 @@ export class FavouritesService {
         : {}),
     };
 
-    const favourites = await prisma.favorite.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: take + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-      include: {
-        product: {
-          select: {
-            id: true,
-            barcode: true,
-            product_name: true,
-            brands: true,
-            image_url: true,
-            nutriscore_grade: true,
-          },
-        },
-      },
-    });
+    const [favourites, totalCount] = await Promise.all([
+      hasSharedScanFilters(filters)
+        ? this.findFilteredFavourites(where, userId, cursor, take + 1, filters)
+        : this.findFavourites(where, cursor, take + 1),
+      this.countFavourites(where, userId, filters),
+    ]);
 
     const hasMore = favourites.length > take;
     const items = hasMore ? favourites.slice(0, take) : favourites;
@@ -109,7 +101,134 @@ export class FavouritesService {
         return this.serializeFavouriteItem(favourite, scan);
       }),
       nextCursor,
+      totalCount,
     };
+  }
+
+  private async countFavourites(
+    where: Prisma.FavoriteWhereInput,
+    userId: string,
+    filters: SharedScanFilters,
+  ): Promise<number> {
+    if (!hasSharedScanFilters(filters)) {
+      return prisma.favorite.count({ where });
+    }
+
+    let totalCount = 0;
+    let nextCursor: string | undefined;
+    const batchSize = 100;
+
+    while (true) {
+      const favourites = await this.findFavourites(where, nextCursor, batchSize);
+
+      if (favourites.length === 0) {
+        break;
+      }
+
+      const productIds = favourites
+        .map((favourite) => favourite.product?.id)
+        .filter((productId): productId is string => productId != null);
+      const latestScansByProductId = await this.findLatestScansForProducts(userId, productIds);
+
+      totalCount += favourites.filter((favourite) => {
+        const scan = favourite.product
+          ? latestScansByProductId.get(favourite.product.id)
+          : undefined;
+        const summary = buildHistoryAnalysisSummary(scan?.personalResult, scan?.multiProfileResult);
+        return matchesSharedScanFilters(summary, filters);
+      }).length;
+
+      if (favourites.length < batchSize) {
+        break;
+      }
+
+      nextCursor = favourites[favourites.length - 1]?.id;
+    }
+
+    return totalCount;
+  }
+
+  private async findFavourites(
+    where: Prisma.FavoriteWhereInput,
+    cursor: string | undefined,
+    take: number,
+  ) {
+    return prisma.favorite.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take,
+      ...(cursor
+        ? {
+            cursor: { id: cursor },
+            skip: 1,
+          }
+        : {}),
+      include: {
+        product: {
+          select: {
+            id: true,
+            barcode: true,
+            product_name: true,
+            brands: true,
+            image_url: true,
+            images: true,
+            nutriscore_grade: true,
+          },
+        },
+      },
+    });
+  }
+
+  private async findFilteredFavourites(
+    where: Prisma.FavoriteWhereInput,
+    userId: string,
+    cursor: string | undefined,
+    take: number,
+    filters: SharedScanFilters,
+  ) {
+    const matches: Array<{
+      id: string;
+      createdAt: Date;
+      product: FavouriteProduct | null;
+    }> = [];
+    const batchSize = Math.max(take * FILTERED_BATCH_MULTIPLIER, DEFAULT_PAGE_SIZE);
+    let nextCursor = cursor;
+
+    while (matches.length < take) {
+      const favourites = await this.findFavourites(where, nextCursor, batchSize);
+
+      if (favourites.length === 0) {
+        break;
+      }
+
+      const productIds = favourites
+        .map((favourite) => favourite.product?.id)
+        .filter((productId): productId is string => productId != null);
+      const latestScansByProductId = await this.findLatestScansForProducts(userId, productIds);
+
+      for (const favourite of favourites) {
+        const scan = favourite.product
+          ? latestScansByProductId.get(favourite.product.id)
+          : undefined;
+        const summary = buildHistoryAnalysisSummary(scan?.personalResult, scan?.multiProfileResult);
+
+        if (matchesSharedScanFilters(summary, filters)) {
+          matches.push(favourite);
+        }
+
+        if (matches.length >= take) {
+          break;
+        }
+      }
+
+      if (favourites.length < batchSize) {
+        break;
+      }
+
+      nextCursor = favourites[favourites.length - 1]?.id;
+    }
+
+    return matches;
   }
 
   async addFavourite(userId: string, body: unknown): Promise<{ success: true }> {
@@ -151,6 +270,26 @@ export class FavouritesService {
     });
 
     return { isFavourite: favourite != null };
+  }
+
+  private async cleanupOrphanedFavourites(userId: string): Promise<void> {
+    const result = await prisma.favorite.deleteMany({
+      where: {
+        userId,
+        product: {
+          scans: {
+            none: {
+              userId,
+              type: 'product',
+            },
+          },
+        },
+      },
+    });
+
+    if (result.count > 0) {
+      console.log(`[favourites] Removed ${result.count} orphaned favourite(s) for user=${userId}`);
+    }
   }
 
   private serializeFavouriteItem(
@@ -195,6 +334,7 @@ export class FavouritesService {
     const scans = await prisma.scan.findMany({
       where: {
         userId,
+        type: 'product',
         productId: { in: productIds },
       },
       orderBy: { createdAt: 'desc' },

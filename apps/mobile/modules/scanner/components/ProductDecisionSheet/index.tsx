@@ -27,8 +27,7 @@ export function ProductDecisionSheet() {
 
   if (!product) return null;
 
-  const isPhoto = Boolean(photoUri);
-  const resolvedImageUrl = isPhoto ? product.image_url : resolveStorageUri(product.image_url);
+  const resolvedImageUrl = resolveStorageUri(product.image_url);
   const isPending = barcodeMutation.isPending || photoMutation.isPending;
 
   const handleAnalyze = async () => {
@@ -38,7 +37,6 @@ export function ProductDecisionSheet() {
     void SheetManager.show(SheetsEnum.ScannerResultSheet, {
       payload: {
         previewProduct: product,
-        previewImageUri: resolvedImageUrl,
       },
       onClose: onDismiss,
     });

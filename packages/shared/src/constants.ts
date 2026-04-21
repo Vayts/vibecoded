@@ -16,8 +16,8 @@ export const MIN_TEXT_INPUT_LENGTH = 50;
 export const MAX_IMAGE_DIMENSION = 1500;
 export const IMAGE_QUALITY = 0.8;
 
-export const GREAT_FIT_SCORE_MIN = 80;
-export const GOOD_FIT_SCORE_MIN = 60;
+export const GREAT_FIT_SCORE_MIN = 70;
+export const GOOD_FIT_SCORE_MIN = 70;
 export const NEUTRAL_FIT_SCORE_MIN = 40;
 
 export const FSRS_DEFAULT_PARAMS = {

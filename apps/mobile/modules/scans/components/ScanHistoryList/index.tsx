@@ -1,6 +1,6 @@
-import type { ScanHistoryItem } from '@acme/shared';
+import type { ScanHistoryItem, SharedScanFilters } from '@acme/shared';
 import type { ReactNode } from 'react';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -17,7 +17,8 @@ interface ScanHistoryListProps {
   profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
-  filterItem?: (item: ScanHistoryItem) => boolean;
+  filters?: SharedScanFilters;
+  onTotalCountChange?: (count: number) => void;
   renderEmptyState?: (searchQuery: string) => ReactNode;
   contentPaddingBottom?: number;
 }
@@ -80,7 +81,8 @@ export const ScanHistoryList = memo(function ScanHistoryList({
   profileScoreChipContext,
   searchQuery,
   enabled = true,
-  filterItem,
+  filters,
+  onTotalCountChange,
   renderEmptyState,
   contentPaddingBottom = 160,
 }: ScanHistoryListProps) {
@@ -93,20 +95,18 @@ export const ScanHistoryList = memo(function ScanHistoryList({
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useScanHistoryQuery(searchQuery, enabled);
+  } = useScanHistoryQuery(searchQuery, enabled, filters);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
-  const items = useMemo(
-    () =>
-      (data?.pages.flatMap((page) => page.items) ?? []).filter((item) =>
-        filterItem ? filterItem(item) : true,
-      ),
-    [data?.pages, filterItem],
-  );
+  const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
+  const totalCount = data?.pages[0]?.totalCount ?? 0;
+
+  useEffect(() => {
+    onTotalCountChange?.(totalCount);
+  }, [onTotalCountChange, totalCount]);
 
   const handleRefresh = useCallback(async () => {
     setIsPullRefreshing(true);
-
     try {
       await refetch();
     } finally {
@@ -192,8 +192,7 @@ export const ScanHistoryList = memo(function ScanHistoryList({
   }
 
   return (
-    <>
-      <FlatList
+    <FlatList
       data={items}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
@@ -217,7 +216,6 @@ export const ScanHistoryList = memo(function ScanHistoryList({
       }
       ListFooterComponent={<ListFooter isFetchingNextPage={isFetchingNextPage} />}
       contentContainerStyle={contentContainerStyle}
-      />
-    </>
+    />
   );
 });

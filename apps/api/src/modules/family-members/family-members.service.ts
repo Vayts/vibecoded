@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import type { FamilyMember } from '@prisma/client';
 import { ApiError } from '../../shared/errors/api-error';
 import { prisma } from '../product-analyze/lib/prisma';
+import {
+  hasAnalysisRelevantFamilyMemberChanges,
+  touchUserAnalysisPreferencesUpdatedAt,
+} from '../product-analyze/services/analysis-cache';
 import { MAX_FAMILY_MEMBERS } from './family-members.constants';
 import {
   createFamilyMemberRequestSchema,
@@ -65,7 +69,7 @@ export class FamilyMembersService {
   }
 
   async update(userId: string, memberId: string, body: unknown) {
-    await this.requireOwnedMember(userId, memberId);
+    const existingMember = await this.requireOwnedMember(userId, memberId);
 
     const parsed = updateFamilyMemberRequestSchema.safeParse(body);
 
@@ -73,9 +77,22 @@ export class FamilyMembersService {
       throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid update payload');
     }
 
-    const member = await prisma.familyMember.update({
-      where: { id: memberId },
-      data: parsed.data,
+    const shouldInvalidateCache = hasAnalysisRelevantFamilyMemberChanges(
+      existingMember,
+      parsed.data,
+    );
+
+    const member = await prisma.$transaction(async (tx) => {
+      const updatedMember = await tx.familyMember.update({
+        where: { id: memberId },
+        data: parsed.data,
+      });
+
+      if (shouldInvalidateCache) {
+        await touchUserAnalysisPreferencesUpdatedAt(userId, tx);
+      }
+
+      return updatedMember;
     });
 
     return serializeFamilyMember(member);
@@ -83,18 +100,22 @@ export class FamilyMembersService {
 
   async remove(userId: string, memberId: string) {
     await this.requireOwnedMember(userId, memberId);
-    await prisma.familyMember.delete({ where: { id: memberId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.familyMember.delete({ where: { id: memberId } });
+      await touchUserAnalysisPreferencesUpdatedAt(userId, tx);
+    });
     return { success: true };
   }
 
   private async requireOwnedMember(userId: string, memberId: string) {
     const member = await prisma.familyMember.findFirst({
       where: { id: memberId, userId },
-      select: { id: true },
     });
 
     if (!member) {
       throw ApiError.notFound('Family member not found');
     }
+
+    return member;
   }
 }

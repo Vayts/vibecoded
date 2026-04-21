@@ -65,16 +65,8 @@ export const formatGrade = (grade: string | null | undefined): string => {
 
 export const getProductImageUri = (
   product: ProductImageSource,
-  previewImageUri?: string | null,
 ): string | null => {
-  const frontImageUrl = 'images' in product ? product.images.front_url : null;
-
-  return (
-    resolveStorageUri(frontImageUrl) ??
-    resolveStorageUri(product.image_url) ??
-    previewImageUri ??
-    null
-  );
+  return resolveStorageUri(product.image_url) ?? null;
 };
 
 export const formatLabel = (value: string): string => {

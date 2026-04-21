@@ -14,14 +14,10 @@ export const PRODUCT_RESULT_HEADER_ESTIMATED_HEIGHT = 46;
 
 interface ProductResultHeaderProps {
   product: ProductHeaderData;
-  previewImageUri?: string | null;
 }
 
-export function ProductResultHeader({
-  product,
-  previewImageUri,
-}: ProductResultHeaderProps) {
-  const resolvedImageUrl = getProductImageUri(product, previewImageUri);
+export function ProductResultHeader({ product }: ProductResultHeaderProps) {
+  const resolvedImageUrl = getProductImageUri(product);
 
   return (
     <View className="rounded-xl bg-white pt-4">

@@ -2,12 +2,14 @@ import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { Prisma } from '@prisma/client';
 
 import { prisma } from '../lib/prisma';
+import { productFactsAiOutputSchema, type AiClassification } from '../domain/product-facts/schema';
 import {
   hasSameCanonicalProductIdentity,
   sanitizeProductText,
   sanitizeNormalizedProductTextFields,
 } from '../services/product-canonical-text';
 import { syncProductEmbedding } from '../services/product-embedding.service';
+import { getProductImageUrl, withCanonicalProductImage } from '../../../shared/utils/product-image';
 
 const toNormalizedProduct = (product: {
   code: string;
@@ -30,7 +32,7 @@ const toNormalizedProduct = (product: {
   nutrition: Prisma.JsonValue;
   scores: Prisma.JsonValue;
 }): NormalizedProduct => {
-  return sanitizeNormalizedProductTextFields(normalizedProductSchema.parse({
+  const parsedProduct = normalizedProductSchema.parse({
     code: product.code,
     product_name: product.product_name,
     brands: product.brands,
@@ -50,13 +52,13 @@ const toNormalizedProduct = (product: {
     images: product.images,
     nutrition: product.nutrition,
     scores: product.scores,
-  }));
+  });
+
+  return sanitizeNormalizedProductTextFields(withCanonicalProductImage(parsedProduct));
 };
 
-const toProductCreateInput = (
-  product: NormalizedProduct,
-): Prisma.ProductUncheckedCreateInput => {
-  const sanitizedProduct = sanitizeNormalizedProductTextFields(product);
+const toProductCreateInput = (product: NormalizedProduct): Prisma.ProductUncheckedCreateInput => {
+  const sanitizedProduct = sanitizeNormalizedProductTextFields(withCanonicalProductImage(product));
 
   return {
     barcode: sanitizedProduct.code,
@@ -82,10 +84,139 @@ const toProductCreateInput = (
   };
 };
 
+const sameStringArray = (left: string[], right: string[]): boolean => {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+};
+
+const sameProductScores = (rawScores: Prisma.JsonValue, product: NormalizedProduct): boolean => {
+  if (!rawScores || typeof rawScores !== 'object' || Array.isArray(rawScores)) {
+    return false;
+  }
+
+  const scores = rawScores as Partial<Record<keyof NormalizedProduct['scores'], unknown>>;
+
+  return (
+    (typeof scores.nutriscore_grade === 'string' || scores.nutriscore_grade == null
+      ? scores.nutriscore_grade
+      : null) === product.scores.nutriscore_grade &&
+    (typeof scores.nutriscore_score === 'number' || scores.nutriscore_score == null
+      ? scores.nutriscore_score
+      : null) === product.scores.nutriscore_score &&
+    (typeof scores.ecoscore_grade === 'string' || scores.ecoscore_grade == null
+      ? scores.ecoscore_grade
+      : null) === product.scores.ecoscore_grade &&
+    (typeof scores.ecoscore_score === 'number' || scores.ecoscore_score == null
+      ? scores.ecoscore_score
+      : null) === product.scores.ecoscore_score
+  );
+};
+
+const sameProductImages = (rawImages: Prisma.JsonValue, product: NormalizedProduct): boolean => {
+  return (
+    getProductImageUrl(rawImages, 'front_url') === product.images.front_url &&
+    getProductImageUrl(rawImages, 'ingredients_url') === product.images.ingredients_url &&
+    getProductImageUrl(rawImages, 'nutrition_url') === product.images.nutrition_url
+  );
+};
+
+const hasClassificationRelevantChanges = (
+  rawProduct: {
+    product_name: string | null;
+    brands: string | null;
+    ingredients_text: string | null;
+    categories: string | null;
+    ingredients: string[];
+    allergens: string[];
+    traces: string[];
+    category_tags: string[];
+    scores: Prisma.JsonValue;
+  },
+  product: NormalizedProduct,
+): boolean => {
+  return (
+    rawProduct.product_name !== product.product_name ||
+    rawProduct.brands !== product.brands ||
+    rawProduct.ingredients_text !== product.ingredients_text ||
+    rawProduct.categories !== product.categories ||
+    !sameStringArray(rawProduct.ingredients, product.ingredients) ||
+    !sameStringArray(rawProduct.allergens, product.allergens) ||
+    !sameStringArray(rawProduct.traces, product.traces) ||
+    !sameStringArray(rawProduct.category_tags, product.category_tags) ||
+    !sameProductScores(rawProduct.scores, product)
+  );
+};
+
+const parseClassificationCache = (value: Prisma.JsonValue | null): AiClassification | null => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = productFactsAiOutputSchema.safeParse(value);
+
+  if (!parsed.success) {
+    console.warn('[productRepository] Invalid classification cache found on product, ignoring it');
+    return null;
+  }
+
+  return parsed.data;
+};
+
+const resolveProductWhereUnique = (input: { productId?: string; barcode?: string }) => {
+  if (input.productId) {
+    return { id: input.productId };
+  }
+
+  if (input.barcode) {
+    return { barcode: input.barcode };
+  }
+
+  return null;
+};
+
+export const findProductClassificationCache = async (input: {
+  productId?: string;
+  barcode?: string;
+}): Promise<AiClassification | null> => {
+  const where = resolveProductWhereUnique(input);
+
+  if (!where) {
+    return null;
+  }
+
+  const product = await prisma.product.findUnique({
+    where,
+    select: {
+      classificationCache: true,
+    },
+  });
+
+  return parseClassificationCache(product?.classificationCache ?? null);
+};
+
+export const saveProductClassificationCache = async (input: {
+  productId?: string;
+  barcode?: string;
+  classification: AiClassification;
+}): Promise<void> => {
+  const where = resolveProductWhereUnique(input);
+
+  if (!where) {
+    return;
+  }
+
+  await prisma.product.update({
+    where,
+    data: {
+      classificationCache: input.classification as unknown as Prisma.InputJsonValue,
+    },
+  });
+};
+
 const needsSanitizedTextRepair = (
   rawProduct: {
     product_name: string | null;
     brands: string | null;
+    image_url: string | null;
     ingredients_text: string | null;
     nutriscore_grade: string | null;
     categories: string | null;
@@ -97,37 +228,36 @@ const needsSanitizedTextRepair = (
     traces: string[];
     countries: string[];
     category_tags: string[];
+    images: Prisma.JsonValue;
   },
   product: NormalizedProduct,
 ): boolean => {
   return (
     rawProduct.product_name !== product.product_name ||
     rawProduct.brands !== product.brands ||
+    rawProduct.image_url !== product.image_url ||
     rawProduct.ingredients_text !== product.ingredients_text ||
     rawProduct.nutriscore_grade !== product.nutriscore_grade ||
     rawProduct.categories !== product.categories ||
     rawProduct.quantity !== product.quantity ||
     rawProduct.serving_size !== product.serving_size ||
-    JSON.stringify(rawProduct.ingredients) !== JSON.stringify(product.ingredients) ||
-    JSON.stringify(rawProduct.allergens) !== JSON.stringify(product.allergens) ||
-    JSON.stringify(rawProduct.additives) !== JSON.stringify(product.additives) ||
-    JSON.stringify(rawProduct.traces) !== JSON.stringify(product.traces) ||
-    JSON.stringify(rawProduct.countries) !== JSON.stringify(product.countries) ||
-    JSON.stringify(rawProduct.category_tags) !== JSON.stringify(product.category_tags)
+    !sameStringArray(rawProduct.ingredients, product.ingredients) ||
+    !sameStringArray(rawProduct.allergens, product.allergens) ||
+    !sameStringArray(rawProduct.additives, product.additives) ||
+    !sameStringArray(rawProduct.traces, product.traces) ||
+    !sameStringArray(rawProduct.countries, product.countries) ||
+    !sameStringArray(rawProduct.category_tags, product.category_tags) ||
+    !sameProductImages(rawProduct.images, product)
   );
 };
 
-export const findByBarcode = async (
-  barcode: string,
-): Promise<NormalizedProduct | null> => {
+export const findByBarcode = async (barcode: string): Promise<NormalizedProduct | null> => {
   const product = await prisma.product.findUnique({
     where: { barcode },
   });
 
   if (!product) {
-    console.log(
-      `[productRepository] No product found in DB for barcode=${barcode}`,
-    );
+    console.log(`[productRepository] No product found in DB for barcode=${barcode}`);
 
     return null;
   }
@@ -139,9 +269,7 @@ export const findByBarcode = async (
   const normalizedProduct = toNormalizedProduct(product);
 
   if (needsSanitizedTextRepair(product, normalizedProduct)) {
-    console.log(
-      `[productRepository] repairing sanitized text fields for barcode=${barcode}`,
-    );
+    console.log(`[productRepository] repairing sanitized text fields for barcode=${barcode}`);
     return createProduct(normalizedProduct);
   }
 
@@ -215,9 +343,7 @@ export const findByCanonicalProductText = async (
   return normalizedProduct;
 };
 
-export const createProduct = async (
-  product: NormalizedProduct,
-): Promise<NormalizedProduct> => {
+export const createProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
   const sanitizedProduct = sanitizeNormalizedProductTextFields(product);
   const startedAt = Date.now();
   console.log(
@@ -227,13 +353,41 @@ export const createProduct = async (
 
   const existing = await prisma.product.findUnique({
     where: { barcode: sanitizedProduct.code },
-    select: { id: true, embeddingText: true, product_name: true, brands: true },
+    select: {
+      id: true,
+      embeddingText: true,
+      product_name: true,
+      brands: true,
+      ingredients_text: true,
+      categories: true,
+      ingredients: true,
+      allergens: true,
+      traces: true,
+      category_tags: true,
+      scores: true,
+    },
   });
+
+  const shouldClearClassificationCache =
+    !!existing && hasClassificationRelevantChanges(existing, sanitizedProduct);
+
+  if (shouldClearClassificationCache) {
+    console.log(
+      `[productRepository] clearing classification_cache for code=${sanitizedProduct.code} because classification-relevant fields changed`,
+    );
+  }
+
+  const updateData: Prisma.ProductUncheckedUpdateInput = shouldClearClassificationCache
+    ? {
+        ...data,
+        classificationCache: Prisma.JsonNull,
+      }
+    : data;
 
   const savedProduct = await prisma.product.upsert({
     where: { barcode: sanitizedProduct.code },
     create: data,
-    update: data,
+    update: updateData,
   });
 
   console.log(
@@ -247,11 +401,7 @@ export const createProduct = async (
   const hasEmbedding = !!existing?.embeddingText;
 
   if (!hasEmbedding || nameChanged) {
-    void syncProductEmbedding(
-      savedProduct.id,
-      savedProduct.product_name,
-      savedProduct.brands,
-    )
+    void syncProductEmbedding(savedProduct.id, savedProduct.product_name, savedProduct.brands)
       .then(() => {
         console.log(
           `[productRepository] embedding synced id=${savedProduct.id} code=${savedProduct.code} totalElapsed=${Date.now() - startedAt}ms`,
