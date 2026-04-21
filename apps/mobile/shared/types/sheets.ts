@@ -4,4 +4,5 @@ export enum SheetsEnum {
   ProductDecisionSheet = 'product-decision-sheet',
   CompareProductPickerSheet = 'compare-product-picker-sheet',
   ScannerErrorSheet = 'scanner-error-sheet',
+  ScansFilterSheet = 'scans-filter-sheet',
 }

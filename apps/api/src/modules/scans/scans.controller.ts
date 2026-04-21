@@ -2,6 +2,7 @@ import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query, Req } from
 import type { ScanDetailResponse, ScanHistoryResponse } from '@acme/shared';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
+import { parseSharedScanFilters } from '../../shared/utils/history-filters';
 import { SCANS_ROUTE_BASE } from './scans.constants';
 import { ScansService } from './scans.service';
 
@@ -18,9 +19,12 @@ export class ScansController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('profileIds') profileIds?: string,
+    @Query('fitBuckets') fitBuckets?: string,
   ): Promise<ScanHistoryResponse> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.scansService.getHistory(userId, cursor, limit, search);
+    const filters = parseSharedScanFilters(profileIds, fitBuckets);
+    return this.scansService.getHistory(userId, cursor, limit, search, filters);
   }
 
   @Get(':id')

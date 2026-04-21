@@ -1,5 +1,10 @@
-import type { ProfileProductScore, ScanHistoryItem } from '@acme/shared';
-import { profileProductScoreSchema } from '@acme/shared';
+import type {
+  ProfileProductScore,
+  ScanFitBucket,
+  ScanHistoryItem,
+  SharedScanFilters,
+} from '@acme/shared';
+import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN, profileProductScoreSchema } from '@acme/shared';
 
 const UNCLEAR_DIET_PREFIX = 'cannot confirm compatibility with your diet';
 
@@ -9,6 +14,18 @@ interface HistoryAnalysisSummary {
   profileChips: ScanHistoryItem['profileChips'];
   mainUserHasDietConflict: boolean;
 }
+
+const getScanFitBucket = (score: number): ScanFitBucket => {
+  if (score >= GOOD_FIT_SCORE_MIN) {
+    return 'good';
+  }
+
+  if (score >= NEUTRAL_FIT_SCORE_MIN) {
+    return 'neutral';
+  }
+
+  return 'bad';
+};
 
 const normalizeLegacyCategoryText = (value: string): string => {
   return value.toLowerCase().replace(/[_-]+/g, ' ').trim();
@@ -85,4 +102,60 @@ export const buildHistoryAnalysisSummary = (
     profileChips,
     mainUserHasDietConflict: hasDietConflict(mainUserProfile),
   };
+};
+
+export const matchesSharedScanFilters = (
+  summary: HistoryAnalysisSummary,
+  filters: SharedScanFilters,
+): boolean => {
+  const hasProfileFilter = filters.profileIds.length > 0;
+  const hasScoreFilter = filters.fitBuckets.length > 0;
+  const profileChips = summary.profileChips ?? [];
+
+  const matchesSelectedBucket = (score: number | null): boolean =>
+    score != null && filters.fitBuckets.includes(getScanFitBucket(score));
+
+  const getProfileScore = (profileId: string): number | null => {
+    const matchingChip = profileChips.find((chip) => chip.profileId === profileId);
+
+    if (matchingChip) {
+      return matchingChip.score;
+    }
+
+    if (profileId === 'you') {
+      return summary.personalScore;
+    }
+
+    return null;
+  };
+
+  if (!hasProfileFilter && !hasScoreFilter) {
+    return true;
+  }
+
+  if (hasProfileFilter && hasScoreFilter) {
+    return filters.profileIds.every((profileId) =>
+      matchesSelectedBucket(getProfileScore(profileId)),
+    );
+  }
+
+  const matchingChips = profileChips.filter(
+    (chip) => !hasProfileFilter || filters.profileIds.includes(chip.profileId),
+  );
+
+  if (matchingChips.length > 0) {
+    return !hasScoreFilter || matchingChips.some((chip) => matchesSelectedBucket(chip.score));
+  }
+
+  const canUsePrimaryProfileFallback = !hasProfileFilter || filters.profileIds.includes('you');
+
+  if (!canUsePrimaryProfileFallback) {
+    return false;
+  }
+
+  if (!hasScoreFilter) {
+    return true;
+  }
+
+  return matchesSelectedBucket(summary.personalScore);
 };

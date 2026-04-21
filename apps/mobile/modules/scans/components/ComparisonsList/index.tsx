@@ -1,5 +1,5 @@
-import type { ComparisonHistoryItem } from '@acme/shared';
-import { memo, useCallback, useMemo, useState } from 'react';
+import type { ComparisonFilters, ComparisonHistoryItem } from '@acme/shared';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -7,7 +7,6 @@ import { useComparisonsQuery } from '../../hooks/useComparisonsQuery';
 import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { ComparisonHistoryRow } from '../ComparisonHistoryRow';
-import { GitCompareArrows } from 'lucide-react-native';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 interface ComparisonsListProps {
@@ -15,6 +14,8 @@ interface ComparisonsListProps {
   profileScoreChipContext: ProfileScoreChipContext;
   searchQuery: string;
   enabled?: boolean;
+  filters?: ComparisonFilters;
+  onTotalCountChange?: (count: number) => void;
 }
 
 const EMPTY_CONTENT_STYLE = {
@@ -72,6 +73,8 @@ export const ComparisonsList = memo(function ComparisonsList({
   profileScoreChipContext,
   searchQuery,
   enabled = true,
+  filters,
+  onTotalCountChange,
 }: ComparisonsListProps) {
   const {
     data,
@@ -82,10 +85,15 @@ export const ComparisonsList = memo(function ComparisonsList({
     hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useComparisonsQuery(searchQuery, enabled);
+  } = useComparisonsQuery(searchQuery, enabled, filters);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data?.pages]);
+  const totalCount = data?.pages[0]?.totalCount ?? 0;
+
+  useEffect(() => {
+    onTotalCountChange?.(totalCount);
+  }, [onTotalCountChange, totalCount]);
 
   const handleRefresh = useCallback(async () => {
     setIsPullRefreshing(true);

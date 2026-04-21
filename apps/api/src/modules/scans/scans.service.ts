@@ -1,18 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { ScanDetailResponse, ScanHistoryItem, ScanHistoryResponse } from '@acme/shared';
+import type {
+  ScanDetailResponse,
+  ScanHistoryItem,
+  ScanHistoryResponse,
+  SharedScanFilters,
+} from '@acme/shared';
 import {
   normalizedProductSchema,
   productAnalysisResultSchema,
   productComparisonResultSchema,
-  profileProductScoreSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
-import { buildHistoryAnalysisSummary } from './scan-history-analysis';
+import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
+const FILTERED_BATCH_MULTIPLIER = 3;
 
 type HistoryProduct = {
   id: string;
@@ -56,6 +61,9 @@ const getValidLimit = (limit?: string): number | undefined => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
+const hasSharedScanFilters = (filters: SharedScanFilters): boolean =>
+  filters.profileIds.length > 0 || filters.fitBuckets.length > 0;
+
 @Injectable()
 export class ScansService {
   async getHistory(
@@ -63,6 +71,7 @@ export class ScansService {
     cursor?: string,
     limit?: string,
     search?: string,
+    filters: SharedScanFilters = { profileIds: [], fitBuckets: [] },
   ): Promise<ScanHistoryResponse> {
     const take = getValidLimit(limit) ?? DEFAULT_PAGE_SIZE;
     const normalizedSearch = normalizeSearchQuery(search);
@@ -78,10 +87,87 @@ export class ScansService {
         : {}),
     };
 
-    const scans = await prisma.scan.findMany({
+    const [scans, totalCount] = await Promise.all([
+      hasSharedScanFilters(filters)
+        ? this.findFilteredHistoryScans(where, cursor, take + 1, filters)
+        : this.findHistoryScans(where, cursor, take + 1),
+      this.countHistory(where, filters),
+    ]);
+
+    const hasMore = scans.length > take;
+    const items = hasMore ? scans.slice(0, take) : scans;
+    const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
+
+    const productIds = items
+      .map((scan) => scan.product?.id)
+      .filter((productId): productId is string => productId != null);
+    const favouriteSet = await this.getFavouriteProductIds(userId, productIds);
+
+    return {
+      items: items.map((scan) => this.serializeHistoryItem(scan, favouriteSet)),
+      nextCursor,
+      totalCount,
+    };
+  }
+
+  private async countHistory(
+    where: Prisma.ScanWhereInput,
+    filters: SharedScanFilters,
+  ): Promise<number> {
+    if (!hasSharedScanFilters(filters)) {
+      return prisma.scan.count({ where });
+    }
+
+    let totalCount = 0;
+    let nextCursor: string | undefined;
+    const batchSize = 100;
+
+    while (true) {
+      const scans = await prisma.scan.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: batchSize,
+        ...(nextCursor
+          ? {
+              cursor: { id: nextCursor },
+              skip: 1,
+            }
+          : {}),
+        select: {
+          id: true,
+          personalResult: true,
+          multiProfileResult: true,
+        },
+      });
+
+      if (scans.length === 0) {
+        break;
+      }
+
+      totalCount += scans.filter((scan) => {
+        const summary = buildHistoryAnalysisSummary(scan.personalResult, scan.multiProfileResult);
+        return matchesSharedScanFilters(summary, filters);
+      }).length;
+
+      if (scans.length < batchSize) {
+        break;
+      }
+
+      nextCursor = scans[scans.length - 1]?.id;
+    }
+
+    return totalCount;
+  }
+
+  private async findHistoryScans(
+    where: Prisma.ScanWhereInput,
+    cursor: string | undefined,
+    take: number,
+  ): Promise<ProductScanHistoryRecord[]> {
+    return prisma.scan.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: take + 1,
+      take,
       ...(cursor
         ? {
             cursor: { id: cursor },
@@ -111,20 +197,45 @@ export class ScansService {
         },
       },
     });
+  }
 
-    const hasMore = scans.length > take;
-    const items = hasMore ? scans.slice(0, take) : scans;
-    const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
+  private async findFilteredHistoryScans(
+    where: Prisma.ScanWhereInput,
+    cursor: string | undefined,
+    take: number,
+    filters: SharedScanFilters,
+  ): Promise<ProductScanHistoryRecord[]> {
+    const matches: ProductScanHistoryRecord[] = [];
+    const batchSize = Math.max(take * FILTERED_BATCH_MULTIPLIER, DEFAULT_PAGE_SIZE);
+    let nextCursor = cursor;
 
-    const productIds = items
-      .map((scan) => scan.product?.id)
-      .filter((productId): productId is string => productId != null);
-    const favouriteSet = await this.getFavouriteProductIds(userId, productIds);
+    while (matches.length < take) {
+      const scans = await this.findHistoryScans(where, nextCursor, batchSize);
 
-    return {
-      items: items.map((scan) => this.serializeHistoryItem(scan, favouriteSet)),
-      nextCursor,
-    };
+      if (scans.length === 0) {
+        break;
+      }
+
+      for (const scan of scans) {
+        const summary = buildHistoryAnalysisSummary(scan.personalResult, scan.multiProfileResult);
+
+        if (matchesSharedScanFilters(summary, filters)) {
+          matches.push(scan);
+        }
+
+        if (matches.length >= take) {
+          break;
+        }
+      }
+
+      if (scans.length < batchSize) {
+        break;
+      }
+
+      nextCursor = scans[scans.length - 1]?.id;
+    }
+
+    return matches;
   }
 
   async getDetail(userId: string, scanId: string): Promise<ScanDetailResponse> {

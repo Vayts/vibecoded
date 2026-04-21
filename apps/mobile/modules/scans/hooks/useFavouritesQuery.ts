@@ -1,4 +1,9 @@
-import type { FavouritesResponse, ScanDetailResponse, ScanHistoryResponse } from '@acme/shared';
+import type {
+  FavouritesResponse,
+  ScanDetailResponse,
+  ScanHistoryResponse,
+  SharedScanFilters,
+} from '@acme/shared';
 import type { InfiniteData } from '@tanstack/react-query';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
@@ -8,13 +13,22 @@ import { SCAN_HISTORY_QUERY_KEY } from './useScanHistoryQuery';
 export const FAVOURITES_QUERY_KEY = ['favourites'] as const;
 const FAVOURITES_STALE_TIME_MS = 30_000;
 
-export const useFavouritesQuery = (search: string, enabled = true) => {
+const EMPTY_SCAN_FILTERS: SharedScanFilters = {
+  profileIds: [],
+  fitBuckets: [],
+};
+
+export const useFavouritesQuery = (
+  search: string,
+  enabled = true,
+  filters: SharedScanFilters = EMPTY_SCAN_FILTERS,
+) => {
   return useInfiniteQuery({
-    queryKey: [...FAVOURITES_QUERY_KEY, search],
+    queryKey: [...FAVOURITES_QUERY_KEY, search, filters],
     enabled,
     staleTime: FAVOURITES_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
-      fetchFavourites({ cursor: pageParam, search, signal }),
+      fetchFavourites({ cursor: pageParam, search, filters, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: FavouritesResponse) => lastPage.nextCursor ?? undefined,
   });
@@ -157,7 +171,7 @@ export const useToggleFavouriteMutation = () => {
         addMutation.mutate(productId);
       }
     },
-    [addMutation.mutate, removeMutation.mutate],
+    [addMutation, removeMutation],
   );
 
   return useMemo(

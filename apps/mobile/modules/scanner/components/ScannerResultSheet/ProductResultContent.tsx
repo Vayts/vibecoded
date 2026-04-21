@@ -71,6 +71,7 @@ export function ProductResultContent({
     personalStatus: personalData?.status,
   });
   const resolvedScanId = scanId ?? successResult?.scanId ?? (previewItem?.type === 'product' ? previewItem.id : undefined);
+  const nutriScoreGrade = getDisplayedNutriScoreGrade({ isExpanded, previewHistoryProduct, previewProduct, successResult });
   const summaryOpacity = useRef(new Animated.Value(isExpanded ? 0 : 1)).current;
   const detailOpacity = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
@@ -89,6 +90,13 @@ export function ProductResultContent({
     ]).start();
   }, [detailOpacity, isExpanded, summaryOpacity]);
 
+  useEffect(() => {
+    onPreviewStateChange?.({
+      hasSummaryContent: summaryState.hasSummaryContent,
+      nutriScoreGrade,
+    });
+  }, [nutriScoreGrade, onPreviewStateChange, summaryState.hasSummaryContent]);
+
   if (result?.success === false) {
     return <NotFoundContent result={result} />;
   }
@@ -100,15 +108,8 @@ export function ProductResultContent({
     (previewItem?.type === 'product' ? previewItem.isFavourite : false) ??
     false;
   const compareSource = getCompareSource({ product, previewHistoryProduct, previewProduct, successResult });
-  const nutriScoreGrade = getDisplayedNutriScoreGrade({ isExpanded, previewHistoryProduct, previewProduct, successResult });
   const errorBottomAction = resolvedScanId ? <ScanDeleteAction scanId={resolvedScanId} /> : null;
 
-  useEffect(() => {
-    onPreviewStateChange?.({
-      hasSummaryContent: summaryState.hasSummaryContent,
-      nutriScoreGrade,
-    });
-  }, [nutriScoreGrade, onPreviewStateChange, summaryState.hasSummaryContent]);
 
   if (!product) {
     return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;

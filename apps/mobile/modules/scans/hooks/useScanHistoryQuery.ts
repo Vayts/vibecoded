@@ -1,4 +1,4 @@
-import type { ScanDetailResponse, ScanHistoryResponse } from '@acme/shared';
+import type { ScanDetailResponse, ScanHistoryResponse, SharedScanFilters } from '@acme/shared';
 import {
   ANALYSIS_SOCKET_EVENTS,
   type AnalysisSocketEventPayload,
@@ -11,13 +11,22 @@ import { fetchScanDetail, fetchScanHistory } from '../api/scansApi';
 export const SCAN_HISTORY_QUERY_KEY = ['scans', 'history'] as const;
 const HISTORY_STALE_TIME_MS = 30_000;
 
-export const useScanHistoryQuery = (search: string, enabled = true) => {
+const EMPTY_SCAN_FILTERS: SharedScanFilters = {
+  profileIds: [],
+  fitBuckets: [],
+};
+
+export const useScanHistoryQuery = (
+  search: string,
+  enabled = true,
+  filters: SharedScanFilters = EMPTY_SCAN_FILTERS,
+) => {
   return useInfiniteQuery({
-    queryKey: [...SCAN_HISTORY_QUERY_KEY, search],
+    queryKey: [...SCAN_HISTORY_QUERY_KEY, search, filters],
     enabled,
     staleTime: HISTORY_STALE_TIME_MS,
     queryFn: ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) =>
-      fetchScanHistory({ cursor: pageParam, search, signal }),
+      fetchScanHistory({ cursor: pageParam, search, filters, signal }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: ScanHistoryResponse) => lastPage.nextCursor ?? undefined,
   });

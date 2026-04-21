@@ -1,5 +1,6 @@
 import {
   favouritesResponseSchema,
+  type SharedScanFilters,
   type FavouritesResponse,
   type FavouriteStatusResponse,
 } from '@acme/shared';
@@ -10,12 +11,14 @@ const DEFAULT_PAGE_SIZE = 20;
 interface FetchFavouritesParams {
   cursor?: string;
   search?: string;
+  filters?: SharedScanFilters;
   signal?: AbortSignal;
 }
 
 export const fetchFavourites = async ({
   cursor,
   search,
+  filters,
   signal,
 }: FetchFavouritesParams): Promise<FavouritesResponse> => {
   const params = new URLSearchParams();
@@ -23,6 +26,8 @@ export const fetchFavourites = async ({
 
   if (cursor) params.set('cursor', cursor);
   if (normalizedSearch) params.set('search', normalizedSearch);
+  if (filters?.profileIds.length) params.set('profileIds', filters.profileIds.join(','));
+  if (filters?.fitBuckets.length) params.set('fitBuckets', filters.fitBuckets.join(','));
   params.set('limit', String(DEFAULT_PAGE_SIZE));
 
   const response = await apiFetch(`/api/favourites?${params.toString()}`, { signal });

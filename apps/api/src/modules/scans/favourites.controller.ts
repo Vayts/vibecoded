@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/
 import type { FavouritesResponse } from '@acme/shared';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
+import { parseSharedScanFilters } from '../../shared/utils/history-filters';
 import { FAVOURITES_ROUTE_BASE } from './favourites.constants';
 import { FavouritesService } from './favourites.service';
 
@@ -18,9 +19,12 @@ export class FavouritesController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('profileIds') profileIds?: string,
+    @Query('fitBuckets') fitBuckets?: string,
   ): Promise<FavouritesResponse> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.favouritesService.getFavourites(userId, cursor, limit, search);
+    const filters = parseSharedScanFilters(profileIds, fitBuckets);
+    return this.favouritesService.getFavourites(userId, cursor, limit, search, filters);
   }
 
   @Post()
