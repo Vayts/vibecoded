@@ -24,7 +24,6 @@ export interface ScannerResultSheetPayload {
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
   resolvedPersonalResult?: AnalysisJobResponse;
-  initialSnapIndex?: number;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
 }

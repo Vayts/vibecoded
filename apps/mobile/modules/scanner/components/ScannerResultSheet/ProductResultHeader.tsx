@@ -1,23 +1,53 @@
-import type { BarcodeLookupProduct, ProductPreview, ScanHistoryItem } from '@acme/shared';
+import type { ProductAnalysisResult } from '@acme/shared';
 import { Barcode } from 'lucide-react-native';
 import { Image, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { getProductImageUri } from './productResultHelpers';
-
-type ProductHeaderData =
-  | BarcodeLookupProduct
-  | ProductPreview
-  | NonNullable<ScanHistoryItem['product']>;
-
-export const PRODUCT_RESULT_HEADER_ESTIMATED_HEIGHT = 46;
+import {
+  type ProductHeaderData,
+  type ProductResultHeaderChip,
+  useProductResultHeaderChips,
+} from './useProductResultHeaderChips';
 
 interface ProductResultHeaderProps {
   product: ProductHeaderData;
+  analysisResult?: ProductAnalysisResult;
+  hasPreviewAllergenConflict?: boolean;
 }
 
-export function ProductResultHeader({ product }: ProductResultHeaderProps) {
+const CHIP_TONES: Record<
+  ProductResultHeaderChip['tone'],
+  { backgroundColor: string; borderColor: string; textColor: string }
+> = {
+  success: {
+    backgroundColor: COLORS.successSoft,
+    borderColor: COLORS.successBorder,
+    textColor: COLORS.success,
+  },
+  warning: {
+    backgroundColor: COLORS.warningSoft,
+    borderColor: COLORS.warningBorder,
+    textColor: COLORS.warning,
+  },
+  danger: {
+    backgroundColor: COLORS.dangerSoft,
+    borderColor: COLORS.dangerBorder,
+    textColor: COLORS.danger,
+  },
+};
+
+export function ProductResultHeader({
+  product,
+  analysisResult,
+  hasPreviewAllergenConflict,
+}: ProductResultHeaderProps) {
   const resolvedImageUrl = getProductImageUri(product);
+  const chips = useProductResultHeaderChips({
+    product,
+    analysisResult,
+    hasPreviewAllergenConflict,
+  });
 
   return (
     <View className="rounded-xl bg-white pt-4">
@@ -42,6 +72,34 @@ export function ProductResultHeader({ product }: ProductResultHeaderProps) {
             <Typography variant="bodySecondary" className="mt-1 text-neutrals-900">
               {product.brands}
             </Typography>
+          ) : null}
+
+          {chips.length > 0 ? (
+            <View className="mt-3 flex-row flex-wrap gap-2">
+              {chips.map((chip) => {
+                const tone = CHIP_TONES[chip.tone];
+
+                return (
+                  <View
+                    key={chip.key}
+                    accessibilityLabel={chip.accessibilityLabel ?? chip.label}
+                    className="rounded-md border px-2 py-0.5"
+                    style={{
+                      backgroundColor: tone.backgroundColor,
+                      borderColor: tone.borderColor,
+                    }}
+                  >
+                    <Typography
+                      variant="fieldLabel"
+                      className="font-medium normal-case tracking-normal"
+                      style={{ color: tone.textColor }}
+                    >
+                      {chip.label}
+                    </Typography>
+                  </View>
+                );
+              })}
+            </View>
           ) : null}
         </View>
       </View>

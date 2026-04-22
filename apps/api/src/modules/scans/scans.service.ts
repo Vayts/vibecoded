@@ -19,6 +19,7 @@ import {
 } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
+import { productFactsAiOutputSchema } from '../product-analyze/domain/product-facts/schema';
 import { toBarcodeLookupProduct } from '../product-analyze/utils/analysis-response.utils';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
@@ -33,6 +34,7 @@ type HistoryProduct = {
   image_url: string | null;
   images: unknown;
   nutriscore_grade: string | null;
+  classificationCache: Prisma.JsonValue | null;
 };
 
 type ProductScanHistoryRecord = {
@@ -50,17 +52,29 @@ type ProductScanHistoryRecord = {
   product2: HistoryProduct | null;
 };
 
-const serializeHistoryProduct = (product: HistoryProduct) => ({
-  id: product.id,
-  barcode: product.barcode,
-  product_name: product.product_name,
-  brands: product.brands,
-  image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
-  nutriscore_grade: product.nutriscore_grade,
-});
+const serializeHistoryProduct = (product: HistoryProduct) => {
+  const classification = productFactsAiOutputSchema.safeParse(product.classificationCache).data;
 
-const serializeDetailProduct = (product: Product): BarcodeLookupProduct | null => {
+  return {
+    id: product.id,
+    barcode: product.barcode,
+    product_name: product.product_name,
+    brands: product.brands,
+    image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
+    nutriscore_grade: product.nutriscore_grade,
+    dietCompatibility: classification?.dietCompatibility,
+  };
+};
+
+const serializeDetailProduct = (
+  product: Product,
+  analysisResult?: Prisma.JsonValue | null,
+): BarcodeLookupProduct | null => {
   const canonicalImageUrl = resolveCanonicalProductImageUrl(product.image_url, product.images);
+  const classification = productFactsAiOutputSchema.safeParse(product.classificationCache).data;
+  const parsedAnalysisResult = analysisResult
+    ? productAnalysisResultSchema.safeParse(analysisResult).data
+    : undefined;
 
   const parsedProduct = normalizedProductSchema.safeParse({
     code: product.code,
@@ -88,7 +102,12 @@ const serializeDetailProduct = (product: Product): BarcodeLookupProduct | null =
     scores: product.scores,
   });
 
-  return parsedProduct.success ? toBarcodeLookupProduct(parsedProduct.data) : null;
+  return parsedProduct.success
+    ? toBarcodeLookupProduct(
+        parsedProduct.data,
+        classification?.dietCompatibility ?? parsedAnalysisResult?.productFacts.dietCompatibility,
+      )
+    : null;
 };
 
 const getValidLimit = (limit?: string): number | undefined => {
@@ -223,6 +242,7 @@ export class ScansService {
             image_url: true,
             images: true,
             nutriscore_grade: true,
+            classificationCache: true,
           },
         },
         product2: {
@@ -234,6 +254,7 @@ export class ScansService {
             image_url: true,
             images: true,
             nutriscore_grade: true,
+            classificationCache: true,
           },
         },
       },
@@ -292,7 +313,7 @@ export class ScansService {
       throw ApiError.notFound('Scan not found');
     }
 
-    const product = scan.product ? serializeDetailProduct(scan.product) : null;
+    const product = scan.product ? serializeDetailProduct(scan.product, scan.personalResult) : null;
 
     const analysisResult = scan.personalResult
       ? (productAnalysisResultSchema.safeParse(scan.personalResult).data ?? null)
@@ -388,6 +409,7 @@ export class ScansService {
       personalRating: analysisSummary.personalRating,
       personalAnalysisStatus: scan.personalAnalysisStatus,
       mainUserHasDietConflict: analysisSummary.mainUserHasDietConflict,
+      mainUserHasAllergenConflict: analysisSummary.mainUserHasAllergenConflict,
       isFavourite: scan.product ? favouriteSet.has(scan.product.id) : false,
       profileChips: analysisSummary.profileChips,
       product: scan.product ? serializeHistoryProduct(scan.product) : null,

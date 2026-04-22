@@ -13,6 +13,7 @@ interface HistoryAnalysisSummary {
   personalRating: ScanHistoryItem['personalRating'];
   profileChips: ScanHistoryItem['profileChips'];
   mainUserHasDietConflict: boolean;
+  mainUserHasAllergenConflict: boolean;
 }
 
 const getScanFitBucket = (score: number): ScanFitBucket => {
@@ -76,6 +77,14 @@ const hasDietConflict = (profile?: ProfileProductScore): boolean => {
   return Boolean(profile?.negatives.some((reason) => isDietConflictReason(reason)));
 };
 
+const hasAllergenConflict = (profile?: ProfileProductScore): boolean => {
+  return Boolean(
+    profile?.negatives.some(
+      (reason) => reason.source === 'allergen' || reason.category === 'allergens',
+    ),
+  );
+};
+
 export const buildHistoryAnalysisSummary = (
   personalResult: unknown,
   multiProfileResult: unknown,
@@ -101,6 +110,7 @@ export const buildHistoryAnalysisSummary = (
     personalRating: firstProfile?.fitLabel ?? null,
     profileChips,
     mainUserHasDietConflict: hasDietConflict(mainUserProfile),
+    mainUserHasAllergenConflict: hasAllergenConflict(mainUserProfile),
   };
 };
 

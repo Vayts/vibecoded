@@ -11,15 +11,8 @@ interface ScannerResultSheetContentProps {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
-  snapIndex: number;
   result?: BarcodeLookupResponse;
   resolvedPersonalResult?: AnalysisJobResponse;
-  isLoadingInitialResult: boolean;
-  onExpandDetails: () => void;
-  onPreviewStateChange: (state: {
-    hasSummaryContent: boolean;
-    nutriScoreGrade: string | null | undefined;
-  }) => void;
   detailState?: {
     isLoading: boolean;
     isError: boolean;
@@ -30,12 +23,8 @@ export function ScannerResultSheetContent({
   scanId,
   item,
   previewProduct,
-  snapIndex,
   result,
   resolvedPersonalResult,
-  isLoadingInitialResult,
-  onExpandDetails,
-  onPreviewStateChange,
   detailState,
 }: ScannerResultSheetContentProps) {
   if (scanId) {
@@ -44,9 +33,6 @@ export function ScannerResultSheetContent({
         scanId={scanId}
         previewItem={item}
         previewProduct={previewProduct}
-        snapIndex={snapIndex}
-        onExpandDetails={onExpandDetails}
-        onPreviewStateChange={onPreviewStateChange}
       />
     );
   }
@@ -59,10 +45,6 @@ export function ScannerResultSheetContent({
         scanId={scanId}
         previewProduct={previewProduct}
         resolvedPersonalResult={resolvedPersonalResult}
-        isInitialLoadingResult={!scanId && isLoadingInitialResult}
-        snapIndex={snapIndex}
-        onExpandDetails={onExpandDetails}
-        onPreviewStateChange={onPreviewStateChange}
         detailState={detailState}
       />
     );
