@@ -3,7 +3,7 @@ import {
   type BarcodeScanningResult,
   useCameraPermissions,
 } from 'expo-camera';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -42,6 +42,7 @@ const BARCODE_DETECTION_PADDING = 20;
 
 export function ScannerHomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const lookupMutation = useProductLookupMutation();
   const compareMutation = useCompareProductsMutation();
@@ -85,13 +86,22 @@ export function ScannerHomeScreen() {
   }, [appState, getPermission]);
 
   const handleCameraPermissionPress = useCallback(() => {
-    if (permission && !permission.granted && permission.canAskAgain === false) {
+    if (permission && !permission.granted && !permission.canAskAgain) {
       void Linking.openSettings().catch(() => undefined);
       return;
     }
 
     void requestPermission();
   }, [permission, requestPermission]);
+
+  const handleCloseScanner = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)/scans');
+  }, [router]);
 
   const resumeScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -159,12 +169,14 @@ export function ScannerHomeScreen() {
         return;
       }
 
+      setIsTorchEnabled(false);
       setScannerMode(nextMode);
     },
     [scannerMode],
   );
 
   const switchToPhotoMode = useCallback(() => {
+    setIsTorchEnabled(false);
     setScannerMode('photo');
     resumeScanner();
   }, [resumeScanner]);
@@ -387,7 +399,7 @@ export function ScannerHomeScreen() {
   }
 
   if (!permission.granted) {
-    const isCameraPermissionBlocked = permission.canAskAgain === false;
+    const isCameraPermissionBlocked = !permission.canAskAgain;
 
     return (
       <ScannerPermissionState
@@ -398,6 +410,7 @@ export function ScannerHomeScreen() {
             : 'We’ll need access to your camera to scan barcodes and take photos.'
         }
         buttonLabel={isCameraPermissionBlocked ? 'Open Settings' : 'Allow camera'}
+        onClose={handleCloseScanner}
         onPress={handleCameraPermissionPress}
       />
     );

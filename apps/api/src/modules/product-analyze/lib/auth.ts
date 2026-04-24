@@ -1,18 +1,32 @@
-import {
-  betterAuth,
-  type Auth as BetterAuthInstance,
-  type BetterAuthOptions,
-} from 'better-auth';
+import { normalizeUserName } from '@acme/shared';
+import { betterAuth, type Auth as BetterAuthInstance, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { bearer } from 'better-auth/plugins';
 import { expo } from '@better-auth/expo';
 import { prisma } from './prisma';
+
 
 const authOptions: BetterAuthOptions = {
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3001',
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        async before(user) {
+          await Promise.resolve();
+
+          return {
+            data: {
+              ...user,
+              name: normalizeUserName(user.name),
+            },
+          };
+        },
+      },
+    },
+  },
   plugins: [bearer(), expo()],
   emailAndPassword: {
     enabled: true,
@@ -43,7 +57,6 @@ const authOptions: BetterAuthOptions = {
   ],
 };
 
-export const auth: BetterAuthInstance<BetterAuthOptions> =
-  betterAuth(authOptions);
+export const auth: BetterAuthInstance<BetterAuthOptions> = betterAuth(authOptions);
 
 export type Auth = typeof auth;

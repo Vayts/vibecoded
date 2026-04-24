@@ -1,3 +1,5 @@
+import type { UserSubscriptionResponse } from '@acme/shared';
+import { isActiveSubscriptionStatus, UserSubscriptionResponse } from '@acme/shared';
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';
 import { prisma } from '../product-analyze/lib/prisma';
@@ -12,14 +14,6 @@ export interface SerializedUser {
   avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface UserSubscriptionResponse {
-  subscriptionStatus: string | null;
-  subscriptionPlan: string | null;
-  subscriptionExpiry: string | null;
-  isPro: boolean;
-  freeGenerationsBalance: number;
 }
 
 const serializeUser = (user: {
@@ -132,7 +126,7 @@ export class UserService {
       subscriptionStatus: user.subscriptionStatus,
       subscriptionPlan: user.subscriptionPlan,
       subscriptionExpiry: user.subscriptionExpiry?.toISOString() ?? null,
-      isPro: user.subscriptionStatus === 'active',
+      isPro: isActiveSubscriptionStatus(user.subscriptionStatus),
       freeGenerationsBalance: user.freeGenerationsBalance,
     };
   }

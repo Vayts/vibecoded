@@ -35,7 +35,7 @@ const BestFitAvatarStack = memo(function BestFitAvatarStack({
     );
   }
 
-  const visibleProfiles = profiles.slice(0, 5);
+  const visibleProfiles = profiles.slice(0, 3);
   const extraProfilesCount = profiles.length - visibleProfiles.length;
 
   return (
@@ -53,8 +53,14 @@ const BestFitAvatarStack = memo(function BestFitAvatarStack({
             }}
           >
             <UserAvatar
-              imageUrl={isCurrentUser ? context.currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null}
-              fallbackImageUrl={isCurrentUser ? context.currentUser?.fallbackImageUrl ?? null : null}
+              imageUrl={
+                isCurrentUser
+                  ? (context.currentUser?.avatarUrl ?? null)
+                  : (familyMember?.avatarUrl ?? null)
+              }
+              fallbackImageUrl={
+                isCurrentUser ? (context.currentUser?.fallbackImageUrl ?? null) : null
+              }
               name={profile.profileName}
               size="xss"
               className="border-2 border-neutrals-300"
@@ -65,7 +71,8 @@ const BestFitAvatarStack = memo(function BestFitAvatarStack({
 
       {extraProfilesCount > 0 ? (
         <View
-          className="ml-1 h-[26px] min-w-[26px] items-center justify-center rounded-full border-2 border-white px-1"
+          className={
+            `-ml-[8px] h-[26px] min-w-[26px] items-center justify-center rounded-full border-2 border-white px-1`}
           style={{ backgroundColor: COLORS.gray100 }}
         >
           <Typography variant="caption" className="font-semibold text-gray-700">
@@ -133,7 +140,7 @@ const ComparisonProductCard = memo(function ComparisonProductCard({
       </View>
 
       <View className="mt-2 flex-row items-center min-h-[24px] justify-between gap-3">
-        <Typography className="flex-1 text-[12px] font-semibold text-neutrals-500">
+        <Typography className="flex-1 text-[11px] font-medium text-neutrals-500">
           Best fit for:
         </Typography>
         <BestFitAvatarStack profiles={bestFitProfiles} context={profileScoreChipContext} />

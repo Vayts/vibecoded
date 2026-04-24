@@ -1,8 +1,9 @@
+import type { UserSubscriptionResponse } from '@acme/shared';
 import { Body, Controller, Delete, Get, Patch, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { USER_ROUTE_BASE } from './user.constants';
-import type { SerializedUser, UserSubscriptionResponse } from './user.service';
+import type { SerializedUser } from './user.service';
 import { UserService } from './user.service';
 
 @Controller(USER_ROUTE_BASE)

@@ -1,3 +1,4 @@
+import { MAX_USER_NAME_LENGTH, USER_NAME_MAX_LENGTH_MESSAGE } from '@acme/shared';
 import { useState } from 'react';
 import { View, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
 import { Link, useRouter } from 'expo-router';
@@ -9,16 +10,27 @@ import { Button } from '../../shared/components/Button';
 export default function SignUpScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const { signUp, isLoading, error, clearError } = useAuthStore();
 
   async function handleSignUp() {
-    if (!name.trim() || !email.trim() || !password) return;
+    const trimmedName = name.trim();
+
+    if (!trimmedName || !email.trim() || !password) return;
+
+    if (trimmedName.length > MAX_USER_NAME_LENGTH) {
+      setNameError(USER_NAME_MAX_LENGTH_MESSAGE);
+      return;
+    }
+
+    setNameError(null);
     clearError();
+
     try {
-      await signUp(name.trim(), email.trim(), password);
+      await signUp(trimmedName, email.trim(), password);
       router.replace('/');
     } catch {
       return;
@@ -52,7 +64,15 @@ export default function SignUpScreen() {
             label="Name"
             placeholder="Your name"
             value={name}
-            onChangeText={setName}
+            error={nameError ?? undefined}
+            maxLength={MAX_USER_NAME_LENGTH}
+            onChangeText={(value) => {
+              setName(value);
+
+              if (nameError) {
+                setNameError(null);
+              }
+            }}
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="next"

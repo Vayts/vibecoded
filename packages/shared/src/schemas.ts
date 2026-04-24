@@ -293,6 +293,7 @@ export const profileComparisonResultSchema = z.object({
 export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
 
 export const productComparisonResultSchema = z.object({
+  comparisonId: z.string().optional(),
   product1: comparisonProductPreviewSchema,
   product2: comparisonProductPreviewSchema,
   profiles: z.array(profileComparisonResultSchema),

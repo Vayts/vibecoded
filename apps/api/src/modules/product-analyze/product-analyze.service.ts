@@ -147,7 +147,8 @@ export class ProductAnalyzeService {
       source: resolvedProduct.source,
       product: toBarcodeLookupProduct(
         resolvedProduct.product,
-        classification?.dietCompatibility ?? analysisState.analysis.result?.productFacts.dietCompatibility,
+        classification?.dietCompatibility ??
+          analysisState.analysis.result?.productFacts.dietCompatibility,
       ),
       personalAnalysis: analysisState.analysis,
       scanId: analysisState.scanId,
@@ -261,7 +262,7 @@ export class ProductAnalyzeService {
       profiles: comparisonProfiles,
     };
 
-    await createComparison({
+    const comparison = await createComparison({
       userId,
       product1Id: resolved1.productId ?? undefined,
       product2Id: resolved2.productId ?? undefined,
@@ -270,7 +271,10 @@ export class ProductAnalyzeService {
       comparisonResult: result,
     });
 
-    return result;
+    return {
+      ...result,
+      comparisonId: comparison.id,
+    };
   }
 
   async extractPhotoOcr(imageBase64: string): Promise<PhotoOcrPayload> {
@@ -348,7 +352,8 @@ export class ProductAnalyzeService {
         source: 'photo',
         product: toBarcodeLookupProduct(
           savedProduct,
-          classification?.dietCompatibility ?? analysisState.analysis.result?.productFacts.dietCompatibility,
+          classification?.dietCompatibility ??
+            analysisState.analysis.result?.productFacts.dietCompatibility,
         ),
         personalAnalysis: analysisState.analysis,
         scanId: analysisState.scanId,

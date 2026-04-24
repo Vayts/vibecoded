@@ -6,6 +6,7 @@ import {
   hasAnalysisRelevantFamilyMemberChanges,
   touchUserAnalysisPreferencesUpdatedAt,
 } from '../product-analyze/services/analysis-cache';
+import { requireActiveFamilyMembersSubscription } from '../user/subscription-access';
 import { MAX_FAMILY_MEMBERS } from './family-members.constants';
 import {
   createFamilyMemberRequestSchema,
@@ -37,6 +38,8 @@ export class FamilyMembersService {
   }
 
   async create(userId: string, body: unknown) {
+    await requireActiveFamilyMembersSubscription(userId);
+
     const parsed = createFamilyMemberRequestSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -69,6 +72,8 @@ export class FamilyMembersService {
   }
 
   async update(userId: string, memberId: string, body: unknown) {
+    await requireActiveFamilyMembersSubscription(userId);
+
     const existingMember = await this.requireOwnedMember(userId, memberId);
 
     const parsed = updateFamilyMemberRequestSchema.safeParse(body);
@@ -99,6 +104,8 @@ export class FamilyMembersService {
   }
 
   async remove(userId: string, memberId: string) {
+    await requireActiveFamilyMembersSubscription(userId);
+
     await this.requireOwnedMember(userId, memberId);
     await prisma.$transaction(async (tx) => {
       await tx.familyMember.delete({ where: { id: memberId } });

@@ -6,8 +6,8 @@ import { OnboardingStateScreen } from '../modules/onboarding/components/Onboardi
 import { useOnboardingStore } from '../modules/onboarding/stores/onboarding/store';
 import { ScreenSpinner } from '../shared/components/ScreenSpinner';
 import { useAuthStore } from '../shared/stores/authStore';
-// import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-// import { Platform } from 'react-native';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { Platform } from 'react-native';
 
 export default function Index() {
   const { user, isInitialized } = useAuthStore();
@@ -17,12 +17,12 @@ export default function Index() {
   const hydratedUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-    // if (Platform.OS === 'ios') {
-    //   Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
-    // } else if (Platform.OS === 'android') {
-    //   Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
-    // }
+    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+    if (Platform.OS === 'ios') {
+      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+    } else if (Platform.OS === 'android') {
+      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+    }
   }, []);
 
   useEffect(() => {

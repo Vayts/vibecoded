@@ -11,6 +11,7 @@ export const SUBSCRIPTION_PLANS = {
 } as const;
 
 export const ENTITLEMENT_ID = 'pro';
+export const MAX_FAMILY_MEMBERS = 5;
 
 export const MIN_TEXT_INPUT_LENGTH = 50;
 export const MAX_IMAGE_DIMENSION = 1500;
