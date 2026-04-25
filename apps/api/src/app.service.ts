@@ -7,6 +7,6 @@ export class AppService {
   }
 
   getHealth(): string {
-    return 'ok';
+    return 'ok!';
   }
 }
