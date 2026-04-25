@@ -60,7 +60,7 @@ export default function Index() {
   }
 
   if (onboardingQuery.isLoading) {
-    return <LaunchSplashScreen />;
+    return null;
   }
 
   if (onboardingQuery.isError) {
