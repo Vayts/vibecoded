@@ -1,13 +1,8 @@
-import type { BarcodeLookupProduct, ProductPreview, ScanHistoryItem } from '@acme/shared';
 import { View } from 'react-native';
 
 import { NutriScoreBlock } from './NutriScoreBlock';
 import { ProductResultHeader } from './ProductResultHeader';
-
-type ProductHeaderData =
-  | BarcodeLookupProduct
-  | ProductPreview
-  | NonNullable<ScanHistoryItem['product']>;
+import type { ProductHeaderData } from './useProductResultHeaderChips';
 
 interface ProductResultHeroProps {
   nutriScoreGrade: string | null | undefined;

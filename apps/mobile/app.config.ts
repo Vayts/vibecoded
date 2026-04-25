@@ -1,6 +1,7 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
+  const launchSplashBackgroundColor = '#2B9D64';
   const plugins: ExpoConfig['plugins'] = [
     'expo-router',
     [
@@ -16,12 +17,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#ffffff',
-        image: './assets/splash-icon-light.png',
-        imageWidth: 200,
+        backgroundColor: launchSplashBackgroundColor,
         dark: {
-          image: './assets/splash-icon-dark.png',
-          backgroundColor: '#000000',
+          backgroundColor: launchSplashBackgroundColor,
         },
       },
     ],
@@ -37,23 +35,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      image: './assets/splash-icon.png',
-      resizeMode: 'contain',
-      backgroundColor: '#ffffff',
+      backgroundColor: launchSplashBackgroundColor,
     },
-    backgroundColor: '#FAFAFA',
+    backgroundColor: launchSplashBackgroundColor,
     ios: {
       supportsTablet: false,
-      backgroundColor: '#FAFAFA',
+      backgroundColor: launchSplashBackgroundColor,
       bundleIdentifier: 'app.chozr.ai',
       googleServicesFile: './GoogleService-Info.plist',
     },
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: launchSplashBackgroundColor,
       },
-      backgroundColor: '#FAFAFA',
+      backgroundColor: launchSplashBackgroundColor,
       package: 'app.chozr.ai',
     },
     web: {

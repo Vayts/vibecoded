@@ -1,12 +1,7 @@
+import { MAX_USER_NAME_LENGTH, USER_NAME_MAX_LENGTH_MESSAGE } from '@acme/shared';
 import { Stack, useRouter } from 'expo-router';
-import { Pen } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import {
-  Keyboard,
-  Pressable,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Keyboard, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,25 +12,15 @@ import {
   DEFAULT_STICKY_FOOTER_HEIGHT,
   StickyFooter,
 } from '../../../../shared/components/StickyFooter';
-import { Typography } from '../../../../shared/components/Typography';
-import { UserAvatar } from '../../../../shared/components/UserAvatar';
-import { COLORS } from '../../../../shared/constants/colors';
-import {
-  getUserFallbackAvatarImage,
-  pickAndUploadAvatarImage,
-  type AvatarImageSource,
-} from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useCurrentUserQuery } from '../../api/profileQueries';
-import {
-  type UpdateProfilePayload,
-} from '../../api/profileMutations';
+import { type UpdateProfilePayload } from '../../api/profileMutations';
 import { useUpdateProfile } from '../../hooks/useUpdateProfile';
-import { EditAvatarOptionsMenu } from './EditAvatarOptionsMenu';
+import { EditAccountAvatarSection } from './EditAccountAvatarSection';
 import { EditAccountField } from './EditAccountField';
+import { useEditAccountAvatar } from './useEditAccountAvatar';
 
 const UPDATE_PROFILE_ERROR_MESSAGE = 'Unable to update profile';
-const UPLOAD_AVATAR_ERROR_MESSAGE = 'Unable to upload avatar';
 
 export function EditAccountScreen() {
   const router = useRouter();
@@ -47,8 +32,6 @@ export function EditAccountScreen() {
   const [name, setName] = useState(user?.name ?? '');
   const [nameError, setNameError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
-  const [isAvatarActionPending, setIsAvatarActionPending] = useState(false);
   const [footerHeight, setFooterHeight] = useState(DEFAULT_STICKY_FOOTER_HEIGHT);
 
   useEffect(() => {
@@ -56,14 +39,6 @@ export function EditAccountScreen() {
   }, [user?.name]);
 
   const currentName = user?.name ?? '';
-  const currentAvatarUrl = user?.avatarUrl ?? null;
-  const fallbackImageUrl = getUserFallbackAvatarImage(user);
-  const isBusy = updateProfileMutation.isPending || isAvatarActionPending;
-  const isNameChanged = name.trim() !== currentName.trim();
-
-  const closeAvatarMenu = () => {
-    setIsAvatarMenuOpen(false);
-  };
 
   const persistProfileUpdate = async (
     payload: UpdateProfilePayload,
@@ -81,44 +56,29 @@ export function EditAccountScreen() {
     }
   };
 
-  const handleAvatarSelection = async (source: AvatarImageSource) => {
-    closeAvatarMenu();
-    setErrorMessage(null);
-    setIsAvatarActionPending(true);
-
-    try {
-      const nextAvatarUrl = await pickAndUploadAvatarImage(source);
-
-      if (!nextAvatarUrl) {
-        return;
-      }
-
-      await persistProfileUpdate({ avatarUrl: nextAvatarUrl });
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : UPLOAD_AVATAR_ERROR_MESSAGE,
-      );
-    } finally {
-      setIsAvatarActionPending(false);
-    }
-  };
-
-  const handleAvatarDelete = async () => {
-    closeAvatarMenu();
-    setIsAvatarActionPending(true);
-
-    try {
-      await persistProfileUpdate({ avatarUrl: null });
-    } finally {
-      setIsAvatarActionPending(false);
-    }
-  };
+  const {
+    closeAvatarMenu,
+    currentAvatarUrl,
+    fallbackImageUrl,
+    handleAvatarDelete,
+    handleAvatarSelection,
+    isAvatarActionPending,
+    isAvatarMenuOpen,
+    toggleAvatarMenu,
+  } = useEditAccountAvatar({ user, persistProfileUpdate, setErrorMessage });
+  const isBusy = updateProfileMutation.isPending || isAvatarActionPending;
+  const isNameChanged = name.trim() !== currentName.trim();
 
   const handleSave = async () => {
     const trimmedName = name.trim();
 
     if (!trimmedName) {
       setNameError('Name is required');
+      return;
+    }
+
+    if (trimmedName.length > MAX_USER_NAME_LENGTH) {
+      setNameError(USER_NAME_MAX_LENGTH_MESSAGE);
       return;
     }
 
@@ -143,7 +103,7 @@ export function EditAccountScreen() {
   return (
     <View className="flex-1 bg-white">
       <Stack.Screen
-        options={{  
+        options={{
           headerShown: true,
           header: () => <ScreenHeader title="Edit profile" centerTitle />,
         }}
@@ -171,61 +131,24 @@ export function EditAccountScreen() {
               }
             }}
           >
-            <View className="items-center pt-0" style={{ zIndex: isAvatarMenuOpen ? 20 : 1 }}>
-              <View className="relative items-center">
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  accessibilityRole="button"
-                  accessibilityLabel="Edit profile photo"
-                  disabled={isBusy}
-                  onPress={() => {
-                    setIsAvatarMenuOpen((current) => !current);
-                  }}
-                >
-                  <UserAvatar
-                    imageUrl={currentAvatarUrl}
-                    fallbackImageUrl={fallbackImageUrl}
-                    name={name || user.name}
-                    size="xl"
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel="Open profile photo options"
-                  className="absolute -bottom-0.5 right-0 h-9 w-9 items-center justify-center rounded-full"
-                  style={{ backgroundColor: COLORS.primary }}
-                  disabled={isBusy}
-                  onPress={() => {
-                    setIsAvatarMenuOpen((current) => !current);
-                  }}
-                >
-                  <Pen color={COLORS.white} size={16} strokeWidth={2.2} />
-                </TouchableOpacity>
-
-                {isAvatarMenuOpen ? (
-                  <EditAvatarOptionsMenu
-                    canDelete={Boolean(currentAvatarUrl || fallbackImageUrl)}
-                    onDelete={() => {
-                      void handleAvatarDelete();
-                    }}
-                    onSelectCamera={() => {
-                      void handleAvatarSelection('camera');
-                    }}
-                    onSelectGallery={() => {
-                      void handleAvatarSelection('gallery');
-                    }}
-                  />
-                ) : null}
-              </View>
-            </View>
+            <EditAccountAvatarSection
+              currentAvatarUrl={currentAvatarUrl}
+              fallbackImageUrl={fallbackImageUrl}
+              isBusy={isBusy}
+              isMenuOpen={isAvatarMenuOpen}
+              name={name}
+              user={user}
+              onDelete={handleAvatarDelete}
+              onSelect={handleAvatarSelection}
+              onToggleMenu={toggleAvatarMenu}
+            />
 
             <View className="mt-4">
               <EditAccountField
                 label="Name"
                 value={name}
                 error={nameError}
+                maxLength={MAX_USER_NAME_LENGTH}
                 onChangeText={(value) => {
                   setName(value);
 

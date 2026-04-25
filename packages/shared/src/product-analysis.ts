@@ -154,6 +154,7 @@ export const scoreReasonSchema = z.object({
   key: z.string(),
   label: z.string(),
   description: z.string(),
+  shortDescription: z.string().optional(),
   value: z.number().nullable(),
   unit: z.string().nullable(),
   impact: z.number(),
@@ -211,10 +212,27 @@ export type ProfileProductScore = z.infer<typeof profileProductScoreSchema>;
 export const ingredientStatusSchema = z.enum(['good', 'neutral', 'warning', 'bad']);
 export type IngredientStatus = z.infer<typeof ingredientStatusSchema>;
 
+export const ingredientReasonTypeSchema = z
+  .enum(['DIET', 'ALLERGY'])
+  .nullable()
+  .describe(
+    'DIET = conflicts with a dietary restriction, ALLERGY = conflicts with a user allergy, null = no specific conflict',
+  );
+export type IngredientReasonType = z.infer<typeof ingredientReasonTypeSchema>;
+
 export const analyzedIngredientSchema = z.object({
   name: z.string().describe('English-translated ingredient name'),
   status: ingredientStatusSchema,
   reason: z.string().nullable().describe('Short reason for status, referencing profile attribute'),
+  reasonType: ingredientReasonTypeSchema.optional().describe(
+    'Structured conflict type — DIET or ALLERGY. Absent on legacy data.',
+  ),
+  dietConflicts: z
+    .array(z.string())
+    .optional()
+    .describe(
+      'When reasonType is DIET, lists the restriction enum keys this ingredient conflicts with, e.g. ["DAIRY_FREE", "HALAL"]. Empty or absent otherwise.',
+    ),
 });
 export type AnalyzedIngredient = z.infer<typeof analyzedIngredientSchema>;
 

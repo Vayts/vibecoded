@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { Redirect } from 'expo-router';
 import { useOnboardingQuery } from '../modules/onboarding/api/onboardingQueries';
+import { LaunchSplashScreen } from '../modules/auth/components/LaunchSplashScreen';
 import { OnboardingFlow } from '../modules/onboarding/components/OnboardingFlow';
 import { OnboardingStateScreen } from '../modules/onboarding/components/OnboardingStateScreen';
 import { useOnboardingStore } from '../modules/onboarding/stores/onboarding/store';
-import { ScreenSpinner } from '../shared/components/ScreenSpinner';
 import { useAuthStore } from '../shared/stores/authStore';
-// import Purchases, { LOG_LEVEL } from 'react-native-purchases';
-// import { Platform } from 'react-native';
+import Purchases, { LOG_LEVEL } from 'react-native-purchases';
+import { Platform } from 'react-native';
 
 export default function Index() {
   const { user, isInitialized } = useAuthStore();
@@ -17,12 +17,12 @@ export default function Index() {
   const hydratedUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-    // if (Platform.OS === 'ios') {
-    //   Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
-    // } else if (Platform.OS === 'android') {
-    //   Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
-    // }
+    Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+    if (Platform.OS === 'ios') {
+      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+    } else if (Platform.OS === 'android') {
+      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+    }
   }, []);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function Index() {
   }, [hydrateFromServer, onboardingQuery.data, user]);
 
   if (!isInitialized) {
-    return <ScreenSpinner />;
+    return <LaunchSplashScreen />;
   }
 
   if (!user) {
@@ -60,7 +60,7 @@ export default function Index() {
   }
 
   if (onboardingQuery.isLoading) {
-    return <ScreenSpinner />;
+    return <LaunchSplashScreen />;
   }
 
   if (onboardingQuery.isError) {
@@ -77,7 +77,7 @@ export default function Index() {
   }
 
   if (!onboardingQuery.data) {
-    return <ScreenSpinner />;
+    return <LaunchSplashScreen />;
   }
 
   if (onboardingQuery.data.onboardingCompleted) {

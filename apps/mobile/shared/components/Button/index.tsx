@@ -1,9 +1,4 @@
-import {
-  TouchableOpacity,
-  ActivityIndicator,
-  type TouchableOpacityProps,
-  View,
-} from 'react-native';
+import { TouchableOpacity, type TouchableOpacityProps, View } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import React from 'react';
 import { Typography } from '../Typography';
@@ -72,16 +67,12 @@ export function Button({
       disabled={isDisabled}
       {...props}
     >
-      {loading ? (
-        <ActivityIndicator color={styles.indicator} size="small" className="absolute" />
-      ) : (
-        <View className="flex-row gap-2 items-center">
-          {Icon}
-          <Typography variant="button" className={styles.text}>
-            {label}
-          </Typography>
-        </View>
-      )}
+      <View className="flex-row gap-2 items-center">
+        {Icon}
+        <Typography variant="button" className={styles.text}>
+          {label}
+        </Typography>
+      </View>
     </TouchableOpacity>
   );
 }

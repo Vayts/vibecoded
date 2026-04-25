@@ -1,6 +1,6 @@
-import type { FamilyMember } from '@acme/shared';
+import { MAX_FAMILY_MEMBERS, type FamilyMember } from '@acme/shared';
 import { ChevronRight, Plus } from 'lucide-react-native';
-import { Alert, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, TouchableOpacity, View } from 'react-native';
 
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
@@ -11,9 +11,16 @@ import { useDeleteFamilyMember, useFamilyMembersQuery } from '../../hooks/useFam
 interface FamilyMemberListProps {
   onAdd: () => void;
   onEdit: (member: FamilyMember) => void;
+  canManage: boolean;
+  isAddPending?: boolean;
 }
 
-export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
+export function FamilyMemberList({
+  onAdd,
+  onEdit,
+  canManage,
+  isAddPending = false,
+}: FamilyMemberListProps) {
   const { data, isLoading } = useFamilyMembersQuery();
   const deleteMutation = useDeleteFamilyMember();
 
@@ -35,6 +42,9 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
   };
 
   const members = data?.items ?? [];
+  const usedSlots = members.length;
+  const isLimitReached = usedSlots >= MAX_FAMILY_MEMBERS;
+  const isAddDisabled = isLimitReached || isAddPending;
 
   return (
     <View className="overflow-hidden rounded-[22px] border border-gray-200 bg-white">
@@ -53,12 +63,16 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
               index < members.length - 1 ? 'border-b border-gray-200' : ''
             }`}
             accessibilityRole="button"
-            accessibilityLabel={`Edit ${member.name}`}
+            accessibilityLabel={canManage ? `Edit ${member.name}` : `${member.name}`}
             onLongPress={() => {
-              handleDelete(member);
+              if (canManage) {
+                handleDelete(member);
+              }
             }}
             onPress={() => {
-              onEdit(member);
+              if (canManage) {
+                onEdit(member);
+              }
             }}
           >
             <UserAvatar imageUrl={member.avatarUrl} name={member.name} size="md" className="mr-3" />
@@ -72,29 +86,47 @@ export function FamilyMemberList({ onAdd, onEdit }: FamilyMemberListProps) {
               </Typography>
             </View>
 
-            <ChevronRight color={COLORS.gray500} size={18} strokeWidth={2} />
+            {canManage ? (
+              <ChevronRight color={COLORS.gray500} size={18} strokeWidth={2} />
+            ) : null}
           </TouchableOpacity>
         ))
       )}
 
-      <TouchableOpacity
-        activeOpacity={0.7}
-        className="flex-row items-center justify-center border-gray-200 mx-4 py-3"
-        style={{ borderTopWidth: members.length > 0 ? 1 : 0 }}
-        accessibilityRole="button"
-        accessibilityLabel="Add family member"
-        onPress={onAdd}
+      <View
+        className="mx-4 py-3"
+        style={{ borderTopWidth: members.length > 0 ? 1 : 0, borderColor: COLORS.gray200 }}
       >
-        <View
-          className="mr-2 h-6 w-6 items-center justify-center rounded-full"
-          style={{ backgroundColor: COLORS.primary25 }}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          className="flex-row items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel="Add family member"
+          disabled={isAddDisabled}
+          onPress={onAdd}
+          style={{ opacity: isAddDisabled ? 0.4 : 1 }}
         >
-          <Plus color={COLORS.primary} size={16} strokeWidth={2.5} />
-        </View>
-        <Typography variant="button" style={{ color: COLORS.primary }}>
-          Add a member
-        </Typography>
-      </TouchableOpacity>
+          <View
+            className="mr-2 h-6 w-6 items-center justify-center rounded-full"
+            style={{ backgroundColor: COLORS.primary25 }}
+          >
+            {isAddPending ? (
+              <ActivityIndicator color={COLORS.primary} size="small" />
+            ) : (
+              <Plus color={COLORS.primary} size={16} strokeWidth={2.5} />
+            )}
+          </View>
+          <Typography variant="button" style={{ color: COLORS.primary }}>
+            Add a member
+          </Typography>
+        </TouchableOpacity>
+
+        {isLimitReached ? (
+          <Typography variant="bodySecondary" className="mt-2 text-center text-gray-500">
+            Remove a family member to free up a slot before adding another.
+          </Typography>
+        ) : null}
+      </View>
     </View>
   );
 }

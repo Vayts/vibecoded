@@ -1,28 +1,11 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ClipboardList, User } from 'lucide-react-native';
-import { ScreenSpinner } from '../../shared/components/ScreenSpinner';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { OnboardingGate } from '../../modules/onboarding/components/OnboardingGate';
 import { CustomTabBar } from '../../shared/components/CustomTabBar';
-import { useEffect } from 'react';
-import Purchases from 'react-native-purchases';
 
 export default function TabsLayout() {
-  const { user, isInitialized } = useAuthStore();
-
-  useEffect(() => {
-    initUserPurchases();
-  }, [user]);
-
-  const initUserPurchases = async () => {
-    if (user?.id) {
-      await Purchases.logIn(user.id);
-    }
-  }
-
-  if (!isInitialized) {
-    return <ScreenSpinner />;
-  }
+  const user = useAuthStore((state) => state.user);
 
   if (!user) {
     return <Redirect href="/(auth)/sign-in" />;
@@ -38,12 +21,6 @@ export default function TabsLayout() {
       >
         <Tabs.Screen
           name="index"
-          options={{
-            href: null,
-          }}
-        />
-        <Tabs.Screen
-          name="tab-two"
           options={{
             href: null,
           }}

@@ -13,21 +13,22 @@ datasource db {
 // ============================================================
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  image         String?
-  avatarUrl     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                           String    @id @default(cuid())
+  name                         String
+  email                        String    @unique
+  emailVerified                Boolean   @default(false)
+  image                        String?
+  avatarUrl                    String?
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
   analysisPreferencesUpdatedAt DateTime? @map("analysis_preferences_updated_at")
 
   // Subscription fields
-  subscriptionStatus  String? // 'active' | 'expired' | 'cancelled' | null (free)
-  subscriptionPlan    String? // 'pro_monthly' | 'pro_annual' | null
-  subscriptionExpiry  DateTime?
-  revenuecatAppUserId String?   @unique // RevenueCat app_user_id
+  subscriptionStatus    String? // 'active' | 'expired' | 'cancelled' | null (free)
+  subscriptionPlan      String? // 'pro_monthly' | 'pro_annual' | null
+  subscriptionExpiry    DateTime?
+  revenuecatAppUserId   String?   @unique // RevenueCat app_user_id
+  revenuecatLastEventAt DateTime? @map("revenuecat_last_event_at")
 
   // Generation balance (free tier)
   freeGenerationsBalance Int       @default(5) // starts at 5; +3 each month
@@ -54,6 +55,18 @@ enum DietType {
   LOW_CARB
   GLUTEN_FREE
   DAIRY_FREE
+}
+
+model RevenueCatWebhookEvent {
+  id               String   @id
+  type             String
+  userId           String?  @map("user_id")
+  eventTimestampAt DateTime @map("event_timestamp_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([userId, eventTimestampAt(sort: Desc)])
+  @@map("revenuecat_webhook_events")
 }
 
 enum MainGoal {
@@ -158,32 +171,32 @@ model Verification {
 }
 
 model Product {
-  id               String                       @id @default(cuid())
-  barcode          String                       @unique
-  code             String
-  product_name     String?
-  brands           String?
-  image_url        String?
-  classificationCache       Json?                        @map("classification_cache")
-  embeddingText    String?
-  embeddingVector  Unsupported("vector(1536)")?
-  ingredients_text String?
-  nutriscore_grade String?
-  categories       String?
-  quantity         String?
-  serving_size     String?
-  ingredients      String[]                     @default([])
-  allergens        String[]                     @default([])
-  additives        String[]                     @default([])
-  additives_count  Int?
-  traces           String[]                     @default([])
-  countries        String[]                     @default([])
-  category_tags    String[]                     @default([])
-  images           Json
-  nutrition        Json
-  scores           Json
-  createdAt        DateTime                     @default(now())
-  updatedAt        DateTime                     @updatedAt
+  id                  String                       @id @default(cuid())
+  barcode             String                       @unique
+  code                String
+  product_name        String?
+  brands              String?
+  image_url           String?
+  classificationCache Json?                        @map("classification_cache")
+  embeddingText       String?
+  embeddingVector     Unsupported("vector(1536)")?
+  ingredients_text    String?
+  nutriscore_grade    String?
+  categories          String?
+  quantity            String?
+  serving_size        String?
+  ingredients         String[]                     @default([])
+  allergens           String[]                     @default([])
+  additives           String[]                     @default([])
+  additives_count     Int?
+  traces              String[]                     @default([])
+  countries           String[]                     @default([])
+  category_tags       String[]                     @default([])
+  images              Json
+  nutrition           Json
+  scores              Json
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
 
   scans                 Scan[]
   scansAsProduct2       Scan[]       @relation("ScanProduct2")

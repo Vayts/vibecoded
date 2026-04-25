@@ -7,6 +7,7 @@ import {
 } from './onboarding';
 import {
   analysisJobStatusSchema,
+  dietCompatibilitySchema,
   fitLabelSchema,
   productAnalysisResultSchema as productAnalysisResultSchemaFromPA,
 } from './product-analysis';
@@ -40,6 +41,7 @@ const scanHistoryProductSchema = z.object({
   brands: z.string().nullable(),
   image_url: z.string().nullable(),
   nutriscore_grade: z.string().nullable().optional(),
+  dietCompatibility: dietCompatibilitySchema.optional(),
 });
 
 export const scanHistoryItemSchema = z.object({
@@ -54,6 +56,7 @@ export const scanHistoryItemSchema = z.object({
   personalRating: fitLabelSchema.nullable(),
   personalAnalysisStatus: analysisJobStatusSchema.nullable(),
   mainUserHasDietConflict: z.boolean().optional(),
+  mainUserHasAllergenConflict: z.boolean().optional(),
   isFavourite: z.boolean().optional(),
   profileChips: z.array(profileChipSchema).optional(),
   product: scanHistoryProductSchema.nullable(),
@@ -290,6 +293,7 @@ export const profileComparisonResultSchema = z.object({
 export type ProfileComparisonResult = z.infer<typeof profileComparisonResultSchema>;
 
 export const productComparisonResultSchema = z.object({
+  comparisonId: z.string().optional(),
   product1: comparisonProductPreviewSchema,
   product2: comparisonProductPreviewSchema,
   profiles: z.array(profileComparisonResultSchema),

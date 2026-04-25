@@ -43,6 +43,7 @@ export function ComparisonResultScreen() {
     (comparisonDetail?.comparisonResult as ProductComparisonResult | undefined) ??
     (scanDetail?.comparisonResult as ProductComparisonResult | undefined) ??
     (isLiveRoute ? liveResult ?? undefined : undefined);
+  const resolvedComparisonId = comparisonId ?? result?.comparisonId;
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const [isSwapped, setIsSwapped] = useState(false);
@@ -158,7 +159,7 @@ export function ComparisonResultScreen() {
       <Animated.View className="flex-1" style={{ opacity: isLiveRoute ? contentOpacity : 1 }}>
         <ComparisonResultContent
           activeProfile={activeProfile}
-          bottomAction={<ComparisonDeleteAction comparisonId={comparisonId} scanId={scanId} />}
+          bottomAction={<ComparisonDeleteAction comparisonId={resolvedComparisonId} scanId={scanId} />}
           chipItems={chipItems}
           insetsBottom={insets.bottom}
           isSwapped={isSwapped}

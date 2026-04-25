@@ -56,21 +56,12 @@ interface ScanDetailLoaderProps {
   scanId: string;
   previewItem?: ScannerResultSheetPayload['item'];
   previewProduct?: ScannerResultSheetPayload['previewProduct'];
-  snapIndex: number;
-  onExpandDetails: () => void;
-  onPreviewStateChange?: (state: {
-    hasSummaryContent: boolean;
-    nutriScoreGrade: string | null | undefined;
-  }) => void;
 }
 
 export function ScanDetailLoader({
   scanId,
   previewItem,
   previewProduct,
-  snapIndex,
-  onExpandDetails,
-  onPreviewStateChange,
 }: ScanDetailLoaderProps) {
   const { data, isLoading, isError, error, refetch } = useScanDetailQuery(scanId);
   const safeAreaInsets = useSafeAreaInsets();
@@ -119,9 +110,6 @@ export function ScanDetailLoader({
       result={mapped?.result}
       previewProduct={previewProduct}
       resolvedPersonalResult={mapped?.resolvedPersonalResult}
-      snapIndex={snapIndex}
-      onExpandDetails={onExpandDetails}
-      onPreviewStateChange={onPreviewStateChange}
       detailState={
         mapped
           ? undefined

@@ -470,6 +470,67 @@ const buildRestrictionGroupDescription = (
   return joinDescriptions(descriptions) || joinDescriptions(group.map((reason) => reason.description));
 };
 
+const buildRestrictionGroupShortDescription = (
+  group: InternalScoreReason[],
+): string => {
+  if (group.some((reason) => reason.restrictionDisplayState === 'conflict')) {
+    return 'Conflicts with your diet';
+  }
+
+  if (group.some((reason) => reason.restrictionDisplayState === 'unclear')) {
+    return 'Diet compatibility unclear';
+  }
+
+  if (group.some((reason) => reason.restrictionDisplayState === 'match')) {
+    return 'Matches your diet';
+  }
+
+  return 'Diet matching';
+};
+
+const buildDisplayReasonShortDescription = (
+  group: InternalScoreReason[],
+  category: ScoreReasonCategory,
+  dominantReason: InternalScoreReason,
+): string => {
+  const explicitShortDescription = uniqueValues(
+    group.map((reason) => reason.shortDescription),
+  )[0];
+
+  if (explicitShortDescription) {
+    return explicitShortDescription;
+  }
+
+  if (category === 'diet-matching' && group.some((reason) => reason.source === 'restriction')) {
+    return buildRestrictionGroupShortDescription(group);
+  }
+
+  switch (category) {
+    case 'additives':
+      return 'Contains additives';
+    case 'allergens':
+      return dominantReason.kind === 'negative' ? 'Contains your allergens' : 'Allergen-friendly';
+    case 'calories':
+      return dominantReason.kind === 'negative' ? 'High calorie density' : 'Low calorie density';
+    case 'carbohydrates':
+      return dominantReason.kind === 'negative' ? 'High carbs' : 'Low carbs';
+    case 'diet-matching':
+      return dominantReason.kind === 'negative' ? 'Diet mismatch' : 'Diet-friendly';
+    case 'fat':
+      return dominantReason.kind === 'negative' ? 'High fat' : 'Lower fat';
+    case 'fiber':
+      return dominantReason.kind === 'negative' ? 'Low fiber' : 'High fiber';
+    case 'protein':
+      return dominantReason.kind === 'negative' ? 'Low protein' : 'High protein';
+    case 'salt':
+      return dominantReason.kind === 'negative' ? 'High salt' : 'Low salt';
+    case 'saturated-fat':
+      return dominantReason.kind === 'negative' ? 'High saturated fat' : 'Low saturated fat';
+    case 'sugar':
+      return dominantReason.kind === 'negative' ? 'High sugar' : 'Low sugar';
+  }
+};
+
 const buildDisplayReasons = (
   reasons: InternalScoreReason[],
   kinds: Array<ScoreReason['kind']>,
@@ -515,11 +576,17 @@ const buildDisplayReasons = (
       group.some((reason) => reason.source === 'restriction')
         ? buildRestrictionGroupDescription(group)
         : joinDescriptions(group.map((reason) => reason.description));
+    const shortDescription = buildDisplayReasonShortDescription(
+      group,
+      category,
+      dominantReason,
+    );
 
     return {
       key: first.displayGroupKey ?? first.key,
       label: SCORE_REASON_CATEGORY_LABELS[category],
       description,
+      shortDescription,
       value: valueReason?.value ?? null,
       unit: valueReason?.unit ?? null,
       impact: group.reduce((sum, reason) => sum + reason.impact, 0),
@@ -1689,6 +1756,21 @@ export const computeProfileScore = (
     ...evaluateGoals(facts, onboarding),
     ...evaluateProductType(facts, onboarding),
   ];
+
+  // If there are allergen conflicts, a positive "Diet match" is misleading —
+  // the product is unsafe for this user regardless of diet label compatibility.
+  // Suppress positive diet-matching reasons from both display and score.
+  const hasAllergenConflict = allReasons.some(
+    (r) => r.source === 'allergen' && r.kind === 'negative',
+  );
+  if (hasAllergenConflict) {
+    for (const reason of allReasons) {
+      if (reason.category === 'diet-matching' && reason.kind === 'positive') {
+        reason.hidden = true;
+        reason.impact = 0;
+      }
+    }
+  }
 
   // Build breakdown — only steps with non-zero impact
   const steps: ScoreBreakdownStep[] = [];

@@ -9,10 +9,13 @@ import { ScreenSpinner } from '../../../../shared/components/ScreenSpinner';
 import { Typography } from '../../../../shared/components/Typography';
 import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
-import { FamilyMemberList } from '../../../family/components/FamilyMemberList';
+import { useFamilyMembersAccess } from '../../../family/hooks/useFamilyMembersAccess';
+import { useFamilyMembersPaywall } from '../../../family/hooks/useFamilyMembersPaywall';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
 import { useCurrentUserQuery } from '../../api/profileQueries';
+import { ProfileFamilyMembersSection } from './ProfileFamilyMembersSection';
+import { ProfileSubscriptionCard } from './ProfileSubscriptionCard';
 import { ProfileGoalCard } from '../ProfileGoalCard';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
 import { ProfileLogoutButton } from '../ProfileLogoutButton';
@@ -32,6 +35,11 @@ export function ProfileScreen() {
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
   const user = currentUserQuery.data ?? authUser;
   const onboardingQuery = useOnboardingQuery(user?.id);
+  const familyMembersAccess = useFamilyMembersAccess();
+  const familyMembersPaywall = useFamilyMembersPaywall({
+    hasAccess: familyMembersAccess.hasAccess,
+    userId: user?.id,
+  });
   const [isLogoutDialogVisible, setIsLogoutDialogVisible] = useState(false);
   const [logoutErrorMessage, setLogoutErrorMessage] = useState<string | null>(null);
 
@@ -70,7 +78,7 @@ export function ProfileScreen() {
     return <ScreenSpinner />;
   }
 
-  if (onboardingQuery.isLoading) {
+  if (onboardingQuery.isLoading || familyMembersAccess.isLoading) {
     return <ScreenSpinner />;
   }
 
@@ -116,24 +124,31 @@ export function ProfileScreen() {
               />
             </View>
 
-            <View className="mt-8">
-              <Typography variant="sectionTitle" className="text-neutrals-900 font-bold">
-                Family members
-              </Typography>
-              <View className="mt-3">
-                <FamilyMemberList
-                  onAdd={() => {
-                    router.push('/add-family-member');
-                  }}
-                  onEdit={(member) => {
-                    router.push({
-                      pathname: '/edit-family-member',
-                      params: { id: member.id },
-                    });
-                  }}
-                />
-              </View>
-            </View>
+            <ProfileSubscriptionCard
+              hasAccess={familyMembersAccess.hasAccess}
+              isPending={familyMembersPaywall.isPending}
+              subscriptionPlan={familyMembersAccess.subscription?.subscriptionPlan}
+              subscriptionExpiry={familyMembersAccess.subscription?.subscriptionExpiry}
+              onUpgrade={() => {
+                void familyMembersPaywall.presentPaywall();
+              }}
+            />
+
+            <ProfileFamilyMembersSection
+              canManage={familyMembersAccess.hasAccess}
+              isAddPending={familyMembersPaywall.isPending}
+              onAdd={() => {
+                void familyMembersPaywall.handleAddAttempt(() => {
+                  router.push('/add-family-member');
+                });
+              }}
+              onEdit={(member) => {
+                router.push({
+                  pathname: '/edit-family-member',
+                  params: { id: member.id },
+                });
+              }}
+            />
           </View>
 
           <View className="border border-neutrals-200 px-4 pt-4 bg-background flex-1 pb-[160px]">

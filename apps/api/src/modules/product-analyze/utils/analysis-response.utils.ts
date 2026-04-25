@@ -2,6 +2,7 @@ import {
   type BarcodeLookupProduct,
   type BarcodeLookupNotFoundResponse,
   type ComparisonProductPreview,
+  type DietCompatibility,
   type NormalizedProduct,
   type ProductPreview,
   type ScannerLookupSource,
@@ -68,7 +69,10 @@ export const resolveProduct = async (barcode: string): Promise<ResolvedProductRe
   };
 };
 
-export const toBarcodeLookupProduct = (product: NormalizedProduct): BarcodeLookupProduct => ({
+export const toBarcodeLookupProduct = (
+  product: NormalizedProduct,
+  dietCompatibility?: DietCompatibility,
+): BarcodeLookupProduct => ({
   code: product.code,
   product_name: product.product_name,
   brands: product.brands,
@@ -87,6 +91,7 @@ export const toBarcodeLookupProduct = (product: NormalizedProduct): BarcodeLooku
   category_tags: product.category_tags,
   nutrition: product.nutrition,
   scores: product.scores,
+  dietCompatibility,
 });
 
 export const toProductPreview = (

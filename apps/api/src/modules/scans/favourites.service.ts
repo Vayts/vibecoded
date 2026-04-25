@@ -6,6 +6,7 @@ import { ApiError } from '../../shared/errors/api-error';
 import { resolveCanonicalProductImageUrl } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
+import { productFactsAiOutputSchema } from '../product-analyze/domain/product-facts/schema';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -19,6 +20,7 @@ type FavouriteProduct = {
   image_url: string | null;
   images: unknown;
   nutriscore_grade: string | null;
+  classificationCache: Prisma.JsonValue | null;
 };
 
 type LatestScanRecord = {
@@ -41,14 +43,19 @@ const getValidLimit = (limit?: string): number | undefined => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
-const serializeProduct = (product: FavouriteProduct) => ({
-  id: product.id,
-  barcode: product.barcode,
-  product_name: product.product_name,
-  brands: product.brands,
-  image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
-  nutriscore_grade: product.nutriscore_grade,
-});
+const serializeProduct = (product: FavouriteProduct) => {
+  const classification = productFactsAiOutputSchema.safeParse(product.classificationCache).data;
+
+  return {
+    id: product.id,
+    barcode: product.barcode,
+    product_name: product.product_name,
+    brands: product.brands,
+    image_url: resolveCanonicalProductImageUrl(product.image_url, product.images),
+    nutriscore_grade: product.nutriscore_grade,
+    dietCompatibility: classification?.dietCompatibility,
+  };
+};
 
 const hasSharedScanFilters = (filters: SharedScanFilters): boolean =>
   filters.profileIds.length > 0 || filters.fitBuckets.length > 0;
@@ -173,6 +180,7 @@ export class FavouritesService {
             image_url: true,
             images: true,
             nutriscore_grade: true,
+            classificationCache: true,
           },
         },
       },
@@ -317,6 +325,7 @@ export class FavouritesService {
       personalRating: analysisSummary.personalRating,
       personalAnalysisStatus: scan?.personalAnalysisStatus ?? null,
       mainUserHasDietConflict: analysisSummary.mainUserHasDietConflict,
+      mainUserHasAllergenConflict: analysisSummary.mainUserHasAllergenConflict,
       isFavourite: true,
       profileChips: analysisSummary.profileChips,
       product: favourite.product ? serializeProduct(favourite.product) : null,

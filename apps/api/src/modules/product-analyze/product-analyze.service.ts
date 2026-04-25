@@ -20,7 +20,11 @@ import { processProductImage } from './lib/image-processing';
 import { uploadProductImage } from './lib/storage';
 import { createComparison } from './repositories/comparisonRepository';
 import { isFavouriteByBarcode } from './repositories/favoriteRepository';
-import { createProduct, findByBarcode } from './repositories/productRepository';
+import {
+  createProduct,
+  findByBarcode,
+  findProductClassificationCache,
+} from './repositories/productRepository';
 import { findProductIdByBarcode } from './repositories/scanRepository';
 import { AnalysisOrchestratorService } from './services/analysis-orchestrator.service';
 import { ApiError } from '../../shared/errors/api-error';
@@ -121,7 +125,7 @@ export class ProductAnalyzeService {
     }
 
     const productId = await findProductIdByBarcode(resolvedProduct.product.code);
-    const [analysisState, isFavourite] = await Promise.all([
+    const [analysisState, isFavourite, classification] = await Promise.all([
       this.analysisOrchestrator.startAnalysis({
         product: resolvedProduct.product,
         productId: productId ?? undefined,
@@ -131,13 +135,21 @@ export class ProductAnalyzeService {
       userId
         ? isFavouriteByBarcode(userId, resolvedProduct.product.code)
         : Promise.resolve(undefined),
+      findProductClassificationCache({
+        productId: productId ?? undefined,
+        barcode: resolvedProduct.product.code,
+      }),
     ]);
 
     const response = {
       success: true as const,
       barcode,
       source: resolvedProduct.source,
-      product: toBarcodeLookupProduct(resolvedProduct.product),
+      product: toBarcodeLookupProduct(
+        resolvedProduct.product,
+        classification?.dietCompatibility ??
+          analysisState.analysis.result?.productFacts.dietCompatibility,
+      ),
       personalAnalysis: analysisState.analysis,
       scanId: analysisState.scanId,
       productId: productId ?? undefined,
@@ -250,7 +262,7 @@ export class ProductAnalyzeService {
       profiles: comparisonProfiles,
     };
 
-    await createComparison({
+    const comparison = await createComparison({
       userId,
       product1Id: resolved1.productId ?? undefined,
       product2Id: resolved2.productId ?? undefined,
@@ -259,7 +271,10 @@ export class ProductAnalyzeService {
       comparisonResult: result,
     });
 
-    return result;
+    return {
+      ...result,
+      comparisonId: comparison.id,
+    };
   }
 
   async extractPhotoOcr(imageBase64: string): Promise<PhotoOcrPayload> {
@@ -317,7 +332,7 @@ export class ProductAnalyzeService {
         this.syncPhotoImageInBackground(input.imageBase64, savedProduct);
       }
 
-      const [analysisState, isFavourite] = await Promise.all([
+      const [analysisState, isFavourite, classification] = await Promise.all([
         this.analysisOrchestrator.startAnalysis({
           product: savedProduct,
           productId: productId ?? undefined,
@@ -325,13 +340,21 @@ export class ProductAnalyzeService {
           scanSource: 'photo',
         }),
         isFavouriteByBarcode(input.userId, savedProduct.code),
+        findProductClassificationCache({
+          productId: productId ?? undefined,
+          barcode: savedProduct.code,
+        }),
       ]);
 
       return {
         success: true,
         barcode: savedProduct.code,
         source: 'photo',
-        product: toBarcodeLookupProduct(savedProduct),
+        product: toBarcodeLookupProduct(
+          savedProduct,
+          classification?.dietCompatibility ??
+            analysisState.analysis.result?.productFacts.dietCompatibility,
+        ),
         personalAnalysis: analysisState.analysis,
         scanId: analysisState.scanId,
         isFavourite,

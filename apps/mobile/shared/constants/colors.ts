@@ -50,6 +50,8 @@ export const COLORS = {
   nutriScoreEActive: '#c2571a',
   nutriScoreActiveBorder: '#D1A70F',
 
+  accent900: '#7C380B',
+
   // ── Semantic ──────────────────────────────────────────
   blue: '#2563EB', // blue-600 — good match rating
   blueSoft: '#EFF6FF', // blue-50
@@ -90,6 +92,7 @@ export const COLORS = {
   gray700: '#374151', // body primary (dark on white)
   gray800: '#1F2937', // primary text
   gray900: '#111827', // headings
+  launchSplashBackground: '#2B9D64',
   appBackground: '#FAFAFA',
 
   // ── Special ───────────────────────────────────────────

@@ -54,14 +54,10 @@ export function ScansTabScreen() {
         return;
       }
 
-      const initialSnapIndex = item.product ? 1 : 0;
-
       void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        snapIndex: initialSnapIndex,
         payload: {
           scanId: item.id,
           item,
-          initialSnapIndex,
         },
       });
     },

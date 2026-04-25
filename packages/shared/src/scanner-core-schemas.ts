@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   analysisJobResponseSchema,
   analysisJobStatusSchema,
+  dietCompatibilitySchema,
 } from './product-analysis';
 import { ingredientStatusSchema } from './product-analysis';
 
@@ -63,7 +64,9 @@ const productCoreSchema = z.object({
   }),
 });
 
-export const barcodeLookupProductSchema = productCoreSchema;
+export const barcodeLookupProductSchema = productCoreSchema.extend({
+  dietCompatibility: dietCompatibilitySchema.optional(),
+});
 export type BarcodeLookupProduct = z.infer<typeof barcodeLookupProductSchema>;
 
 export const normalizedProductSchema = productCoreSchema.extend({
