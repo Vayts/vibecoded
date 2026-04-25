@@ -238,6 +238,7 @@ describe('computeProfileScore', () => {
     expect(dietItems[0].description).toBe(
       'Conflicts with your diet (vegan, halal, kosher). Contains milk, gelatin, alcohol-based flavoring, pork-derived enzyme',
     );
+    expect(dietItems[0].shortDescription).toBe('Conflicts with your diet');
   });
 
   it('merges neutral nutrition and goal reasons for the same category', () => {
@@ -260,5 +261,6 @@ describe('computeProfileScore', () => {
     expect(sugarItems[0].kind).toBe('positive');
     expect(sugarItems[0].description).toContain('Sugar content for meat products');
     expect(sugarItems[0].description).toContain('Fits your low sugar preference');
+    expect(sugarItems[0].shortDescription).toBe('Low sugar');
   });
 });

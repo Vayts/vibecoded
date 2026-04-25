@@ -1,4 +1,9 @@
-import type { FamilyMember, IngredientAnalysis, OnboardingResponse } from '@acme/shared';
+import type {
+  FamilyMember,
+  OnboardingResponse,
+  ProductFacts,
+  ProfileProductScore,
+} from '@acme/shared';
 
 export interface ProfileCompatibilityPreferences {
   restrictions: OnboardingResponse['restrictions'] | FamilyMember['restrictions'];
@@ -24,178 +29,192 @@ const RESTRICTION_LABELS: Record<string, string> = {
   NUT_FREE: 'nut-free',
 };
 
-const RESTRICTION_REASON_TOKENS: Record<string, string[]> = {
-  VEGAN: ['vegan'],
-  VEGETARIAN: ['vegetarian'],
-  KETO: ['keto'],
-  PALEO: ['paleo'],
-  GLUTEN_FREE: ['gluten free', 'gluten-free', 'gluten'],
-  DAIRY_FREE: ['dairy free', 'dairy-free', 'dairy'],
-  HALAL: ['halal'],
-  KOSHER: ['kosher'],
-  NUT_FREE: ['nut free', 'nut-free', 'nut'],
-};
-
-const RESTRICTION_CONFLICT_TOKENS: Partial<Record<string, string[]>> = {
-  VEGAN: ['meat', 'beef', 'chicken', 'pork', 'fish', 'milk', 'whey', 'butter', 'cheese', 'egg', 'honey', 'gelatin', 'lard'],
-  VEGETARIAN: ['meat', 'beef', 'chicken', 'pork', 'fish', 'gelatin', 'lard', 'bacon', 'ham'],
-  HALAL: ['pork', 'bacon', 'ham', 'lard', 'gelatin', 'wine', 'beer', 'rum', 'alcohol', 'salami'],
-  KOSHER: ['pork', 'bacon', 'ham', 'shellfish', 'shrimp', 'crab', 'lobster', 'lard'],
-  GLUTEN_FREE: ['wheat', 'barley', 'rye', 'spelt', 'semolina', 'bulgur', 'malt', 'seitan', 'farro', 'durum', 'gluten'],
-  DAIRY_FREE: ['milk', 'cream', 'butter', 'cheese', 'yogurt', 'whey', 'casein', 'lactose', 'dairy'],
-  NUT_FREE: ['peanut', 'almond', 'walnut', 'cashew', 'hazelnut', 'pistachio', 'macadamia', 'pecan', 'tree nut', 'nut'],
-};
-
-const ALLERGY_LABELS: Record<string, string> = {
-  PEANUTS: 'peanuts',
-  TREE_NUTS: 'tree nuts',
-  GLUTEN: 'gluten',
-  DAIRY: 'dairy',
-  SOY: 'soy',
-  EGGS: 'eggs',
-  SHELLFISH: 'shellfish',
-  SESAME: 'sesame',
-};
-
-const ALLERGY_TOKENS: Record<string, string[]> = {
-  PEANUTS: ['peanut'],
-  TREE_NUTS: ['almond', 'walnut', 'cashew', 'hazelnut', 'pistachio', 'macadamia', 'pecan', 'tree nut', 'nut'],
-  GLUTEN: ['wheat', 'barley', 'rye', 'spelt', 'semolina', 'bulgur', 'malt', 'seitan', 'farro', 'durum', 'gluten'],
-  DAIRY: ['milk', 'cream', 'butter', 'cheese', 'yogurt', 'whey', 'casein', 'lactose', 'dairy'],
-  SOY: ['soy'],
-  EGGS: ['egg'],
-  SHELLFISH: ['shellfish', 'shrimp', 'crab', 'lobster'],
-  SESAME: ['sesame'],
-};
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 const normalizeText = (value: string): string =>
   value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-const matchesAnyToken = (value: string, tokens: string[]): boolean => {
-  const normalizedValue = normalizeText(value);
-  return tokens.some((token) => normalizedValue.includes(normalizeText(token)));
-};
-
-const dedupeIngredients = (values: string[]): string[] => {
+const dedupeByName = (names: string[]): string[] => {
   const seen = new Set<string>();
-
-  return values.filter((value) => {
-    const normalizedValue = normalizeText(value);
-    if (!normalizedValue || seen.has(normalizedValue)) {
-      return false;
-    }
-
-    seen.add(normalizedValue);
+  return names.filter((name) => {
+    const key = normalizeText(name);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 };
 
-const parseOtherAllergyEntries = (value: string | null): string[] => {
-  if (!value) {
-    return [];
+// ---------------------------------------------------------------------------
+// Legacy fallback helpers
+// (used when old backend data is present that lacks reasonType / dietConflicts)
+// ---------------------------------------------------------------------------
+
+const RESTRICTION_TO_DIET_KEY = {
+  VEGAN: 'vegan',
+  VEGETARIAN: 'vegetarian',
+  GLUTEN_FREE: 'glutenFree',
+  DAIRY_FREE: 'dairyFree',
+  HALAL: 'halal',
+  KOSHER: 'kosher',
+  NUT_FREE: 'nutFree',
+} as const;
+
+const ALLERGY_TO_DIET_KEY: Partial<Record<string, keyof ProductFacts['dietCompatibility']>> = {
+  PEANUTS: 'nutFree',
+  TREE_NUTS: 'nutFree',
+  GLUTEN: 'glutenFree',
+  DAIRY: 'dairyFree',
+};
+
+const NON_INGREDIENT_TOKENS = [
+  'allergens you should avoid',
+  'you should avoid',
+  'allergen',
+  'allergens',
+  'avoid',
+  'contains',
+  'conflicts with your',
+  'diet',
+  'restriction',
+  'incompatible',
+] as const;
+
+const cleanIngredientToken = (value: string): string =>
+  value
+    .replace(/[()\[\]{}]/g, ' ')
+    .replace(/[^a-zA-Z\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const isLikelyIngredientName = (value: string): boolean => {
+  const normalized = normalizeText(value);
+  if (!normalized) return false;
+  if (NON_INGREDIENT_TOKENS.some((token) => normalized.includes(token))) return false;
+  const words = normalized.split(' ').filter(Boolean);
+  if (words.length === 0 || words.length > 4) return false;
+  return /^[a-z\s-]+$/.test(normalized);
+};
+
+const reasonToChips = (reason: string): string[] => {
+  const fromContains = reason.match(/contains\s+([^.;]+)/i)?.[1] ?? null;
+  if (fromContains) {
+    return dedupeByName(
+      fromContains
+        .split(/,|\band\b/i)
+        .map((v) => cleanIngredientToken(v))
+        .filter((v) => isLikelyIngredientName(v)),
+    );
   }
 
-  return dedupeIngredients(value.split(/[,;/]/).map((entry) => entry.trim()).filter(Boolean));
-};
-
-const collectBadIngredients = (
-  ingredientAnalysis: IngredientAnalysis | null | undefined,
-  matcher: (haystack: string, name: string) => boolean,
-): string[] => {
-  if (!ingredientAnalysis) {
-    return [];
-  }
-
-  return dedupeIngredients(
-    ingredientAnalysis.ingredients
-      .filter((ingredient) => {
-        if (ingredient.status !== 'bad') {
-          return false;
-        }
-
-        const haystack = `${ingredient.name} ${ingredient.reason ?? ''}`;
-        return matcher(haystack, ingredient.name);
-      })
-      .map((ingredient) => ingredient.name),
+  const fromParentheses = Array.from(reason.matchAll(/\(([^)]+)\)/g)).flatMap((m) =>
+    m[1]
+      .split(/,|\band\b/i)
+      .map((v) => cleanIngredientToken(v))
+      .filter((v) => isLikelyIngredientName(v)),
   );
+
+  if (fromParentheses.length > 0) return dedupeByName(fromParentheses);
+  return [];
 };
 
-const getRestrictionIngredients = (
-  restriction: string,
-  ingredientAnalysis?: IngredientAnalysis | null,
-): string[] => {
-  const reasonTokens = RESTRICTION_REASON_TOKENS[restriction] ?? [];
-  const conflictTokens = RESTRICTION_CONFLICT_TOKENS[restriction] ?? [];
-
-  return collectBadIngredients(
-    ingredientAnalysis,
-    (haystack, ingredientName) =>
-      matchesAnyToken(haystack, reasonTokens) || matchesAnyToken(ingredientName, conflictTokens),
-  );
-};
-
-const getAllergyIngredients = (
-  allergy: string,
-  ingredientAnalysis?: IngredientAnalysis | null,
-): string[] => {
-  const tokens = ALLERGY_TOKENS[allergy] ?? [];
-  return collectBadIngredients(ingredientAnalysis, (haystack) => matchesAnyToken(haystack, tokens));
-};
-
-const getCustomAllergyIngredients = (
-  entries: string[],
-  ingredientAnalysis?: IngredientAnalysis | null,
-): string[] => {
-  return collectBadIngredients(ingredientAnalysis, (haystack) => {
-    return entries.some((entry) => matchesAnyToken(haystack, [entry]));
-  });
-};
-
-export const getIngredientCountLabel = (count: number): string => {
-  return `${count} ingredient${count === 1 ? '' : 's'}`;
-};
-
-export const buildCompatibilityAccordionItems = (
-  ingredientAnalysis: IngredientAnalysis | null | undefined,
-  profilePreferences: ProfileCompatibilityPreferences | null,
+/** Build accordion items using legacy string-parsing when new structured fields are absent. */
+const buildLegacyAccordionItems = (
+  profile: ProfileProductScore,
+  productFacts: ProductFacts | null | undefined,
+  profilePreferences: ProfileCompatibilityPreferences,
 ): CompatibilityAccordionItem[] => {
-  if (!ingredientAnalysis || !profilePreferences) {
-    return [];
-  }
+  const badIngredientNames = dedupeByName(
+    (profile.ingredientAnalysis?.ingredients ?? [])
+      .filter((ing) => ing.status === 'bad')
+      .map((ing) => cleanIngredientToken(ing.name))
+      .filter((name) => isLikelyIngredientName(name)),
+  );
 
-  const restrictionItems = profilePreferences.restrictions.flatMap<CompatibilityAccordionItem>((restriction) => {
-    const ingredients = getRestrictionIngredients(restriction, ingredientAnalysis);
-    if (ingredients.length === 0) {
-      return [];
-    }
+  const dietConflictItems = profilePreferences.restrictions.flatMap<CompatibilityAccordionItem>((restriction) => {
+    const dietKey = RESTRICTION_TO_DIET_KEY[restriction as keyof typeof RESTRICTION_TO_DIET_KEY];
+    if (!dietKey || productFacts?.dietCompatibility[dietKey] !== 'incompatible') return [];
+
+    const reason = productFacts?.dietCompatibilityReasons?.[dietKey] ?? null;
+    const reasonIngredients = reason ? reasonToChips(reason) : [];
+    const ingredients = badIngredientNames.length > 0 ? badIngredientNames : reasonIngredients;
+    if (ingredients.length === 0) return [];
 
     const label = RESTRICTION_LABELS[restriction] ?? restriction.toLowerCase();
-    return [{ key: `restriction-${restriction}`, title: `Not-${label}`, ingredients }];
+    return [{ key: `restriction-${restriction}`, title: `Not ${label}`, ingredients }];
   });
 
-  const allergyItems = profilePreferences.allergies.flatMap<CompatibilityAccordionItem>((allergy) => {
-    if (allergy === 'OTHER') {
-      return [];
-    }
+  const allergenIngredients = dedupeByName([
+    ...badIngredientNames,
+    ...profile.negatives
+      .filter((n) => n.kind === 'negative' && (n.source === 'allergen' || n.category === 'allergens'))
+      .flatMap((n) => reasonToChips(n.description)),
+    ...profilePreferences.allergies.flatMap((allergy) => {
+      if (allergy === 'OTHER') return [];
+      const dietKey = ALLERGY_TO_DIET_KEY[allergy];
+      if (!dietKey || productFacts?.dietCompatibility[dietKey] !== 'incompatible') return [];
+      return reasonToChips(productFacts?.dietCompatibilityReasons?.[dietKey] ?? '');
+    }),
+  ]).filter((name) => isLikelyIngredientName(name));
 
-    const ingredients = getAllergyIngredients(allergy, ingredientAnalysis);
-    if (ingredients.length === 0) {
-      return [];
-    }
+  const concerns: CompatibilityAccordionItem[] = [...dietConflictItems];
+  if (allergenIngredients.length > 0) {
+    concerns.push({ key: 'allergens-detected', title: 'Allergens detected', ingredients: allergenIngredients });
+  }
 
-    return [{
-      key: `allergy-${allergy}`,
-      title: `Contains ${ALLERGY_LABELS[allergy] ?? allergy.toLowerCase()}`,
-      ingredients,
-    }];
-  });
-
-  const customAllergyEntries = parseOtherAllergyEntries(profilePreferences.otherAllergiesText);
-  const customAllergyIngredients = getCustomAllergyIngredients(customAllergyEntries, ingredientAnalysis);
-  const customItems = customAllergyIngredients.length > 0
-    ? [{ key: 'allergy-other', title: 'Contains allergens', ingredients: customAllergyIngredients }]
-    : [];
-
-  return [...restrictionItems, ...allergyItems, ...customItems];
+  return concerns;
 };
 
+// ---------------------------------------------------------------------------
+// Primary builder — uses structured reasonType / dietConflicts fields
+// ---------------------------------------------------------------------------
+
+export const getIngredientCountLabel = (count: number): string =>
+  `${count} ingredient${count === 1 ? '' : 's'}`;
+
+export const buildCompatibilityAccordionItems = (
+  profile: ProfileProductScore,
+  productFacts: ProductFacts | null | undefined,
+  profilePreferences: ProfileCompatibilityPreferences | null,
+): CompatibilityAccordionItem[] => {
+  if (!profilePreferences) return [];
+
+  const ingredients = profile.ingredientAnalysis?.ingredients ?? [];
+
+  // Fall back to legacy parsing when the new structured fields are absent
+  // (i.e. all bad ingredients lack reasonType — older cached API responses).
+  const badIngredients = ingredients.filter((ing) => ing.status === 'bad');
+  const hasStructuredFields = badIngredients.some((ing) => ing.reasonType !== undefined);
+  if (!hasStructuredFields) {
+    return buildLegacyAccordionItems(profile, productFacts, profilePreferences);
+  }
+
+  // --- Diet conflict items: one per user restriction that has conflicting ingredients ---
+  const dietConflictItems = profilePreferences.restrictions.flatMap<CompatibilityAccordionItem>((restriction) => {
+    const conflictingIngredients = dedupeByName(
+      badIngredients
+        .filter((ing) => ing.reasonType === 'DIET' && ing.dietConflicts?.includes(restriction))
+        .map((ing) => ing.name),
+    );
+
+    if (conflictingIngredients.length === 0) return [];
+
+    const label = RESTRICTION_LABELS[restriction] ?? restriction.toLowerCase();
+    return [{ key: `restriction-${restriction}`, title: `Not ${label}`, ingredients: conflictingIngredients }];
+  });
+
+  // --- Allergens detected item: all bad ingredients flagged as ALLERGY ---
+  const allergenIngredients = dedupeByName(
+    badIngredients
+      .filter((ing) => ing.reasonType === 'ALLERGY')
+      .map((ing) => ing.name),
+  );
+
+  const concerns: CompatibilityAccordionItem[] = [...dietConflictItems];
+  if (allergenIngredients.length > 0) {
+    concerns.push({ key: 'allergens-detected', title: 'Allergens detected', ingredients: allergenIngredients });
+  }
+
+  return concerns;
+};

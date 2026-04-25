@@ -20,7 +20,7 @@ interface EvaluationRowIconProps {
 }
 
 const renderCategoryIcon = (category: ScoreReasonCategory | null) => {
-  const iconProps = { width: 20, height: 20, color: COLORS.neutrals600 };
+  const iconProps = { width: 22, height: 22, color: COLORS.neutrals600 };
 
   switch (category) {
     case 'additives':
@@ -54,7 +54,7 @@ export function EvaluationRowIcon({ item }: EvaluationRowIconProps) {
   const category = getScoreReasonCategory(item);
 
   return (
-    <View className="h-11 w-11 rounded-md border border-neutrals-200 bg-neutrals-50 items-center justify-center">
+    <View className="rounded-md items-center justify-center">
       {renderCategoryIcon(category)}
     </View>
   );

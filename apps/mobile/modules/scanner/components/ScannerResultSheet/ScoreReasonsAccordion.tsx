@@ -35,7 +35,17 @@ const SCORE_REASON_TONES = {
   },
 } satisfies Record<'positive' | 'warning' | 'danger', ScoreReasonTone>;
 
-const getScoreReasonText = (reason: ScoreReason): string => reason.description.trim() || reason.label;
+const getScoreReasonText = (reason: ScoreReason): string => {
+  const shortDescription = reason.shortDescription?.trim();
+
+  if (shortDescription) {
+    return shortDescription;
+  }
+
+  const description = reason.description.trim();
+
+  return description || reason.label;
+};
 
 const getScoreReasonTone = (reason: ScoreReason): ScoreReasonTone => {
   if (reason.impact > 0) {
@@ -99,16 +109,16 @@ export function ScoreReasonsAccordion({
             return (
               <View
                 key={`${reason.key}-${index}`}
-                className={`flex-row items-start rounded-[14px] border px-4 py-3 ${index > 0 ? 'mt-3' : ''}`}
+                className={`flex-row items-center rounded-[8px] px-3 py-1 ${index > 0 ? 'mt-2' : ''}`}
                 style={{
                   backgroundColor: reasonTone.backgroundColor,
                   borderColor: reasonTone.borderColor,
                 }}
               >
-                <ReasonIcon color={reasonTone.textColor} size={18} strokeWidth={2.2} />
+                <ReasonIcon color={reasonTone.textColor} size={14} strokeWidth={2.2} />
                 <Typography
                   variant="body"
-                  className="ml-3 flex-1 font-semibold"
+                  className="ml-2 text-[13px] flex-1 font-semibold"
                   style={{ color: reasonTone.textColor }}
                 >
                   {getScoreReasonText(reason)}
@@ -121,4 +131,5 @@ export function ScoreReasonsAccordion({
     </View>
   );
 }
+
 

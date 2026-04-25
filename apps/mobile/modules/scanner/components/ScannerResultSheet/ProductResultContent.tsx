@@ -91,8 +91,6 @@ export function ProductResultContent({
         <ProductResultHero
           nutriScoreGrade={nutriScoreGrade}
           product={product}
-          analysisResult={personalData?.result}
-          hasPreviewAllergenConflict={previewItem?.mainUserHasAllergenConflict}
         />
         {detailState?.isLoading || detailState?.isError ? (
           <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />

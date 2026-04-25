@@ -125,10 +125,6 @@ export function FamilyMemberList({
           <Typography variant="bodySecondary" className="mt-2 text-center text-gray-500">
             Remove a family member to free up a slot before adding another.
           </Typography>
-        ) : !canManage ? (
-          <Typography variant="bodySecondary" className="mt-2 text-center text-gray-500">
-            Upgrade to add, edit, and remove family members.
-          </Typography>
         ) : null}
       </View>
     </View>

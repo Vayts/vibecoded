@@ -1,4 +1,3 @@
-import type { UserSubscriptionResponse } from '@acme/shared';
 import { isActiveSubscriptionStatus, UserSubscriptionResponse } from '@acme/shared';
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';

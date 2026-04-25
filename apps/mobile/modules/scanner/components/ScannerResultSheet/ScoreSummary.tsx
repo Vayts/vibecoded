@@ -1,8 +1,10 @@
-import { CircleAlert, CircleCheck, HeartCrack, HeartHandshake, ThumbsUp } from 'lucide-react-native';
+import type { ProfileProductScore } from '@acme/shared';
+import { CircleAlert, HeartCrack, HeartHandshake } from 'lucide-react-native';
 import { View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { getFitLabelText } from './evaluationHelpers';
+import { ScoreReasonsAccordion } from './ScoreReasonsAccordion';
 
 interface ScoreSummaryProps {
   title?: string;
@@ -11,6 +13,8 @@ interface ScoreSummaryProps {
   toneKey: 'excellent' | 'good' | 'average' | 'bad';
   insight?: string | null;
   isInsightPending?: boolean;
+  positives?: ProfileProductScore['positives'];
+  negatives?: ProfileProductScore['negatives'];
 }
 
 interface ScoreSummaryTone {
@@ -60,6 +64,8 @@ export function ScoreSummary({
   toneKey,
   insight,
   isInsightPending = false,
+  positives = [],
+  negatives = [],
 }: ScoreSummaryProps) {
   const tone = SCORE_SUMMARY_TONES[toneKey];
   const fitLabel = getScoreSummaryLabel(label);
@@ -72,27 +78,22 @@ export function ScoreSummary({
   return (
     <View
       className="mt-4 overflow-hidden rounded-[16px] bg-white"
-      style={{ borderWidth: 1, borderTopWidth: 0, borderColor: COLORS.gray200 }}
+      style={{ borderWidth: 1, borderColor: COLORS.gray200 }}
     >
       <View
-        className="flex-row items-center justify-between rounded-[16px] px-5 py-4"
+        className="flex-row items-center justify-between rounded-[16px] mx-4 mt-4 px-4 py-2"
         style={{ backgroundColor: tone.backgroundColor }}
       >
         <View className="flex-row items-center gap-3">
           <Icon size={18} color={tone.textColor} strokeWidth={2.2} />
-          <Typography
-            className="text-[19px] font-semibold"
-            style={{ color: tone.textColor }}
-          >
+          <Typography className="text-[19px] font-semibold" style={{ color: tone.textColor }}>
             {fitLabel}
           </Typography>
         </View>
 
-        <Typography
-          className="text-[19px] font-semibold"
-          style={{ color: tone.textColor }}
-        >
-          {score}/100
+        <Typography className="text-[22px] font-semibold" style={{ color: tone.textColor }}>
+          {score}
+          <Typography className="text-[14px]" style={{ color: tone.textColor }}>/100</Typography>
         </Typography>
       </View>
 
@@ -106,6 +107,7 @@ export function ScoreSummary({
         >
           {resolvedInsight}
         </Typography>
+        <ScoreReasonsAccordion positives={positives} negatives={negatives} />
       </View>
     </View>
   );

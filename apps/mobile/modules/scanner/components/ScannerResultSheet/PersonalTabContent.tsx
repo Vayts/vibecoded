@@ -1,22 +1,25 @@
-import type { AnalysisJobResponse, IngredientAnalysis, ProfileProductScore } from '@acme/shared';
+import type {
+  AnalysisJobResponse,
+  FamilyMember,
+  OnboardingResponse,
+} from '@acme/shared';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
+import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
-import { mapFitLabelToToneKey } from './evaluationHelpers';
-import { EvaluationSection } from './EvaluationSection';
 import { IngredientsSection } from './IngredientsSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
 import { PersonalAnalysisLoader } from './PersonalAnalysisLoader';
+import { ProfileDetail } from './ProfileDetail';
 import {
   ProfileScoreSelector,
   type ProfileScoreSelectorItem,
 } from './ProfileScoreSelector';
-import { getEvaluationBlockConfigs } from './evaluationBlockConfigs';
-import { ScoreSummary } from './ScoreSummary';
+import type { ProfileCompatibilityPreferences } from './profileCompatibilityAccordionHelpers';
 import { getActiveProfile } from './productResultPreviewHelpers';
 
 interface PersonalTabContentProps {
@@ -30,6 +33,34 @@ interface PersonalTabContentProps {
   rawIngredientsText: string | null;
 }
 
+const getFamilyMemberPreferences = (
+  familyMember: FamilyMember | undefined,
+): ProfileCompatibilityPreferences | null => {
+  if (!familyMember) {
+    return null;
+  }
+
+  return {
+    restrictions: familyMember.restrictions,
+    allergies: familyMember.allergies,
+    otherAllergiesText: familyMember.otherAllergiesText,
+  };
+};
+
+const getSelfPreferences = (
+  onboarding: OnboardingResponse | undefined,
+): ProfileCompatibilityPreferences | null => {
+  if (!onboarding) {
+    return null;
+  }
+
+  return {
+    restrictions: onboarding.restrictions,
+    allergies: onboarding.allergies,
+    otherAllergiesText: onboarding.otherAllergiesText,
+  };
+};
+
 export function PersonalTabContent({
   bottomAction,
   personalResult,
@@ -42,6 +73,7 @@ export function PersonalTabContent({
 }: PersonalTabContentProps) {
   const authUser = useAuthStore((s) => s.user);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
+  const onboardingQuery = useOnboardingQuery(authUser?.id);
   const familyMembersQuery = useFamilyMembersQuery();
 
   const analysisResult = personalResult?.result;
@@ -84,6 +116,11 @@ export function PersonalTabContent({
     // Per-profile ingredient analysis, fallback to global analysis for backward compat
     const profileIngredientAnalysis =
       activeProfile.ingredientAnalysis ?? analysisResult?.ingredientAnalysis;
+    const activeFamilyMember = familyMembersById.get(activeProfile.profileId);
+    const activeProfilePreferences: ProfileCompatibilityPreferences | null =
+      activeProfile.profileId === 'you'
+        ? getSelfPreferences(onboardingQuery.data)
+        : getFamilyMemberPreferences(activeFamilyMember);
 
     return (
       <View>
@@ -104,6 +141,8 @@ export function PersonalTabContent({
         <View className="px-4 pb-4">
           <ProfileDetail
             profile={activeProfile}
+            productFacts={analysisResult?.productFacts}
+            profilePreferences={activeProfilePreferences}
             rawIngredients={rawIngredients}
             rawIngredientsText={rawIngredientsText}
             isIngredientAnalysisPending={isIngredientAnalysisPending}
@@ -142,46 +181,3 @@ export function PersonalTabContent({
   );
 }
 
-interface ProfileDetailProps {
-  profile: ProfileProductScore;
-  rawIngredients: string[];
-  rawIngredientsText: string | null;
-  isIngredientAnalysisPending: boolean;
-  profileIngredientAnalysis?: IngredientAnalysis | null;
-}
-
-function ProfileDetail({
-  profile,
-  rawIngredients,
-  rawIngredientsText,
-  isIngredientAnalysisPending,
-  profileIngredientAnalysis,
-}: ProfileDetailProps) {
-  const forLabel = `For ${profile.name.toLowerCase() === 'you' ? 'you' : profile.name}`;
-  const evaluationBlocks = getEvaluationBlockConfigs(profile);
-
-  return (
-    <View>
-      <ScoreSummary
-        score={profile.score}
-        label={profile.fitLabel}
-        toneKey={mapFitLabelToToneKey(profile.fitLabel)}
-        insight={profile.summary}
-      />
-      {evaluationBlocks.map((block) => (
-        <EvaluationSection
-          key={block.key}
-          title={block.title}
-          items={block.items}
-          rightLabel={forLabel}
-        />
-      ))}
-      <IngredientsSection
-        rawIngredients={rawIngredients}
-        rawIngredientsText={rawIngredientsText}
-        isPending={isIngredientAnalysisPending}
-        analysis={profileIngredientAnalysis}
-      />
-    </View>
-  );
-}

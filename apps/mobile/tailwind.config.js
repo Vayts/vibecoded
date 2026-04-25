@@ -49,7 +49,12 @@ module.exports = {
           red: '#DC2626', // Error / destructive (red-600)
           amber: '#D97706', // Warning / trial (amber-600)
           purple: '#7C3AED', // Pro badge (violet-600)
+          50: '#FFFCEA',
+          100: '#FFF6C5',
+          200: '#FFEB85',
+          300: '#FFDB46',
           600: '#E28200',
+          900: '#7C380B',
         },
         sparkle: {
           DEFAULT: '#FBBF24', // AI sparkle gold
@@ -71,7 +76,7 @@ module.exports = {
         danger: {
           600: '#DC2626',
           800: '#991B1D',
-        }
+        },
       },
     },
   },

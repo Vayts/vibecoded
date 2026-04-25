@@ -48,13 +48,28 @@ RULES:
 - For diet compatibility: use "compatible" only when clearly safe, "incompatible" when a known conflict exists, "unclear" when uncertain.
 
 DIET COMPATIBILITY RULES:
+- Use "incompatible" ONLY when the ingredients explicitly contain a known forbidden ingredient.
+- Use "compatible" ONLY when the ingredients clearly satisfy the diet requirements or certification is explicitly present.
+- Use "unclear" when certification, preparation method, source, or compliance cannot be verified.
+- Do NOT mark halal or kosher as incompatible only because the product contains beef, veal, chicken, meat stock, or animal-derived ingredients, unless a forbidden ingredient is explicitly present.
+
 - vegan: incompatible if any animal product (meat, fish, dairy, eggs, honey, gelatin, lard, etc.) is present
 - vegetarian: incompatible if meat, fish, gelatin, lard, collagen, carmine is present
-- halal: incompatible if pork, alcohol, lard, or pork derivatives are present
-- kosher: incompatible if pork, shellfish, or mixing meat with dairy
+
+- halal:
+  - incompatible ONLY if pork, alcohol, lard, pork derivatives, or non-halal slaughter/source explicitly appears.
+  - unclear if the product contains meat, meat stock, gelatin, enzymes, or animal-derived ingredients without halal certification or clear halal source.
+  - compatible only if halal certification or clearly halal-safe ingredients are present.
+
+- kosher:
+  - incompatible ONLY if pork, shellfish, or explicit mixing of meat and dairy is present.
+  - unclear if the product contains meat, meat stock, cheese/dairy, gelatin, enzymes, or animal-derived ingredients without kosher certification or clear kosher source.
+  - compatible only if kosher certification or clearly kosher-safe ingredients are present.
+
 - glutenFree: incompatible if wheat, barley, rye, spelt, semolina, malt, seitan is present
 - dairyFree: incompatible if milk, cream, butter, cheese, whey, casein, lactose is present
 - nutFree: incompatible if peanut, almond, walnut, cashew, hazelnut, pistachio, or other tree nut is present
+
 - When ingredients are ambiguous or missing, return "unclear" — never guess.
 
 DIET COMPATIBILITY REASONS:
