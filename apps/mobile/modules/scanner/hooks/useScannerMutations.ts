@@ -2,20 +2,15 @@ import type {
   BarcodeLookupRequest,
   BarcodeLookupResponse,
   BarcodeLookupSuccessResponse,
-  ProductLookupRequest,
-  ProductLookupResponse,
   CompareProductsRequest,
   CompareProductsResponse,
 } from '@acme/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   submitBarcodeScan,
-  lookupProduct,
   compareProducts,
   submitPhotoScan,
-  submitPhotoOcr,
   type PhotoScanRequest,
-  type PhotoOcrResponse,
 } from '../api/scannerMutations';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
@@ -26,12 +21,6 @@ export const useScanBarcodeMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     },
-  });
-};
-
-export const useProductLookupMutation = () => {
-  return useMutation<ProductLookupResponse, Error, ProductLookupRequest>({
-    mutationFn: lookupProduct,
   });
 };
 
@@ -52,11 +41,5 @@ export const usePhotoScanMutation = () => {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
     },
-  });
-};
-
-export const usePhotoOcrMutation = () => {
-  return useMutation<PhotoOcrResponse, Error, PhotoScanRequest>({
-    mutationFn: submitPhotoOcr,
   });
 };

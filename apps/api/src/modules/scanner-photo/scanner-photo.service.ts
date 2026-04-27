@@ -10,17 +10,12 @@ import {
   INVALID_PHOTO_FILE_ERROR,
   PHOTO_FILE_REQUIRED_ERROR,
 } from './scanner-photo.constants';
-import type { PhotoOcrRequest, PhotoScanRequest, UploadedPhotoFile } from './scanner-photo.schemas';
+import type { PhotoScanRequest, UploadedPhotoFile } from './scanner-photo.schemas';
 import { toRawPhotoBody } from './utils/scanner-photo-request.util';
 
 @Injectable()
 export class ScannerPhotoService {
   constructor(private readonly scannerLangGraphService: ScannerLangGraphService) {}
-
-  async extractPhotoOcr(body: unknown, file?: UploadedPhotoFile) {
-    const request = this.parsePhotoOcrRequest(body, file);
-    return this.scannerLangGraphService.extractPhotoOcr(request.imageBase64);
-  }
 
   async submitPhotoScan(
     body: unknown,
@@ -34,12 +29,6 @@ export class ScannerPhotoService {
       userId,
       ocr: request.ocr ?? undefined,
     });
-  }
-
-  private parsePhotoOcrRequest(body: unknown, file?: UploadedPhotoFile): PhotoOcrRequest {
-    return {
-      imageBase64: this.getImageBase64(body, file),
-    };
   }
 
   private parsePhotoScanRequest(body: unknown, file?: UploadedPhotoFile): PhotoScanRequest {

@@ -17,11 +17,6 @@ export class ScannerController {
     return this.scannerService.submitBarcodeScan(body, userId);
   }
 
-  @Post('lookup')
-  lookupProduct(@Body() body: unknown) {
-    return this.scannerService.lookupProduct(body);
-  }
-
   @Post('compare')
   async compareProducts(@Body() body: unknown, @Req() request: Request) {
     const userId = await this.authSessionService.requireUserId(request);

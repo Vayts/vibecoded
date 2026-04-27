@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
+import type { ProductPreview } from '@acme/shared';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,13 +23,14 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import {
+  useScanBarcodeMutation,
   useCompareProductsMutation,
-  useProductLookupMutation,
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
 import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import { useCompareStore } from '../../stores/compareStore';
+import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
 import type { ScannerRouteMode } from '../../types/scanner';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
@@ -48,9 +50,12 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
-  const lookupMutation = useProductLookupMutation();
+  const barcodeMutation = useScanBarcodeMutation();
   const compareMutation = useCompareProductsMutation();
   const { openLiveComparison } = useOpenComparisonRoute();
+  const startResultSession = useScannerResultSheetStore((s) => s.startSession);
+  const hydrateResultSession = useScannerResultSheetStore((s) => s.hydrateSession);
+  const resetResultSession = useScannerResultSheetStore((s) => s.reset);
 
   const compareSessionSource = useCompareStore((s) => s.compareSessionSource);
   const isCompareMode = useCompareStore((s) => s.isCompareMode);
@@ -188,7 +193,6 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
   const {
     captureAndCompress,
-    capturePhotoPreview,
     isPending: isPhotoPending,
     isPreparing: isPreparingPhoto,
   } = usePhotoCapture(capturePhotoWithCamera);
@@ -270,6 +274,29 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     [isRouteCompareMode, openLiveComparison, resetCompare],
   );
 
+  const beginResultSheetSession = useCallback(
+    (previewProduct?: ProductPreview) => {
+      const sessionId = startResultSession();
+
+      void SheetManager.show(SheetsEnum.ScannerResultSheet, {
+        payload: previewProduct ? { previewProduct } : {},
+        onClose: resumeScanner,
+      });
+
+      return sessionId;
+    },
+    [resumeScanner, startResultSession],
+  );
+
+  const handleResultSheetError = useCallback(
+    async (error: unknown, fallbackMessage: string) => {
+      resetResultSession();
+      await SheetManager.hide(SheetsEnum.ScannerResultSheet);
+      await openScannerErrorSheet(error, fallbackMessage);
+    },
+    [openScannerErrorSheet, resetResultSession],
+  );
+
   const runPhotoCaptureFlow = useCallback(async () => {
     try {
       const compareActive = useCompareStore.getState().isCompareMode;
@@ -303,29 +330,28 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         return;
       }
 
-      const preview = await capturePhotoPreview();
-      if (!preview) {
+      const captured = await captureAndCompress();
+      if (!captured) {
         resumeScanner();
         return;
       }
 
       setIsScannerPaused(true);
-      const productPreview = {
+      const previewProduct: ProductPreview = {
         productId: '',
         barcode: '',
-        product_name: preview.productName,
-        brands: preview.brand,
-        image_url: preview.localImageUri,
+        product_name: null,
+        brands: null,
+        image_url: captured.localUri,
       };
+      const sessionId = beginResultSheetSession(previewProduct);
 
-      await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
-        payload: {
-          product: productPreview,
-          photoUri: preview.photoUri,
-          photoOcr: preview.ocr,
-          onDismiss: resumeScanner,
-        },
-      });
+      try {
+        const result = await submitPhotoScan({ photoUri: captured.uploadUri });
+        hydrateResultSession(sessionId, result);
+      } catch (error) {
+        await handleResultSheetError(error, 'Unable to identify product');
+      }
     } catch (error) {
       if (!useCompareStore.getState().isCompareMode) {
         resetCompare();
@@ -335,8 +361,10 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     }
   }, [
     captureAndCompress,
-    capturePhotoPreview,
+    beginResultSheetSession,
     compareMutation,
+    handleResultSheetError,
+    hydrateResultSession,
     openComparisonResult,
     openScannerErrorSheet,
     resetCompare,
@@ -411,10 +439,20 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           return;
         }
 
-        const lookupResult = await lookupMutation.mutateAsync({ barcode: normalized });
-        await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
-          payload: { product: lookupResult.product, onDismiss: resumeScanner },
+        const sessionId = beginResultSheetSession({
+          productId: '',
+          barcode: normalized,
+          product_name: null,
+          brands: null,
+          image_url: null,
         });
+
+        try {
+          const result = await barcodeMutation.mutateAsync({ barcode: normalized });
+          hydrateResultSession(sessionId, result);
+        } catch (error) {
+          await handleResultSheetError(error, 'Unable to submit barcode');
+        }
       } catch (error) {
         if (!useCompareStore.getState().isCompareMode) {
           resetCompare();
@@ -424,12 +462,14 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       }
     },
     [
+      barcodeMutation,
+      beginResultSheetSession,
       compareMutation,
-      lookupMutation,
+      handleResultSheetError,
+      hydrateResultSession,
       openComparisonResult,
       openScannerErrorSheet,
       resetCompare,
-      resumeScanner,
     ],
   );
 
@@ -476,8 +516,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
   const isProcessing =
     isPhotoPending ||
+    barcodeMutation.isPending ||
     compareMutation.isPending ||
-    lookupMutation.isPending ||
     isResolvingFirstProduct;
 
   const statusMessage = isPhotoPending
@@ -486,10 +526,10 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       : 'Identifying product…'
     : isResolvingFirstProduct
       ? 'Identifying products…'
-      : compareMutation.isPending
-        ? 'Comparing products…'
-        : lookupMutation.isPending
-          ? 'Looking up product…'
+      : barcodeMutation.isPending
+        ? 'Analyzing product…'
+        : compareMutation.isPending
+          ? 'Comparing products…'
           : 'Processing…';
 
   const isPhotoMode = scannerMode === 'photo';
