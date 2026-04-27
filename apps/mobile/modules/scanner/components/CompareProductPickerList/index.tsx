@@ -1,12 +1,14 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import { useCallback, useMemo } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
+import CompareMascot from '../../../../assets/icons/mascot/compare-mascot.svg';
 import { useScanHistoryQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { CompareProductPickerRow } from '../CompareProductPickerRow';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
+import { ScanBarcode } from 'lucide-react-native';
+import { COLORS } from '../../../../shared/constants/colors';
 
 const ITEM_HEIGHT = 84;
 
@@ -18,12 +20,13 @@ interface CompareProductPickerListProps {
   searchQuery: string;
   enabled?: boolean;
   contentPaddingBottom: number;
+  maxHeight?: number;
   onSelectProduct: (item: ScanHistoryItem) => void;
 }
 
 function EmptyState({ searchQuery }: { searchQuery: string }) {
   return (
-    <View className="flex-1 items-center justify-center px-8 py-20">
+    <View className="items-center justify-center px-8 py-12">
       <Typography variant="sectionTitle" className="text-center">
         {searchQuery ? 'No products found' : 'No other products available'}
       </Typography>
@@ -43,7 +46,7 @@ function ListFooter({ isFetchingNextPage }: { isFetchingNextPage: boolean }) {
 
   return (
     <View className="py-4 items-center">
-      <CustomLoader  isReversed size="sm" />
+      <CustomLoader isReversed size="sm" />
     </View>
   );
 }
@@ -53,6 +56,7 @@ export function CompareProductPickerList({
   searchQuery,
   enabled = true,
   contentPaddingBottom,
+  maxHeight,
   onSelectProduct,
 }: CompareProductPickerListProps) {
   const {
@@ -93,7 +97,7 @@ export function CompareProductPickerList({
 
   if (!enabled || isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
+      <View className="items-center justify-center py-8">
         <CustomLoader isReversed size="sm" />
       </View>
     );
@@ -101,7 +105,7 @@ export function CompareProductPickerList({
 
   if (isError) {
     return (
-      <View className="flex-1 items-center justify-center px-8">
+      <View className="items-center justify-center px-8 py-8">
         <Typography variant="sectionTitle" className="text-center">
           Something went wrong
         </Typography>
@@ -115,8 +119,23 @@ export function CompareProductPickerList({
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && searchQuery.length) {
     return <EmptyState searchQuery={searchQuery} />;
+  }
+
+  if (items.length === 0) {
+    return (
+      <View className="mt-4 items-center justify-center px-4 pb-6">
+        <CompareMascot />
+        <Text className="text-center mt-6 text-[18px] font-bold">No other products available</Text>
+        <Typography className="text-center mt-4 px-4">
+          Scan more products to compare this item with something else
+        </Typography>
+        <View className="mt-4 w-full">
+          <Button label={'Scan to Compare'} Icon={<ScanBarcode color={COLORS.white} />} />
+        </View>
+      </View>
+    );
   }
 
   return (
@@ -124,6 +143,7 @@ export function CompareProductPickerList({
       data={items}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <CompareProductPickerRow item={item} onPress={onSelectProduct} />}
+      style={maxHeight ? { maxHeight } : undefined}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       automaticallyAdjustContentInsets={false}
