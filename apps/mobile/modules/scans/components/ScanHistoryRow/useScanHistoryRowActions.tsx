@@ -2,9 +2,10 @@ import type { ScanHistoryItem } from '@acme/shared';
 import { useCallback, useRef, useState } from 'react';
 import type { View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
-import { ArrowLeftRight, Heart, Trash2 } from 'lucide-react-native';
+import { ArrowLeftRight, Camera, Heart, Trash2 } from 'lucide-react-native';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { useStartScanToCompare } from '../../../scanner/hooks/useStartScanToCompare';
 import { useDeleteScanMutation } from '../../hooks/useDeleteScanMutation';
 import type {
   ScanHistoryRowMenuAction,
@@ -28,6 +29,7 @@ export function useScanHistoryRowActions({
   const [isDeleteDialogVisible, setIsDeleteDialogVisible] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<ScanHistoryRowMenuAnchor | null>(null);
+  const startScanToCompare = useStartScanToCompare();
   const productId = item.product?.id ?? null;
   const canCompare = item.type === 'product' && Boolean(item.product?.barcode);
   const canToggleFavourite = Boolean(productId);
@@ -66,6 +68,21 @@ export function useScanHistoryRowActions({
       },
     });
   }, [canCompare, item.product]);
+
+  const handleScanToCompare = useCallback(() => {
+    if (!canCompare || !item.product) {
+      return;
+    }
+
+    startScanToCompare(
+      {
+        barcode: item.product.barcode,
+        productId: item.product.id,
+        productName: item.product.product_name,
+      },
+      { source: 'history-menu' },
+    );
+  }, [canCompare, item.product, startScanToCompare]);
 
   const handleDeletePress = useCallback(() => {
     setDeleteErrorMessage(null);
@@ -117,6 +134,12 @@ export function useScanHistoryRowActions({
             label: 'Compare',
             icon: <ArrowLeftRight size={20} color={COLORS.neutrals700} strokeWidth={1.9} />,
             onPress: handleCompare,
+          },
+          {
+            key: 'scan-to-compare',
+            label: 'Scan to Compare',
+            icon: <Camera size={20} color={COLORS.neutrals700} strokeWidth={1.9} />,
+            onPress: handleScanToCompare,
           },
         ]
       : []),

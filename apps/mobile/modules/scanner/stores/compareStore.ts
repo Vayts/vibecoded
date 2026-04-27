@@ -2,7 +2,7 @@ import type { ProductPreview } from '@acme/shared';
 import { create } from 'zustand';
 import type { PhotoOcrData } from '../types/scanner';
 
-type CompareSessionSource = 'scanner' | 'compare-picker' | null;
+type CompareSessionSource = 'scanner' | 'compare-picker' | 'history-menu' | null;
 
 interface CompareState {
   compareSessionSource: CompareSessionSource;

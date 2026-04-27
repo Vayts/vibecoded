@@ -1,5 +1,4 @@
 import type { ScanHistoryItem } from '@acme/shared';
-import { useRouter } from 'expo-router';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
@@ -11,24 +10,13 @@ import { COLORS } from '../../../../shared/constants/colors';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ScansSearchInput } from '../../../scans/components/ScansSearchInput';
+import { useStartScanToCompare } from '../../hooks/useStartScanToCompare';
 import { useCompareProductsMutation } from '../../hooks/useScannerMutations';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import type { CompareProductPickerSheetPayload } from '../../types/scanner';
-import { useCompareStore } from '../../stores/compareStore';
 import { CompareProductPickerList } from '../CompareProductPickerList';
 
-const mapCompareSourceToPreview = (
-  currentProduct: CompareProductPickerSheetPayload['currentProduct'],
-) => ({
-  productId: currentProduct.productId?.trim() ?? '',
-  barcode: currentProduct.barcode,
-  product_name: currentProduct.productName ?? null,
-  brands: null,
-  image_url: null,
-});
-
 export function CompareProductPickerSheet() {
-  const router = useRouter();
   const payload = useSheetPayload(
     SheetsEnum.CompareProductPickerSheet,
   ) as CompareProductPickerSheetPayload | null;
@@ -44,7 +32,7 @@ export function CompareProductPickerSheet() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isListReady, setIsListReady] = useState(false);
   const isClosingForComparisonRef = useRef(false);
-  const startCompare = useCompareStore((state) => state.startCompare);
+  const startScanToCompare = useStartScanToCompare();
   const deferredSearchQuery = useDeferredValue(searchQuery.trim());
   const debouncedSearchQuery = useDebounce(deferredSearchQuery, 220);
   const currentProduct = payload?.currentProduct;
@@ -126,16 +114,11 @@ export function CompareProductPickerSheet() {
     }
 
     isClosingForComparisonRef.current = true;
-    startCompare(mapCompareSourceToPreview(currentProduct), {
+    await SheetManager.hide(SheetsEnum.CompareProductPickerSheet);
+    startScanToCompare(currentProduct, {
       source: 'compare-picker',
     });
-
-    await SheetManager.hide(SheetsEnum.CompareProductPickerSheet);
-    router.push({
-      pathname: '/scanner',
-      params: { mode: 'compare' },
-    });
-  }, [currentProduct, isPending, router, startCompare]);
+  }, [currentProduct, isPending, startScanToCompare]);
 
   if (!currentProduct) {
     return null;
