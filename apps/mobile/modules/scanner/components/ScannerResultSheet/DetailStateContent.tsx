@@ -1,8 +1,8 @@
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import type { ReactNode } from 'react';
 import { Button } from '../../../../shared/components/Button';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
 
 export interface ProductResultDetailState {
   isLoading: boolean;
@@ -24,10 +24,7 @@ export function DetailStateContent({ detailState, bottomAction }: DetailStateCon
   if (detailState.isLoading) {
     return (
       <View className="items-center justify-center px-6 py-12">
-        <ActivityIndicator color={COLORS.primary} size="large" />
-        <Typography variant="bodySecondary" className="mt-3 text-gray-500">
-          Loading product info…
-        </Typography>
+        <CustomLoader isReversed size="md" />
       </View>
     );
   }

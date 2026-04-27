@@ -1,4 +1,9 @@
-import type { AnalysisJobResponse, BarcodeLookupResponse, ProductPreview, ScanHistoryItem } from '@acme/shared';
+import type {
+  AnalysisJobResponse,
+  BarcodeLookupResponse,
+  ProductPreview,
+  ScanHistoryItem,
+} from '@acme/shared';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
@@ -40,15 +45,21 @@ export function ProductResultContent({
   const successResult = result && hasProductResult(result) ? result : undefined;
   const initialAnalysis = resolvedPersonalResult
     ? resolvedPersonalResult
-    : successResult ? successResult.personalAnalysis : undefined;
+    : successResult
+      ? successResult.personalAnalysis
+      : undefined;
   const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
   const personalData = personalQuery.data ?? initialAnalysis;
   const personalError =
     Boolean(initialAnalysis?.analysisId) &&
-    !personalData?.result && (personalData?.status === 'failed' || personalQuery.isError);
+    !personalData?.result &&
+    (personalData?.status === 'failed' || personalQuery.isError);
   const personalRetry = () => {};
   const previewHistoryProduct = getPreviewHistoryProduct(previewItem);
-  const resolvedScanId = scanId ?? successResult?.scanId ?? (previewItem?.type === 'product' ? previewItem.id : undefined);
+  const resolvedScanId =
+    scanId ??
+    successResult?.scanId ??
+    (previewItem?.type === 'product' ? previewItem.id : undefined);
   const nutriScoreGrade =
     successResult?.product.scores.nutriscore_grade ??
     previewProduct?.nutriscore_grade ??
@@ -60,13 +71,23 @@ export function ProductResultContent({
   }
 
   const product = successResult?.product ?? previewProduct ?? previewHistoryProduct;
-  const resolvedProductId = successResult?.productId ?? previewProduct?.productId ?? previewHistoryProduct?.id;
+  const resolvedProductId =
+    successResult?.productId ?? previewProduct?.productId ?? previewHistoryProduct?.id;
   const resolvedIsFavourite =
     successResult?.isFavourite ??
     (previewItem?.type === 'product' ? previewItem.isFavourite : false) ??
     false;
-  const compareSource = getCompareSource({ product, previewHistoryProduct, previewProduct, successResult });
+  const compareSource = getCompareSource({
+    product,
+    previewHistoryProduct,
+    previewProduct,
+    successResult,
+  });
   const errorBottomAction = resolvedScanId ? <ScanDeleteAction scanId={resolvedScanId} /> : null;
+
+  if (detailState?.isLoading) {
+    return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;
+  }
 
   if (!product) {
     return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;
@@ -96,10 +117,7 @@ export function ProductResultContent({
       contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
     >
       <View>
-        <ProductResultHero
-          nutriScoreGrade={nutriScoreGrade}
-          product={heroProduct}
-        />
+        <ProductResultHero nutriScoreGrade={nutriScoreGrade} product={heroProduct} />
         {detailState?.isLoading || detailState?.isError ? (
           <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />
         ) : (
