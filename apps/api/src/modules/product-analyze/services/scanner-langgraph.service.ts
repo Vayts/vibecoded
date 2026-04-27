@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { Injectable } from '@nestjs/common';
@@ -5,10 +7,18 @@ import type { AnalyzePhotoInput } from '../product-analyze.schemas';
 import { ProductAnalyzeService } from '../product-analyze.service';
 
 type BarcodeScanResult = Awaited<ReturnType<ProductAnalyzeService['scanBarcode']>>;
+type BarcodeResolvedContext = Awaited<
+  ReturnType<ProductAnalyzeService['resolveBarcodeScanContext']>
+>;
 type LookupProductResult = Awaited<ReturnType<ProductAnalyzeService['lookupProduct']>>;
 type CompareProductsResult = Awaited<ReturnType<ProductAnalyzeService['compareProducts']>>;
 type PhotoOcrResult = Awaited<ReturnType<ProductAnalyzeService['extractPhotoOcr']>>;
 type PhotoScanResult = Awaited<ReturnType<ProductAnalyzeService['analyzePhoto']>>;
+type PhotoResolvedContext = Awaited<ReturnType<ProductAnalyzeService['resolvePhotoScanContext']>>;
+type ScannerAnalysisState = Awaited<ReturnType<ProductAnalyzeService['startScannerAnalysis']>>;
+type ScannerProductMetadata = Awaited<
+  ReturnType<ProductAnalyzeService['loadScannerProductMetadata']>
+>;
 
 type FlowConfig<Request> = RunnableConfig<{ flowRequest: Request }>;
 
@@ -24,9 +34,18 @@ const createResultChannel = <Result>() =>
     default: () => null,
   });
 
+const createNullableChannel = <Value>() =>
+  Annotation<Value | null>({
+    reducer: (_current, update) => update,
+    default: () => null,
+  });
+
 const BarcodeScanState = Annotation.Root({
   barcode: Annotation<string>,
   hasUserId: Annotation<boolean>,
+  resolvedContext: createNullableChannel<BarcodeResolvedContext>(),
+  analysisState: createNullableChannel<ScannerAnalysisState>(),
+  metadata: createNullableChannel<ScannerProductMetadata>(),
   result: createResultChannel<BarcodeScanResult>(),
 });
 
@@ -47,6 +66,9 @@ const PhotoOcrState = Annotation.Root({
 
 const PhotoScanState = Annotation.Root({
   hasOcr: Annotation<boolean>,
+  resolvedContext: createNullableChannel<PhotoResolvedContext>(),
+  analysisState: createNullableChannel<ScannerAnalysisState>(),
+  metadata: createNullableChannel<ScannerProductMetadata>(),
   result: createResultChannel<PhotoScanResult>(),
 });
 
@@ -140,14 +162,93 @@ export class ScannerLangGraphService {
 
   private createBarcodeScanGraph() {
     return new StateGraph(BarcodeScanState)
-      .addNode('scan_barcode', async (_state, config) => {
+      .addNode('resolve_barcode_product', async (_state, config) => {
         const request = this.getFlowRequest<BarcodeScanRequest>(config);
         return {
-          result: await this.productAnalyzeService.scanBarcode(request.barcode, request.userId),
+          resolvedContext: await this.productAnalyzeService.resolveBarcodeScanContext(
+            request.barcode,
+          ),
         };
       })
-      .addEdge(START, 'scan_barcode')
-      .addEdge('scan_barcode', END)
+      .addNode('build_barcode_not_found_response', async (state, config) => {
+        const request = this.getFlowRequest<BarcodeScanRequest>(config);
+
+        if (!state.resolvedContext) {
+          throw new Error('Barcode scan flow missing resolved product context');
+        }
+
+        return {
+          result: this.productAnalyzeService.createBarcodeNotFoundResponse(
+            request.barcode,
+            state.resolvedContext.source,
+          ),
+        };
+      })
+      .addNode('start_barcode_analysis', async (state, config) => {
+        const request = this.getFlowRequest<BarcodeScanRequest>(config);
+
+        if (!state.resolvedContext?.product) {
+          throw new Error('Barcode scan flow cannot start analysis without a resolved product');
+        }
+
+        return {
+          analysisState: await this.productAnalyzeService.startScannerAnalysis({
+            product: state.resolvedContext.product,
+            productId: state.resolvedContext.productId,
+            userId: request.userId,
+            scanSource: 'barcode',
+          }),
+        };
+      })
+      .addNode('load_barcode_metadata', async (state, config) => {
+        const request = this.getFlowRequest<BarcodeScanRequest>(config);
+
+        if (!state.resolvedContext?.product) {
+          throw new Error('Barcode scan flow cannot load metadata without a resolved product');
+        }
+
+        return {
+          metadata: await this.productAnalyzeService.loadScannerProductMetadata({
+            barcode: state.resolvedContext.product.code,
+            productId: state.resolvedContext.productId,
+            userId: request.userId,
+          }),
+        };
+      })
+      .addNode('build_barcode_success_response', async (state, config) => {
+        const request = this.getFlowRequest<BarcodeScanRequest>(config);
+
+        if (!state.resolvedContext?.product || !state.analysisState) {
+          throw new Error(
+            'Barcode scan flow cannot build a success response without analysis data',
+          );
+        }
+
+        return {
+          result: this.productAnalyzeService.buildScannerSuccessResponse({
+            analysis: state.analysisState.analysis,
+            barcode: request.barcode,
+            product: state.resolvedContext.product,
+            productId: state.resolvedContext.productId,
+            scanId: state.analysisState.scanId,
+            source: state.resolvedContext.source,
+            dietCompatibility:
+              state.metadata?.dietCompatibility ??
+              state.analysisState.analysis.result?.productFacts.dietCompatibility,
+            isFavourite: state.metadata?.isFavourite,
+          }),
+        };
+      })
+      .addEdge(START, 'resolve_barcode_product')
+      .addConditionalEdges('resolve_barcode_product', (state) =>
+        state.resolvedContext?.product
+          ? 'start_barcode_analysis'
+          : 'build_barcode_not_found_response',
+      )
+      .addEdge('start_barcode_analysis', 'load_barcode_metadata')
+      .addEdge('load_barcode_metadata', 'build_barcode_success_response')
+      .addEdge('build_barcode_not_found_response', END)
+      .addEdge('build_barcode_success_response', END)
       .compile({ name: 'scanner.barcode_scan' });
   }
 
@@ -192,12 +293,68 @@ export class ScannerLangGraphService {
 
   private createPhotoScanGraph() {
     return new StateGraph(PhotoScanState)
-      .addNode('photo_scan', async (_state, config) => {
+      .addNode('resolve_photo_product', async (_state, config) => {
         const request = this.getFlowRequest<PhotoScanRequest>(config);
-        return { result: await this.productAnalyzeService.analyzePhoto(request.input) };
+        return {
+          resolvedContext: await this.productAnalyzeService.resolvePhotoScanContext(request.input),
+        };
       })
-      .addEdge(START, 'photo_scan')
-      .addEdge('photo_scan', END)
+      .addNode('start_photo_analysis', async (state, config) => {
+        const request = this.getFlowRequest<PhotoScanRequest>(config);
+
+        if (!state.resolvedContext) {
+          throw new Error('Photo scan flow cannot start analysis without a resolved product');
+        }
+
+        return {
+          analysisState: await this.productAnalyzeService.startScannerAnalysis({
+            product: state.resolvedContext.product,
+            productId: state.resolvedContext.productId,
+            userId: request.input.userId,
+            scanSource: 'photo',
+          }),
+        };
+      })
+      .addNode('load_photo_metadata', async (state, config) => {
+        const request = this.getFlowRequest<PhotoScanRequest>(config);
+
+        if (!state.resolvedContext) {
+          throw new Error('Photo scan flow cannot load metadata without a resolved product');
+        }
+
+        return {
+          metadata: await this.productAnalyzeService.loadScannerProductMetadata({
+            barcode: state.resolvedContext.product.code,
+            productId: state.resolvedContext.productId,
+            userId: request.input.userId,
+          }),
+        };
+      })
+      .addNode('build_photo_success_response', async (state) => {
+        if (!state.resolvedContext || !state.analysisState) {
+          throw new Error('Photo scan flow cannot build a success response without analysis data');
+        }
+
+        return {
+          result: this.productAnalyzeService.buildScannerSuccessResponse({
+            analysis: state.analysisState.analysis,
+            barcode: state.resolvedContext.product.code,
+            product: state.resolvedContext.product,
+            productId: state.resolvedContext.productId,
+            scanId: state.analysisState.scanId,
+            source: 'photo',
+            dietCompatibility:
+              state.metadata?.dietCompatibility ??
+              state.analysisState.analysis.result?.productFacts.dietCompatibility,
+            isFavourite: state.metadata?.isFavourite,
+          }),
+        };
+      })
+      .addEdge(START, 'resolve_photo_product')
+      .addEdge('resolve_photo_product', 'start_photo_analysis')
+      .addEdge('start_photo_analysis', 'load_photo_metadata')
+      .addEdge('load_photo_metadata', 'build_photo_success_response')
+      .addEdge('build_photo_success_response', END)
       .compile({ name: 'scanner.photo_scan' });
   }
 
