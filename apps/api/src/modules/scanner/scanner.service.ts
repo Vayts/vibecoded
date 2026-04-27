@@ -6,12 +6,12 @@ import type {
 } from '@acme/shared';
 import { barcodeLookupRequestSchema, compareProductsRequestSchema } from './scanner.schemas';
 import { ApiError } from '../../shared/errors/api-error';
-import { ScannerLangGraphService } from '../product-analyze/services/scanner-langgraph.service';
+import { ProductAnalyzeService } from '../product-analyze/product-analyze.service';
 import { getValidationErrorMessage } from './utils/scanner-validation.util';
 
 @Injectable()
 export class ScannerService {
-  constructor(private readonly scannerLangGraphService: ScannerLangGraphService) {}
+  constructor(private readonly productAnalyzeService: ProductAnalyzeService) {}
 
   async submitBarcodeScan(body: unknown, userId?: string): Promise<BarcodeLookupResponse> {
     const parsed = barcodeLookupRequestSchema.safeParse(body);
@@ -20,7 +20,7 @@ export class ScannerService {
       throw ApiError.badRequest(getValidationErrorMessage(parsed.error, 'Invalid barcode payload'));
     }
 
-    return this.scannerLangGraphService.scanBarcode(parsed.data.barcode, userId);
+    return this.productAnalyzeService.scanBarcode(parsed.data.barcode, userId);
   }
 
   async compareProducts(body: unknown, userId: string): Promise<ProductComparisonResult> {
@@ -33,6 +33,6 @@ export class ScannerService {
     }
 
     const request: CompareProductsRequest = parsed.data;
-    return this.scannerLangGraphService.compareProducts(request.barcode1, request.barcode2, userId);
+    return this.productAnalyzeService.compareProducts(request.barcode1, request.barcode2, userId);
   }
 }

@@ -3,7 +3,7 @@ import type { BarcodeLookupSuccessResponse } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { MAX_PHOTO_BASE64_SIZE } from '../product-analyze/product-analyze.constants';
 import { photoOcrPayloadSchema } from '../product-analyze/product-analyze.schemas';
-import { ScannerLangGraphService } from '../product-analyze/services/scanner-langgraph.service';
+import { ProductAnalyzeService } from '../product-analyze/product-analyze.service';
 import {
   IMAGE_TOO_LARGE_ERROR,
   INVALID_OCR_FIELD_ERROR,
@@ -15,7 +15,7 @@ import { toRawPhotoBody } from './utils/scanner-photo-request.util';
 
 @Injectable()
 export class ScannerPhotoService {
-  constructor(private readonly scannerLangGraphService: ScannerLangGraphService) {}
+  constructor(private readonly productAnalyzeService: ProductAnalyzeService) {}
 
   async submitPhotoScan(
     body: unknown,
@@ -24,7 +24,7 @@ export class ScannerPhotoService {
   ): Promise<BarcodeLookupSuccessResponse & { photoImagePath?: string }> {
     const request = this.parsePhotoScanRequest(body, file);
 
-    return this.scannerLangGraphService.analyzePhoto({
+    return this.productAnalyzeService.analyzePhoto({
       imageBase64: request.imageBase64,
       userId,
       ocr: request.ocr ?? undefined,

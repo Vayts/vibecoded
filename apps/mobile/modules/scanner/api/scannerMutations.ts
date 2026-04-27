@@ -38,7 +38,11 @@ const throwScannerApiError = async (
   fallbackMessage: string,
 ): Promise<never> => {
   const payload = await getErrorPayload(response);
-  throw new ScannerApiError(payload?.error ?? fallbackMessage, payload?.code, response.status);
+  throw new ScannerApiError(
+    payload?.error ?? fallbackMessage,
+    payload?.code,
+    response.status,
+  );
 };
 
 export const submitBarcodeScan = async (

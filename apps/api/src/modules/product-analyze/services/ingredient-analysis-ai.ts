@@ -1,7 +1,9 @@
 import type { NormalizedProduct, IngredientAnalysis, OnboardingResponse } from '@acme/shared';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { AI_MODELS } from '../constants/models';
+import { withRunnableConfig } from '../utils/runnable-config.util';
 
 const SINGLE_PROFILE_ID = '__single_profile__';
 
@@ -61,6 +63,7 @@ type IngredientBatchAnalysisOutput = z.infer<typeof ingredientBatchAnalysisOutpu
 interface StructuredIngredientAnalysisRunner {
   invoke(
     messages: Array<{ role: string; content: string }>,
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<IngredientBatchAnalysisOutput>;
 }
 
@@ -227,6 +230,7 @@ OUTPUT:
 export async function analyzeIngredientsForProfiles(
   product: NormalizedProduct,
   profiles: IngredientAnalysisProfileInput[],
+  config?: RunnableConfig<Record<string, unknown>>,
 ): Promise<Map<string, IngredientAnalysis | null>> {
   const ingredientsText = buildIngredientsText(product);
   const emptyResults = new Map(profiles.map((profile) => [profile.profileId, null] as const));
@@ -264,7 +268,15 @@ ${buildProfilesText(profiles)}`;
     const raw = await structured.invoke([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt },
-    ]);
+    ], withRunnableConfig(config, {
+      runName: 'scanner.ingredient_analysis',
+      tags: ['scanner', 'ingredient_analysis', 'ai'],
+      metadata: {
+        barcode: product.code,
+        productName: product.product_name ?? null,
+        profilesCount: profiles.length,
+      },
+    }));
     const result = ingredientBatchAnalysisOutputSchema.parse(raw);
     const resultsByProfileId = new Map(
       result.profiles.map((profileResult) => [

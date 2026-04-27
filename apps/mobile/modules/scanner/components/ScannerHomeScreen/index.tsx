@@ -489,6 +489,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       }
     }
 
+    console.log('Barcode scanned:', data);
+
     await submitBarcode(data);
   };
 
@@ -528,9 +530,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       ? 'Identifying products…'
       : barcodeMutation.isPending
         ? 'Analyzing product…'
-        : compareMutation.isPending
-          ? 'Comparing products…'
-          : 'Processing…';
+      : compareMutation.isPending
+        ? 'Comparing products…'
+        : 'Processing…';
 
   const isPhotoMode = scannerMode === 'photo';
   const isAppActive = appState === 'active';

@@ -114,10 +114,12 @@ export function CompareProductPickerSheet() {
     }
 
     isClosingForComparisonRef.current = true;
-    await SheetManager.hide(SheetsEnum.CompareProductPickerSheet);
     startScanToCompare(currentProduct, {
       source: 'compare-picker',
     });
+    setImmediate(async () => {
+      SheetManager.hideAll();
+    })
   }, [currentProduct, isPending, startScanToCompare]);
 
   if (!currentProduct) {

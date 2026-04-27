@@ -1,6 +1,5 @@
-/* eslint-disable max-lines */
-
 import { Injectable } from '@nestjs/common';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import type {
   AnalysisJobResponse,
   BarcodeLookupNotFoundResponse,
@@ -154,13 +153,16 @@ export class ProductAnalyzeService {
     };
   }
 
-  async startScannerAnalysis(input: {
-    product: NormalizedProduct;
-    productId?: string;
-    userId?: string;
-    scanSource: 'barcode' | 'photo';
-  }): Promise<{ analysis: AnalysisJobResponse; scanId?: string }> {
-    return this.analysisOrchestrator.startAnalysis(input);
+  async startScannerAnalysis(
+    input: {
+      product: NormalizedProduct;
+      productId?: string;
+      userId?: string;
+      scanSource: 'barcode' | 'photo';
+    },
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<{ analysis: AnalysisJobResponse; scanId?: string }> {
+    return this.analysisOrchestrator.startAnalysis(input, config);
   }
 
   async loadScannerProductMetadata(input: {
@@ -254,6 +256,8 @@ export class ProductAnalyzeService {
     barcode: string,
     userId?: string,
   ): Promise<BarcodeLookupSuccessResponse | BarcodeLookupNotFoundResponse> {
+    console.log(barcode);
+
     const resolvedContext = await this.resolveBarcodeScanContext(barcode);
 
     if (!resolvedContext.product) {

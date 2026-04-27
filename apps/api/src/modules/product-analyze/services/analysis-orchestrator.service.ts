@@ -1,6 +1,7 @@
 /* eslint-disable max-lines */
 
 import type { AnalysisJobResponse, NormalizedProduct, ProductAnalysisResult } from '@acme/shared';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { Injectable } from '@nestjs/common';
 import type { ScanSource } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -42,7 +43,10 @@ export class AnalysisOrchestratorService {
     private readonly analysisGateway: AnalysisGateway,
   ) {}
 
-  async startAnalysis(input: StartAnalysisInput): Promise<StartAnalysisResult> {
+  async startAnalysis(
+    input: StartAnalysisInput,
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<StartAnalysisResult> {
     const cacheBoundary = input.userId ? await getAnalysisCacheBoundaryForUser(input.userId) : null;
     const existingScan =
       input.userId && cacheBoundary
@@ -76,6 +80,7 @@ export class AnalysisOrchestratorService {
         analysisId,
         ingredientStatus,
         input,
+        config,
       });
     }
 
@@ -111,6 +116,7 @@ export class AnalysisOrchestratorService {
     analysisId: string;
     ingredientStatus: IngredientStatus;
     input: StartAnalysisInput;
+    config?: RunnableConfig<Record<string, unknown>>;
   }): Promise<StartAnalysisResult> {
     const { analysisId, ingredientStatus } = input;
 
@@ -120,6 +126,7 @@ export class AnalysisOrchestratorService {
           input.input.product,
           input.input.userId,
           input.input.productId,
+          input.config,
         );
 
       if (ingredientStatus === 'completed') {

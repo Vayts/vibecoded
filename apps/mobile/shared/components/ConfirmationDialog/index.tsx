@@ -1,4 +1,5 @@
 import { ActivityIndicator, Modal, Pressable, TouchableOpacity, View, Text } from 'react-native';
+import LogoutMascot from '../../../assets/icons/mascot/logout-mascot.svg';
 
 import { COLORS } from '../../constants/colors';
 import { Typography } from '../Typography';
@@ -33,22 +34,20 @@ export function ConfirmationDialog({
       visible={visible}
       onRequestClose={isPending ? undefined : onCancel}
     >
-      <View className="flex-1 items-center justify-center px-4" style={{ backgroundColor: COLORS.overlay }}>
-        <Pressable
-          className="absolute inset-0"
-          disabled={isPending}
-          onPress={onCancel}
-        />
+      <View
+        className="flex-1 items-center justify-center px-4"
+        style={{ backgroundColor: COLORS.overlay }}
+      >
+        <Pressable className="absolute inset-0" disabled={isPending} onPress={onCancel} />
 
         <View className="w-full max-w-[500px] rounded-[28px] bg-white px-6 pb-6 pt-6">
-          <Text className="text-[16px] font-bold text-center text-neutrals-900">
-            {title}
-          </Text>
+          <View className="justify-center items-center mb-6">
+            <LogoutMascot />
+          </View>
 
-          <Typography
-            variant="body"
-            className="mt-2 mb-4 text-center leading-7 text-neutrals-700"
-          >
+          <Text className="text-[16px] font-bold text-center text-neutrals-900">{title}</Text>
+
+          <Typography variant="body" className="mt-2 mb-4 text-center leading-7 text-neutrals-700">
             {description}
           </Typography>
 

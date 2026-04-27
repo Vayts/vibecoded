@@ -4,10 +4,12 @@ import type {
   OnboardingResponse,
   ProfileProductScore,
 } from '@acme/shared';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 
 import { AI_MODELS } from '../constants/models';
+import { withRunnableConfig } from '../utils/runnable-config.util';
 
 export interface ProfileFitSummaryInput {
   onboarding: OnboardingResponse;
@@ -31,7 +33,10 @@ const summaryBatchOutputSchema = z.object({
 type SummaryBatchOutput = z.infer<typeof summaryBatchOutputSchema>;
 
 interface StructuredSummaryRunner {
-  invoke(messages: Array<{ role: string; content: string }>): Promise<SummaryBatchOutput>;
+  invoke(
+    messages: Array<{ role: string; content: string }>,
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<SummaryBatchOutput>;
 }
 
 interface StructuredSummaryModel {
@@ -224,7 +229,9 @@ ${neutrals.length > 0 ? neutrals.map((reason) => `- ${stripTrailingPunctuation(r
 export async function generateProfileFitSummaries(input: {
   product: NormalizedProduct;
   profiles: ProfileFitSummaryInput[];
-}): Promise<Map<string, string>> {
+},
+config?: RunnableConfig<Record<string, unknown>>,
+): Promise<Map<string, string>> {
   const fallbackSummaries = new Map(
     input.profiles.map(
       (profile) =>
@@ -260,7 +267,15 @@ ${input.profiles.map((profile, index) => buildSummaryPromptSection(profile, inde
     const raw = await structured.invoke([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt },
-    ]);
+    ], withRunnableConfig(config, {
+      runName: 'scanner.profile_fit_summaries',
+      tags: ['scanner', 'profile_fit_summaries', 'ai'],
+      metadata: {
+        barcode: input.product.code,
+        productName: input.product.product_name ?? null,
+        profilesCount: input.profiles.length,
+      },
+    }));
 
     const parsed = summaryBatchOutputSchema.parse(raw);
     const summariesByProfileId = new Map(
