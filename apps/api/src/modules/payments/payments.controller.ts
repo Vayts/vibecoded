@@ -31,4 +31,3 @@ export class PaymentsController {
     return result;
   }
 }
-

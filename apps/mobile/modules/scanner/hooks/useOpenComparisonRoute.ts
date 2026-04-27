@@ -16,6 +16,7 @@ interface ComparisonRouteParams {
 
 interface ComparisonNavigationOptions {
   closeScannerResultSheet?: boolean;
+  replaceCurrentRoute?: boolean;
 }
 
 export function useOpenComparisonRoute() {
@@ -35,7 +36,7 @@ export function useOpenComparisonRoute() {
           ? (`${COMPARISON_PATH}?scanId=${encodeURIComponent(params.scanId)}` as Href)
           : COMPARISON_PATH;
 
-      if (pathname === COMPARISON_PATH) {
+      if (pathname === COMPARISON_PATH || options?.replaceCurrentRoute) {
         router.replace(href);
       } else {
         router.push(href);
@@ -69,9 +70,9 @@ export function useOpenComparisonRoute() {
   );
 
   const openLiveComparison = useCallback(
-    (result: ProductComparisonResult) => {
+    (result: ProductComparisonResult, options?: ComparisonNavigationOptions) => {
       setLiveResult(result);
-      navigateToComparison();
+      navigateToComparison(undefined, options);
     },
     [navigateToComparison, setLiveResult],
   );

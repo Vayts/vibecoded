@@ -83,7 +83,11 @@ export function ProductDecisionSheet() {
   const handleCompare = async () => {
     actionTakenRef.current = true;
     // Store product + photo URI (if photo) for deferred resolution when second product is scanned
-    startCompare(product, photoUri, photoOcr);
+    startCompare(product, {
+      photoUri,
+      photoOcr,
+      source: 'scanner',
+    });
     await SheetManager.hide(SheetsEnum.ProductDecisionSheet);
     onDismiss?.();
   };

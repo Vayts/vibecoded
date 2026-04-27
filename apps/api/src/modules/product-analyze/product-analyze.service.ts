@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import type {
+  AnalysisJobResponse,
   BarcodeLookupNotFoundResponse,
   BarcodeLookupSuccessResponse,
+  DietCompatibility,
   NormalizedProduct,
   ProductComparisonResult,
+  ScannerLookupSource,
 } from '@acme/shared';
 import { compareProductsForProfiles, SameProductComparisonError } from './services/comparison-ai';
 import { isFoodProduct } from './services/is-food-product';
@@ -41,6 +45,22 @@ import { attachPhotoImagePath } from './utils/attach-photo-image-path';
 const SAME_PRODUCT_ERROR_CODE = 'SAME_PRODUCT';
 const SAME_PRODUCT_ERROR_MESSAGE =
   'You scanned the same product twice. Scan a different product to compare.';
+
+interface ScannerProductMetadata {
+  dietCompatibility?: DietCompatibility;
+  isFavourite?: boolean;
+}
+
+interface ResolvedBarcodeScanContext {
+  product: NormalizedProduct | null;
+  productId?: string;
+  source: ScannerLookupSource;
+}
+
+interface ResolvedPhotoScanContext {
+  product: NormalizedProduct;
+  productId?: string;
+}
 
 @Injectable()
 export class ProductAnalyzeService {
@@ -114,57 +134,161 @@ export class ProductAnalyzeService {
     };
   }
 
+  async resolveBarcodeScanContext(barcode: string): Promise<ResolvedBarcodeScanContext> {
+    const resolvedProduct = await this.resolveNormalizedProductByBarcode(barcode);
+
+    if (!resolvedProduct.product) {
+      return {
+        product: null,
+        source: resolvedProduct.source,
+      };
+    }
+
+    const productId = await findProductIdByBarcode(resolvedProduct.product.code);
+
+    return {
+      product: resolvedProduct.product,
+      productId: productId ?? undefined,
+      source: resolvedProduct.source,
+    };
+  }
+
+  async startScannerAnalysis(
+    input: {
+      product: NormalizedProduct;
+      productId?: string;
+      userId?: string;
+      scanSource: 'barcode' | 'photo';
+    },
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<{ analysis: AnalysisJobResponse; scanId?: string }> {
+    return this.analysisOrchestrator.startAnalysis(input, config);
+  }
+
+  async loadScannerProductMetadata(input: {
+    barcode: string;
+    productId?: string;
+    userId?: string;
+  }): Promise<ScannerProductMetadata> {
+    const [classification, isFavourite] = await Promise.all([
+      findProductClassificationCache({
+        productId: input.productId,
+        barcode: input.barcode,
+      }),
+      input.userId ? isFavouriteByBarcode(input.userId, input.barcode) : Promise.resolve(undefined),
+    ]);
+
+    return {
+      dietCompatibility: classification?.dietCompatibility,
+      isFavourite,
+    };
+  }
+
+  buildScannerSuccessResponse(input: {
+    analysis: AnalysisJobResponse;
+    barcode: string;
+    isFavourite?: boolean;
+    product: NormalizedProduct;
+    productId?: string;
+    scanId?: string;
+    source: ScannerLookupSource;
+    dietCompatibility?: DietCompatibility;
+  }): BarcodeLookupSuccessResponse {
+    return {
+      success: true,
+      barcode: input.barcode,
+      source: input.source,
+      product: toBarcodeLookupProduct(input.product, input.dietCompatibility),
+      personalAnalysis: input.analysis,
+      scanId: input.scanId,
+      productId: input.productId,
+      ...(typeof input.isFavourite === 'boolean' ? { isFavourite: input.isFavourite } : {}),
+    };
+  }
+
+  createBarcodeNotFoundResponse(
+    barcode: string,
+    source: ScannerLookupSource,
+  ): BarcodeLookupNotFoundResponse {
+    return createNotFoundResponse(barcode, source);
+  }
+
+  async resolvePhotoScanContext(input: AnalyzePhotoInput): Promise<ResolvedPhotoScanContext> {
+    const ocr = input.ocr ?? (await extractTextFromPhoto(input.imageBase64));
+
+    if (!ocr) {
+      throw ApiError.unprocessable('Could not read text from photo', 'OCR_FAILED');
+    }
+
+    if (!ocr.isFoodProduct) {
+      throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
+    }
+
+    const identification = await identifyProductByPhoto(input.imageBase64, ocr);
+
+    if (!identification) {
+      throw ApiError.notFound('Could not identify product from photo', 'PRODUCT_NOT_FOUND');
+    }
+
+    if (!isFoodProduct(identification.product)) {
+      throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
+    }
+
+    let savedProduct = identification.product;
+    let productId = await findProductIdByBarcode(savedProduct.code);
+
+    if (!productId) {
+      savedProduct = await createProduct(savedProduct);
+      productId = await findProductIdByBarcode(savedProduct.code);
+    }
+
+    if (identification.shouldUploadPhoto) {
+      this.syncPhotoImageInBackground(input.imageBase64, savedProduct);
+    }
+
+    return {
+      product: savedProduct,
+      productId: productId ?? undefined,
+    };
+  }
+
   async scanBarcode(
     barcode: string,
     userId?: string,
   ): Promise<BarcodeLookupSuccessResponse | BarcodeLookupNotFoundResponse> {
-    const resolvedProduct = await this.resolveNormalizedProductByBarcode(barcode);
+    console.log(barcode);
 
-    if (!resolvedProduct.product) {
-      return createNotFoundResponse(barcode, resolvedProduct.source);
+    const resolvedContext = await this.resolveBarcodeScanContext(barcode);
+
+    if (!resolvedContext.product) {
+      return this.createBarcodeNotFoundResponse(barcode, resolvedContext.source);
     }
 
-    const productId = await findProductIdByBarcode(resolvedProduct.product.code);
-    const [analysisState, isFavourite, classification] = await Promise.all([
-      this.analysisOrchestrator.startAnalysis({
-        product: resolvedProduct.product,
-        productId: productId ?? undefined,
+    const [analysisState, metadata] = await Promise.all([
+      this.startScannerAnalysis({
+        product: resolvedContext.product,
+        productId: resolvedContext.productId,
         userId,
         scanSource: 'barcode',
       }),
-      userId
-        ? isFavouriteByBarcode(userId, resolvedProduct.product.code)
-        : Promise.resolve(undefined),
-      findProductClassificationCache({
-        productId: productId ?? undefined,
-        barcode: resolvedProduct.product.code,
+      this.loadScannerProductMetadata({
+        barcode: resolvedContext.product.code,
+        productId: resolvedContext.productId,
+        userId,
       }),
     ]);
 
-    const response = {
-      success: true as const,
+    return this.buildScannerSuccessResponse({
+      analysis: analysisState.analysis,
       barcode,
-      source: resolvedProduct.source,
-      product: toBarcodeLookupProduct(
-        resolvedProduct.product,
-        classification?.dietCompatibility ??
-          analysisState.analysis.result?.productFacts.dietCompatibility,
-      ),
-      personalAnalysis: analysisState.analysis,
+      product: resolvedContext.product,
+      productId: resolvedContext.productId,
       scanId: analysisState.scanId,
-      productId: productId ?? undefined,
-    };
-
-    if (userId) {
-      return {
-        ...response,
-        isFavourite,
-      };
-    }
-
-    return {
-      ...response,
-    };
+      source: resolvedContext.source,
+      dietCompatibility:
+        metadata.dietCompatibility ?? analysisState.analysis.result?.productFacts.dietCompatibility,
+      isFavourite: metadata.isFavourite,
+    });
   }
 
   async lookupProduct(
@@ -299,67 +423,34 @@ export class ProductAnalyzeService {
   async analyzePhoto(
     input: AnalyzePhotoInput,
   ): Promise<BarcodeLookupSuccessResponse & { photoImagePath?: string }> {
-    const ocr = input.ocr ?? (await extractTextFromPhoto(input.imageBase64));
-
-    if (!ocr) {
-      throw ApiError.unprocessable('Could not read text from photo', 'OCR_FAILED');
-    }
-
-    if (!ocr.isFoodProduct) {
-      throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
-    }
-
     try {
-      const identification = await identifyProductByPhoto(input.imageBase64, ocr);
-
-      if (!identification) {
-        throw ApiError.notFound('Could not identify product from photo', 'PRODUCT_NOT_FOUND');
-      }
-
-      if (!isFoodProduct(identification.product)) {
-        throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
-      }
-
-      let savedProduct = identification.product;
-      let productId = await findProductIdByBarcode(savedProduct.code);
-
-      if (!productId) {
-        savedProduct = await createProduct(savedProduct);
-        productId = await findProductIdByBarcode(savedProduct.code);
-      }
-
-      if (identification.shouldUploadPhoto) {
-        this.syncPhotoImageInBackground(input.imageBase64, savedProduct);
-      }
-
-      const [analysisState, isFavourite, classification] = await Promise.all([
-        this.analysisOrchestrator.startAnalysis({
-          product: savedProduct,
-          productId: productId ?? undefined,
+      const resolvedContext = await this.resolvePhotoScanContext(input);
+      const [analysisState, metadata] = await Promise.all([
+        this.startScannerAnalysis({
+          product: resolvedContext.product,
+          productId: resolvedContext.productId,
           userId: input.userId,
           scanSource: 'photo',
         }),
-        isFavouriteByBarcode(input.userId, savedProduct.code),
-        findProductClassificationCache({
-          productId: productId ?? undefined,
-          barcode: savedProduct.code,
+        this.loadScannerProductMetadata({
+          barcode: resolvedContext.product.code,
+          productId: resolvedContext.productId,
+          userId: input.userId,
         }),
       ]);
 
-      return {
-        success: true,
-        barcode: savedProduct.code,
-        source: 'photo',
-        product: toBarcodeLookupProduct(
-          savedProduct,
-          classification?.dietCompatibility ??
-            analysisState.analysis.result?.productFacts.dietCompatibility,
-        ),
-        personalAnalysis: analysisState.analysis,
+      return this.buildScannerSuccessResponse({
+        analysis: analysisState.analysis,
+        barcode: resolvedContext.product.code,
+        product: resolvedContext.product,
+        productId: resolvedContext.productId,
         scanId: analysisState.scanId,
-        isFavourite,
-        productId: productId ?? undefined,
-      };
+        source: 'photo',
+        dietCompatibility:
+          metadata.dietCompatibility ??
+          analysisState.analysis.result?.productFacts.dietCompatibility,
+        isFavourite: metadata.isFavourite,
+      });
     } catch (error) {
       if (error instanceof PhotoIdentificationError) {
         throw ApiError.unprocessable(error.message, error.code);

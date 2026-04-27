@@ -1,16 +1,12 @@
 import {
   barcodeLookupRequestSchema,
   barcodeLookupResponseSchema,
-  productLookupRequestSchema,
-  productLookupResponseSchema,
   compareProductsRequestSchema,
   compareProductsResponseSchema,
   barcodeLookupSuccessResponseSchema,
   type BarcodeLookupRequest,
   type BarcodeLookupResponse,
   type BarcodeLookupSuccessResponse,
-  type ProductLookupRequest,
-  type ProductLookupResponse,
   type CompareProductsRequest,
   type CompareProductsResponse,
 } from '@acme/shared';
@@ -66,23 +62,6 @@ export const submitBarcodeScan = async (
   return barcodeLookupResponseSchema.parse(json);
 };
 
-export const lookupProduct = async (
-  payload: ProductLookupRequest,
-): Promise<ProductLookupResponse> => {
-  const parsedPayload = productLookupRequestSchema.parse(payload);
-  const response = await apiFetch('/api/scanner/lookup', {
-    method: 'POST',
-    body: JSON.stringify(parsedPayload),
-  });
-
-  if (!response.ok) {
-    await throwScannerApiError(response, 'Unable to look up product');
-  }
-
-  const json = await response.json();
-  return productLookupResponseSchema.parse(json);
-};
-
 export const compareProducts = async (
   payload: CompareProductsRequest,
 ): Promise<CompareProductsResponse> => {
@@ -105,8 +84,6 @@ export interface PhotoScanRequest {
   ocr?: PhotoOcrData;
 }
 
-export type PhotoOcrResponse = PhotoOcrData;
-
 interface ReactNativeFile {
   uri: string;
   name: string;
@@ -128,21 +105,6 @@ const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
   }
 
   return formData;
-};
-
-export const submitPhotoOcr = async (
-  payload: PhotoScanRequest,
-): Promise<PhotoOcrResponse> => {
-  const response = await apiFetch('/api/scanner/photo/ocr', {
-    method: 'POST',
-    body: buildPhotoFormData(payload),
-  });
-
-  if (!response.ok) {
-    await throwScannerApiError(response, 'Unable to read product from photo');
-  }
-
-  return (await response.json()) as PhotoOcrResponse;
 };
 
 export const submitPhotoScan = async (

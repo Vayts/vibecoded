@@ -64,7 +64,7 @@ export function ComparisonResultContent({
     <View className="flex-1 bg-background">
       <ScreenSheet>
         <ScrollView
-          contentContainerStyle={{ paddingTop: 24 }}
+          contentContainerStyle={{ paddingTop: chipItems?.length > 1 ? 24 : 12 }}
           showsVerticalScrollIndicator={false}
         >
           <ComparisonProfileSelector
@@ -72,7 +72,7 @@ export function ComparisonResultContent({
             selectedProfileId={selectedProfileId}
             onSelect={onSelectProfile}
           />
-          <View className="mt-6 px-4 pb-4">
+          <View className="mt-2 px-4 pb-4">
             {activeProfile ? (
               <View>
                 <View className="relative flex-row gap-4">
@@ -99,13 +99,33 @@ export function ComparisonResultContent({
 
                   <ComparisonProductCard
                     product={leftProduct}
-                    tone={isNoMatch ? 'not-suitable' : bestProductKey === leftProductKey ? 'winner' : 'neutral'}
-                    badgeLabel={isNoMatch ? undefined : getProductStatusLabel(leftProductKey, outcome, bestProductKey)}
+                    tone={
+                      isNoMatch
+                        ? 'not-suitable'
+                        : bestProductKey === leftProductKey
+                          ? 'winner'
+                          : 'neutral'
+                    }
+                    badgeLabel={
+                      isNoMatch
+                        ? undefined
+                        : getProductStatusLabel(leftProductKey, outcome, bestProductKey)
+                    }
                   />
                   <ComparisonProductCard
                     product={rightProduct}
-                    tone={isNoMatch ? 'not-suitable' : bestProductKey === rightProductKey ? 'winner' : 'neutral'}
-                    badgeLabel={isNoMatch ? undefined : getProductStatusLabel(rightProductKey, outcome, bestProductKey)}
+                    tone={
+                      isNoMatch
+                        ? 'not-suitable'
+                        : bestProductKey === rightProductKey
+                          ? 'winner'
+                          : 'neutral'
+                    }
+                    badgeLabel={
+                      isNoMatch
+                        ? undefined
+                        : getProductStatusLabel(rightProductKey, outcome, bestProductKey)
+                    }
                   />
 
                   <TouchableOpacity
@@ -136,8 +156,14 @@ export function ComparisonResultContent({
                   profile={activeProfile}
                 />
                 <ComparisonNutritionTable
-                  leftProduct={{ brand: leftProduct.brands, title: getProductDisplayName(leftProduct) }}
-                  rightProduct={{ brand: rightProduct.brands, title: getProductDisplayName(rightProduct) }}
+                  leftProduct={{
+                    brand: leftProduct.brands,
+                    title: getProductDisplayName(leftProduct),
+                  }}
+                  rightProduct={{
+                    brand: rightProduct.brands,
+                    title: getProductDisplayName(rightProduct),
+                  }}
                   rows={displayRows}
                 />
               </View>
@@ -149,7 +175,10 @@ export function ComparisonResultContent({
               </View>
             )}
           </View>
-          <View className="pt-4 border-t border-neutrals-200 bg-background px-4" style={{ paddingBottom: insetsBottom + 48 }}>
+          <View
+            className="pt-4 border-t border-neutrals-200 bg-background px-4"
+            style={{ paddingBottom: insetsBottom + 48 }}
+          >
             <Typography variant="sectionTitle">Options</Typography>
             {bottomAction}
           </View>

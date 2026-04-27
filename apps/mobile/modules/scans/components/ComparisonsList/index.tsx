@@ -8,6 +8,7 @@ import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipCon
 import { Button } from '../../../../shared/components/Button';
 import { ComparisonHistoryRow } from '../ComparisonHistoryRow';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
+import ComparisonMascot from '../../../../assets/icons/mascot/comparison-mascot.svg';
 
 interface ComparisonsListProps {
   onItemPress: (item: ComparisonHistoryItem) => void;
@@ -32,7 +33,9 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
       <View className="flex-1 items-center justify-center pb-[140px] px-8 py-4">
-        <Typography variant="sectionTitle" className="text-center">
+        <ComparisonMascot />
+
+        <Typography variant="sectionTitle" className="text-center mt-6">
           No comparisons found
         </Typography>
         <Typography variant="bodySecondary" className="mt-2 text-center">
@@ -44,17 +47,14 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
 
   return (
     <View className="flex-1 items-center justify-center pb-[140px] px-8">
-      <View
-        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
-      />
+      <ComparisonMascot />
 
-      <Typography variant="hero" className="text-center">
+      <Typography variant="hero" className="text-center mt-6">
         No comparisons yet
       </Typography>
       <Typography className="text-center mt-4 px-4">
-        Start comparing products to see which one is better for you.
+        Scan two products to compare what fits you best
       </Typography>
-
     </View>
   );
 }

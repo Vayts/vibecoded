@@ -14,16 +14,6 @@ export class ScannerPhotoController {
     private readonly scannerPhotoService: ScannerPhotoService,
   ) {}
 
-  @Post('photo/ocr')
-  @UseInterceptors(
-    FileInterceptor('photo', {
-      limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
-    }),
-  )
-  extractPhotoOcr(@Body() body: unknown, @UploadedFile() file?: UploadedPhotoFile) {
-    return this.scannerPhotoService.extractPhotoOcr(body, file);
-  }
-
   @Post('photo')
   @UseInterceptors(
     FileInterceptor('photo', {

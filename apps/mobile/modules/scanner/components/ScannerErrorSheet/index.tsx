@@ -1,10 +1,11 @@
 import { AlertTriangle, Camera, ScanBarcode } from 'lucide-react-native';
 import { useRef } from 'react';
 import ActionSheet, { useSheetPayload, SheetManager } from 'react-native-actions-sheet';
-import { TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import ErrorMascot from '../../../../assets/icons/mascot/error-mascot.svg';
 
 export interface ScannerErrorSheetPayload {
   variant?: 'generic' | 'not-found' | 'not-food' | 'same-product';
@@ -33,7 +34,7 @@ export function ScannerErrorSheet() {
       : (title ?? 'Something went wrong');
   const resolvedMessage =
     isNotFound && hasPhotoAction
-      ? 'We couldn\'t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
+      ? 'We couldn’t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
       : message;
 
   const handleClose = () => {
@@ -55,21 +56,15 @@ export function ScannerErrorSheet() {
   };
 
   return (
-    <ActionSheet gestureEnabled useBottomSafeAreaPadding onClose={handleSheetClose}>
+    <ActionSheet containerStyle={{borderTopLeftRadius: 32, borderTopRightRadius: 32}} gestureEnabled useBottomSafeAreaPadding onClose={handleSheetClose}>
       <View className="items-center px-6 pb-4 pt-6">
-        <View
-          className={`mb-4 h-14 w-14 items-center justify-center rounded-full ${isNotFound || isSameProduct ? 'bg-amber-100' : 'bg-red-100'}`}
-        >
-          <AlertTriangle color={isNotFound || isSameProduct ? COLORS.warning : COLORS.danger} size={28} />
-        </View>
+        <ErrorMascot />
 
-        <Typography variant="sectionTitle" className="mb-2 text-center">
-          {resolvedTitle}
-        </Typography>
+        <Text className="text-[18px] font-bold mb-2 mt-6 text-center">{resolvedTitle}</Text>
 
-        <Typography variant="bodySecondary" className="mb-6 text-center text-gray-500">
+        <Text className="text-[14px] mb-6 text-center text-gray-500">
           {resolvedMessage}
-        </Typography>
+        </Text>
 
         {isNotFound && hasPhotoAction ? (
           <View className="w-full gap-3">
@@ -77,7 +72,7 @@ export function ScannerErrorSheet() {
               accessibilityLabel="Use photo instead"
               accessibilityRole="button"
               activeOpacity={0.7}
-              className="w-full flex-row items-center justify-center gap-2 rounded-xl bg-primary-900 py-4"
+              className="w-full flex-row items-center justify-center gap-2 rounded-[16px] bg-primary-500 py-4"
               onPress={handlePhotoPress}
             >
               <Camera color={COLORS.white} size={20} />
@@ -90,7 +85,7 @@ export function ScannerErrorSheet() {
               accessibilityLabel="Scan barcode again"
               accessibilityRole="button"
               activeOpacity={0.7}
-              className="w-full flex-row items-center justify-center gap-2 rounded-xl border border-gray-300 py-4"
+              className="w-full flex-row items-center justify-center gap-2 rounded-[16px] border border-gray-300 py-4"
               onPress={handleClose}
             >
               <ScanBarcode color={COLORS.gray700} size={20} />
@@ -104,7 +99,7 @@ export function ScannerErrorSheet() {
             accessibilityLabel="Try again"
             accessibilityRole="button"
             activeOpacity={0.7}
-            className="w-full flex-row items-center justify-center gap-2 rounded-xl bg-primary-900 py-4"
+            className="w-full flex-row rounded-[16px] items-center justify-center gap-2 bg-primary-500 py-4"
             onPress={handleClose}
           >
             <Typography variant="button" className="text-white">

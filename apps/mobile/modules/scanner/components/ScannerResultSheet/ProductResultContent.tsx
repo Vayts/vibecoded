@@ -13,6 +13,7 @@ import { ProductResultHero } from './ProductResultHero';
 import { ScanDeleteAction } from './ScanDeleteAction';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SheetsEnum } from '../../../../shared/types/sheets';
+import { getProductImageUri } from './productResultHelpers';
 import { getCompareSource, getPreviewHistoryProduct } from './productResultPreviewHelpers';
 
 const DEFAULT_PROFILE_ID = 'you';
@@ -67,9 +68,20 @@ export function ProductResultContent({
   const compareSource = getCompareSource({ product, previewHistoryProduct, previewProduct, successResult });
   const errorBottomAction = resolvedScanId ? <ScanDeleteAction scanId={resolvedScanId} /> : null;
 
+  if (detailState?.isLoading) {
+    return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;
+  }
+
   if (!product) {
     return <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />;
   }
+
+  const heroProduct =
+    successResult?.product &&
+    !getProductImageUri(successResult.product) &&
+    previewProduct?.image_url
+      ? { ...successResult.product, image_url: previewProduct.image_url }
+      : product;
 
   const handleComparePress = () => {
     if (!compareSource?.barcode) {
@@ -88,10 +100,7 @@ export function ProductResultContent({
       contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
     >
       <View>
-        <ProductResultHero
-          nutriScoreGrade={nutriScoreGrade}
-          product={product}
-        />
+        <ProductResultHero nutriScoreGrade={nutriScoreGrade} product={heroProduct} />
         {detailState?.isLoading || detailState?.isError ? (
           <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />
         ) : (

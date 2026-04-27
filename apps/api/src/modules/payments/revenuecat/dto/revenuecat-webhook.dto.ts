@@ -42,4 +42,3 @@ export const revenueCatWebhookSchema = z.object({
 
 export type RevenueCatWebhookDto = z.infer<typeof revenueCatWebhookSchema>;
 export type RevenueCatWebhookEventDto = z.infer<typeof revenueCatWebhookEventSchema>;
-

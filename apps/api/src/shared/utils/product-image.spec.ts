@@ -38,4 +38,12 @@ describe('product image canonicalization', () => {
       }),
     ).toBeNull();
   });
+
+  it('treats malformed relative analysis urls as missing', () => {
+    expect(resolveCanonicalProductImageUrl('/analysis?not_available')).toBeNull();
+  });
+
+  it('keeps valid uploaded storage paths', () => {
+    expect(resolveCanonicalProductImageUrl('/products/photo-1.jpg')).toBe('/products/photo-1.jpg');
+  });
 });

@@ -52,7 +52,7 @@ export default function Index() {
   }, [hydrateFromServer, onboardingQuery.data, user]);
 
   if (!isInitialized) {
-    return <LaunchSplashScreen />;
+    return null;
   }
 
   if (!user) {
@@ -77,7 +77,7 @@ export default function Index() {
   }
 
   if (!onboardingQuery.data) {
-    return <LaunchSplashScreen />;
+    return null;
   }
 
   if (onboardingQuery.data.onboardingCompleted) {

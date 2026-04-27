@@ -1,3 +1,4 @@
+import type { RunnableConfig } from '@langchain/core/runnables';
 import { ChatOpenAI } from '@langchain/openai';
 
 import { AI_MODELS } from '../constants/models';
@@ -8,6 +9,7 @@ import {
 } from '../domain/product-facts/prompts';
 import { buildClassificationFromData } from '../domain/product-facts/build-product-facts';
 import type { NormalizedProduct } from '@acme/shared';
+import { withRunnableConfig } from '../utils/runnable-config.util';
 
 type ProductFactsAiOutput = AiClassification;
 
@@ -17,7 +19,10 @@ export interface ExtractClassificationResult {
 }
 
 interface StructuredProductFactsRunner {
-  invoke(messages: Array<{ role: string; content: string }>): Promise<ProductFactsAiOutput>;
+  invoke(
+    messages: Array<{ role: string; content: string }>,
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<ProductFactsAiOutput>;
 }
 
 interface StructuredProductFactsModel {
@@ -43,14 +48,18 @@ export class ProductFactsAiService {
    * Returns productType, dietCompatibility, nutriGrade only — no nutrition data.
    * Falls back to deterministic extraction if AI is unavailable.
    */
-  async extractClassification(product: NormalizedProduct): Promise<AiClassification> {
-    const result = await this.extractClassificationWithSource(product);
+  async extractClassification(
+    product: NormalizedProduct,
+    config?: RunnableConfig<Record<string, unknown>>,
+  ): Promise<AiClassification> {
+    const result = await this.extractClassificationWithSource(product, config);
 
     return result.classification;
   }
 
   async extractClassificationWithSource(
     product: NormalizedProduct,
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<ExtractClassificationResult> {
     const fallbackClassification = buildClassificationFromData(product);
 
@@ -79,7 +88,14 @@ export class ProductFactsAiService {
       const result = await structuredModel.invoke([
         { role: 'system', content: PRODUCT_FACTS_SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
-      ]);
+      ], withRunnableConfig(config, {
+        runName: 'scanner.product_facts',
+        tags: ['scanner', 'product_facts', 'ai'],
+        metadata: {
+          barcode: product.code,
+          productName: product.product_name ?? null,
+        },
+      }));
 
       const parsed = productFactsAiOutputSchema.parse(result);
       console.log('[ProductFacts] AI result:', JSON.stringify(parsed, null, 2));

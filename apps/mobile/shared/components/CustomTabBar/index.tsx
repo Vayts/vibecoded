@@ -24,7 +24,7 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
     const label = typeof options.title === 'string' ? options.title : route.name;
     const realIndex = state.routes.indexOf(route);
     const isFocused = state.index === realIndex;
-    const iconColor = isFocused ? COLORS.primary : COLORS.neutrals900;
+    const iconColor = isFocused ? COLORS.primary500 : COLORS.neutrals900;
 
     const onPress = () => {
       const event = navigation.emit({
@@ -117,7 +117,7 @@ export function CustomTabBar({ state, descriptors, navigation }: TabBarProps) {
           className="flex-1 items-center justify-end pb-1"
         >
           <View
-            className="w-[52px] h-[52px] rounded-[26px] -top-6 absolute items-center justify-center bg-accent-600"
+            className="w-[52px] h-[52px] rounded-[26px] -top-6 absolute items-center justify-center bg-accent-500"
           >
             <ScanBarcode color={COLORS.white} size={26} />
           </View>

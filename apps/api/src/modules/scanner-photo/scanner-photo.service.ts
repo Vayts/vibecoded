@@ -3,24 +3,19 @@ import type { BarcodeLookupSuccessResponse } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { MAX_PHOTO_BASE64_SIZE } from '../product-analyze/product-analyze.constants';
 import { photoOcrPayloadSchema } from '../product-analyze/product-analyze.schemas';
-import { ScannerLangGraphService } from '../product-analyze/services/scanner-langgraph.service';
+import { ProductAnalyzeService } from '../product-analyze/product-analyze.service';
 import {
   IMAGE_TOO_LARGE_ERROR,
   INVALID_OCR_FIELD_ERROR,
   INVALID_PHOTO_FILE_ERROR,
   PHOTO_FILE_REQUIRED_ERROR,
 } from './scanner-photo.constants';
-import type { PhotoOcrRequest, PhotoScanRequest, UploadedPhotoFile } from './scanner-photo.schemas';
+import type { PhotoScanRequest, UploadedPhotoFile } from './scanner-photo.schemas';
 import { toRawPhotoBody } from './utils/scanner-photo-request.util';
 
 @Injectable()
 export class ScannerPhotoService {
-  constructor(private readonly scannerLangGraphService: ScannerLangGraphService) {}
-
-  async extractPhotoOcr(body: unknown, file?: UploadedPhotoFile) {
-    const request = this.parsePhotoOcrRequest(body, file);
-    return this.scannerLangGraphService.extractPhotoOcr(request.imageBase64);
-  }
+  constructor(private readonly productAnalyzeService: ProductAnalyzeService) {}
 
   async submitPhotoScan(
     body: unknown,
@@ -29,17 +24,11 @@ export class ScannerPhotoService {
   ): Promise<BarcodeLookupSuccessResponse & { photoImagePath?: string }> {
     const request = this.parsePhotoScanRequest(body, file);
 
-    return this.scannerLangGraphService.analyzePhoto({
+    return this.productAnalyzeService.analyzePhoto({
       imageBase64: request.imageBase64,
       userId,
       ocr: request.ocr ?? undefined,
     });
-  }
-
-  private parsePhotoOcrRequest(body: unknown, file?: UploadedPhotoFile): PhotoOcrRequest {
-    return {
-      imageBase64: this.getImageBase64(body, file),
-    };
   }
 
   private parsePhotoScanRequest(body: unknown, file?: UploadedPhotoFile): PhotoScanRequest {

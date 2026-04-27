@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { RunnableConfig } from '@langchain/core/runnables';
 import {
   DEFAULT_ONBOARDING_RESPONSE,
   type IngredientAnalysis,
@@ -34,15 +35,16 @@ export class AnalysisPipelineService {
     product: NormalizedProduct,
     userId?: string,
     productId?: string,
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<{
     result: ProductAnalysisResult;
     profiles: ScoreProfileInput[];
     ingredientAnalyses: Map<string, IngredientAnalysis | null>;
   }> {
     const profilesPromise = this.buildProfiles(userId);
-    const factsPromise = this.buildProductFacts(product, productId);
+    const factsPromise = this.buildProductFacts(product, productId, config);
     const ingredientAnalysesPromise = profilesPromise.then((profiles) =>
-      this.buildProfileIngredientAnalyses(product, profiles),
+      this.buildProfileIngredientAnalyses(product, profiles, config),
     );
 
     const [profiles, facts, ingredientAnalyses] = await Promise.all([
@@ -57,13 +59,16 @@ export class AnalysisPipelineService {
       delete score.ingredientAnalysis;
       return score;
     });
-    const summaries = await generateProfileFitSummaries({
-      product,
-      profiles: scoresWithoutIngredientAnalysis.map((profileScore, index) => ({
-        onboarding: profiles[index].onboarding,
-        profileScore,
-      })),
-    });
+    const summaries = await generateProfileFitSummaries(
+      {
+        product,
+        profiles: scoresWithoutIngredientAnalysis.map((profileScore, index) => ({
+          onboarding: profiles[index].onboarding,
+          profileScore,
+        })),
+      },
+      config,
+    );
     const initialProfileScores = scoresWithoutIngredientAnalysis.map((profileScore) => ({
       ...profileScore,
       summary:
@@ -128,6 +133,7 @@ export class AnalysisPipelineService {
   private async buildProfileIngredientAnalyses(
     product: NormalizedProduct,
     profiles: ScoreProfileInput[],
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<Map<string, IngredientAnalysis | null>> {
     if (product.ingredients.length === 0 && !product.ingredients_text?.trim()) {
       return new Map(profiles.map((profile) => [profile.profileId, null] as const));
@@ -139,6 +145,7 @@ export class AnalysisPipelineService {
         profileId: profile.profileId,
         onboarding: profile.onboarding,
       })),
+      config,
     );
   }
 
@@ -177,6 +184,7 @@ export class AnalysisPipelineService {
   private async resolveClassification(
     product: NormalizedProduct,
     productId?: string,
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<AiClassification> {
     const cachedClassification = await findProductClassificationCache({
       productId,
@@ -194,7 +202,7 @@ export class AnalysisPipelineService {
       `[analysis-pipeline] classification_cache miss barcode=${product.code} productId=${productId ?? 'unknown'}`,
     );
 
-    const result = await getProductFactsService().extractClassificationWithSource(product);
+    const result = await getProductFactsService().extractClassificationWithSource(product, config);
 
     if (result.source === 'ai') {
       await saveProductClassificationCache({
@@ -217,6 +225,7 @@ export class AnalysisPipelineService {
   private async buildProductFacts(
     product: NormalizedProduct,
     productId?: string,
+    config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<ProductFacts> {
     const productName = product.product_name ?? product.code ?? 'unknown';
     const productHasNutrition = hasNutritionData(product);
@@ -226,12 +235,12 @@ export class AnalysisPipelineService {
 
     if (productHasNutrition) {
       nutritionFacts = buildNutritionFacts(product);
-      classification = await this.resolveClassification(product, productId).catch(() =>
+      classification = await this.resolveClassification(product, productId, config).catch(() =>
         buildClassificationFromData(product),
       );
     } else {
       const [classificationResult, webNutrition] = await Promise.all([
-        this.resolveClassification(product, productId).catch(() =>
+        this.resolveClassification(product, productId, config).catch(() =>
           buildClassificationFromData(product),
         ),
         searchNutritionData(productName, product.brands, product.code),

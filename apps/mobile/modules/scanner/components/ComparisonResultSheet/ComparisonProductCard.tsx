@@ -97,11 +97,11 @@ export function ComparisonProductCard({
           <View className="-mt-4 items-center">
             <NutriScoreBadge grade={grade} />
           </View>
-        ) : null}
+        ) : <View className="h-[23px] -mt-4 items-center" />}
 
         <Typography
           variant="headerTitle"
-          numberOfLines={2}
+          numberOfLines={1}
           className={grade && grade !== 'unknown' ? 'mt-3 text-center text-[15px] font-bold' : 'mt-5 text-center text-[15px] font-bold'}
         >
           {productName}

@@ -1,12 +1,14 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import { useCallback, useMemo } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
-import { COLORS } from '../../../../shared/constants/colors';
+import CompareMascot from '../../../../assets/icons/mascot/compare-mascot.svg';
 import { useScanHistoryQuery } from '../../../scans/hooks/useScanHistoryQuery';
 import { CompareProductPickerRow } from '../CompareProductPickerRow';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
+import { ScanBarcode } from 'lucide-react-native';
+import { COLORS } from '../../../../shared/constants/colors';
 
 const ITEM_HEIGHT = 84;
 

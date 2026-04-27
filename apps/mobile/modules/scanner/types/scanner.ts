@@ -18,6 +18,14 @@ export type ScannerResultPresentationMode = 'default' | 'personalOnly';
 
 export type ScannerResultOrigin = 'barcode';
 
+export type ScannerRouteMode = 'default' | 'compare';
+
+export interface CompareProductSource {
+  barcode: string;
+  productId?: string | null;
+  productName?: string | null;
+}
+
 export interface ScannerResultSheetPayload {
   result?: ScannerMutationResponse;
   scanId?: string;
@@ -36,9 +44,5 @@ export interface ProductDecisionSheetPayload {
 }
 
 export interface CompareProductPickerSheetPayload {
-  currentProduct: {
-    barcode: string;
-    productId?: string | null;
-    productName?: string | null;
-  };
+  currentProduct: CompareProductSource;
 }
