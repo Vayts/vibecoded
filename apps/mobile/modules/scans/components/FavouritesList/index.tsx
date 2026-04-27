@@ -8,6 +8,7 @@ import { useFavouritesQuery } from '../../hooks/useFavouritesQuery';
 import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipContext';
 import { Button } from '../../../../shared/components/Button';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
+import FavouritesMascot from '../../../../assets/icons/mascot/favourites-mascot.svg';
 
 interface FavouritesListProps {
   onItemPress: (item: ScanHistoryItem) => void;
@@ -34,7 +35,8 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
       <View className="flex-1 items-center justify-center pb-[140px] px-8 py-4">
-        <Typography variant="sectionTitle" className="text-center">
+        <FavouritesMascot/>
+        <Typography variant="sectionTitle" className="text-center mt-6">
           No favourites found
         </Typography>
         <Typography variant="bodySecondary" className="mt-2 text-center">
@@ -46,17 +48,14 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
 
   return (
     <View className="flex-1 items-center justify-center pb-[140px] px-8">
-      <View
-        className="w-24 h-24 rounded-md bg-gray-100 mb-6"
-      />
+      <FavouritesMascot />
 
-      <Typography variant="hero" className="text-center">
+      <Typography variant="hero" className="text-center mt-6">
         No favourite products yet
       </Typography>
       <Typography className="text-center mt-4 px-4">
-        Start adding products to favourites to keep track of the ones you like most.
+        Keep track of the products you like most
       </Typography>
-
     </View>
   );
 }

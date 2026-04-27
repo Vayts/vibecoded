@@ -3,6 +3,7 @@ import { normalizedProductSchema, type NormalizedProduct } from '@acme/shared';
 import { z } from 'zod';
 import { AI_MODELS } from '../constants/models';
 import { hasNutritionData } from '../domain/product-facts/build-product-facts';
+import { normalizeImageUrl, resolveCanonicalProductImageUrl } from '../../../shared/utils/product-image';
 
 const websearchProductSchema = z.object({
   found: z
@@ -178,47 +179,19 @@ export const searchProductByBarcode = async (
       }
     }
 
-    // Normalize null-like values in image URLs (AI sometimes returns "/" or "/null")
-    const NULL_LIKE_URLS = new Set([
-      '/',
-      '/null',
-      'null',
-      'n/a',
-      'none',
-      '-',
-      '',
-    ]);
-    if (
-      product.image_url &&
-      NULL_LIKE_URLS.has(product.image_url.trim().toLowerCase())
-    ) {
-      product.image_url = null;
-    }
-    if (product.images) {
-      if (
-        product.images.front_url &&
-        NULL_LIKE_URLS.has(product.images.front_url.trim().toLowerCase())
-      ) {
-        product.images.front_url = null;
-      }
-      if (
-        product.images.ingredients_url &&
-        NULL_LIKE_URLS.has(product.images.ingredients_url.trim().toLowerCase())
-      ) {
-        product.images.ingredients_url = null;
-      }
-      if (
-        product.images.nutrition_url &&
-        NULL_LIKE_URLS.has(product.images.nutrition_url.trim().toLowerCase())
-      ) {
-        product.images.nutrition_url = null;
-      }
-    }
+    const canonicalImageUrl = resolveCanonicalProductImageUrl(product.image_url, product.images);
+    const normalizedImages = {
+      front_url: canonicalImageUrl,
+      ingredients_url: normalizeImageUrl(product.images.ingredients_url),
+      nutrition_url: normalizeImageUrl(product.images.nutrition_url),
+    };
 
     // Ensure barcode is set correctly
     const normalizedProduct = normalizedProductSchema.safeParse({
       ...product,
       code: barcode,
+      image_url: canonicalImageUrl,
+      images: normalizedImages,
     });
 
     if (!normalizedProduct.success) return null;

@@ -20,7 +20,7 @@ const variantClasses: Record<
   { container: string; text: string; indicator: string }
 > = {
   primary: {
-    container: 'bg-primary-900 rounded-[30px]',
+    container: 'bg-primary-500 rounded-[30px]',
     text: 'text-white font-semibold text-base',
     indicator: 'white',
   },
@@ -42,7 +42,7 @@ const variantClasses: Record<
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-4 h-[44px]',
+  sm: 'px-4 h-[36px]',
   md: 'px-6 h-[44px]',
   lg: 'px-6 h-[44px]',
 };

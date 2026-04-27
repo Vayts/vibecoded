@@ -8,4 +8,3 @@ import { RevenueCatService } from './revenuecat/revenuecat.service';
   providers: [PaymentsService, RevenueCatService],
 })
 export class PaymentsModule {}
-

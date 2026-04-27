@@ -7,7 +7,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useSessionBootstrap } from '../shared/hooks/useSessionBootstrap';
 import { useAuthStore } from '../shared/stores/authStore';
-import { useOnboardingQuery } from '../modules/onboarding/api/onboardingQueries';
 import { Sheets } from '../shared/components/Sheets/Sheets';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Toasts } from '@backpackapp-io/react-native-toast';
@@ -57,22 +56,27 @@ interface AppStartupGateProps {
 }
 
 function AppStartupGate({ hasCompletedMinimumSplash }: AppStartupGateProps) {
-  const { user, isInitialized } = useAuthStore();
+  const isInitialized = useAuthStore((state) => state.isInitialized);
   const { isConnected, isRefreshing, refresh } = useNetworkStatus();
-  const onboardingQuery = useOnboardingQuery(user?.id);
+  const [hasCompletedStartupGate, setHasCompletedStartupGate] = useState(false);
   const [isSplashOverlayVisible, setIsSplashOverlayVisible] = useState(true);
   const hasStartedSplashExit = useRef(false);
   const splashOpacity = useSharedValue(1);
   const splashTranslateY = useSharedValue(0);
 
-  const isOnboardingResolved = !user || onboardingQuery.isSuccess || onboardingQuery.isError;
-  const isAppReady =
-    hasCompletedMinimumSplash && isInitialized && isConnected !== null && isOnboardingResolved;
+  const isAppReady = hasCompletedMinimumSplash && isInitialized && isConnected !== null;
+  const shouldBlockWithLaunchSplash = !hasCompletedStartupGate && !isAppReady;
 
   const splashAnimatedStyle = useAnimatedStyle(() => ({
     opacity: splashOpacity.value,
     transform: [{ translateY: splashTranslateY.value }],
   }));
+
+  useEffect(() => {
+    if (isAppReady && !hasCompletedStartupGate) {
+      setHasCompletedStartupGate(true);
+    }
+  }, [hasCompletedStartupGate, isAppReady]);
 
   useEffect(() => {
     if (!isAppReady || !isSplashOverlayVisible || hasStartedSplashExit.current) {
@@ -102,11 +106,11 @@ function AppStartupGate({ hasCompletedMinimumSplash }: AppStartupGateProps) {
     );
   }, [isAppReady, isSplashOverlayVisible, splashOpacity, splashTranslateY]);
 
-  if (!isAppReady) {
+  if (shouldBlockWithLaunchSplash) {
     return <LaunchSplashScreen />;
   }
 
-  const content = !isConnected ? (
+  const content = isConnected === false ? (
     <NoInternetScreen onRetry={() => void refresh()} isRetrying={isRefreshing} />
   ) : (
     <RootNavigator />

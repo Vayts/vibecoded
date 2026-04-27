@@ -10,6 +10,7 @@ import type { ProfileScoreChipContext } from '../../hooks/useProfileScoreChipCon
 import { Button } from '../../../../shared/components/Button';
 import { SkeletonRow } from '../../../../shared/components/SkeletonRow';
 import ScanningArrow from '../../../../assets/scanning_arrow.svg';
+import ScanListMascot from '../../../../assets/icons/mascot/scan-list-mascot.svg';
 
 interface ScanHistoryListProps {
   onScanPress: (item: ScanHistoryItem) => void;
@@ -39,7 +40,9 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
   if (searchQuery) {
     return (
       <View className="flex-1 items-center justify-center px-8 py-20">
-        <Typography variant="sectionTitle" className="text-center">
+        <ScanListMascot />
+
+        <Typography variant="sectionTitle" className="text-center mt-6">
           No scans found
         </Typography>
         <Typography variant="bodySecondary" className="mt-2 text-center">
@@ -51,16 +54,16 @@ function EmptyState({ searchQuery }: { searchQuery: string }) {
 
   return (
     <View className="flex-1 items-center px-8 mt-16">
-      <View className="w-24 h-24 rounded-md bg-gray-100 mb-6" />
+      <ScanListMascot/>
 
-      <Typography variant="hero" className="text-center">
+      <Typography variant="hero" className="text-center mt-6">
         Start scanning your products
       </Typography>
       <Typography className="text-center mt-4 px-4">
         Once you start scanning, all scanned items will appear here.
       </Typography>
       <View className="mb-4 mt-2">
-        <ScanningArrow width={80} height={160} />
+        <ScanningArrow width={60} height={120} />
       </View>
     </View>
   );

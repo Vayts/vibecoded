@@ -33,6 +33,7 @@ export const COLORS = {
   primary25: '#c8dcc9',
   primary100: '#E0F8E0',
   primary300: '#94E197',
+  primary500: '#4FAF5A',
   primary700: '#237227',
   primary900: '#1C4B1F',
   profileChipGoodBorder: '#94E197',

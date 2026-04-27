@@ -21,7 +21,7 @@ export function ProfileHeaderCard({
   onEditPress,
 }: ProfileHeaderCardProps) {
   return (
-    <View className="rounded-[22px] px-4 py-4" style={{ backgroundColor: COLORS.primary }}>
+    <View className="rounded-[22px] px-4 py-4 bg-primary-500">
       <View className="flex-row items-center gap-4">
         <UserAvatar
           imageUrl={avatarUrl}

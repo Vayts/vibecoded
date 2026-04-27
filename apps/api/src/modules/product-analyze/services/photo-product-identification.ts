@@ -6,11 +6,20 @@ import { randomUUID } from 'node:crypto';
 import { AI_MODELS } from '../constants/models';
 import { findBestVectorMatchedProduct } from './product-vector-search.service';
 import {
+  resolveCanonicalProductImageUrl,
+  withCanonicalProductImage,
+} from '../../../shared/utils/product-image';
+import {
   findByBarcode,
   createProduct,
   findByCanonicalProductText,
 } from '../repositories/productRepository';
 import { resolveProduct } from '../utils/analysis-response.utils';
+import {
+  resolvePhotoProductSearchProvider,
+  searchProductNutritionWithTavily,
+  type PhotoProductSearchProvider,
+} from './tavily-search';
 
 // NOTE: Barcode detection is intentionally excluded from the photo flow.
 // Even if a barcode is visible on the photo, we do NOT use it.
@@ -19,7 +28,7 @@ import { resolveProduct } from '../utils/analysis-response.utils';
 export interface PhotoIdentificationResult {
   product: NormalizedProduct;
   shouldUploadPhoto: boolean;
-  source: 'vector' | 'websearch';
+  source: 'vector' | 'websearch' | 'tavily';
 }
 
 export class PhotoIdentificationError extends Error {
@@ -169,7 +178,7 @@ const getSearchModel = () =>
     model: AI_MODELS.reason,
     apiKey: process.env.OPENAI_API_KEY,
     maxRetries: 1,
-    timeout: 12_000,
+    timeout: 30_000,
     reasoning: { effort: 'low' },
   });
 
@@ -234,12 +243,7 @@ const hasNutritionData = (product: NormalizedProduct): boolean => {
 
 /** Check if a product has a real image URL (not null, empty, or "/null") */
 const hasValidImage = (product: NormalizedProduct): boolean => {
-  const url = product.image_url;
-  if (!url) return false;
-  const lower = url.trim().toLowerCase();
-  return (
-    lower.length > 0 && lower !== '/null' && lower !== 'null' && lower !== 'n/a'
-  );
+  return resolveCanonicalProductImageUrl(product.image_url, product.images) !== null;
 };
 
 // ---------------------------------------------------------------------------
@@ -258,7 +262,7 @@ const searchByExtractedText = async (
   console.log(`[PhotoID:search] start query="${searchQuery}" [${elapsed()}]`);
 
   const structuredModel = (getSearchModel() as any)
-    .bindTools([{ type: 'web_search_preview', search_context_size: 'low' }])
+    .bindTools([{ type: 'web_search_preview', search_context_size: 'medium' }])
     .withStructuredOutput(websearchProductSchema, {
       method: 'jsonSchema',
       name: 'text_product_search',
@@ -315,8 +319,10 @@ Search for: "${searchQuery}"`,
   });
   if (!parsed.success) return null;
 
+  const normalizedProduct = withCanonicalProductImage(parsed.data);
+
   // Reject products without meaningful nutrition data — not worth saving
-  if (!hasNutritionData(parsed.data)) {
+  if (!hasNutritionData(normalizedProduct)) {
     if (!code.startsWith('photo-')) {
       const resolvedByBarcode = await resolveProduct(code);
 
@@ -330,7 +336,7 @@ Search for: "${searchQuery}"`,
       console.log(
         `[PhotoID:search] ⚠️ Keeping barcode-backed result despite missing nutrition code=${code} [${elapsed()}]`,
       );
-      return parsed.data;
+      return normalizedProduct;
     }
 
     console.log(
@@ -339,7 +345,7 @@ Search for: "${searchQuery}"`,
     return null;
   }
 
-  return parsed.data;
+  return normalizedProduct;
 };
 
 // ---------------------------------------------------------------------------
@@ -356,7 +362,10 @@ type RaceResult = {
     similarity: number;
     queryText: string;
   } | null;
-  websearch: NormalizedProduct | null;
+  textSearch: {
+    product: NormalizedProduct;
+    source: PhotoProductSearchProvider;
+  } | null;
 };
 
 const pickWinner = (
@@ -376,14 +385,14 @@ const pickWinner = (
   }
 
   // Priority 2 — websearch result
-  if (race.websearch) {
+  if (race.textSearch) {
     console.log(
-      `[PhotoID] ✅ Winner: websearch — "${race.websearch.product_name}" code=${race.websearch.code} [${elapsed()}]`,
+      `[PhotoID] ✅ Winner: ${race.textSearch.source} — "${race.textSearch.product.product_name}" code=${race.textSearch.product.code} [${elapsed()}]`,
     );
     return {
-      product: race.websearch,
+      product: race.textSearch.product,
       shouldUploadPhoto: true,
-      source: 'websearch',
+      source: race.textSearch.source,
     };
   }
 
@@ -443,11 +452,15 @@ export const identifyProductByPhoto = async (
 
     // -----------------------------------------------------------------------
     // Step 2: Fire lookup strategies IN PARALLEL (no barcode resolution)
-    //   - vector:    DB vector similarity search
-    //   - websearch: AI web search by OCR text
+    //   - vector:     DB vector similarity search
+    //   - textSearch: AI web search OR Tavily nutrition lookup (behind flag)
     // -----------------------------------------------------------------------
 
-    console.log(`[PhotoID] 2/2 Starting parallel lookup [${elapsed()}]`);
+    const searchProvider = resolvePhotoProductSearchProvider();
+
+    console.log(
+      `[PhotoID] 2/2 Starting parallel lookup provider=${searchProvider} [${elapsed()}]`,
+    );
 
     const vectorPromise = ocr.productName
       ? findBestVectorMatchedProduct({
@@ -462,13 +475,25 @@ export const identifyProductByPhoto = async (
         })
       : Promise.resolve(null);
 
-    const websearchPromise = searchByExtractedText(ocr).catch((e) => {
-      console.warn(
-        `[PhotoID] websearch branch error:`,
-        e instanceof Error ? e.message : e,
-      );
-      return null;
-    });
+    const textSearchPromise = (
+      searchProvider === 'tavily'
+        ? searchProductNutritionWithTavily({
+            allText: ocr.allText,
+            productName: ocr.productName,
+            brand: ocr.brand,
+          })
+        : searchByExtractedText(ocr)
+    )
+      .then((product) =>
+        product ? { product, source: searchProvider } : null,
+      )
+      .catch((e) => {
+        console.warn(
+          `[PhotoID] ${searchProvider} branch error:`,
+          e instanceof Error ? e.message : e,
+        );
+        return null;
+      });
 
     const vector = await vectorPromise;
 
@@ -477,20 +502,20 @@ export const identifyProductByPhoto = async (
         `[PhotoID] 2/2 Vector lookup satisfied request early [${elapsed()}]`,
       );
 
-      const vectorWinner = pickWinner({ vector, websearch: null }, elapsed);
+      const vectorWinner = pickWinner({ vector, textSearch: null }, elapsed);
 
       if (vectorWinner) {
         return vectorWinner;
       }
     }
 
-    const websearch = await websearchPromise;
+    const textSearch = await textSearchPromise;
 
     console.log(
-      `[PhotoID] 2/2 Parallel lookup done [${elapsed()}] — vector=${vector ? `✅ sim=${vector.similarity.toFixed(3)}` : '❌'} websearch=${websearch ? '✅' : '❌'}`,
+      `[PhotoID] 2/2 Parallel lookup done [${elapsed()}] — vector=${vector ? `✅ sim=${vector.similarity.toFixed(3)}` : '❌'} ${searchProvider}=${textSearch ? '✅' : '❌'}`,
     );
 
-    const winner = pickWinner({ vector, websearch }, elapsed);
+    const winner = pickWinner({ vector, textSearch }, elapsed);
 
     if (!winner) {
       console.log(`[PhotoID] ❌ All lookup strategies failed [${elapsed()}]`);
@@ -500,7 +525,7 @@ export const identifyProductByPhoto = async (
     // -----------------------------------------------------------------------
     // Step 3: Merge with DB if websearch found existing product
     // -----------------------------------------------------------------------
-    if (winner.source === 'websearch') {
+    if (winner.source !== 'vector') {
       const existingProductByBarcode = await findByBarcode(winner.product.code);
       const existingProduct =
         existingProductByBarcode ??
@@ -526,7 +551,7 @@ export const identifyProductByPhoto = async (
           return {
             product: updated,
             shouldUploadPhoto: !hasValidImage(updated),
-            source: 'websearch',
+            source: winner.source,
           };
         }
         console.log(
@@ -535,7 +560,7 @@ export const identifyProductByPhoto = async (
         return {
           product: existingProduct,
           shouldUploadPhoto: !hasValidImage(existingProduct),
-          source: 'websearch',
+          source: winner.source,
         };
       }
     }

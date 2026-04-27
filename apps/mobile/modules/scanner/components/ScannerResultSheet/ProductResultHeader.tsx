@@ -12,6 +12,7 @@ interface ProductResultHeaderProps {
 export function ProductResultHeader({ product }: ProductResultHeaderProps) {
   const resolvedImageUrl = getProductImageUri(product);
 
+
   return (
     <View className="rounded-xl bg-white pt-4">
       <View className="flex-row gap-4">
