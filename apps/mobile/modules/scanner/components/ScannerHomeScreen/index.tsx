@@ -8,6 +8,7 @@ import {
   AppState,
   type AppStateStatus,
   Dimensions,
+  InteractionManager,
   Linking,
   Platform,
   TouchableOpacity,
@@ -256,6 +257,19 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     setIsTorchEnabled((current) => !current);
   }, []);
 
+  const openComparisonResult = useCallback(
+    (result: Parameters<typeof openLiveComparison>[0]) => {
+      openLiveComparison(result, {
+        replaceCurrentRoute: isRouteCompareMode,
+      });
+
+      InteractionManager.runAfterInteractions(() => {
+        resetCompare();
+      });
+    },
+    [isRouteCompareMode, openLiveComparison, resetCompare],
+  );
+
   const runPhotoCaptureFlow = useCallback(async () => {
     try {
       const compareActive = useCompareStore.getState().isCompareMode;
@@ -285,10 +299,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           barcode1: firstResolved.barcode,
           barcode2: secondResolved.barcode,
         });
-        resetCompare();
-        openLiveComparison(result, {
-          replaceCurrentRoute: isRouteCompareMode,
-        });
+        openComparisonResult(result);
         return;
       }
 
@@ -326,9 +337,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     captureAndCompress,
     capturePhotoPreview,
     compareMutation,
-    isRouteCompareMode,
+    openComparisonResult,
     openScannerErrorSheet,
-    openLiveComparison,
     resetCompare,
     resumeScanner,
   ]);
@@ -397,10 +407,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
             barcode1,
             barcode2: normalized,
           });
-          resetCompare();
-          openLiveComparison(result, {
-            replaceCurrentRoute: isRouteCompareMode,
-          });
+          openComparisonResult(result);
           return;
         }
 
@@ -418,9 +425,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     },
     [
       compareMutation,
-      isRouteCompareMode,
       lookupMutation,
-      openLiveComparison,
+      openComparisonResult,
       openScannerErrorSheet,
       resetCompare,
       resumeScanner,
