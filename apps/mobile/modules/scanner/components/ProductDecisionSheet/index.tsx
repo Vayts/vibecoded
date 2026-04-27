@@ -12,9 +12,7 @@ import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore
 import { useScanBarcodeMutation, usePhotoScanMutation } from '../../hooks/useScannerMutations';
 
 export function ProductDecisionSheet() {
-  const payload = useSheetPayload(
-    SheetsEnum.ProductDecisionSheet,
-  ) as ProductDecisionSheetPayload | null;
+  const payload = useSheetPayload(SheetsEnum.ProductDecisionSheet) as ProductDecisionSheetPayload | null;
   const actionTakenRef = useRef(false);
   const product = payload?.product;
   const photoUri = payload?.photoUri;
@@ -63,8 +61,7 @@ export function ProductDecisionSheet() {
 
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          variant:
-            errorCode === 'NOT_FOOD' ? 'not-food' : isPhotoNotFound ? 'not-found' : 'generic',
+          variant: errorCode === 'NOT_FOOD' ? 'not-food' : isPhotoNotFound ? 'not-found' : 'generic',
           title:
             errorCode === 'NOT_FOOD'
               ? 'This is not a food product'
@@ -75,7 +72,7 @@ export function ProductDecisionSheet() {
             errorCode === 'NOT_FOOD'
               ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
               : isPhotoNotFound
-                ? "We couldn't identify a product from this photo. Try taking another photo with the full package visible."
+                ? 'We couldn\'t identify a product from this photo. Try taking another photo with the full package visible.'
                 : errorMessage,
           onDismiss,
         },

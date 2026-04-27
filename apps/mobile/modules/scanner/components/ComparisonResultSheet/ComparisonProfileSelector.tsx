@@ -21,7 +21,7 @@ export function ComparisonProfileSelector({
   selectedProfileId,
   onSelect,
 }: ComparisonProfileSelectorProps) {
-  if (profiles.length === 0) {
+  if (profiles.length <= 1) {
     return null;
   }
 

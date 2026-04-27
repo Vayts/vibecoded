@@ -1,6 +1,6 @@
 import type { ScanHistoryItem } from '@acme/shared';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { InteractionManager, View, useWindowDimensions } from 'react-native';
+import { InteractionManager, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera } from 'lucide-react-native';
@@ -16,15 +16,11 @@ import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import type { CompareProductPickerSheetPayload } from '../../types/scanner';
 import { CompareProductPickerList } from '../CompareProductPickerList';
 
-const MAX_SHEET_HEIGHT_RATIO = 0.85;
-const MAX_LIST_HEIGHT_RATIO = 0.5;
-
 export function CompareProductPickerSheet() {
   const payload = useSheetPayload(
     SheetsEnum.CompareProductPickerSheet,
   ) as CompareProductPickerSheetPayload | null;
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
   const compareMutation = useCompareProductsMutation();
   const { isPending, mutateAsync, reset } = compareMutation;
   const {
@@ -41,8 +37,6 @@ export function CompareProductPickerSheet() {
   const debouncedSearchQuery = useDebounce(deferredSearchQuery, 220);
   const currentProduct = payload?.currentProduct;
   const currentProductKey = `${currentProduct?.productId ?? ''}:${currentProduct?.barcode ?? ''}`;
-  const maxSheetHeight = windowHeight * MAX_SHEET_HEIGHT_RATIO;
-  const maxListHeight = windowHeight * MAX_LIST_HEIGHT_RATIO;
 
   useEffect(() => {
     setSearchQuery('');
@@ -135,19 +129,15 @@ export function CompareProductPickerSheet() {
       gestureEnabled={!isPending}
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
-      containerStyle={{
-        maxHeight: maxSheetHeight,
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-      }}
+      containerStyle={{ height: '88%', borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
       isModal={true}
       overdrawEnabled={false}
       disableElevation
     >
-      <View className="bg-white pt-2">
+      <View className="flex-1 bg-white pt-2">
         <View className="px-4 pb-3">
           <Typography variant="pageTitle">{sheetTitle}</Typography>
-          <Typography className="mt-2 leading-6 text-[16px] text-neutral-500">
+          <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
             Compare against a product from your history, or scan a new one to compare with
             {currentProduct.productName ? ` ${currentProduct.productName}.` : ' this product.'}
           </Typography>
@@ -177,13 +167,12 @@ export function CompareProductPickerSheet() {
 
         <ScansSearchInput className="mx-4 mb-3" value={searchQuery} onChangeText={setSearchQuery} />
 
-        <View>
+        <View className="flex-1">
           <CompareProductPickerList
             currentProduct={currentProduct}
             searchQuery={debouncedSearchQuery}
             enabled={isListReady}
             contentPaddingBottom={insets.bottom + 32}
-            maxHeight={maxListHeight}
             onSelectProduct={handleSelectProduct}
           />
         </View>

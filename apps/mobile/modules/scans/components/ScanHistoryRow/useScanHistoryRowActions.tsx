@@ -135,12 +135,6 @@ export function useScanHistoryRowActions({
             icon: <ArrowLeftRight size={20} color={COLORS.neutrals700} strokeWidth={1.9} />,
             onPress: handleCompare,
           },
-          {
-            key: 'scan-to-compare',
-            label: 'Scan to Compare',
-            icon: <Camera size={20} color={COLORS.neutrals700} strokeWidth={1.9} />,
-            onPress: handleScanToCompare,
-          },
         ]
       : []),
     {

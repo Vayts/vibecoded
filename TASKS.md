@@ -25,21 +25,16 @@ This action should open the camera in a dedicated **comparison mode**.
 1. User opens the context menu for a product.
 2. User taps **Compare**.
 3. Comparison options should include:
-
-- Compare with history product
-- Scan to Compare
-
+  - Compare with history product
+  - Scan to Compare
 4. If the user taps **Scan to Compare**:
-
-- Open the camera/scanner screen.
-- The original product should already be selected as the first comparison product.
-- The scanner should work in comparison mode.
-- User only needs to scan a barcode or take a photo of the second product.
-
+  - Open the camera/scanner screen.
+  - The original product should already be selected as the first comparison product.
+  - The scanner should work in comparison mode.
+  - User only needs to scan a barcode or take a photo of the second product.
 5. After the second product is analyzed, open the comparison result UI using:
-
-- first product = product selected from context menu
-- second product = newly scanned/analyzed product
+  - first product = product selected from context menu
+  - second product = newly scanned/analyzed product
 
 ### Important requirements
 
