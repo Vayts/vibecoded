@@ -1,18 +1,34 @@
 import type { ScanHistoryItem } from '@acme/shared';
+import { useRouter } from 'expo-router';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Camera } from 'lucide-react-native';
+import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
 import { useDebounce } from '../../../../shared/hooks/useDebounce';
 import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ScansSearchInput } from '../../../scans/components/ScansSearchInput';
 import { useCompareProductsMutation } from '../../hooks/useScannerMutations';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import type { CompareProductPickerSheetPayload } from '../../types/scanner';
+import { useCompareStore } from '../../stores/compareStore';
 import { CompareProductPickerList } from '../CompareProductPickerList';
 
+const mapCompareSourceToPreview = (
+  currentProduct: CompareProductPickerSheetPayload['currentProduct'],
+) => ({
+  productId: currentProduct.productId?.trim() ?? '',
+  barcode: currentProduct.barcode,
+  product_name: currentProduct.productName ?? null,
+  brands: null,
+  image_url: null,
+});
+
 export function CompareProductPickerSheet() {
+  const router = useRouter();
   const payload = useSheetPayload(
     SheetsEnum.CompareProductPickerSheet,
   ) as CompareProductPickerSheetPayload | null;
@@ -28,6 +44,7 @@ export function CompareProductPickerSheet() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isListReady, setIsListReady] = useState(false);
   const isClosingForComparisonRef = useRef(false);
+  const startCompare = useCompareStore((state) => state.startCompare);
   const deferredSearchQuery = useDeferredValue(searchQuery.trim());
   const debouncedSearchQuery = useDebounce(deferredSearchQuery, 220);
   const currentProduct = payload?.currentProduct;
@@ -92,8 +109,33 @@ export function CompareProductPickerSheet() {
 
       await comparisonPromise;
     },
-    [beginPendingComparison, currentProduct, isPending, mutateAsync, navigateToLiveComparison, rejectPendingComparison, resolvePendingComparison],
+    [
+      beginPendingComparison,
+      currentProduct,
+      isPending,
+      mutateAsync,
+      navigateToLiveComparison,
+      rejectPendingComparison,
+      resolvePendingComparison,
+    ],
   );
+
+  const handleScanToCompare = useCallback(async () => {
+    if (!currentProduct || isPending) {
+      return;
+    }
+
+    isClosingForComparisonRef.current = true;
+    startCompare(mapCompareSourceToPreview(currentProduct), {
+      source: 'compare-picker',
+    });
+
+    await SheetManager.hide(SheetsEnum.CompareProductPickerSheet);
+    router.push({
+      pathname: '/scanner',
+      params: { mode: 'compare' },
+    });
+  }, [currentProduct, isPending, router, startCompare]);
 
   if (!currentProduct) {
     return null;
@@ -113,16 +155,34 @@ export function CompareProductPickerSheet() {
         <View className="px-4 pb-3">
           <Typography variant="pageTitle">{sheetTitle}</Typography>
           <Typography variant="bodySecondary" className="mt-2 leading-6 text-gray-500">
-            Search your scan history and pick a different product to compare against
+            Compare against a product from your history, or scan a new one to compare with
             {currentProduct.productName ? ` ${currentProduct.productName}.` : ' this product.'}
           </Typography>
         </View>
 
-        <ScansSearchInput
-          className="mx-4 mb-3"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+        <View className="px-4 pb-4">
+          <Button
+            fullWidth
+            variant="secondary"
+            label="Scan to Compare"
+            disabled={isPending}
+            accessibilityLabel="Scan a new product to compare"
+            accessibilityRole="button"
+            Icon={<Camera size={18} color={COLORS.gray700} strokeWidth={1.9} />}
+            onPress={() => {
+              void handleScanToCompare();
+            }}
+          />
+
+          <Typography variant="sectionTitle" className="mt-5">
+            Compare with history product
+          </Typography>
+          <Typography variant="bodySecondary" className="mt-2 text-gray-500">
+            Search your scan history and pick a different product to compare against.
+          </Typography>
+        </View>
+
+        <ScansSearchInput className="mx-4 mb-3" value={searchQuery} onChangeText={setSearchQuery} />
 
         <View className="flex-1">
           <CompareProductPickerList

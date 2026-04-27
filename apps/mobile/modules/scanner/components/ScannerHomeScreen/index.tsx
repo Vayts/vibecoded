@@ -1,8 +1,6 @@
-import {
-  CameraView,
-  type BarcodeScanningResult,
-  useCameraPermissions,
-} from 'expo-camera';
+/* eslint-disable max-lines */
+
+import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -30,6 +28,7 @@ import { usePhotoCapture } from '../../hooks/usePhotoCapture';
 import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import { useCompareStore } from '../../stores/compareStore';
+import type { ScannerRouteMode } from '../../types/scanner';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
 import { ScannerPermissionState } from '../ScannerPermissionState';
@@ -40,7 +39,11 @@ const BARCODE_FRAME_WIDTH = Math.min(Dimensions.get('window').width - 48, 300);
 const BARCODE_FRAME_HEIGHT = 200;
 const BARCODE_DETECTION_PADDING = 20;
 
-export function ScannerHomeScreen() {
+interface ScannerHomeScreenProps {
+  routeMode?: ScannerRouteMode;
+}
+
+export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
@@ -48,9 +51,13 @@ export function ScannerHomeScreen() {
   const compareMutation = useCompareProductsMutation();
   const { openLiveComparison } = useOpenComparisonRoute();
 
+  const compareSessionSource = useCompareStore((s) => s.compareSessionSource);
   const isCompareMode = useCompareStore((s) => s.isCompareMode);
   const firstProduct = useCompareStore((s) => s.firstProduct);
   const resetCompare = useCompareStore((s) => s.reset);
+  const isRouteCompareMode = routeMode === 'compare';
+  const shouldReturnAfterCompareCancel =
+    isRouteCompareMode || compareSessionSource === 'compare-picker';
 
   const cameraRef = useRef<CameraView | null>(null);
   const scanLockRef = useRef(false);
@@ -85,6 +92,19 @@ export function ScannerHomeScreen() {
     void getPermission();
   }, [appState, getPermission]);
 
+  useEffect(() => {
+    if (!isRouteCompareMode || firstProduct) {
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)/scans');
+  }, [firstProduct, isRouteCompareMode, router]);
+
   const handleCameraPermissionPress = useCallback(() => {
     if (permission && !permission.granted && !permission.canAskAgain) {
       void Linking.openSettings().catch(() => undefined);
@@ -109,6 +129,15 @@ export function ScannerHomeScreen() {
     setIsScannerPaused(false);
     setIsResolvingFirstProduct(false);
   }, []);
+
+  const handleCancelCompare = useCallback(() => {
+    resetCompare();
+    resumeScanner();
+
+    if (shouldReturnAfterCompareCancel) {
+      handleCloseScanner();
+    }
+  }, [handleCloseScanner, resetCompare, resumeScanner, shouldReturnAfterCompareCancel]);
 
   const [isScreenFocused, setIsScreenFocused] = useState(true);
 
@@ -186,24 +215,25 @@ export function ScannerHomeScreen() {
       const errorMessage = error instanceof Error ? error.message : fallbackMessage;
       const errorCode = error instanceof ScannerApiError ? error.code : undefined;
       const isRetriableNotFound =
-        errorCode === 'PRODUCT_NOT_FOUND' ||
-        errorMessage.toLowerCase().includes('not found');
+        errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
       const isSameProduct = errorCode === 'SAME_PRODUCT';
 
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          variant: errorCode === 'NOT_FOOD'
-            ? 'not-food'
-            : isRetriableNotFound
-              ? 'not-found'
+          variant:
+            errorCode === 'NOT_FOOD'
+              ? 'not-food'
+              : isRetriableNotFound
+                ? 'not-found'
+                : isSameProduct
+                  ? 'same-product'
+                  : 'generic',
+          title:
+            errorCode === 'NOT_FOOD'
+              ? 'This is not a food product'
               : isSameProduct
-                ? 'same-product'
-                : 'generic',
-          title: errorCode === 'NOT_FOOD'
-            ? 'This is not a food product'
-            : isSameProduct
-              ? 'This is the same product'
-              : undefined,
+                ? 'This is the same product'
+                : undefined,
           message:
             errorCode === 'NOT_FOOD'
               ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
@@ -256,7 +286,9 @@ export function ScannerHomeScreen() {
           barcode2: secondResolved.barcode,
         });
         resetCompare();
-        openLiveComparison(result);
+        openLiveComparison(result, {
+          replaceCurrentRoute: isRouteCompareMode,
+        });
         return;
       }
 
@@ -294,6 +326,7 @@ export function ScannerHomeScreen() {
     captureAndCompress,
     capturePhotoPreview,
     compareMutation,
+    isRouteCompareMode,
     openScannerErrorSheet,
     openLiveComparison,
     resetCompare,
@@ -310,70 +343,89 @@ export function ScannerHomeScreen() {
     await runPhotoCaptureFlow();
   }, [runPhotoCaptureFlow, scannerMode]);
 
-  const submitBarcode = useCallback(async (barcode: string) => {
-    const normalized = barcode.trim();
-    if (!normalized || scanLockRef.current) {
-      return;
-    }
-
-    const now = Date.now();
-    const prev = lastScanRef.current;
-    if (prev && prev.barcode === normalized && now - prev.timestamp < RESCAN_COOLDOWN_MS) {
-      return;
-    }
-
-    scanLockRef.current = true;
-    lastScanRef.current = { barcode: normalized, timestamp: now };
-    setIsLocked(true);
-    setIsScannerPaused(true);
-
-    try {
-      const compareActive = useCompareStore.getState().isCompareMode;
-      const first = useCompareStore.getState().firstProduct;
-
-      if (compareActive && first) {
-        const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
-        const firstProductOcr = useCompareStore.getState().firstProductOcr;
-
-        let barcode1: string;
-        if (firstPhotoUri) {
-          setIsResolvingFirstProduct(true);
-          const firstResolved = await submitPhotoScan({
-            photoUri: firstPhotoUri,
-            ocr: firstProductOcr ?? undefined,
-          });
-          setIsResolvingFirstProduct(false);
-          barcode1 = firstResolved.barcode;
-        } else {
-          barcode1 = first.barcode;
-        }
-
-        if (barcode1.trim() === normalized) {
-          resumeScanner();
-          return;
-        }
-
-        const result = await compareMutation.mutateAsync({
-          barcode1,
-          barcode2: normalized,
-        });
-        resetCompare();
-        openLiveComparison(result);
+  const submitBarcode = useCallback(
+    async (barcode: string) => {
+      const normalized = barcode.trim();
+      if (!normalized || scanLockRef.current) {
         return;
       }
 
-      const lookupResult = await lookupMutation.mutateAsync({ barcode: normalized });
-      await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
-        payload: { product: lookupResult.product, onDismiss: resumeScanner },
-      });
-    } catch (error) {
-      if (!useCompareStore.getState().isCompareMode) {
-        resetCompare();
+      const now = Date.now();
+      const prev = lastScanRef.current;
+      if (prev && prev.barcode === normalized && now - prev.timestamp < RESCAN_COOLDOWN_MS) {
+        return;
       }
 
-      await openScannerErrorSheet(error, 'Unable to submit barcode');
-    }
-  }, [compareMutation, lookupMutation, openLiveComparison, openScannerErrorSheet, resetCompare, resumeScanner]);
+      scanLockRef.current = true;
+      lastScanRef.current = { barcode: normalized, timestamp: now };
+      setIsLocked(true);
+      setIsScannerPaused(true);
+
+      try {
+        const compareActive = useCompareStore.getState().isCompareMode;
+        const first = useCompareStore.getState().firstProduct;
+
+        if (compareActive && first) {
+          const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
+          const firstProductOcr = useCompareStore.getState().firstProductOcr;
+
+          let barcode1: string;
+          if (firstPhotoUri) {
+            setIsResolvingFirstProduct(true);
+            const firstResolved = await submitPhotoScan({
+              photoUri: firstPhotoUri,
+              ocr: firstProductOcr ?? undefined,
+            });
+            setIsResolvingFirstProduct(false);
+            barcode1 = firstResolved.barcode;
+          } else {
+            barcode1 = first.barcode;
+          }
+
+          if (barcode1.trim() === normalized) {
+            await openScannerErrorSheet(
+              new ScannerApiError(
+                'We identified the same product in both scans. Scan a different product to compare.',
+                'SAME_PRODUCT',
+              ),
+              'Unable to compare products',
+            );
+            return;
+          }
+
+          const result = await compareMutation.mutateAsync({
+            barcode1,
+            barcode2: normalized,
+          });
+          resetCompare();
+          openLiveComparison(result, {
+            replaceCurrentRoute: isRouteCompareMode,
+          });
+          return;
+        }
+
+        const lookupResult = await lookupMutation.mutateAsync({ barcode: normalized });
+        await SheetManager.show(SheetsEnum.ProductDecisionSheet, {
+          payload: { product: lookupResult.product, onDismiss: resumeScanner },
+        });
+      } catch (error) {
+        if (!useCompareStore.getState().isCompareMode) {
+          resetCompare();
+        }
+
+        await openScannerErrorSheet(error, 'Unable to submit barcode');
+      }
+    },
+    [
+      compareMutation,
+      isRouteCompareMode,
+      lookupMutation,
+      openLiveComparison,
+      openScannerErrorSheet,
+      resetCompare,
+      resumeScanner,
+    ],
+  );
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
     if (Platform.OS !== 'ios' && bounds && scanFrameBounds.current) {
@@ -438,9 +490,13 @@ export function ScannerHomeScreen() {
   const isAppActive = appState === 'active';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
   const shouldSuspendCameraView =
-    !isAppActive || !isScreenFocused || isScannerPaused || (isLocked && isPhotoMode && !isCapturingPhoto);
+    !isAppActive ||
+    !isScreenFocused ||
+    isScannerPaused ||
+    (isLocked && isPhotoMode && !isCapturingPhoto);
   const shouldRenderCameraView = !shouldSuspendCameraView;
-  const showCameraBlackout = !isAppActive || !isScreenFocused || (isLocked && (isPhotoMode || isScannerPaused));
+  const showCameraBlackout =
+    !isAppActive || !isScreenFocused || (isLocked && (isPhotoMode || isScannerPaused));
 
   return (
     <View className="flex-1 bg-black">
@@ -458,7 +514,9 @@ export function ScannerHomeScreen() {
         />
       ) : null}
 
-      {showCameraBlackout ? <View pointerEvents="none" className="absolute inset-0 bg-black" /> : null}
+      {showCameraBlackout ? (
+        <View pointerEvents="none" className="absolute inset-0 bg-black" />
+      ) : null}
 
       {isLocked && isProcessing ? (
         <View className="absolute inset-0 items-center justify-center px-6">
@@ -484,7 +542,20 @@ export function ScannerHomeScreen() {
         style={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 18 }}
       >
         <View className="flex-row items-center">
-          <BackButton variant="dark" icon="close" accessibilityLabel="Close scanner" />
+          <BackButton
+            variant="dark"
+            icon="close"
+            accessibilityLabel={
+              showCompareBanner && shouldReturnAfterCompareCancel
+                ? 'Cancel comparison and close scanner'
+                : 'Close scanner'
+            }
+            onPress={
+              showCompareBanner && shouldReturnAfterCompareCancel
+                ? handleCancelCompare
+                : handleCloseScanner
+            }
+          />
 
           <View className="flex-1 items-center px-3">
             {!isLocked ? (
@@ -551,7 +622,7 @@ export function ScannerHomeScreen() {
             isCompareMode={showCompareBanner}
             isLocked={isLocked}
             onCapturePress={() => void handlePhotoPress()}
-            onCancelCompare={() => resetCompare()}
+            onCancelCompare={handleCancelCompare}
           />
         ) : (
           <View style={{ minHeight: 56 }} />
