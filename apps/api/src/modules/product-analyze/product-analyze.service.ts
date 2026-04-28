@@ -19,7 +19,6 @@ import {
 } from './services/photo-product-identification';
 import { hasSameCanonicalProductIdentity } from './services/product-canonical-text';
 import { getProfileInputs } from './services/profileInputs';
-import { searchProductByBarcode } from './services/websearch-fallback';
 import { processProductImage } from './lib/image-processing';
 import { uploadProductImage } from './lib/storage';
 import { createComparison } from './repositories/comparisonRepository';
@@ -85,11 +84,11 @@ export class ProductAnalyzeService {
 
   private async resolveNormalizedProductByBarcode(barcode: string): Promise<{
     product: NormalizedProduct | null;
-    source: 'openfoodfacts' | 'websearch';
+    source: 'openfoodfacts';
   }> {
     let product = await findByBarcode(barcode);
     const wasExistingInDb = Boolean(product);
-    let source: 'openfoodfacts' | 'websearch' = 'openfoodfacts';
+    const source = 'openfoodfacts' as const;
 
     if (!product) {
       try {
@@ -102,13 +101,6 @@ export class ProductAnalyzeService {
         console.warn(
           `[scanner] OFF lookup failed (${error.code}) for ${barcode}: ${error.message}`,
         );
-      }
-    }
-
-    if (!product) {
-      product = await searchProductByBarcode(barcode);
-      if (product) {
-        source = 'websearch';
       }
     }
 

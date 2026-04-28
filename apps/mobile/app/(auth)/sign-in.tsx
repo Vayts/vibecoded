@@ -54,7 +54,7 @@ export default function SignInScreen() {
   }, [error]);
 
   return (
-    <View className="flex-1" style={{ backgroundColor: COLORS.launchSplashBackground }}>
+    <View className="flex-1 bg-primary-500">
       <StatusBar barStyle="light-content" />
 
       <View className="absolute left-[-72px] top-[88px] h-[188px] w-[188px] rounded-full bg-white/10" />
@@ -116,8 +116,3 @@ export default function SignInScreen() {
     </View>
   );
 }
-
-
-        <Typography variant="caption" className="mt-5 text-center text-gray-400">
-          By continuing, you agree to use your account for personalized product insights.
-        </Typography>
