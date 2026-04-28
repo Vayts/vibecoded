@@ -19,6 +19,7 @@ import {
   type BuildAnalysisSocketPayloadInput,
   buildAnalysisSocketPayload,
 } from './analysis-state';
+import { AnalysisSessionStoreService } from './analysis-session-store.service';
 
 const getAnalysisRoom = (analysisId: string) => `analysis:${analysisId}`;
 
@@ -35,7 +36,10 @@ export class AnalysisGateway implements OnGatewayInit {
   @WebSocketServer()
   private server!: Server;
 
-  constructor(private readonly authSessionService: AuthSessionService) {}
+  constructor(
+    private readonly authSessionService: AuthSessionService,
+    private readonly analysisSessionStore: AnalysisSessionStoreService,
+  ) {}
 
   afterInit(server: Server) {
     server.use(async (client, next) => {
@@ -64,6 +68,13 @@ export class AnalysisGateway implements OnGatewayInit {
     const userId = client.data.userId as string | undefined;
     if (!userId) {
       throw new WsException('Unauthorized');
+    }
+
+    const liveAnalysis = this.analysisSessionStore.findForUser(userId, parsed.data.analysisId);
+    if (liveAnalysis) {
+      await client.join(getAnalysisRoom(parsed.data.analysisId));
+      client.emit(ANALYSIS_SOCKET_EVENTS.subscribed, liveAnalysis);
+      return;
     }
 
     const scan = await findScanByAnalysisIdForUser(userId, parsed.data.analysisId);

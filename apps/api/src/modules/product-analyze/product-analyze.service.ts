@@ -104,7 +104,7 @@ export class ProductAnalyzeService {
       }
     }
 
-    if (!product || !isFoodProduct(product)) {
+    if (!product) {
       return {
         product: null,
         source,
@@ -155,6 +155,10 @@ export class ProductAnalyzeService {
     config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<{ analysis: AnalysisJobResponse; scanId?: string }> {
     return this.analysisOrchestrator.startAnalysis(input, config);
+  }
+
+  async getAnalysisState(analysisId: string, userId: string): Promise<AnalysisJobResponse | null> {
+    return this.analysisOrchestrator.getAnalysisState(analysisId, userId);
   }
 
   async loadScannerProductMetadata(input: {

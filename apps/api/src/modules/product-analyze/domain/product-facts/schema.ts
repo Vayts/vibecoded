@@ -12,6 +12,10 @@ import {
  * Those come from the product data (OFF/DB) or web search.
  */
 export const productFactsAiOutputSchema = z.object({
+  isFood: z
+    .boolean()
+    .default(true)
+    .describe('Whether the scanned item is a food or drink product'),
   productType: productTypeSchema
     .nullable()
     .describe(

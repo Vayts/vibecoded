@@ -1,5 +1,5 @@
 import type { AnalysisJobResponse, BarcodeLookupResponse, ProductPreview, ScanHistoryItem } from '@acme/shared';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 import { usePersonalAnalysisQuery } from '../../api/scannerQueries';
@@ -25,6 +25,8 @@ interface ProductResultContentProps {
   previewProduct?: ProductPreview;
   resolvedPersonalResult?: AnalysisJobResponse;
   detailState?: ProductResultDetailState;
+  onBeforeErrorSheetOpen?: () => void;
+  onErrorSheetDismiss?: () => void;
 }
 
 export function ProductResultContent({
@@ -34,6 +36,8 @@ export function ProductResultContent({
   previewProduct,
   resolvedPersonalResult,
   detailState,
+  onBeforeErrorSheetOpen,
+  onErrorSheetDismiss,
 }: ProductResultContentProps) {
   const insets = useSafeAreaInsets();
   const [selectedProfileId, setSelectedProfileId] = useState<string>(DEFAULT_PROFILE_ID);
@@ -43,6 +47,7 @@ export function ProductResultContent({
     : successResult ? successResult.personalAnalysis : undefined;
   const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
   const personalData = personalQuery.data ?? initialAnalysis;
+  const hasHandledNotFoodRef = useRef(false);
   const personalError =
     Boolean(initialAnalysis?.analysisId) &&
     !personalData?.result && (personalData?.status === 'failed' || personalQuery.isError);
@@ -54,6 +59,28 @@ export function ProductResultContent({
     previewProduct?.nutriscore_grade ??
     previewHistoryProduct?.nutriscore_grade ??
     null;
+
+  useEffect(() => {
+    if (personalData?.error?.code !== 'NOT_FOOD' || hasHandledNotFoodRef.current) {
+      return;
+    }
+
+    hasHandledNotFoodRef.current = true;
+    onBeforeErrorSheetOpen?.();
+
+    void (async () => {
+      await SheetManager.hide(SheetsEnum.ScannerResultSheet);
+      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
+        payload: {
+          variant: 'not-food',
+          title: 'This is not a food product',
+          message:
+            'The scanned item does not appear to be a food or drink product. Please scan a food item instead.',
+          onDismiss: onErrorSheetDismiss,
+        },
+      });
+    })();
+  }, [onBeforeErrorSheetOpen, onErrorSheetDismiss, personalData?.error?.code]);
 
   if (result?.success === false) {
     return <NotFoundContent result={result} />;

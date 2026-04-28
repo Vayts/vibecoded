@@ -67,6 +67,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
   const cameraRef = useRef<CameraView | null>(null);
   const scanLockRef = useRef(false);
+  const isTransitioningToErrorSheetRef = useRef(false);
   const wasScreenFocusedRef = useRef(true);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
   const scanFrameRef = useRef<View>(null);
@@ -74,6 +75,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
   const [isLocked, setIsLocked] = useState(false);
   const [isScannerPaused, setIsScannerPaused] = useState(false);
+  const [isScannerErrorSheetOpen, setIsScannerErrorSheetOpen] = useState(false);
   const [scannerMode, setScannerMode] = useState<ScannerMode>('scanner');
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
@@ -130,11 +132,26 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   }, [router]);
 
   const resumeScanner = useCallback(() => {
+    isTransitioningToErrorSheetRef.current = false;
     scanLockRef.current = false;
     setIsLocked(false);
     setIsScannerPaused(false);
+    setIsScannerErrorSheetOpen(false);
     setIsResolvingFirstProduct(false);
   }, []);
+
+  const pauseScannerForErrorSheet = useCallback(() => {
+    isTransitioningToErrorSheetRef.current = true;
+    scanLockRef.current = true;
+    setIsLocked(true);
+    setIsScannerPaused(true);
+    setIsScannerErrorSheetOpen(true);
+    setIsResolvingFirstProduct(false);
+  }, []);
+
+  const handleScannerErrorSheetDismiss = useCallback(() => {
+    resumeScanner();
+  }, [resumeScanner]);
 
   const handleCancelCompare = useCallback(() => {
     resetCompare();
@@ -215,8 +232,16 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     resumeScanner();
   }, [resumeScanner]);
 
+  const handleScannerErrorSheetPhotoPress = useCallback(() => {
+    isTransitioningToErrorSheetRef.current = false;
+    setIsScannerErrorSheetOpen(false);
+    switchToPhotoMode();
+  }, [switchToPhotoMode]);
+
   const openScannerErrorSheet = useCallback(
     async (error: unknown, fallbackMessage: string) => {
+      pauseScannerForErrorSheet();
+
       const errorMessage = error instanceof Error ? error.message : fallbackMessage;
       const errorCode = error instanceof ScannerApiError ? error.code : undefined;
       const isRetriableNotFound =
@@ -245,12 +270,12 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
               : isSameProduct
                 ? 'We identified the same product in both scans. Scan a different product to compare.'
                 : errorMessage,
-          onDismiss: resumeScanner,
-          onPhotoPress: isRetriableNotFound ? switchToPhotoMode : undefined,
+          onDismiss: handleScannerErrorSheetDismiss,
+          onPhotoPress: isRetriableNotFound ? handleScannerErrorSheetPhotoPress : undefined,
         },
       });
     },
-    [resumeScanner, switchToPhotoMode],
+    [handleScannerErrorSheetDismiss, handleScannerErrorSheetPhotoPress, pauseScannerForErrorSheet],
   );
 
   const toggleTorch = useCallback(() => {
@@ -274,18 +299,30 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     [isRouteCompareMode, openLiveComparison, resetCompare],
   );
 
+  const handleResultSheetClose = useCallback(() => {
+    if (isTransitioningToErrorSheetRef.current || isScannerErrorSheetOpen) {
+      return;
+    }
+
+    resumeScanner();
+  }, [isScannerErrorSheetOpen, resumeScanner]);
+
   const beginResultSheetSession = useCallback(
     (previewProduct?: ProductPreview) => {
       const sessionId = startResultSession();
 
       void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: previewProduct ? { previewProduct } : {},
-        onClose: resumeScanner,
+        payload: {
+          ...(previewProduct ? { previewProduct } : {}),
+          onBeforeErrorSheetOpen: pauseScannerForErrorSheet,
+          onErrorSheetDismiss: handleScannerErrorSheetDismiss,
+        },
+        onClose: handleResultSheetClose,
       });
 
       return sessionId;
     },
-    [resumeScanner, startResultSession],
+    [handleResultSheetClose, handleScannerErrorSheetDismiss, pauseScannerForErrorSheet, startResultSession],
   );
 
   const handleResultSheetError = useCallback(
@@ -384,7 +421,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const submitBarcode = useCallback(
     async (barcode: string) => {
       const normalized = barcode.trim();
-      if (!normalized || scanLockRef.current) {
+      if (!normalized || scanLockRef.current || isScannerPaused || isScannerErrorSheetOpen) {
         return;
       }
 
@@ -467,6 +504,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       compareMutation,
       handleResultSheetError,
       hydrateResultSession,
+      isScannerErrorSheetOpen,
+      isScannerPaused,
       openComparisonResult,
       openScannerErrorSheet,
       resetCompare,
@@ -474,6 +513,10 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   );
 
   const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
+    if (scanLockRef.current || isScannerPaused || isScannerErrorSheetOpen) {
+      return;
+    }
+
     if (Platform.OS !== 'ios' && bounds && scanFrameBounds.current) {
       const frame = scanFrameBounds.current;
       const centerX = bounds.origin.x + bounds.size.width / 2;
@@ -540,6 +583,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const shouldSuspendCameraView =
     !isAppActive ||
     !isScreenFocused ||
+    isScannerErrorSheetOpen ||
     isScannerPaused ||
     (isLocked && isPhotoMode && !isCapturingPhoto);
   const shouldRenderCameraView = !shouldSuspendCameraView;

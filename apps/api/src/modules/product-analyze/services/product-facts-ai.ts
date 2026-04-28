@@ -45,7 +45,7 @@ export class ProductFactsAiService {
 
   /**
    * Extract structured classification facts using AI.
-   * Returns productType, dietCompatibility, nutriGrade only — no nutrition data.
+   * Returns isFood, productType, dietCompatibility, nutriGrade only — no nutrition data.
    * Falls back to deterministic extraction if AI is unavailable.
    */
   async extractClassification(

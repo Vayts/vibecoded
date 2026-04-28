@@ -4,10 +4,11 @@ import type {
   NutritionFacts,
 } from '@acme/shared';
 
-import { buildNutritionFacts, buildNutritionSummary } from './nutrition-utils';
+import { buildNutritionSummary } from './nutrition-utils';
 import { detectProductType } from './product-type-utils';
 import { detectDietCompatibilityWithReasons } from './diet-utils';
 import type { AiClassification } from './schema';
+import { isFoodProduct } from '../../services/is-food-product';
 
 /**
  * Build classification-only facts from normalized product data WITHOUT calling AI.
@@ -21,6 +22,7 @@ export const buildClassificationFromData = (
     detectDietCompatibilityWithReasons(product);
 
   return {
+    isFood: isFoodProduct(product),
     productType,
     dietCompatibility: compatibility,
     dietCompatibilityReasons: reasons,

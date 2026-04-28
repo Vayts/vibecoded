@@ -7,19 +7,23 @@ import type { ScanSource } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import {
   createScan,
+  findScanByAnalysisIdForUser,
   findRecentScanByBarcode,
   prepareScanForAnalysis,
   updateScanAnalysisState,
 } from '../repositories/scanRepository';
 import { AnalysisPipelineService } from './analysis-pipeline.service';
 import { AnalysisGateway } from './analysis.gateway';
+import { AnalysisSessionStoreService } from './analysis-session-store.service';
 import {
   buildAnalysisResponse,
+  buildAnalysisResponseFromStoredState,
   hasIngredientData,
   parseStoredAnalysisResult,
 } from './analysis-state';
 import { getAnalysisCacheBoundaryForUser } from './analysis-cache';
 import type { ScoreProfileInput } from '../domain/score-engine/compute-score';
+import { NotFoodProductError } from './not-food-product.error';
 
 interface StartAnalysisInput {
   product: NormalizedProduct;
@@ -41,6 +45,7 @@ export class AnalysisOrchestratorService {
   constructor(
     private readonly analysisPipeline: AnalysisPipelineService,
     private readonly analysisGateway: AnalysisGateway,
+    private readonly analysisSessionStore: AnalysisSessionStoreService,
   ) {}
 
   async startAnalysis(
@@ -84,32 +89,69 @@ export class AnalysisOrchestratorService {
       });
     }
 
-    const scanId = await this.persistScanState({
-      existingScanId: existingScan?.id,
+    this.analysisSessionStore.create({
       analysisId,
       userId: input.userId,
       productId: input.productId,
       barcode: input.product.code,
-      source: input.scanSource,
-      photoImagePath: input.photoImagePath,
-      status: 'pending',
+      productStatus: 'pending',
+      ingredientsStatus: ingredientStatus,
     });
 
     void this.runBackgroundAnalysis({
       analysisId,
       ingredientStatus,
       input,
-      scanId,
+      existingScanId: existingScan?.id,
     });
 
     return {
-      scanId,
       analysis: buildAnalysisResponse({
         analysisId,
         productStatus: 'pending',
         ingredientsStatus: ingredientStatus,
       }),
     };
+  }
+
+  async getAnalysisState(
+    analysisId: string,
+    userId: string,
+  ): Promise<AnalysisJobResponse | null> {
+    const liveAnalysis = this.analysisSessionStore.findForUser(userId, analysisId);
+
+    if (liveAnalysis) {
+      return buildAnalysisResponse({
+        analysisId: liveAnalysis.analysisId,
+        productStatus: liveAnalysis.productStatus,
+        ingredientsStatus: liveAnalysis.ingredientsStatus,
+        result: liveAnalysis.result,
+        error: liveAnalysis.error,
+      });
+    }
+
+    const storedScan = await findScanByAnalysisIdForUser(userId, analysisId);
+
+    if (!storedScan) {
+      return null;
+    }
+
+    const storedState = buildAnalysisResponseFromStoredState({
+      analysisId,
+      status: storedScan.personalAnalysisStatus,
+      result: storedScan.personalResult,
+      scanId: storedScan.id,
+      productId: storedScan.productId,
+      barcode: storedScan.barcode,
+    });
+
+    return buildAnalysisResponse({
+      analysisId: storedState.analysisId,
+      productStatus: storedState.productStatus,
+      ingredientsStatus: storedState.ingredientsStatus,
+      result: storedState.result,
+      error: storedState.error,
+    });
   }
 
   private async runInlineAnalysis(input: {
@@ -172,7 +214,22 @@ export class AnalysisOrchestratorService {
           result: ingredientEnhancedResult,
         }),
       };
-    } catch {
+    } catch (error) {
+      if (error instanceof NotFoodProductError) {
+        return {
+          analysis: buildAnalysisResponse({
+            analysisId,
+            productStatus: 'failed',
+            ingredientsStatus: ingredientStatus,
+            error: {
+              phase: 'product',
+              message: error.message,
+              code: error.code,
+            },
+          }),
+        };
+      }
+
       return {
         analysis: buildAnalysisResponse({
           analysisId,
@@ -192,11 +249,10 @@ export class AnalysisOrchestratorService {
     analysisId: string;
     ingredientStatus: IngredientStatus;
     input: StartAnalysisInput;
-    scanId: string;
+    existingScanId?: string;
   }): Promise<void> {
     this.analysisGateway.emitProductStarted({
       analysisId: input.analysisId,
-      scanId: input.scanId,
       productId: input.input.productId,
       barcode: input.input.product.code,
       productStatus: 'pending',
@@ -211,15 +267,32 @@ export class AnalysisOrchestratorService {
           input.input.productId,
         );
 
-      await updateScanAnalysisState(input.scanId, {
-        status: input.ingredientStatus,
+      const scanId = await this.persistScanState({
+        existingScanId: input.existingScanId,
         analysisId: input.analysisId,
+        userId: input.input.userId!,
+        productId: input.input.productId,
+        barcode: input.input.product.code,
+        source: input.input.scanSource,
+        photoImagePath: input.input.photoImagePath,
+        status: input.ingredientStatus,
         result,
-      }).catch(() => undefined);
+      });
+
+      this.analysisSessionStore.update({
+        analysisId: input.analysisId,
+        userId: input.input.userId!,
+        scanId,
+        productId: input.input.productId,
+        barcode: input.input.product.code,
+        productStatus: 'completed',
+        ingredientsStatus: input.ingredientStatus,
+        result,
+      });
 
       this.analysisGateway.emitProductCompleted({
         analysisId: input.analysisId,
-        scanId: input.scanId,
+        scanId,
         productId: input.input.productId,
         barcode: input.input.product.code,
         productStatus: 'completed',
@@ -228,9 +301,20 @@ export class AnalysisOrchestratorService {
       });
 
       if (input.ingredientStatus === 'completed') {
+        this.analysisSessionStore.update({
+          analysisId: input.analysisId,
+          userId: input.input.userId!,
+          scanId,
+          productId: input.input.productId,
+          barcode: input.input.product.code,
+          productStatus: 'completed',
+          ingredientsStatus: 'completed',
+          result,
+        });
+
         this.analysisGateway.emitIngredientsCompleted({
           analysisId: input.analysisId,
-          scanId: input.scanId,
+          scanId,
           productId: input.input.productId,
           barcode: input.input.product.code,
           productStatus: 'completed',
@@ -243,7 +327,7 @@ export class AnalysisOrchestratorService {
 
       void this.runIngredientAnalysis({
         analysisId: input.analysisId,
-        scanId: input.scanId,
+        scanId,
         productId: input.input.productId,
         product: input.input.product,
         userId: input.input.userId,
@@ -254,24 +338,55 @@ export class AnalysisOrchestratorService {
 
       return;
     } catch (error) {
-      console.error('Product analysis background task failed', error);
+      const isNotFoodError = error instanceof NotFoodProductError;
 
-      await updateScanAnalysisState(input.scanId, {
-        status: 'failed',
-        analysisId: input.analysisId,
-      }).catch(() => undefined);
+      if (isNotFoodError) {
+        console.warn(
+          `[analysis-orchestrator] product marked as NOT_FOOD barcode=${input.input.product.code}`,
+        );
+      } else {
+        console.error('Product analysis background task failed', error);
+      }
 
-      this.analysisGateway.emitProductFailed({
+      const scanId = isNotFoodError
+        ? undefined
+        : await this.persistScanState({
+            existingScanId: input.existingScanId,
+            analysisId: input.analysisId,
+            userId: input.input.userId!,
+            productId: input.input.productId,
+            barcode: input.input.product.code,
+            source: input.input.scanSource,
+            photoImagePath: input.input.photoImagePath,
+            status: 'failed',
+          }).catch(() => undefined);
+
+      this.analysisSessionStore.update({
         analysisId: input.analysisId,
-        scanId: input.scanId,
+        userId: input.input.userId!,
+        ...(scanId ? { scanId } : {}),
         productId: input.input.productId,
         barcode: input.input.product.code,
         productStatus: 'failed',
         ingredientsStatus: input.ingredientStatus,
         error: {
           phase: 'product',
-          message: 'Product analysis failed',
-          code: 'PRODUCT_ANALYSIS_FAILED',
+          message: isNotFoodError ? error.message : 'Product analysis failed',
+          code: isNotFoodError ? error.code : 'PRODUCT_ANALYSIS_FAILED',
+        },
+      });
+
+      this.analysisGateway.emitProductFailed({
+        analysisId: input.analysisId,
+        scanId,
+        productId: input.input.productId,
+        barcode: input.input.product.code,
+        productStatus: 'failed',
+        ingredientsStatus: input.ingredientStatus,
+        error: {
+          phase: 'product',
+          message: isNotFoodError ? error.message : 'Product analysis failed',
+          code: isNotFoodError ? error.code : 'PRODUCT_ANALYSIS_FAILED',
         },
       });
     }
@@ -285,7 +400,7 @@ export class AnalysisOrchestratorService {
     barcode: string;
     source: ScanSource;
     photoImagePath?: string;
-    status: 'pending' | 'completed';
+    status: 'pending' | 'completed' | 'failed';
     result?: ProductAnalysisResult;
   }): Promise<string> {
     if (input.existingScanId) {
@@ -353,6 +468,24 @@ export class AnalysisOrchestratorService {
           }).catch(() => undefined);
         }
 
+        if (input.scanId && input.userId) {
+          this.analysisSessionStore.update({
+            analysisId: input.analysisId,
+            userId: input.userId,
+            scanId: input.scanId,
+            productId: input.productId,
+            barcode: input.product.code,
+            productStatus: 'completed',
+            ingredientsStatus: 'failed',
+            result: input.baseResult,
+            error: {
+              phase: 'ingredients',
+              message: 'Ingredient analysis failed',
+              code: 'INGREDIENT_ANALYSIS_FAILED',
+            },
+          });
+        }
+
         this.analysisGateway.emitIngredientsFailed({
           analysisId: input.analysisId,
           scanId: input.scanId,
@@ -378,6 +511,19 @@ export class AnalysisOrchestratorService {
         }).catch(() => undefined);
       }
 
+      if (input.scanId && input.userId) {
+        this.analysisSessionStore.update({
+          analysisId: input.analysisId,
+          userId: input.userId,
+          scanId: input.scanId,
+          productId: input.productId,
+          barcode: input.product.code,
+          productStatus: 'completed',
+          ingredientsStatus: 'completed',
+          result,
+        });
+      }
+
       this.analysisGateway.emitIngredientsCompleted({
         analysisId: input.analysisId,
         scanId: input.scanId,
@@ -395,6 +541,24 @@ export class AnalysisOrchestratorService {
           status: 'failed',
           analysisId: input.analysisId,
         }).catch(() => undefined);
+      }
+
+      if (input.scanId && input.userId) {
+        this.analysisSessionStore.update({
+          analysisId: input.analysisId,
+          userId: input.userId,
+          scanId: input.scanId,
+          productId: input.productId,
+          barcode: input.product.code,
+          productStatus: 'completed',
+          ingredientsStatus: 'failed',
+          result: input.baseResult,
+          error: {
+            phase: 'ingredients',
+            message: 'Ingredient analysis failed',
+            code: 'INGREDIENT_ANALYSIS_FAILED',
+          },
+        });
       }
 
       this.analysisGateway.emitIngredientsFailed({

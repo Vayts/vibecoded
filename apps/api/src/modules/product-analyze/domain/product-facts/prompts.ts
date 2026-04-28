@@ -38,10 +38,13 @@ export const buildProductFactsPrompt = (product: NormalizedProduct): string => {
   return parts.join('\n');
 };
 
-export const PRODUCT_FACTS_SYSTEM_PROMPT = `You are a structured product classifier. Given food product data, return ONLY structured JSON classification facts.
+export const PRODUCT_FACTS_SYSTEM_PROMPT = `You are a structured product classifier. Given product data, first decide whether the scanned item is a food or drink product, then return ONLY structured JSON classification facts.
 
 RULES:
 - Return ONLY the JSON object matching the required schema. No prose, no explanation.
+- Set isFood to true only for food or beverage products meant for human consumption.
+- Set isFood to false for non-food products such as cosmetics, supplements not intended as food, household goods, pet products, electronics, toys, books, and other general merchandise.
+- If isFood is false, still fill the remaining fields conservatively and never guess missing information.
 - Do NOT compute any score or recommendation.
 - Do NOT return any nutrition values — those come from the product database, not from you.
 - Do NOT invent missing fields. Use null for unknown values.

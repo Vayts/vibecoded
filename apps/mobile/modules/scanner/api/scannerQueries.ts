@@ -1,10 +1,12 @@
 import {
   ANALYSIS_SOCKET_EVENTS,
+  analysisJobResponseSchema,
   type AnalysisJobResponse,
   type AnalysisSocketEventPayload,
 } from '@acme/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
+import { apiFetch } from '../../../shared/lib/client/client';
 import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
@@ -21,6 +23,17 @@ const toAnalysisState = (
 
 export const getPersonalAnalysisQueryKey = (analysisId?: string) => {
   return ['scanner', 'personal-analysis', analysisId] as const;
+};
+
+const fetchAnalysisState = async (analysisId: string): Promise<AnalysisJobResponse> => {
+  const response = await apiFetch(`/api/scanner/analysis/${analysisId}`);
+
+  if (!response.ok) {
+    throw new Error('Unable to load analysis state');
+  }
+
+  const json = await response.json();
+  return analysisJobResponseSchema.parse(json);
 };
 
 export const usePersonalAnalysisQuery = (
@@ -107,14 +120,24 @@ export const usePersonalAnalysisQuery = (
     queryKey,
     enabled: Boolean(analysisId),
     queryFn: async () => {
-      return (
-        (queryClient.getQueryData(queryKey) as AnalysisJobResponse | undefined) ??
-        initialAnalysis
-      );
+      if (!analysisId) {
+        return initialAnalysis;
+      }
+
+      try {
+        return await fetchAnalysisState(analysisId);
+      } catch {
+        return (
+          (queryClient.getQueryData(queryKey) as AnalysisJobResponse | undefined) ??
+          initialAnalysis
+        );
+      }
     },
     initialData: initialAnalysis,
     staleTime: Infinity,
     gcTime: 10 * 60 * 1000,
     retry: 0,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'pending' ? 1000 : false,
   });
 };

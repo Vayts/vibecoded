@@ -13,6 +13,7 @@ import { searchNutritionData } from './nutrition-websearch';
 import { analyzeIngredientsForProfiles } from './ingredient-analysis-ai';
 import { generateProfileFitSummaries } from './profile-fit-summary-ai';
 import { getProfileInputs } from './profileInputs';
+import { NotFoodProductError } from './not-food-product.error';
 import {
   findProductClassificationCache,
   saveProductClassificationCache,
@@ -43,15 +44,8 @@ export class AnalysisPipelineService {
   }> {
     const profilesPromise = this.buildProfiles(userId);
     const factsPromise = this.buildProductFacts(product, productId, config);
-    const ingredientAnalysesPromise = profilesPromise.then((profiles) =>
-      this.buildProfileIngredientAnalyses(product, profiles, config),
-    );
-
-    const [profiles, facts, ingredientAnalyses] = await Promise.all([
-      profilesPromise,
-      factsPromise,
-      ingredientAnalysesPromise,
-    ]);
+    const [profiles, facts] = await Promise.all([profilesPromise, factsPromise]);
+    const ingredientAnalyses = await this.buildProfileIngredientAnalyses(product, profiles, config);
 
     const profileScores = computeAllProfileScores(product, facts, profiles, ingredientAnalyses);
     const scoresWithoutIngredientAnalysis = profileScores.map((profileScore) => {
@@ -229,24 +223,20 @@ export class AnalysisPipelineService {
   ): Promise<ProductFacts> {
     const productName = product.product_name ?? product.code ?? 'unknown';
     const productHasNutrition = hasNutritionData(product);
+    const classification = await this.resolveClassification(product, productId, config).catch(() =>
+      buildClassificationFromData(product),
+    );
+
+    if (!classification.isFood) {
+      throw new NotFoodProductError();
+    }
 
     let nutritionFacts: NutritionFacts;
-    let classification: ReturnType<typeof buildClassificationFromData>;
 
     if (productHasNutrition) {
       nutritionFacts = buildNutritionFacts(product);
-      classification = await this.resolveClassification(product, productId, config).catch(() =>
-        buildClassificationFromData(product),
-      );
     } else {
-      const [classificationResult, webNutrition] = await Promise.all([
-        this.resolveClassification(product, productId, config).catch(() =>
-          buildClassificationFromData(product),
-        ),
-        searchNutritionData(productName, product.brands, product.code),
-      ]);
-
-      classification = classificationResult;
+      const webNutrition = await searchNutritionData(productName, product.brands, product.code);
       nutritionFacts = webNutrition ?? buildNutritionFacts(product);
     }
 

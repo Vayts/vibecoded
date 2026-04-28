@@ -1,4 +1,5 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import type { AnalysisJobResponse } from '@acme/shared';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { SCANNER_ROUTE_BASE } from './scanner.constants';
@@ -15,6 +16,15 @@ export class ScannerController {
   async submitBarcodeScan(@Body() body: unknown, @Req() request: Request) {
     const userId = await this.authSessionService.getOptionalUserId(request);
     return this.scannerService.submitBarcodeScan(body, userId);
+  }
+
+  @Get('analysis/:analysisId')
+  async getAnalysisState(
+    @Param('analysisId') analysisId: string,
+    @Req() request: Request,
+  ): Promise<AnalysisJobResponse> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.scannerService.getAnalysisState(analysisId, userId);
   }
 
   @Post('compare')
