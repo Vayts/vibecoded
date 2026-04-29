@@ -2,12 +2,12 @@ import { ArrowLeftRight, Calculator } from 'lucide-react-native';
 import { View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
 
-import { COLORS } from '../../../../shared/constants/colors';
-import { SheetsEnum } from '../../../../shared/types/sheets';
 import { FavouriteButton } from './FavouriteButton';
+import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ResultSheetActionButton } from './ResultSheetActionButton';
-import { ScanDeleteAction } from './ScanDeleteAction';
 import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
+import { ScanDeleteAction } from './ScanDeleteAction';
 
 interface ProductResultBottomActionsProps {
   scanId?: string;

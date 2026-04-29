@@ -79,6 +79,19 @@ export const nutritionFactsSchema = z.object({
 });
 export type NutritionFacts = z.infer<typeof nutritionFactsSchema>;
 
+export const IGNORED_NUTRITION_FACT_VALUES = [
+  'calories',
+  'protein',
+  'fat',
+  'saturated-fat',
+  'carbohydrates',
+  'sugar',
+  'fiber',
+  'salt',
+] as const;
+export const ignoredNutritionFactSchema = z.enum(IGNORED_NUTRITION_FACT_VALUES);
+export type IgnoredNutritionFact = z.infer<typeof ignoredNutritionFactSchema>;
+
 // ============================================================
 // Nutrition Summary (levels)
 // ============================================================
@@ -111,6 +124,7 @@ export const productFactsSchema = z.object({
   productType: productTypeSchema.nullable(),
   dietCompatibility: dietCompatibilitySchema,
   dietCompatibilityReasons: dietCompatibilityReasonsSchema.optional(),
+  ignoredNutritionFacts: z.array(ignoredNutritionFactSchema).optional().default([]),
   nutritionFacts: nutritionFactsSchema,
   nutritionSummary: nutritionSummarySchema,
   nutriGrade: nutriGradeSchema,

@@ -26,6 +26,6 @@
     "noFallthroughCasesInSwitch": false
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts"],
   "references": [{ "path": "../../packages/shared" }]
 }

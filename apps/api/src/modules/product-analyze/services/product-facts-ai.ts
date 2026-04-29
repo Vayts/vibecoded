@@ -39,22 +39,8 @@ export class ProductFactsAiService {
         model: AI_MODELS.reason,
         apiKey: process.env.OPENAI_API_KEY,
         maxRetries: 1,
-        reasoning: { effort: 'low' },
+        reasoning: { effort: 'medium' },
       });
-  }
-
-  /**
-   * Extract structured classification facts using AI.
-   * Returns isFood, productType, dietCompatibility, nutriGrade only — no nutrition data.
-   * Falls back to deterministic extraction if AI is unavailable.
-   */
-  async extractClassification(
-    product: NormalizedProduct,
-    config?: RunnableConfig<Record<string, unknown>>,
-  ): Promise<AiClassification> {
-    const result = await this.extractClassificationWithSource(product, config);
-
-    return result.classification;
   }
 
   async extractClassificationWithSource(
@@ -79,7 +65,6 @@ export class ProductFactsAiService {
           source: 'fallback',
         };
       }
-      console.log('[ProductFacts] Prompt:\n', userMessage);
 
       const structuredModel = (
         this.model as unknown as StructuredProductFactsModel

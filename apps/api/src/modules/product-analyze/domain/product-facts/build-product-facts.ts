@@ -7,6 +7,7 @@ import type {
 import { buildNutritionSummary } from './nutrition-utils';
 import { detectProductType } from './product-type-utils';
 import { detectDietCompatibilityWithReasons } from './diet-utils';
+import { normalizeIgnoredNutritionFacts } from './ignored-nutrition-facts';
 import type { AiClassification } from './schema';
 import { isFoodProduct } from '../../services/is-food-product';
 
@@ -26,6 +27,7 @@ export const buildClassificationFromData = (
     productType,
     dietCompatibility: compatibility,
     dietCompatibilityReasons: reasons,
+    ignoredNutritionFacts: [],
     nutriGrade:
       (product.scores.nutriscore_grade?.toLowerCase() as AiClassification['nutriGrade']) ??
       null,
@@ -85,6 +87,7 @@ export const buildProductFacts = (
     dietCompatibility: classification.dietCompatibility,
     dietCompatibilityReasons:
       sanitizeReasons(classification.dietCompatibilityReasons) ?? undefined,
+    ignoredNutritionFacts: normalizeIgnoredNutritionFacts(classification.ignoredNutritionFacts),
     nutritionFacts,
     nutritionSummary: buildNutritionSummary(
       nutritionFacts,
