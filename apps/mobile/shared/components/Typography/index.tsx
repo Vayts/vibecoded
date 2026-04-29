@@ -1,3 +1,4 @@
+import { twMerge } from 'tailwind-merge';
 import { Text, type TextProps } from 'react-native';
 
 /**
@@ -59,9 +60,10 @@ export interface TypographyProps extends TextProps {
  *   <Typography variant="button" className="text-white">Save</Typography>
  *
  * Falls back to `body` when no variant is given.
- * Any extra `className` is merged on top of the variant defaults,
- * so you can override color, alignment, margins, etc.
+ * Any extra `className` is merged on top of the variant defaults.
+ * Conflicting utility classes from `className` override the defaults,
+ * so you can replace color, size, weight, alignment, margins, etc.
  */
 export function Typography({ variant = 'body', className, ...props }: TypographyProps) {
-  return <Text className={`${variantClasses[variant]} ${className ?? ''}`.trim()} {...props} />;
+  return <Text className={twMerge(variantClasses[variant], className)} {...props} />;
 }

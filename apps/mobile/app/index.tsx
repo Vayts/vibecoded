@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Redirect } from 'expo-router';
 import { useOnboardingQuery } from '../modules/onboarding/api/onboardingQueries';
-import { LaunchSplashScreen } from '../modules/auth/components/LaunchSplashScreen';
 import { OnboardingFlow } from '../modules/onboarding/components/OnboardingFlow';
 import { OnboardingStateScreen } from '../modules/onboarding/components/OnboardingStateScreen';
 import { useOnboardingStore } from '../modules/onboarding/stores/onboarding/store';
@@ -56,7 +55,7 @@ export default function Index() {
   }
 
   if (!user) {
-    return <Redirect href="/(auth)/sign-in" />;
+    return <Redirect href="/(auth)/welcome" />;
   }
 
   if (onboardingQuery.isLoading) {
