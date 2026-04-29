@@ -44,8 +44,15 @@ export class AnalysisPipelineService {
   }> {
     const profilesPromise = this.buildProfiles(userId);
     const factsPromise = this.buildProductFacts(product, productId, config);
-    const [profiles, facts] = await Promise.all([profilesPromise, factsPromise]);
-    const ingredientAnalyses = await this.buildProfileIngredientAnalyses(product, profiles, config);
+    const ingredientAnalysesPromise = profilesPromise.then((profiles) =>
+      this.buildProfileIngredientAnalyses(product, profiles, config),
+    );
+
+    const [profiles, facts, ingredientAnalyses] = await Promise.all([
+      profilesPromise,
+      factsPromise,
+      ingredientAnalysesPromise,
+    ]);
 
     const profileScores = computeAllProfileScores(product, facts, profiles, ingredientAnalyses);
     const scoresWithoutIngredientAnalysis = profileScores.map((profileScore) => {

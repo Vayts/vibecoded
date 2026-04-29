@@ -10,7 +10,6 @@ import googleIcon from '../../assets/google.png';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useEffect } from 'react';
 import { toast } from '@backpackapp-io/react-native-toast';
-import { COLORS } from '../../shared/constants/colors';
 import SignInMascot from '../../assets/icons/mascot/sign-in-mascot.svg';
 
 const ICON_SIZE_APPLE = { width: 20, height: 20 };
@@ -86,7 +85,7 @@ export default function SignInScreen() {
           Sign in to continue
         </Typography>
 
-        <Typography variant="bodySecondary" className="mt-2 text-center text-gray-500">
+        <Typography variant="bodySecondary" className="mt-2 px-12 text-center text-gray-500">
           Pick a secure sign-in method to start scanning and comparing products.
         </Typography>
 

@@ -116,13 +116,6 @@ const getClient = async (): Promise<OpenFoodFactsClient> => {
 export const lookupBarcode = async (
   barcode: string,
 ): Promise<NormalizedProduct | null> => {
-  if (isCachedMiss(barcode)) {
-    console.log(
-      `[OFF] cache-miss hit for barcode=${barcode} — skipping API call`,
-    );
-    return null;
-  }
-
   const client = await getClient();
 
   let response: OpenFoodFactsBarcodeResponse;

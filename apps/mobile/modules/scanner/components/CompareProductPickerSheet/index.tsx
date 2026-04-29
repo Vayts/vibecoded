@@ -168,14 +168,14 @@ export function CompareProductPickerSheet() {
         </View>
 
         <View className="px-4 pb-4">
-          <Typography variant="sectionTitle">Compare with history product</Typography>
+          <Typography variant="sectionTitle">Recent scans</Typography>
 
           <Typography variant="bodySecondary" className="mt-2 text-gray-500">
-            Search your scan history and pick a different product to compare against.
+            Scan or pick a product from history
           </Typography>
         </View>
 
-        <ScansSearchInput className="mx-4 mb-3" value={searchQuery} onChangeText={setSearchQuery} />
+        <ScansSearchInput className="mx-4" value={searchQuery} onChangeText={setSearchQuery} />
 
         <View className="flex-1">
           <CompareProductPickerList
@@ -189,7 +189,7 @@ export function CompareProductPickerSheet() {
 
         <View
           pointerEvents="box-none"
-          className="absolute left-0 right-0 px-4 pt-3 bg-white"
+          className="absolute left-0 right-0 px-4"
           style={{
             bottom: footerBottomOffset,
             paddingBottom: 0,
@@ -197,12 +197,12 @@ export function CompareProductPickerSheet() {
         >
           <Button
             fullWidth
-            variant="secondary"
+            variant="primary"
             label="Scan to Compare"
             disabled={isPending}
             accessibilityLabel="Scan a new product to compare"
             accessibilityRole="button"
-            Icon={<Camera size={18} color={COLORS.gray700} strokeWidth={1.9} />}
+            Icon={<Camera size={18} color={COLORS.white} strokeWidth={1.9} />}
             onPress={() => {
               void handleScanToCompare();
             }}
