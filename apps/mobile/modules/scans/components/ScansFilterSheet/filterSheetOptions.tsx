@@ -1,5 +1,11 @@
 import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN, type ScanFitBucket } from '@acme/shared';
-import { Check, CircleAlert, HeartCrack, HeartHandshake, type LucideProps } from 'lucide-react-native';
+import {
+  Check,
+  CircleAlert,
+  HeartCrack,
+  HeartHandshake,
+  type LucideProps,
+} from 'lucide-react-native';
 import type { ForwardRefExoticComponent } from 'react';
 import { View } from 'react-native';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -9,7 +15,7 @@ export const toggleSelection = (items: string[], value: string) =>
 
 export const SelectionIndicator = ({ selected }: { selected: boolean }) => (
   <View
-    className={`h-7 w-7 items-center justify-center rounded-full border ${selected ? 'border-primary-900 bg-primary-900' : 'border-gray-300 bg-white'}`}
+    className={`h-7 w-7 items-center justify-center rounded-full border ${selected ? 'border-primary-500 bg-primary-500' : 'border-gray-300 bg-white'}`}
   >
     {selected ? <Check color={COLORS.white} size={16} strokeWidth={2.5} /> : null}
   </View>
@@ -52,4 +58,3 @@ export const SCORE_OPTIONS: Array<{
     Icon: HeartHandshake,
   },
 ];
-

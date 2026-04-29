@@ -17,6 +17,8 @@ interface ScannerResultSheetContentProps {
     isLoading: boolean;
     isError: boolean;
   };
+  onBeforeErrorSheetOpen?: () => void;
+  onErrorSheetDismiss?: () => void;
 }
 
 export function ScannerResultSheetContent({
@@ -26,6 +28,8 @@ export function ScannerResultSheetContent({
   result,
   resolvedPersonalResult,
   detailState,
+  onBeforeErrorSheetOpen,
+  onErrorSheetDismiss,
 }: ScannerResultSheetContentProps) {
   if (scanId) {
     return (
@@ -46,6 +50,8 @@ export function ScannerResultSheetContent({
         previewProduct={previewProduct}
         resolvedPersonalResult={resolvedPersonalResult}
         detailState={detailState}
+        onBeforeErrorSheetOpen={onBeforeErrorSheetOpen}
+        onErrorSheetDismiss={onErrorSheetDismiss}
       />
     );
   }

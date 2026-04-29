@@ -1,11 +1,13 @@
-import { ArrowLeftRight } from 'lucide-react-native';
+import { ArrowLeftRight, Calculator } from 'lucide-react-native';
 import { View } from 'react-native';
+import { SheetManager } from 'react-native-actions-sheet';
 
-import { COLORS } from '../../../../shared/constants/colors';
 import { FavouriteButton } from './FavouriteButton';
+import { SheetsEnum } from '../../../../shared/types/sheets';
 import { ResultSheetActionButton } from './ResultSheetActionButton';
-import { ScanDeleteAction } from './ScanDeleteAction';
 import { Typography } from '../../../../shared/components/Typography';
+import { COLORS } from '../../../../shared/constants/colors';
+import { ScanDeleteAction } from './ScanDeleteAction';
 
 interface ProductResultBottomActionsProps {
   scanId?: string;
@@ -33,6 +35,13 @@ export function ProductResultBottomActions({
         icon={<ArrowLeftRight color={COLORS.neutrals900} size={18} strokeWidth={1.9} />}
         disabled={isCompareDisabled}
         onPress={onComparePress}
+      />
+      <ResultSheetActionButton
+        label="Score calculation"
+        icon={<Calculator color={COLORS.neutrals900} size={18} strokeWidth={1.9} />}
+        onPress={() => {
+          void SheetManager.show(SheetsEnum.ScoreCalculationSheet);
+        }}
       />
       <ScanDeleteAction scanId={scanId} />
     </View>

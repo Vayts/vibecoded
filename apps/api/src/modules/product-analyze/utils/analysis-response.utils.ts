@@ -10,7 +10,6 @@ import {
 import { createProduct, findByBarcode } from '../repositories/productRepository';
 import { findProductIdByBarcode } from '../repositories/scanRepository';
 import { lookupBarcode } from '../services/openfoodfacts-client';
-import { searchProductByBarcode } from '../services/websearch-fallback';
 import { isFoodProduct } from '../services/is-food-product';
 
 export interface ResolvedProductResult {
@@ -39,10 +38,6 @@ export const resolveProduct = async (barcode: string): Promise<ResolvedProductRe
     } catch {
       product = null;
     }
-  }
-
-  if (!product) {
-    product = await searchProductByBarcode(barcode);
   }
 
   if (!product || !isFoodProduct(product)) {

@@ -34,6 +34,8 @@ export interface ScannerResultSheetPayload {
   resolvedPersonalResult?: AnalysisJobResponse;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
+  onBeforeErrorSheetOpen?: () => void;
+  onErrorSheetDismiss?: () => void;
 }
 
 export interface ProductDecisionSheetPayload {

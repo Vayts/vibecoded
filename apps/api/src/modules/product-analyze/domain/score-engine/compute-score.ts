@@ -1,4 +1,5 @@
 import type {
+  IgnoredNutritionFact,
   NormalizedProduct,
   ProductFacts,
   ScoreReason,
@@ -218,6 +219,30 @@ const getCategoryProfile = (
     fiber: overrides.fiber ?? DEFAULT_PROFILE.fiber,
     skip: overrides.skip ?? NO_SKIP,
   };
+};
+
+const NUTRIENT_TO_IGNORED_FACT: Record<NutrientKey, IgnoredNutritionFact> = {
+  sugar: 'sugar',
+  salt: 'salt',
+  saturatedFat: 'saturated-fat',
+  calories: 'calories',
+  protein: 'protein',
+  fiber: 'fiber',
+};
+
+const getIgnoredNutritionFacts = (
+  facts: ProductFacts,
+): Set<IgnoredNutritionFact> => new Set(facts.ignoredNutritionFacts ?? []);
+
+const shouldSkipNutritionReason = (
+  skip: Set<NutrientKey>,
+  ignoredNutritionFacts: Set<IgnoredNutritionFact>,
+  nutrient: NutrientKey,
+): boolean => {
+  return (
+    skip.has(nutrient) ||
+    ignoredNutritionFacts.has(NUTRIENT_TO_IGNORED_FACT[nutrient])
+  );
 };
 
 const computeNutritionLevel = (
@@ -713,10 +738,11 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
   const cat = getCategoryProfile(facts.productType);
   const s = computeNutritionLevels(n, cat);
   const { skip } = cat;
+  const ignoredNutritionFacts = getIgnoredNutritionFacts(facts);
 
   // --- Evaluated nutrients (scored) ---
 
-  if (!skip.has('sugar')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'sugar')) {
     const sugar = nutritionReason(
       'sugar',
       'Sugar',
@@ -746,7 +772,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
     if (r) reasons.push(r);
   }
 
-  if (!skip.has('salt')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'salt')) {
     const salt = nutritionReason(
       'salt',
       'Salt',
@@ -776,7 +802,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
     if (r) reasons.push(r);
   }
 
-  if (!skip.has('saturatedFat')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'saturatedFat')) {
     const satFat = nutritionReason(
       'saturated-fat',
       'Saturated fat',
@@ -806,7 +832,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
     if (r) reasons.push(r);
   }
 
-  if (!skip.has('calories')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'calories')) {
     const cal = nutritionReason(
       'calories',
       'Calories',
@@ -836,7 +862,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
     if (r) reasons.push(r);
   }
 
-  if (!skip.has('protein')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'protein')) {
     const protein = nutritionReason(
       'protein',
       'Protein',
@@ -866,7 +892,7 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
     if (r) reasons.push(r);
   }
 
-  if (!skip.has('fiber')) {
+  if (!shouldSkipNutritionReason(skip, ignoredNutritionFacts, 'fiber')) {
     const fiber = nutritionReason(
       'fiber',
       'Fiber',
@@ -895,27 +921,31 @@ const evaluateNutritionFacts = (facts: ProductFacts): InternalScoreReason[] => {
   }
 
   // --- Always-neutral nutrients (informational, not scored) ---
-  const fat = neutralNutritionReason(
-    'fat',
-    'Fat',
-    n.fat,
-    'g',
-    'Total fat content',
-    facts.productType,
-    'fat',
-  );
-  if (fat) reasons.push(fat);
+  if (!ignoredNutritionFacts.has('fat')) {
+    const fat = neutralNutritionReason(
+      'fat',
+      'Fat',
+      n.fat,
+      'g',
+      'Total fat content',
+      facts.productType,
+      'fat',
+    );
+    if (fat) reasons.push(fat);
+  }
 
-  const carbs = neutralNutritionReason(
-    'carbs',
-    'Carbohydrates',
-    n.carbs,
-    'g',
-    'Carbohydrate content',
-    facts.productType,
-    'carbohydrates',
-  );
-  if (carbs) reasons.push(carbs);
+  if (!ignoredNutritionFacts.has('carbohydrates')) {
+    const carbs = neutralNutritionReason(
+      'carbs',
+      'Carbohydrates',
+      n.carbs,
+      'g',
+      'Carbohydrate content',
+      facts.productType,
+      'carbohydrates',
+    );
+    if (carbs) reasons.push(carbs);
+  }
 
   return reasons;
 };
@@ -1475,12 +1505,17 @@ const evaluateGoals = (
   const n = facts.nutritionFacts;
   const cat = getCategoryProfile(facts.productType);
   const s = computeNutritionLevels(n, cat);
+  const ignoredNutritionFacts = getIgnoredNutritionFacts(facts);
 
   const goal = onboarding.mainGoal;
   const priorities = onboarding.nutritionPriorities;
 
   // Weight loss: penalize high calories
-  if (goal === 'WEIGHT_LOSS' && s.calorieLevel === 'high') {
+  if (
+    goal === 'WEIGHT_LOSS' &&
+    !ignoredNutritionFacts.has('calories') &&
+    s.calorieLevel === 'high'
+  ) {
     reasons.push({
       key: 'goal-weight-loss-calories',
       label: 'Weight loss goal',
@@ -1496,7 +1531,11 @@ const evaluateGoals = (
   }
 
   // Muscle gain: reward high protein
-  if (goal === 'MUSCLE_GAIN' && s.proteinLevel === 'high') {
+  if (
+    goal === 'MUSCLE_GAIN' &&
+    !ignoredNutritionFacts.has('protein') &&
+    s.proteinLevel === 'high'
+  ) {
     reasons.push({
       key: 'goal-muscle-gain-protein',
       label: 'Muscle gain goal',
@@ -1512,7 +1551,11 @@ const evaluateGoals = (
   }
 
   // Muscle gain: penalize low protein
-  if (goal === 'MUSCLE_GAIN' && s.proteinLevel === 'low') {
+  if (
+    goal === 'MUSCLE_GAIN' &&
+    !ignoredNutritionFacts.has('protein') &&
+    s.proteinLevel === 'low'
+  ) {
     reasons.push({
       key: 'goal-muscle-gain-low-protein',
       label: 'Muscle gain goal',
@@ -1528,7 +1571,11 @@ const evaluateGoals = (
   }
 
   // Diabetes control: penalize high sugar
-  if (goal === 'DIABETES_CONTROL' && s.sugarLevel === 'high') {
+  if (
+    goal === 'DIABETES_CONTROL' &&
+    !ignoredNutritionFacts.has('sugar') &&
+    s.sugarLevel === 'high'
+  ) {
     reasons.push({
       key: 'goal-diabetes-sugar',
       label: 'Blood sugar management',
@@ -1545,7 +1592,11 @@ const evaluateGoals = (
   }
 
   // Diabetes control: reward low sugar
-  if (goal === 'DIABETES_CONTROL' && s.sugarLevel === 'low') {
+  if (
+    goal === 'DIABETES_CONTROL' &&
+    !ignoredNutritionFacts.has('sugar') &&
+    s.sugarLevel === 'low'
+  ) {
     reasons.push({
       key: 'goal-diabetes-low-sugar',
       label: 'Blood sugar management',
@@ -1561,7 +1612,7 @@ const evaluateGoals = (
   }
 
   // Priority: LOW_SUGAR
-  if (priorities.includes('LOW_SUGAR')) {
+  if (priorities.includes('LOW_SUGAR') && !ignoredNutritionFacts.has('sugar')) {
     if (s.sugarLevel === 'low') {
       reasons.push({
         key: 'priority-low-sugar',
@@ -1592,7 +1643,7 @@ const evaluateGoals = (
   }
 
   // Priority: LOW_SODIUM
-  if (priorities.includes('LOW_SODIUM')) {
+  if (priorities.includes('LOW_SODIUM') && !ignoredNutritionFacts.has('salt')) {
     if (s.saltLevel === 'low') {
       reasons.push({
         key: 'priority-low-sodium',
@@ -1623,7 +1674,7 @@ const evaluateGoals = (
   }
 
   // Priority: HIGH_PROTEIN
-  if (priorities.includes('HIGH_PROTEIN')) {
+  if (priorities.includes('HIGH_PROTEIN') && !ignoredNutritionFacts.has('protein')) {
     if (s.proteinLevel === 'high') {
       reasons.push({
         key: 'priority-high-protein',
@@ -1654,7 +1705,7 @@ const evaluateGoals = (
   }
 
   // Priority: HIGH_FIBER
-  if (priorities.includes('HIGH_FIBER')) {
+  if (priorities.includes('HIGH_FIBER') && !ignoredNutritionFacts.has('fiber')) {
     if (s.fiberLevel === 'high') {
       reasons.push({
         key: 'priority-high-fiber',
@@ -1683,7 +1734,11 @@ const evaluateGoals = (
   }
 
   // Priority: LOW_CARB
-  if (priorities.includes('LOW_CARB') && n.carbs != null) {
+  if (
+    priorities.includes('LOW_CARB') &&
+    !ignoredNutritionFacts.has('carbohydrates') &&
+    n.carbs != null
+  ) {
     if (n.carbs <= 10) {
       reasons.push({
         key: 'priority-low-carb',

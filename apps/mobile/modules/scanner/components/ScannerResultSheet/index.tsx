@@ -19,6 +19,8 @@ export function ScannerResultSheet() {
   const scanId = payload?.scanId;
   const item = payload?.item;
   const previewProduct = payload?.previewProduct;
+  const onBeforeErrorSheetOpen = payload?.onBeforeErrorSheetOpen;
+  const onErrorSheetDismiss = payload?.onErrorSheetDismiss;
 
   const handleClose = useCallback(() => {
     reset();
@@ -44,6 +46,8 @@ export function ScannerResultSheet() {
         result={resolvedResult}
         resolvedPersonalResult={resolvedPersonalResult}
         detailState={detailState}
+        onBeforeErrorSheetOpen={onBeforeErrorSheetOpen}
+        onErrorSheetDismiss={onErrorSheetDismiss}
       />
     </ActionSheet>
   );

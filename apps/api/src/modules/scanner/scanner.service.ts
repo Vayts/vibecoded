@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type {
+  AnalysisJobResponse,
   BarcodeLookupResponse,
   CompareProductsRequest,
   ProductComparisonResult,
@@ -21,6 +22,16 @@ export class ScannerService {
     }
 
     return this.productAnalyzeService.scanBarcode(parsed.data.barcode, userId);
+  }
+
+  async getAnalysisState(analysisId: string, userId: string): Promise<AnalysisJobResponse> {
+    const analysis = await this.productAnalyzeService.getAnalysisState(analysisId, userId);
+
+    if (!analysis) {
+      throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+    }
+
+    return analysis;
   }
 
   async compareProducts(body: unknown, userId: string): Promise<ProductComparisonResult> {

@@ -23,7 +23,7 @@ function CompareProductPickerRowComponent({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Compare with ${productName}`}
-      className="min-h-[76px] flex-row items-center rounded-2xl border border-gray-100 bg-white px-3 py-3"
+      className="min-h-[76px] flex-row items-center bg-white py-3"
       onPress={() => onPress(item)}
     >
       {imageUri ? (

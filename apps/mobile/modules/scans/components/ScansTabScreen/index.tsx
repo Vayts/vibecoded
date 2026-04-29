@@ -164,7 +164,7 @@ export function ScansTabScreen() {
           accessibilityRole="button"
           accessibilityLabel="Open scan filters"
           activeOpacity={0.7}
-          className={`h-11 w-11 items-center justify-center rounded-full ${activeFilterCount > 0 ? 'bg-primary-900' : 'bg-transparent'}`}
+          className={`h-11 w-11 items-center justify-center rounded-full ${activeFilterCount > 0 ? 'bg-primary-500' : 'bg-transparent'}`}
           onPress={handleOpenFilters}
         >
           <ListFilter

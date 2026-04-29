@@ -19,7 +19,6 @@ import {
 } from './services/photo-product-identification';
 import { hasSameCanonicalProductIdentity } from './services/product-canonical-text';
 import { getProfileInputs } from './services/profileInputs';
-import { searchProductByBarcode } from './services/websearch-fallback';
 import { processProductImage } from './lib/image-processing';
 import { uploadProductImage } from './lib/storage';
 import { createComparison } from './repositories/comparisonRepository';
@@ -85,11 +84,11 @@ export class ProductAnalyzeService {
 
   private async resolveNormalizedProductByBarcode(barcode: string): Promise<{
     product: NormalizedProduct | null;
-    source: 'openfoodfacts' | 'websearch';
+    source: 'openfoodfacts';
   }> {
     let product = await findByBarcode(barcode);
     const wasExistingInDb = Boolean(product);
-    let source: 'openfoodfacts' | 'websearch' = 'openfoodfacts';
+    const source = 'openfoodfacts' as const;
 
     if (!product) {
       try {
@@ -106,13 +105,6 @@ export class ProductAnalyzeService {
     }
 
     if (!product) {
-      product = await searchProductByBarcode(barcode);
-      if (product) {
-        source = 'websearch';
-      }
-    }
-
-    if (!product || !isFoodProduct(product)) {
       return {
         product: null,
         source,
@@ -163,6 +155,10 @@ export class ProductAnalyzeService {
     config?: RunnableConfig<Record<string, unknown>>,
   ): Promise<{ analysis: AnalysisJobResponse; scanId?: string }> {
     return this.analysisOrchestrator.startAnalysis(input, config);
+  }
+
+  async getAnalysisState(analysisId: string, userId: string): Promise<AnalysisJobResponse | null> {
+    return this.analysisOrchestrator.getAnalysisState(analysisId, userId);
   }
 
   async loadScannerProductMetadata(input: {

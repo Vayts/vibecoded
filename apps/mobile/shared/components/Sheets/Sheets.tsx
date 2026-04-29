@@ -1,8 +1,7 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
 import { CompareProductPickerSheet } from '../../../modules/scanner/components/CompareProductPickerSheet';
-import { ProductDecisionSheet } from '../../../modules/scanner/components/ProductDecisionSheet';
-import { ScansFilterSheet } from '../../../modules/scans/components/ScansFilterSheet';
+import { ScoreCalculationSheet } from '../../../modules/scanner/components/ScoreCalculationSheet';
 import {
   ScannerErrorSheet,
   type ScannerErrorSheetPayload,
@@ -11,11 +10,11 @@ import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerR
 import type { ScansFilterSheetPayload } from '../../../modules/scans/types/filters';
 import type {
   CompareProductPickerSheetPayload,
-  ProductDecisionSheetPayload,
   ScannerResultSheetPayload,
 } from '../../../modules/scanner/types/scanner';
 import { SheetsEnum } from '../../types/sheets';
 import ExampleSheet from './BottomSheets/ExampleSheet';
+import { ScansFilterSheet } from '../../../modules/scans/components/ScansFilterSheet';
 
 // We extend some of the types here to give us great intellisense
 // across the app for all registered sheets.
@@ -23,7 +22,7 @@ declare module 'react-native-actions-sheet' {
   interface Sheets {
     [SheetsEnum.ExampleSheet]: SheetDefinition;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
-    [SheetsEnum.ProductDecisionSheet]: SheetDefinition<{ payload: ProductDecisionSheetPayload }>;
+    [SheetsEnum.ScoreCalculationSheet]: SheetDefinition;
     [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{ payload: CompareProductPickerSheetPayload }>;
     [SheetsEnum.ScannerErrorSheet]: SheetDefinition<{ payload: ScannerErrorSheetPayload }>;
     [SheetsEnum.ScansFilterSheet]: SheetDefinition<{ payload: ScansFilterSheetPayload }>;
@@ -36,8 +35,8 @@ export const Sheets = () => {
       sheets={{
         [SheetsEnum.ExampleSheet]: ExampleSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
-        [SheetsEnum.ProductDecisionSheet]: ProductDecisionSheet,
         [SheetsEnum.CompareProductPickerSheet]: CompareProductPickerSheet,
+        [SheetsEnum.ScoreCalculationSheet]: ScoreCalculationSheet,
         [SheetsEnum.ScannerErrorSheet]: ScannerErrorSheet,
         [SheetsEnum.ScansFilterSheet]: ScansFilterSheet,
       }}

@@ -3,6 +3,7 @@ import {
   productTypeSchema,
   dietCompatibilitySchema,
   dietCompatibilityReasonsSchema,
+  ignoredNutritionFactSchema,
   nutriGradeSchema,
 } from '@acme/shared';
 
@@ -12,6 +13,10 @@ import {
  * Those come from the product data (OFF/DB) or web search.
  */
 export const productFactsAiOutputSchema = z.object({
+  isFood: z
+    .boolean()
+    .default(true)
+    .describe('Whether the scanned item is a food or drink product'),
   productType: productTypeSchema
     .nullable()
     .describe(
@@ -23,6 +28,12 @@ export const productFactsAiOutputSchema = z.object({
   dietCompatibilityReasons: dietCompatibilityReasonsSchema.describe(
     'Short reason for each incompatible or unclear diet. Null or omit for compatible diets.',
   ),
+  ignoredNutritionFacts: z
+    .array(ignoredNutritionFactSchema)
+    .default([])
+    .describe(
+      'Nutrition dimensions that should be ignored for scoring because they are not meaningful for this specific product.',
+    ),
   nutriGrade: nutriGradeSchema.describe(
     'Nutri-Score grade if available, else null',
   ),

@@ -13,6 +13,7 @@ import { searchNutritionData } from './nutrition-websearch';
 import { analyzeIngredientsForProfiles } from './ingredient-analysis-ai';
 import { generateProfileFitSummaries } from './profile-fit-summary-ai';
 import { getProfileInputs } from './profileInputs';
+import { NotFoodProductError } from './not-food-product.error';
 import {
   findProductClassificationCache,
   saveProductClassificationCache,
@@ -229,24 +230,20 @@ export class AnalysisPipelineService {
   ): Promise<ProductFacts> {
     const productName = product.product_name ?? product.code ?? 'unknown';
     const productHasNutrition = hasNutritionData(product);
+    const classification = await this.resolveClassification(product, productId, config).catch(() =>
+      buildClassificationFromData(product),
+    );
+
+    if (!classification.isFood) {
+      throw new NotFoodProductError();
+    }
 
     let nutritionFacts: NutritionFacts;
-    let classification: ReturnType<typeof buildClassificationFromData>;
 
     if (productHasNutrition) {
       nutritionFacts = buildNutritionFacts(product);
-      classification = await this.resolveClassification(product, productId, config).catch(() =>
-        buildClassificationFromData(product),
-      );
     } else {
-      const [classificationResult, webNutrition] = await Promise.all([
-        this.resolveClassification(product, productId, config).catch(() =>
-          buildClassificationFromData(product),
-        ),
-        searchNutritionData(productName, product.brands, product.code),
-      ]);
-
-      classification = classificationResult;
+      const webNutrition = await searchNutritionData(productName, product.brands, product.code);
       nutritionFacts = webNutrition ?? buildNutritionFacts(product);
     }
 
