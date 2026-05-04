@@ -1,4 +1,4 @@
-import type { AnalysisJobResponse, BarcodeLookupResponse, ProductPreview, ScanHistoryItem } from '@acme/shared';
+import type { BarcodeLookupResponse, PersonalAnalysisJob, ProductPreview, ScanHistoryItem } from '@acme/shared';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { SheetManager } from 'react-native-actions-sheet';
@@ -23,7 +23,7 @@ interface ProductResultContentProps {
   result?: BarcodeLookupResponse;
   scanId?: string;
   previewProduct?: ProductPreview;
-  resolvedPersonalResult?: AnalysisJobResponse;
+  resolvedPersonalResult?: PersonalAnalysisJob;
   detailState?: ProductResultDetailState;
   onBeforeErrorSheetOpen?: () => void;
   onErrorSheetDismiss?: () => void;
@@ -47,6 +47,16 @@ export function ProductResultContent({
     : successResult ? successResult.personalAnalysis : undefined;
   const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
   const personalData = personalQuery.data ?? initialAnalysis;
+  const analysisProductPreview: ProductPreview | undefined = personalData?.result?.product
+    ? {
+        productId: '',
+        barcode: '',
+        product_name: personalData.result.product.name,
+        brands: personalData.result.product.brand,
+        image_url: personalData.result.product.imageUrl,
+        nutriscore_grade: undefined,
+      }
+    : undefined;
   const hasHandledNotFoodRef = useRef(false);
   const personalError =
     Boolean(initialAnalysis?.analysisId) &&
@@ -86,7 +96,7 @@ export function ProductResultContent({
     return <NotFoundContent result={result} />;
   }
 
-  const product = successResult?.product ?? previewProduct ?? previewHistoryProduct;
+  const product = successResult?.product ?? analysisProductPreview ?? previewProduct ?? previewHistoryProduct;
   const resolvedProductId = successResult?.productId ?? previewProduct?.productId ?? previewHistoryProduct?.id;
   const resolvedIsFavourite =
     successResult?.isFavourite ??
@@ -145,7 +155,7 @@ export function ProductResultContent({
             isError={personalError}
             onRetry={personalRetry}
             onSelectProfile={setSelectedProfileId}
-            rawIngredients={successResult?.product.ingredients ?? []}
+            rawIngredients={successResult?.product.ingredients ?? personalData?.result?.product.ingredients ?? []}
             rawIngredientsText={successResult?.product.ingredients_text ?? null}
             selectedProfileId={selectedProfileId}
           />

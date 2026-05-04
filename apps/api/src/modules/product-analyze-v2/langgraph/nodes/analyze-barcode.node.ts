@@ -15,6 +15,7 @@ import { calculateNutritionScore } from '../../utils/calculate-nutrition-score.u
 import { calculateOverallScore } from '../../utils/calculate-overall-score.util.js';
 import { buildProfileScoreReasons } from '../../utils/build-profile-score-reasons.util.js';
 import {
+  VALID_PRODUCT_ROLES,
   PRODUCT_ROLE_SET,
   FALLBACK_ROLE,
   MIN_AI_CONFIDENCE,
@@ -38,40 +39,6 @@ import {
 } from '../../utils/translate-ingredients.util.js';
 
 const AI_MODEL = 'gpt-5.4-mini';
-
-const VALID_PRODUCT_ROLES = [
-  'generic_food',
-  'lean_protein',
-  'fatty_protein',
-  'processed_meat',
-  'seafood',
-  'egg_product',
-  'dairy_high_protein',
-  'whole_grain',
-  'refined_grain',
-  'starchy_food',
-  'breakfast_cereal',
-  'bakery',
-  'oil',
-  'nuts_seeds',
-  'spread_fat',
-  'vegetable',
-  'fruit',
-  'legume',
-  'savory_snack',
-  'sweet_snack',
-  'dessert',
-  'candy_chocolate',
-  'water_unsweetened_drink',
-  'sugary_drink',
-  'juice_smoothie',
-  'sauce_condiment',
-  'sweetener',
-  'supplement',
-  'baby_food',
-  'meal_replacement',
-  'ready_meal',
-] as const;
 
 const VALID_ALLERGIES_LIST = [
   'PEANUTS',

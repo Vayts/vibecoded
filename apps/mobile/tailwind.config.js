@@ -67,6 +67,7 @@ module.exports = {
           200: '#E6E6E6',
           300: '#D6D6D6',
           500: '#767676',
+          600: '#575757',
           900: '#1A1A1A',
         },
         background: '#FAFAFA',

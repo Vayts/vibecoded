@@ -120,7 +120,8 @@ const getReasonThresholdsForRole = (role: ProductRole): ResolvedNutritionReasonT
         additivesNegativeMin: 2,
         additivesStrongNegativeMin: 4,
       };
-    case 'water_unsweetened_drink':
+    case 'water':
+    case 'unsweetened_drink':
       return {
         ...DEFAULT_REASON_THRESHOLDS,
         sugarPositiveMax: 0.5,
@@ -145,21 +146,48 @@ const getReasonThresholdsForRole = (role: ProductRole): ResolvedNutritionReasonT
     case 'sweet_snack':
       return {
         ...DEFAULT_REASON_THRESHOLDS,
-        fiberPositiveMin: 4,
+        fiberPositiveMin: 5,
+        sugarNegativeMin: 6,
+        sugarStrongNegativeMin: 12,
+        sodiumNegativeMin: 0.3,
+        saturatedFatNegativeMin: 6,
+        calorieDensityNegativeMin: 320,
+        additivesNegativeMin: 2,
+        additivesStrongNegativeMin: 4,
+      };
+    case 'dessert':
+      return {
+        ...DEFAULT_REASON_THRESHOLDS,
+        fiberPositiveMin: 5,
         sugarNegativeMin: 8,
         sugarStrongNegativeMin: 16,
-        sodiumNegativeMin: 0.45,
+        sodiumNegativeMin: 0.3,
+        saturatedFatNegativeMin: 6,
+        calorieDensityNegativeMin: 300,
+        additivesNegativeMin: 2,
+        additivesStrongNegativeMin: 4,
+      };
+    case 'candy_chocolate':
+      return {
+        ...DEFAULT_REASON_THRESHOLDS,
+        sugarNegativeMin: 12,
+        sugarStrongNegativeMin: 20,
+        sodiumNegativeMin: 0.25,
         saturatedFatNegativeMin: 8,
-        calorieDensityNegativeMin: 350,
+        calorieDensityNegativeMin: 420,
+        additivesNegativeMin: 2,
+        additivesStrongNegativeMin: 4,
       };
     case 'savory_snack':
       return {
         ...DEFAULT_REASON_THRESHOLDS,
-        proteinPositiveMin: 8,
-        fiberPositiveMin: 3,
-        sodiumNegativeMin: 0.45,
-        saturatedFatNegativeMin: 8,
-        calorieDensityNegativeMin: 450,
+        proteinPositiveMin: 10,
+        fiberPositiveMin: 4,
+        sodiumNegativeMin: 0.35,
+        saturatedFatNegativeMin: 5,
+        calorieDensityNegativeMin: 400,
+        additivesNegativeMin: 2,
+        additivesStrongNegativeMin: 4,
       };
     case 'ready_meal':
       return {

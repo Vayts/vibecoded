@@ -1,16 +1,22 @@
-import type { AnalysisJobResponse, BarcodeLookupResponse } from '@acme/shared';
+import type { BarcodeLookupResponse, PersonalAnalysisJob } from '@acme/shared';
 import { create } from 'zustand';
 
 interface ScannerResultSheetState {
   activeSessionId: number | null;
   isLoadingInitialResult: boolean;
   result?: BarcodeLookupResponse;
-  resolvedPersonalResult?: AnalysisJobResponse;
+  resolvedPersonalResult?: PersonalAnalysisJob;
 }
 
 interface ScannerResultSheetActions {
   startSession: () => number;
-  hydrateSession: (sessionId: number, result: BarcodeLookupResponse) => void;
+  hydrateSession: (
+    sessionId: number,
+    payload: {
+      result?: BarcodeLookupResponse;
+      resolvedPersonalResult?: PersonalAnalysisJob;
+    },
+  ) => void;
   reset: () => void;
 }
 
@@ -23,7 +29,7 @@ const initialState: ScannerResultSheetState = {
 
 const buildResolvedPersonalAnalysis = (
   result: BarcodeLookupResponse,
-): AnalysisJobResponse | undefined => {
+): PersonalAnalysisJob | undefined => {
   if (!result.success) {
     return undefined;
   }
@@ -46,7 +52,7 @@ export const useScannerResultSheetStore = create<
 
     return sessionId;
   },
-  hydrateSession: (sessionId, result) =>
+  hydrateSession: (sessionId, payload) =>
     set((state) => {
       if (state.activeSessionId !== sessionId) {
         return state;
@@ -55,8 +61,10 @@ export const useScannerResultSheetStore = create<
       return {
         ...state,
         isLoadingInitialResult: false,
-        result,
-        resolvedPersonalResult: buildResolvedPersonalAnalysis(result),
+        result: payload.result,
+        resolvedPersonalResult:
+          payload.resolvedPersonalResult ??
+          (payload.result ? buildResolvedPersonalAnalysis(payload.result) : undefined),
       };
     }),
   reset: () => set(initialState),

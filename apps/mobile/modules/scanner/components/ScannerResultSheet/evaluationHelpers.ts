@@ -1,4 +1,10 @@
-import type { ScoreReason, FitLabel, ScoreReasonCategory } from '@acme/shared';
+import {
+  ScoreReason,
+  ScoreReasonCategory,
+  ScannerOverallRating,
+  GREAT_FIT_SCORE_MIN,
+  NEUTRAL_FIT_SCORE_MIN,
+} from '@acme/shared';
 import { COLORS } from '../../../../shared/constants/colors';
 
 type RatingKey = 'excellent' | 'good' | 'average' | 'bad';
@@ -84,42 +90,68 @@ export const formatRatingLabel = (rating: RatingKey): string => {
   return rating.charAt(0).toUpperCase() + rating.slice(1);
 };
 
-export const getFitLabelText = (label: string): string => {
-  if (label === 'great_fit') {
-    return 'Great fit';
-  }
-
-  if (label === 'good_fit') {
-    return 'Good fit';
-  }
-
-  if (label === 'poor_fit') {
-    return 'Poor fit';
-  }
-
-  if (label === 'excellent' || label === 'good' || label === 'average' || label === 'bad') {
-    return formatRatingLabel(label);
-  }
-
-  return 'Neutral fit';
-};
-
-export const mapFitLabelToToneKey = (
-  label: FitLabel,
-): RatingKey => {
-  if (label === 'great_fit') {
+export const mapOverallRatingToToneKey = (rating: ScannerOverallRating): RatingKey => {
+  if (rating === 'excellent') {
     return 'excellent';
   }
 
-  if (label === 'good_fit') {
+  if (rating === 'good_choice') {
     return 'good';
   }
 
-  if (label === 'poor_fit') {
+  if (rating === 'avoid') {
     return 'bad';
   }
 
   return 'average';
+};
+
+export const formatOverallRatingLabel = (rating: number): string => {
+  if (rating >= GREAT_FIT_SCORE_MIN) {
+    return 'Good fit';
+  }
+
+  if (rating >= NEUTRAL_FIT_SCORE_MIN) {
+    return 'Worth considering';
+  }
+
+  return 'Poor fit';
+};
+
+export const formatOverallRatingColors = (rating: number) => {
+  if (rating >= GREAT_FIT_SCORE_MIN) {
+    return {
+      backgroundColor: COLORS.primary100,
+      borderColor: COLORS.primary300,
+      textColor: COLORS.primary900,
+    };
+  }
+
+  if (rating >= NEUTRAL_FIT_SCORE_MIN) {
+    return {
+      backgroundColor: COLORS.gray100,
+      borderColor: COLORS.gray200,
+      textColor: COLORS.neutrals900,
+    };
+  }
+
+  return {
+    backgroundColor: COLORS.dangerSoft,
+    borderColor: COLORS.dangerBorder,
+    textColor: COLORS.danger800,
+  };
+}
+
+export const formatScoreColors = (rating: number) => {
+  if (rating >= GREAT_FIT_SCORE_MIN) {
+    return COLORS.primary500;
+  }
+
+  if (rating >= NEUTRAL_FIT_SCORE_MIN) {
+    return COLORS.accent300;
+  }
+
+  return COLORS.danger500;
 };
 
 export const getSeverityTone = (kind: ScoreReason['kind']): SeverityTone => {

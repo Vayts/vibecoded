@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import { z } from 'zod';
 import {
   mainGoalSchema,
@@ -9,9 +11,9 @@ import {
   analysisJobStatusSchema,
   dietCompatibilitySchema,
   fitLabelSchema,
-  productAnalysisResultSchema as productAnalysisResultSchemaFromPA,
 } from './product-analysis';
 import { barcodeLookupProductSchema } from './scanner-core-schemas';
+import { scannerProductAnalysisResultSchema } from './scanner-analysis';
 
 export * from './scanner-core-schemas';
 // ============================================================
@@ -83,7 +85,7 @@ export const scanDetailResponseSchema = z.object({
   productId: z.string().nullable().optional(),
   isFavourite: z.boolean().optional(),
   product: barcodeLookupProductSchema.nullable(),
-  analysisResult: productAnalysisResultSchemaFromPA.nullable(),
+  analysisResult: scannerProductAnalysisResultSchema.nullable(),
   comparisonResult: z.lazy(() => productComparisonResultSchema).nullable().optional(),
 });
 export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;

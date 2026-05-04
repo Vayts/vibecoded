@@ -1,12 +1,12 @@
 import {
   barcodeLookupRequestSchema,
-  barcodeLookupResponseSchema,
+  scannerProductAnalysisResultSchema,
   compareProductsRequestSchema,
   compareProductsResponseSchema,
   barcodeLookupSuccessResponseSchema,
   type BarcodeLookupRequest,
-  type BarcodeLookupResponse,
   type BarcodeLookupSuccessResponse,
+  type ScannerProductAnalysisResult,
   type CompareProductsRequest,
   type CompareProductsResponse,
 } from '@acme/shared';
@@ -47,10 +47,8 @@ const throwScannerApiError = async (
 
 export const submitBarcodeScan = async (
   payload: BarcodeLookupRequest,
-): Promise<BarcodeLookupResponse> => {
+): Promise<ScannerProductAnalysisResult> => {
   const parsedPayload = barcodeLookupRequestSchema.parse(payload);
-
-  console.log(parsedPayload);
 
   const response = await apiFetch('/product-analyze-v2/barcode', {
     method: 'POST',
@@ -58,12 +56,11 @@ export const submitBarcodeScan = async (
   });
 
   if (!response.ok) {
-    console.log(JSON.stringify(response.url));
     await throwScannerApiError(response, 'Unable to fetch barcode data');
   }
 
   const json = await response.json();
-  return barcodeLookupResponseSchema.parse(json);
+  return scannerProductAnalysisResultSchema.parse(json);
 };
 
 export const compareProducts = async (

@@ -19,7 +19,11 @@ export const VALIDATION_RULES: Partial<Record<ProductRole, ValidationRule>> = {
   sugary_drink: {
     check: (p) => (p.nutrition.sugarPer100g ?? 0) >= 5 && (p.nutrition.caloriesPer100g ?? 0) <= 100,
   },
-  water_unsweetened_drink: {
+  water: {
+    check: (p) =>
+      (p.nutrition.sugarPer100g ?? 100) <= 1 && (p.nutrition.caloriesPer100g ?? 100) <= 10,
+  },
+  unsweetened_drink: {
     check: (p) =>
       (p.nutrition.sugarPer100g ?? 100) <= 1 && (p.nutrition.caloriesPer100g ?? 100) <= 10,
   },

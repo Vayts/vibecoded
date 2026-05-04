@@ -1,6 +1,6 @@
 import type {
-  AnalysisJobResponse,
   BarcodeLookupResponse,
+  PersonalAnalysisJob,
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
@@ -12,7 +12,7 @@ interface ScannerResultSheetContentProps {
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
   result?: BarcodeLookupResponse;
-  resolvedPersonalResult?: AnalysisJobResponse;
+  resolvedPersonalResult?: PersonalAnalysisJob;
   detailState?: {
     isLoading: boolean;
     isError: boolean;

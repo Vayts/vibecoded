@@ -1,8 +1,10 @@
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN } from '@acme/shared';
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
+
+const GOOD_SCORE_MIN = 70;
+const NEUTRAL_SCORE_MIN = 40;
 
 export interface ProfileScoreSelectorItem {
   id: string;
@@ -44,11 +46,11 @@ const getSelectorTone = (score?: number): SelectorTone => {
     return 'neutral';
   }
 
-  if (score >= GOOD_FIT_SCORE_MIN) {
+  if (score >= GOOD_SCORE_MIN) {
     return 'good';
   }
 
-  if (score >= NEUTRAL_FIT_SCORE_MIN) {
+  if (score >= NEUTRAL_SCORE_MIN) {
     return 'neutral';
   }
 

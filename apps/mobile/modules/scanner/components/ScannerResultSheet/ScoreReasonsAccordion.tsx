@@ -1,4 +1,4 @@
-import type { ProfileProductScore, ScoreReason } from '@acme/shared';
+import type { ScoreReason } from '@acme/shared';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
@@ -7,8 +7,8 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
 interface ScoreReasonsAccordionProps {
-  positives?: ProfileProductScore['positives'];
-  negatives?: ProfileProductScore['negatives'];
+  positives?: ScoreReason[];
+  negatives?: ScoreReason[];
 }
 
 interface ScoreReasonTone {
@@ -87,8 +87,8 @@ export function ScoreReasonsAccordion({
         }}
       >
         <View className="flex-1 flex-row items-center">
-          <Info color={COLORS.neutrals500} size={18} strokeWidth={2.2} />
-          <Typography className="ml-3 text-[14px] font-semibold text-neutrals-900">
+          <Info color={COLORS.neutrals500} size={16} strokeWidth={2.2} />
+          <Typography className="ml-3 text-[13px] font-semibold text-neutrals-600">
             Why this score?
           </Typography>
         </View>

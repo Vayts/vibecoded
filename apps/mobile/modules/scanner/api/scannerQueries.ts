@@ -1,8 +1,8 @@
 import {
   ANALYSIS_SOCKET_EVENTS,
-  analysisJobResponseSchema,
-  type AnalysisJobResponse,
-  type AnalysisSocketEventPayload,
+  personalAnalysisJobSchema,
+  type PersonalAnalysisJob,
+  type PersonalAnalysisSocketEventPayload,
 } from '@acme/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
@@ -11,8 +11,8 @@ import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 const toAnalysisState = (
-  payload: AnalysisSocketEventPayload,
-): AnalysisJobResponse => ({
+  payload: PersonalAnalysisSocketEventPayload,
+): PersonalAnalysisJob => ({
   analysisId: payload.analysisId,
   status: payload.status,
   productStatus: payload.productStatus,
@@ -25,7 +25,7 @@ export const getPersonalAnalysisQueryKey = (analysisId?: string) => {
   return ['scanner', 'personal-analysis', analysisId] as const;
 };
 
-const fetchAnalysisState = async (analysisId: string): Promise<AnalysisJobResponse> => {
+const fetchAnalysisState = async (analysisId: string): Promise<PersonalAnalysisJob> => {
   const response = await apiFetch(`/api/scanner/analysis/${analysisId}`);
 
   if (!response.ok) {
@@ -33,11 +33,11 @@ const fetchAnalysisState = async (analysisId: string): Promise<AnalysisJobRespon
   }
 
   const json = await response.json();
-  return analysisJobResponseSchema.parse(json);
+  return personalAnalysisJobSchema.parse(json);
 };
 
 export const usePersonalAnalysisQuery = (
-  initialAnalysis?: AnalysisJobResponse,
+  initialAnalysis?: PersonalAnalysisJob,
 ) => {
   const queryClient = useQueryClient();
   const hasInvalidatedRef = useRef(
@@ -61,7 +61,7 @@ export const usePersonalAnalysisQuery = (
       return;
     }
 
-    const handleAnalysisEvent = (payload: AnalysisSocketEventPayload) => {
+      const handleAnalysisEvent = (payload: PersonalAnalysisSocketEventPayload) => {
       if (payload.analysisId !== analysisId) {
         return;
       }
@@ -128,7 +128,7 @@ export const usePersonalAnalysisQuery = (
         return await fetchAnalysisState(analysisId);
       } catch {
         return (
-          (queryClient.getQueryData(queryKey) as AnalysisJobResponse | undefined) ??
+          (queryClient.getQueryData(queryKey) as PersonalAnalysisJob | undefined) ??
           initialAnalysis
         );
       }

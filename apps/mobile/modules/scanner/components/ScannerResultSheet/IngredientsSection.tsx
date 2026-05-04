@@ -1,54 +1,26 @@
-import type { IngredientAnalysis, IngredientStatus } from '@acme/shared';
 import { Text, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
-const STATUS_TEXT_COLORS: Record<IngredientStatus, string> = {
-  good: COLORS.success,
-  neutral: COLORS.gray700,
-  warning: COLORS.warning,
-  bad: COLORS.danger,
-};
+const normalizeIngredient = (value: string): string =>
+  value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 interface IngredientsSectionProps {
   rawIngredients: string[];
   rawIngredientsText: string | null;
-  isPending?: boolean;
-  analysis?: IngredientAnalysis | null;
+  highlightedIngredients?: string[];
 }
 
-export function IngredientsSection({ rawIngredients, rawIngredientsText, isPending = false, analysis }: IngredientsSectionProps) {
-  // If we have analyzed ingredients, show them with highlighting
-  if (analysis && analysis.ingredients.length > 0) {
-    return (
-      <View className="mt-5 overflow-hidden bg-white">
-        <Typography variant="sectionTitle" className="text-gray-900">
-          Ingredients
-        </Typography> 
-
-        <Text className="py-1 leading-6">
-          {analysis.ingredients.map((ingredient, index) => (
-            <Text key={`ingredient-${index}`}>
-              <Text
-                style={{ color: STATUS_TEXT_COLORS[ingredient.status] }}
-                className="text-sm font-medium"
-              >
-                {ingredient.name}
-              </Text>
-              {index < analysis.ingredients.length - 1 ? (
-                <Text className="text-sm text-gray-500">{', '}</Text>
-              ) : null}
-            </Text>
-          ))}
-        </Text>
-      </View>
-    );
-  }
-
-  // Fallback: show raw ingredients without analysis
+export function IngredientsSection({
+  rawIngredients,
+  rawIngredientsText,
+  highlightedIngredients = [],
+}: IngredientsSectionProps) {
   if (rawIngredients.length === 0 && !rawIngredientsText) {
     return null;
   }
+
+  const highlightedSet = new Set(highlightedIngredients.map((ingredient) => normalizeIngredient(ingredient)));
 
   return (
     <View className="mt-5 overflow-hidden bg-white">
@@ -56,18 +28,22 @@ export function IngredientsSection({ rawIngredients, rawIngredientsText, isPendi
         <Typography variant="sectionTitle" className="text-gray-900">
           Ingredients
         </Typography>
-        {isPending ? (
-          <Typography variant="bodySecondary" className="mt-1 text-gray-500">
-            Ingredient analysis is still running in the background.
-          </Typography>
-        ) : null}
       </View>
 
       <Text className="py-1 leading-6">
         {rawIngredients.length > 0 ? (
           rawIngredients.map((ingredient, index) => (
             <Text key={`ingredient-${index}`}>
-              <Text className="text-sm font-medium text-gray-700">{ingredient}</Text>
+              <Text
+                className="text-sm font-medium"
+                style={{
+                  color: highlightedSet.has(normalizeIngredient(ingredient))
+                    ? COLORS.accent900
+                    : COLORS.gray700,
+                }}
+              >
+                {ingredient}
+              </Text>
               {index < rawIngredients.length - 1 ? (
                 <Text className="text-sm text-gray-500">{', '}</Text>
               ) : null}

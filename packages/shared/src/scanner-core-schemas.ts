@@ -1,10 +1,36 @@
 import { z } from 'zod';
 import {
-  analysisJobResponseSchema,
   analysisJobStatusSchema,
   dietCompatibilitySchema,
 } from './product-analysis';
 import { ingredientStatusSchema } from './product-analysis';
+import { personalAnalysisJobSchema } from './scanner-analysis';
+export {
+  personalAnalysisJobSchema,
+  personalAnalysisSocketEventPayloadSchema,
+  scannerAllergenDetectionSchema,
+  scannerCanIHaveThisSchema,
+  scannerOverallRatingSchema,
+  scannerProductAnalysisResultSchema,
+  scannerProfileAiSchema,
+  scannerProfileAnalysisSchema,
+  scannerProfileResultSchema,
+  scannerRestrictionDetectionSchema,
+  scannerSafetyStatusSchema,
+} from './scanner-analysis';
+export type {
+  PersonalAnalysisJob,
+  PersonalAnalysisSocketEventPayload,
+  ScannerAllergenDetection,
+  ScannerCanIHaveThis,
+  ScannerOverallRating,
+  ScannerProductAnalysisResult,
+  ScannerProfileAi,
+  ScannerProfileAnalysis,
+  ScannerProfileResult,
+  ScannerRestrictionDetection,
+  ScannerSafetyStatus,
+} from './scanner-analysis';
 
 export const barcodeLookupRequestSchema = z.object({
   barcode: z
@@ -124,8 +150,6 @@ export type PersonalAnalysisJobStatus = z.infer<
   typeof personalAnalysisJobStatusSchema
 >;
 
-export const personalAnalysisJobSchema = analysisJobResponseSchema;
-export type PersonalAnalysisJob = z.infer<typeof personalAnalysisJobSchema>;
 
 export const barcodeLookupSuccessResponseSchema = z.object({
   success: z.literal(true),

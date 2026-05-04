@@ -1,15 +1,10 @@
-import type {
-  AnalysisJobResponse,
-  FamilyMember,
-  OnboardingResponse,
-} from '@acme/shared';
+import type { PersonalAnalysisJob } from '@acme/shared';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { View, Text } from 'react-native';
 import { getUserFallbackAvatarImage } from '../../../../shared/lib/avatar/selectAndUploadAvatarImage';
 import { useAuthStore } from '../../../../shared/stores/authStore';
 import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
-import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { IngredientsSection } from './IngredientsSection';
 import { PersonalAnalysisFallback } from './PersonalAnalysisFallback';
@@ -19,12 +14,11 @@ import {
   ProfileScoreSelector,
   type ProfileScoreSelectorItem,
 } from './ProfileScoreSelector';
-import type { ProfileCompatibilityPreferences } from './profileCompatibilityAccordionHelpers';
 import { getActiveProfile } from './productResultPreviewHelpers';
 
 interface PersonalTabContentProps {
   bottomAction?: ReactNode;
-  personalResult?: AnalysisJobResponse;
+  personalResult?: PersonalAnalysisJob;
   isError: boolean;
   onRetry: () => void;
   onSelectProfile: (profileId: string) => void;
@@ -32,34 +26,6 @@ interface PersonalTabContentProps {
   selectedProfileId: string;
   rawIngredientsText: string | null;
 }
-
-const getFamilyMemberPreferences = (
-  familyMember: FamilyMember | undefined,
-): ProfileCompatibilityPreferences | null => {
-  if (!familyMember) {
-    return null;
-  }
-
-  return {
-    restrictions: familyMember.restrictions,
-    allergies: familyMember.allergies,
-    otherAllergiesText: familyMember.otherAllergiesText,
-  };
-};
-
-const getSelfPreferences = (
-  onboarding: OnboardingResponse | undefined,
-): ProfileCompatibilityPreferences | null => {
-  if (!onboarding) {
-    return null;
-  }
-
-  return {
-    restrictions: onboarding.restrictions,
-    allergies: onboarding.allergies,
-    otherAllergiesText: onboarding.otherAllergiesText,
-  };
-};
 
 export function PersonalTabContent({
   bottomAction,
@@ -73,14 +39,11 @@ export function PersonalTabContent({
 }: PersonalTabContentProps) {
   const authUser = useAuthStore((s) => s.user);
   const currentUserQuery = useCurrentUserQuery(authUser?.id);
-  const onboardingQuery = useOnboardingQuery(authUser?.id);
   const familyMembersQuery = useFamilyMembersQuery();
 
   const analysisResult = personalResult?.result;
   const profiles = analysisResult?.profiles;
   const hasProductAnalysis = Boolean(analysisResult && profiles?.length);
-  const isIngredientAnalysisPending =
-    !hasProductAnalysis || personalResult?.ingredientsStatus === 'pending';
   const currentUser = currentUserQuery.data ?? authUser;
   const currentUserFallbackImageUrl = getUserFallbackAvatarImage(currentUser);
   const familyMembersById = useMemo(
@@ -92,12 +55,12 @@ export function PersonalTabContent({
     () =>
       profiles?.map((profile) => {
         const familyMember = familyMembersById.get(profile.profileId);
-        const isCurrentUser = profile.profileId === 'you';
+        const isCurrentUser = profile.type === 'user';
 
         return {
           id: profile.profileId,
-          name: profile.name,
-          score: profile.score,
+          name: profile.displayName ?? (isCurrentUser ? 'You' : 'Profile'),
+          score: profile.analysis.overall.score,
           imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
           fallbackImageUrl: isCurrentUser ? currentUserFallbackImageUrl : null,
         };
@@ -112,23 +75,15 @@ export function PersonalTabContent({
     if (!activeProfile) {
       return <PersonalAnalysisFallback onRetry={onRetry} />;
     }
-
-    // Per-profile ingredient analysis, fallback to global analysis for backward compat
-    const profileIngredientAnalysis =
-      activeProfile.ingredientAnalysis ?? analysisResult?.ingredientAnalysis;
-    const activeFamilyMember = familyMembersById.get(activeProfile.profileId);
-    const activeProfilePreferences: ProfileCompatibilityPreferences | null =
-      activeProfile.profileId === 'you'
-        ? getSelfPreferences(onboardingQuery.data)
-        : getFamilyMemberPreferences(activeFamilyMember);
+    const resolvedIngredients = analysisResult?.product.ingredients ?? rawIngredients;
+    const resolvedIngredientsText = rawIngredientsText;
 
     return (
       <View>
-        <View className="px-4">
-          <View className="h-[1px] w-full bg-neutrals-200 mb-4"/>
-        </View>
-
         <Text className="px-4 font-bold text-lg">Analysis results</Text>
+        <Text className="px-4 mt-1 text-sm text-gray-500">
+          Viewing for {activeProfile.displayName ?? (activeProfile.type === 'user' ? 'you' : 'this profile')}
+        </Text>
 
         {hasMultipleProfiles ? (
           <ProfileScoreSelector
@@ -141,14 +96,9 @@ export function PersonalTabContent({
         <View className="px-4 pb-4">
           <ProfileDetail
             profile={activeProfile}
-            productFacts={analysisResult?.productFacts}
-            profilePreferences={activeProfilePreferences}
-            rawIngredients={rawIngredients}
-            rawIngredientsText={rawIngredientsText}
-            isIngredientAnalysisPending={isIngredientAnalysisPending}
-            profileIngredientAnalysis={profileIngredientAnalysis}
+            rawIngredients={resolvedIngredients}
+            rawIngredientsText={resolvedIngredientsText}
           />
-
         </View>
 
         <View className="bg-background px-4 border-t border-neutrals-200">
@@ -163,9 +113,8 @@ export function PersonalTabContent({
       <View className="px-4">
         <PersonalAnalysisFallback onRetry={onRetry} />
         <IngredientsSection
-          rawIngredients={rawIngredients}
+          rawIngredients={analysisResult?.product.ingredients ?? rawIngredients}
           rawIngredientsText={rawIngredientsText}
-          isPending={false}
         />
       </View>
     );

@@ -1,6 +1,6 @@
 import type {
-  AnalysisJobResponse,
   BarcodeLookupResponse,
+  PersonalAnalysisJob,
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
@@ -31,7 +31,7 @@ export interface ScannerResultSheetPayload {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
-  resolvedPersonalResult?: AnalysisJobResponse;
+  resolvedPersonalResult?: PersonalAnalysisJob;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
   onBeforeErrorSheetOpen?: () => void;

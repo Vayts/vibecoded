@@ -1,52 +1,51 @@
-import type { IngredientAnalysis, ProductFacts, ProfileProductScore } from '@acme/shared';
+import type { ScannerProfileResult } from '@acme/shared';
 import React from 'react';
 import { View } from 'react-native';
 
+import { CanIHaveThisCard } from './CanIHaveThisCard';
 import { EvaluationSection } from './EvaluationSection';
 import { IngredientsSection } from './IngredientsSection';
-import { mapFitLabelToToneKey } from './evaluationHelpers';
+import { ProfileAnalysisTags } from './ProfileAnalysisTags';
 import { getEvaluationBlockConfigs } from './evaluationBlockConfigs';
 import { ProfileCompatibilityAccordion } from './ProfileCompatibilityAccordion';
-import type { ProfileCompatibilityPreferences } from './profileCompatibilityAccordionHelpers';
 import { ScoreSummary } from './ScoreSummary';
 
 interface ProfileDetailProps {
-  profile: ProfileProductScore;
-  productFacts?: ProductFacts | null;
-  profilePreferences: ProfileCompatibilityPreferences | null;
+  profile: ScannerProfileResult;
   rawIngredients: string[];
   rawIngredientsText: string | null;
-  isIngredientAnalysisPending: boolean;
-  profileIngredientAnalysis?: IngredientAnalysis | null;
 }
 
 export function ProfileDetail({
   profile,
-  productFacts,
-  profilePreferences,
   rawIngredients,
   rawIngredientsText,
-  isIngredientAnalysisPending,
-  profileIngredientAnalysis,
 }: ProfileDetailProps) {
-  const forLabel = `For ${profile.name.toLowerCase() === 'you' ? 'you' : profile.name}`;
+  const forLabel = `For ${profile.displayName?.toLowerCase() === 'you' ? 'you' : (profile.displayName ?? 'this profile')}`;
   const evaluationBlocks = getEvaluationBlockConfigs(profile);
+  const highlightedIngredients = [
+    ...profile.ai.restrictionDetections.flatMap((detection) => detection.ingredients),
+    ...profile.ai.allergenDetections.flatMap((detection) => detection.ingredients),
+  ];
 
   return (
     <View>
+      {/*<ProfileAnalysisTags*/}
+      {/*  goal={profile.analysis.goalFit.goal}*/}
+      {/*  nutritionPositives={profile.analysis.nutrition.positives}*/}
+      {/*/>*/}
       <ScoreSummary
-        score={profile.score}
-        label={profile.fitLabel}
-        toneKey={mapFitLabelToToneKey(profile.fitLabel)}
-        insight={profile.summary}
-        positives={profile.positives}
-        negatives={profile.negatives}
+        score={profile.analysis.overall.score}
+        rating={profile.analysis.overall.rating}
+        summary={profile.analysis.overall.summary}
+        safetyScore={profile.analysis.safety.score}
+        goalFitScore={profile.analysis.goalFit.score}
+        nutritionScore={profile.analysis.nutrition.score}
+        positives={profile.analysis.positives}
+        negatives={profile.analysis.negatives}
       />
-      <ProfileCompatibilityAccordion
-        profile={profile}
-        productFacts={productFacts}
-        profilePreferences={profilePreferences}
-      />
+      <CanIHaveThisCard can={profile.ai.canIHaveThis.can} reason={profile.ai.canIHaveThis.reason} />
+      <ProfileCompatibilityAccordion profile={profile} />
       {evaluationBlocks.map((block) => (
         <EvaluationSection
           key={block.key}
@@ -58,8 +57,7 @@ export function ProfileDetail({
       <IngredientsSection
         rawIngredients={rawIngredients}
         rawIngredientsText={rawIngredientsText}
-        isPending={isIngredientAnalysisPending}
-        analysis={profileIngredientAnalysis}
+        highlightedIngredients={highlightedIngredients}
       />
     </View>
   );

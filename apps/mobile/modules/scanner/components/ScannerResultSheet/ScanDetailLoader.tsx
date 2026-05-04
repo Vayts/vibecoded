@@ -1,6 +1,6 @@
 import type {
-  AnalysisJobResponse,
   BarcodeLookupResponse,
+  PersonalAnalysisJob,
   ScanDetailResponse,
 } from '@acme/shared';
 import { useMemo } from 'react';
@@ -16,7 +16,7 @@ import { ScanDeleteAction } from './ScanDeleteAction';
 
 function buildResultFromScanDetail(scan: ScanDetailResponse): {
   result: BarcodeLookupResponse;
-  resolvedPersonalResult: AnalysisJobResponse;
+  resolvedPersonalResult: PersonalAnalysisJob;
 } {
   const status = scan.personalAnalysisStatus ?? 'completed';
   const productStatus = scan.analysisResult

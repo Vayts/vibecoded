@@ -1,7 +1,7 @@
 import type { ScanDetailResponse, ScanHistoryResponse, SharedScanFilters } from '@acme/shared';
 import {
   ANALYSIS_SOCKET_EVENTS,
-  type AnalysisSocketEventPayload,
+  type PersonalAnalysisSocketEventPayload,
 } from '@acme/shared';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef } from 'react';
@@ -71,7 +71,7 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
       return;
     }
 
-    const handleAnalysisEvent = (payload: AnalysisSocketEventPayload) => {
+    const handleAnalysisEvent = (payload: PersonalAnalysisSocketEventPayload) => {
       if (payload.analysisId !== analysisId) {
         return;
       }

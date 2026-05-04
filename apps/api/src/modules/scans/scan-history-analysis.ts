@@ -2,9 +2,16 @@ import type {
   ProfileProductScore,
   ScanFitBucket,
   ScanHistoryItem,
+  ScoreReason,
+  ScannerProfileResult,
   SharedScanFilters,
 } from '@acme/shared';
-import { GOOD_FIT_SCORE_MIN, NEUTRAL_FIT_SCORE_MIN, profileProductScoreSchema } from '@acme/shared';
+import {
+  GOOD_FIT_SCORE_MIN,
+  NEUTRAL_FIT_SCORE_MIN,
+  profileProductScoreSchema,
+  scannerProductAnalysisResultSchema,
+} from '@acme/shared';
 
 const UNCLEAR_DIET_PREFIX = 'cannot confirm compatibility with your diet';
 
@@ -14,6 +21,15 @@ interface HistoryAnalysisSummary {
   profileChips: ScanHistoryItem['profileChips'];
   mainUserHasDietConflict: boolean;
   mainUserHasAllergenConflict: boolean;
+}
+
+interface CompactHistoryProfileSummary {
+  profileId: string;
+  name: string;
+  score: number;
+  fitLabel: NonNullable<ScanHistoryItem['personalRating']>;
+  negatives: ScannerProfileResult['analysis']['negatives'];
+  type: ScannerProfileResult['type'];
 }
 
 const getScanFitBucket = (score: number): ScanFitBucket => {
@@ -51,7 +67,40 @@ const getParsedProfiles = (value: unknown): ProfileProductScore[] => {
     .filter((profile): profile is ProfileProductScore => profile != null);
 };
 
-const isDietConflictReason = (reason: ProfileProductScore['negatives'][number]): boolean => {
+const toFitLabel = (score: number): NonNullable<ScanHistoryItem['personalRating']> => {
+  if (score >= 85) {
+    return 'great_fit';
+  }
+
+  if (score >= GOOD_FIT_SCORE_MIN) {
+    return 'good_fit';
+  }
+
+  if (score >= NEUTRAL_FIT_SCORE_MIN) {
+    return 'neutral';
+  }
+
+  return 'poor_fit';
+};
+
+const getParsedCompactProfiles = (value: unknown): CompactHistoryProfileSummary[] => {
+  const parsed = scannerProductAnalysisResultSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return [];
+  }
+
+  return parsed.data.profiles.map((profile) => ({
+    profileId: profile.type === 'user' ? 'you' : profile.profileId,
+    name: profile.displayName ?? (profile.type === 'user' ? 'You' : 'Profile'),
+    score: profile.analysis.overall.score,
+    fitLabel: toFitLabel(profile.analysis.overall.score),
+    negatives: profile.analysis.negatives,
+    type: profile.type,
+  }));
+};
+
+const isDietConflictReason = (reason: ScoreReason): boolean => {
   if (reason.description.toLowerCase().startsWith(UNCLEAR_DIET_PREFIX)) {
     return false;
   }
@@ -91,26 +140,47 @@ export const buildHistoryAnalysisSummary = (
 ): HistoryAnalysisSummary => {
   const personalProfiles = getParsedProfiles(personalResult);
   const multiProfiles = getParsedProfiles(multiProfileResult);
+  const compactPersonalProfiles = getParsedCompactProfiles(personalResult);
+  const compactMultiProfiles = getParsedCompactProfiles(multiProfileResult);
   const firstProfile = personalProfiles[0] ?? multiProfiles[0];
   const mainUserProfile =
     multiProfiles.find((profile) => profile.profileId === 'you') ??
     personalProfiles.find((profile) => profile.profileId === 'you');
+  const firstCompactProfile = compactPersonalProfiles[0] ?? compactMultiProfiles[0];
+  const mainCompactUserProfile =
+    compactMultiProfiles.find((profile) => profile.type === 'user') ??
+    compactPersonalProfiles.find((profile) => profile.type === 'user');
   const profileChips =
     multiProfiles.length > 0
       ? multiProfiles.map((profile) => ({
           profileId: profile.profileId,
           name: profile.name,
           score: profile.score,
-          fitLabel: profile.fitLabel,
+          fitLabel: profile.fitLabel ?? toFitLabel(profile.score),
         }))
-      : undefined;
+      : compactMultiProfiles.length > 0
+        ? compactMultiProfiles.map((profile) => ({
+            profileId: profile.profileId,
+            name: profile.name,
+            score: profile.score,
+            fitLabel: profile.fitLabel,
+          }))
+        : undefined;
 
   return {
-    personalScore: firstProfile?.score ?? null,
-    personalRating: firstProfile?.fitLabel ?? null,
+    personalScore: firstProfile?.score ?? firstCompactProfile?.score ?? null,
+    personalRating: firstProfile?.fitLabel ?? firstCompactProfile?.fitLabel ?? null,
     profileChips,
-    mainUserHasDietConflict: hasDietConflict(mainUserProfile),
-    mainUserHasAllergenConflict: hasAllergenConflict(mainUserProfile),
+    mainUserHasDietConflict:
+      hasDietConflict(mainUserProfile) ||
+      Boolean(mainCompactUserProfile?.negatives.some((reason) => isDietConflictReason(reason))),
+    mainUserHasAllergenConflict:
+      hasAllergenConflict(mainUserProfile) ||
+      Boolean(
+        mainCompactUserProfile?.negatives.some(
+          (reason) => reason.source === 'allergen' || reason.category === 'allergens',
+        ),
+      ),
   };
 };
 

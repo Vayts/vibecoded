@@ -1,145 +1,939 @@
-import type { MainGoal } from '../types/scoring.types.js';
 import type { ProductRole } from '../types/product-role.types.js';
+import type {
+  GoalRoleWeights,
+  ProductRoleConfig,
+  ProductRoleGroup,
+  ProductScoringProfile,
+} from '../types/goal-fit.types.js';
+import type { MainGoal } from '../types/scoring.types.js';
+import { getProductRoleConfig } from '../utils/role-config.util.js';
 
-export type GoalRoleWeightKey =
-  | 'caloriesPerServing'
-  | 'protein'
-  | 'sugar'
-  | 'fiber'
-  | 'saturatedFat'
-  | 'sodium'
-  | 'additives'
-  | 'unsaturatedFatRatio';
+type GoalKey = MainGoal;
+type GoalGroupWeightTable = Record<GoalKey, Record<ProductRoleGroup, GoalRoleWeights>>;
+type GoalScopedWeights<T> = Partial<Record<GoalKey, T>>;
 
-export type GoalRoleWeights = Partial<Record<GoalRoleWeightKey, number>>;
-
-type GoalRoleTable = Partial<Record<ProductRole, GoalRoleWeights>>;
-type WeightTable = Record<string, GoalRoleTable>;
-
-const WEIGHTS: WeightTable = {
+const GOAL_GROUP_DEFAULT_WEIGHTS: GoalGroupWeightTable = {
   WEIGHT_LOSS: {
-    generic_food: {
-      caloriesPerServing: 0.3,
-      protein: 0.25,
-      sugar: 0.2,
-      fiber: 0.15,
+    fallback: {
+      calorieDensity: 0.24,
+      protein: 0.22,
+      sugar: 0.18,
+      fiber: 0.16,
       saturatedFat: 0.1,
-    },
-    oil: {
-      caloriesPerServing: 0.35,
-      unsaturatedFatRatio: 0.35,
-      saturatedFat: 0.2,
       sodium: 0.05,
       additives: 0.05,
     },
-    sugary_drink: { caloriesPerServing: 0.5, sugar: 0.3, sodium: 0.1, additives: 0.1 },
-    lean_protein: { protein: 0.4, saturatedFat: 0.25, sodium: 0.2, caloriesPerServing: 0.15 },
-    sweet_snack: { caloriesPerServing: 0.35, sugar: 0.35, saturatedFat: 0.2, additives: 0.1 },
-    savory_snack: { caloriesPerServing: 0.3, sodium: 0.3, saturatedFat: 0.25, additives: 0.15 },
-    ready_meal: {
-      caloriesPerServing: 0.3,
-      protein: 0.2,
-      sodium: 0.25,
-      sugar: 0.15,
-      saturatedFat: 0.1,
+    protein: {
+      protein: 0.32,
+      caloriesPerServing: 0.18,
+      saturatedFat: 0.2,
+      sodium: 0.15,
+      additives: 0.1,
+      fiber: 0.05,
+    },
+    dairy: {
+      protein: 0.24,
+      sugar: 0.22,
+      caloriesPerServing: 0.18,
+      saturatedFat: 0.16,
+      sodium: 0.12,
+      additives: 0.08,
+    },
+    grain_starch: {
+      fiber: 0.24,
+      calorieDensity: 0.2,
+      sugar: 0.2,
+      sodium: 0.14,
+      protein: 0.12,
+      additives: 0.1,
+    },
+    plant: {
+      fiber: 0.24,
+      calorieDensity: 0.18,
+      sugar: 0.16,
+      protein: 0.14,
+      additives: 0.1,
+      unsaturatedFatRatio: 0.1,
+      saturatedFat: 0.08,
+    },
+    fat: {
+      caloriesPerServing: 0.28,
+      unsaturatedFatRatio: 0.32,
+      saturatedFat: 0.24,
+      additives: 0.1,
+      sodium: 0.06,
+    },
+    snack_sweet: {
+      caloriesPerServing: 0.28,
+      sugar: 0.28,
+      saturatedFat: 0.18,
+      additives: 0.14,
+      sodium: 0.08,
+      fiber: 0.04,
+    },
+    drink: {
+      sugar: 0.34,
+      caloriesPerServing: 0.26,
+      additives: 0.18,
+      sodium: 0.08,
+      ingredientSimplicity: 0.14,
+    },
+    condiment: {
+      caloriesPerServing: 0.2,
+      sodium: 0.28,
+      sugar: 0.2,
+      additives: 0.22,
+      saturatedFat: 0.06,
+      ingredientSimplicity: 0.04,
+    },
+    prepared: {
+      caloriesPerServing: 0.26,
+      sodium: 0.22,
+      saturatedFat: 0.16,
+      sugar: 0.14,
+      protein: 0.12,
+      fiber: 0.1,
+    },
+    supplement: {
+      protein: 0.24,
+      fiber: 0.12,
+      sugar: 0.2,
+      additives: 0.2,
+      caloriesPerServing: 0.18,
+      sodium: 0.06,
+    },
+    baby: {
+      sugar: 0.26,
+      sodium: 0.18,
+      additives: 0.2,
+      ingredientSimplicity: 0.22,
+      caloriesPerServing: 0.1,
+      fiber: 0.04,
     },
   },
   MUSCLE_GAIN: {
-    generic_food: {
-      protein: 0.4,
-      caloriesPerServing: 0.2,
-      sugar: 0.15,
-      sodium: 0.15,
+    fallback: {
+      protein: 0.34,
+      calorieDensity: 0.14,
+      sugar: 0.12,
+      sodium: 0.1,
       saturatedFat: 0.1,
+      additives: 0.08,
+      fiber: 0.12,
     },
-    oil: { unsaturatedFatRatio: 0.5, saturatedFat: 0.3, additives: 0.1, sodium: 0.1 },
-    sugary_drink: { caloriesPerServing: 0.3, sugar: 0.4, additives: 0.2, sodium: 0.1 },
-    lean_protein: { protein: 0.5, saturatedFat: 0.2, sodium: 0.2, caloriesPerServing: 0.1 },
-    sweet_snack: { sugar: 0.4, caloriesPerServing: 0.3, additives: 0.2, saturatedFat: 0.1 },
-    savory_snack: { protein: 0.3, sodium: 0.3, caloriesPerServing: 0.25, additives: 0.15 },
-    ready_meal: {
-      protein: 0.35,
-      caloriesPerServing: 0.25,
-      sodium: 0.2,
-      saturatedFat: 0.1,
+    protein: {
+      protein: 0.42,
+      caloriesPerServing: 0.16,
+      saturatedFat: 0.14,
+      sodium: 0.14,
+      additives: 0.08,
+      unsaturatedFatRatio: 0.06,
+    },
+    dairy: {
+      protein: 0.34,
+      sugar: 0.16,
+      saturatedFat: 0.16,
+      caloriesPerServing: 0.14,
+      sodium: 0.1,
+      additives: 0.1,
+    },
+    grain_starch: {
+      protein: 0.18,
+      fiber: 0.18,
+      calorieDensity: 0.16,
+      sugar: 0.14,
+      sodium: 0.14,
+      additives: 0.1,
+      caloriesPerServing: 0.1,
+    },
+    plant: {
+      protein: 0.24,
+      fiber: 0.22,
+      calorieDensity: 0.14,
       sugar: 0.1,
+      unsaturatedFatRatio: 0.12,
+      sodium: 0.1,
+      additives: 0.08,
+    },
+    fat: {
+      unsaturatedFatRatio: 0.4,
+      saturatedFat: 0.28,
+      caloriesPerServing: 0.16,
+      additives: 0.1,
+      sodium: 0.06,
+    },
+    snack_sweet: {
+      protein: 0.16,
+      caloriesPerServing: 0.2,
+      sugar: 0.24,
+      saturatedFat: 0.14,
+      additives: 0.18,
+      fiber: 0.08,
+    },
+    drink: {
+      protein: 0.16,
+      sugar: 0.24,
+      caloriesPerServing: 0.22,
+      additives: 0.18,
+      sodium: 0.1,
+      ingredientSimplicity: 0.1,
+    },
+    condiment: {
+      protein: 0.06,
+      sodium: 0.26,
+      sugar: 0.18,
+      additives: 0.24,
+      caloriesPerServing: 0.14,
+      ingredientSimplicity: 0.12,
+    },
+    prepared: {
+      protein: 0.28,
+      caloriesPerServing: 0.2,
+      sodium: 0.18,
+      saturatedFat: 0.12,
+      additives: 0.12,
+      fiber: 0.1,
+    },
+    supplement: {
+      protein: 0.4,
+      fiber: 0.12,
+      sugar: 0.14,
+      additives: 0.16,
+      caloriesPerServing: 0.1,
+      sodium: 0.08,
+    },
+    baby: {
+      protein: 0.16,
+      sugar: 0.2,
+      sodium: 0.18,
+      additives: 0.2,
+      ingredientSimplicity: 0.18,
+      caloriesPerServing: 0.08,
     },
   },
   GENERAL_HEALTH: {
-    generic_food: { sugar: 0.2, fiber: 0.2, protein: 0.2, sodium: 0.2, saturatedFat: 0.2 },
-    oil: { unsaturatedFatRatio: 0.4, saturatedFat: 0.35, additives: 0.15, sodium: 0.1 },
-    sugary_drink: { sugar: 0.4, caloriesPerServing: 0.3, additives: 0.2, sodium: 0.1 },
-    lean_protein: {
-      protein: 0.35,
-      saturatedFat: 0.25,
-      sodium: 0.2,
+    fallback: {
+      calorieDensity: 0.18,
+      protein: 0.14,
+      sugar: 0.16,
+      fiber: 0.16,
+      saturatedFat: 0.14,
+      sodium: 0.12,
       additives: 0.1,
-      caloriesPerServing: 0.1,
     },
-    sweet_snack: { sugar: 0.35, saturatedFat: 0.25, caloriesPerServing: 0.25, additives: 0.15 },
-    savory_snack: { sodium: 0.3, saturatedFat: 0.25, additives: 0.25, caloriesPerServing: 0.2 },
-    ready_meal: { sodium: 0.25, sugar: 0.2, protein: 0.2, saturatedFat: 0.2, fiber: 0.15 },
-  },
-  DIABETES_CONTROL: {
-    generic_food: {
-      sugar: 0.35,
+    protein: {
+      protein: 0.28,
+      saturatedFat: 0.18,
+      sodium: 0.16,
+      additives: 0.14,
+      caloriesPerServing: 0.12,
+      unsaturatedFatRatio: 0.12,
+    },
+    dairy: {
+      protein: 0.22,
+      sugar: 0.18,
+      saturatedFat: 0.18,
+      sodium: 0.14,
+      additives: 0.12,
+      calorieDensity: 0.08,
+      caloriesPerServing: 0.08,
+    },
+    grain_starch: {
+      fiber: 0.24,
+      sugar: 0.18,
+      sodium: 0.18,
+      protein: 0.12,
+      calorieDensity: 0.14,
+      additives: 0.14,
+    },
+    plant: {
       fiber: 0.25,
+      protein: 0.15,
+      sugar: 0.15,
+      sodium: 0.12,
+      saturatedFat: 0.08,
+      additives: 0.1,
+      calorieDensity: 0.08,
+      unsaturatedFatRatio: 0.07,
+    },
+    fat: {
+      unsaturatedFatRatio: 0.38,
+      saturatedFat: 0.28,
+      additives: 0.14,
+      caloriesPerServing: 0.12,
+      sodium: 0.08,
+    },
+    snack_sweet: {
+      caloriesPerServing: 0.24,
+      sugar: 0.24,
+      saturatedFat: 0.18,
+      sodium: 0.12,
+      additives: 0.14,
+      fiber: 0.04,
+      protein: 0.04,
+    },
+    drink: {
+      sugar: 0.3,
+      additives: 0.2,
       caloriesPerServing: 0.2,
       sodium: 0.1,
-      saturatedFat: 0.1,
+      protein: 0.05,
+      saturatedFat: 0.05,
+      ingredientSimplicity: 0.1,
     },
-    oil: { unsaturatedFatRatio: 0.4, saturatedFat: 0.35, additives: 0.15, sodium: 0.1 },
-    sugary_drink: { sugar: 0.6, caloriesPerServing: 0.25, additives: 0.15 },
-    lean_protein: {
-      protein: 0.3,
-      sugar: 0.25,
-      saturatedFat: 0.2,
-      sodium: 0.15,
-      caloriesPerServing: 0.1,
+    condiment: {
+      sodium: 0.28,
+      sugar: 0.18,
+      additives: 0.22,
+      caloriesPerServing: 0.16,
+      saturatedFat: 0.08,
+      ingredientSimplicity: 0.08,
     },
-    sweet_snack: { sugar: 0.5, caloriesPerServing: 0.25, saturatedFat: 0.15, additives: 0.1 },
-    savory_snack: { sodium: 0.3, sugar: 0.25, caloriesPerServing: 0.25, additives: 0.2 },
-    ready_meal: {
-      sugar: 0.3,
-      sodium: 0.25,
-      caloriesPerServing: 0.25,
+    prepared: {
+      caloriesPerServing: 0.22,
+      protein: 0.18,
+      fiber: 0.12,
+      sodium: 0.2,
+      saturatedFat: 0.12,
+      sugar: 0.08,
+      additives: 0.08,
+    },
+    supplement: {
+      protein: 0.28,
+      sugar: 0.16,
+      additives: 0.2,
+      caloriesPerServing: 0.16,
+      sodium: 0.1,
       fiber: 0.1,
+    },
+    baby: {
+      sugar: 0.24,
+      sodium: 0.2,
+      additives: 0.2,
+      ingredientSimplicity: 0.2,
+      caloriesPerServing: 0.08,
+      fiber: 0.08,
+    },
+  },
+  DIABETES_CONTROL: {
+    fallback: {
+      sugar: 0.32,
+      fiber: 0.22,
+      calorieDensity: 0.16,
+      sodium: 0.1,
       saturatedFat: 0.1,
+      protein: 0.1,
+    },
+    protein: {
+      protein: 0.24,
+      sugar: 0.24,
+      saturatedFat: 0.18,
+      sodium: 0.18,
+      caloriesPerServing: 0.1,
+      additives: 0.06,
+    },
+    dairy: {
+      sugar: 0.28,
+      protein: 0.2,
+      saturatedFat: 0.16,
+      sodium: 0.14,
+      caloriesPerServing: 0.12,
+      additives: 0.1,
+    },
+    grain_starch: {
+      fiber: 0.24,
+      sugar: 0.28,
+      calorieDensity: 0.16,
+      sodium: 0.14,
+      protein: 0.1,
+      additives: 0.08,
+    },
+    plant: {
+      fiber: 0.24,
+      sugar: 0.22,
+      protein: 0.14,
+      calorieDensity: 0.12,
+      unsaturatedFatRatio: 0.1,
+      additives: 0.1,
+      sodium: 0.08,
+    },
+    fat: {
+      unsaturatedFatRatio: 0.36,
+      saturatedFat: 0.28,
+      caloriesPerServing: 0.14,
+      additives: 0.12,
+      sodium: 0.1,
+    },
+    snack_sweet: {
+      sugar: 0.36,
+      caloriesPerServing: 0.2,
+      saturatedFat: 0.14,
+      additives: 0.16,
+      sodium: 0.1,
+      fiber: 0.04,
+    },
+    drink: {
+      sugar: 0.42,
+      caloriesPerServing: 0.2,
+      additives: 0.18,
+      sodium: 0.08,
+      ingredientSimplicity: 0.12,
+    },
+    condiment: {
+      sugar: 0.24,
+      sodium: 0.28,
+      additives: 0.22,
+      caloriesPerServing: 0.14,
+      ingredientSimplicity: 0.12,
+    },
+    prepared: {
+      sugar: 0.22,
+      sodium: 0.22,
+      caloriesPerServing: 0.2,
+      fiber: 0.12,
+      saturatedFat: 0.12,
+      protein: 0.12,
+    },
+    supplement: {
+      protein: 0.24,
+      fiber: 0.14,
+      sugar: 0.24,
+      additives: 0.2,
+      caloriesPerServing: 0.1,
+      sodium: 0.08,
+    },
+    baby: {
+      sugar: 0.28,
+      sodium: 0.18,
+      additives: 0.22,
+      ingredientSimplicity: 0.22,
+      caloriesPerServing: 0.06,
+      fiber: 0.04,
     },
   },
   PREGNANCY: {
-    generic_food: { fiber: 0.25, protein: 0.25, sodium: 0.2, sugar: 0.15, saturatedFat: 0.15 },
-    oil: { unsaturatedFatRatio: 0.45, saturatedFat: 0.3, additives: 0.15, sodium: 0.1 },
-    sugary_drink: { sugar: 0.4, caloriesPerServing: 0.3, additives: 0.2, sodium: 0.1 },
-    lean_protein: {
-      protein: 0.4,
-      saturatedFat: 0.2,
-      sodium: 0.2,
+    fallback: {
+      fiber: 0.22,
+      protein: 0.22,
+      sodium: 0.18,
+      sugar: 0.14,
+      saturatedFat: 0.14,
       additives: 0.1,
-      caloriesPerServing: 0.1,
     },
-    sweet_snack: { sugar: 0.35, caloriesPerServing: 0.3, additives: 0.2, saturatedFat: 0.15 },
-    savory_snack: { sodium: 0.35, saturatedFat: 0.25, additives: 0.2, caloriesPerServing: 0.2 },
-    ready_meal: { sodium: 0.25, protein: 0.25, sugar: 0.2, saturatedFat: 0.15, fiber: 0.15 },
+    protein: {
+      protein: 0.34,
+      saturatedFat: 0.18,
+      sodium: 0.18,
+      additives: 0.12,
+      caloriesPerServing: 0.1,
+      fiber: 0.08,
+    },
+    dairy: {
+      protein: 0.26,
+      sugar: 0.18,
+      saturatedFat: 0.18,
+      sodium: 0.14,
+      additives: 0.12,
+      calorieDensity: 0.12,
+    },
+    grain_starch: {
+      fiber: 0.22,
+      sodium: 0.18,
+      sugar: 0.16,
+      protein: 0.14,
+      calorieDensity: 0.14,
+      additives: 0.16,
+    },
+    plant: {
+      fiber: 0.26,
+      protein: 0.16,
+      sugar: 0.12,
+      sodium: 0.1,
+      additives: 0.12,
+      unsaturatedFatRatio: 0.1,
+      calorieDensity: 0.14,
+    },
+    fat: {
+      unsaturatedFatRatio: 0.38,
+      saturatedFat: 0.28,
+      caloriesPerServing: 0.14,
+      additives: 0.12,
+      sodium: 0.08,
+    },
+    snack_sweet: {
+      sugar: 0.28,
+      caloriesPerServing: 0.22,
+      additives: 0.2,
+      saturatedFat: 0.18,
+      sodium: 0.08,
+      protein: 0.04,
+    },
+    drink: {
+      sugar: 0.3,
+      caloriesPerServing: 0.22,
+      additives: 0.2,
+      sodium: 0.1,
+      protein: 0.08,
+      ingredientSimplicity: 0.1,
+    },
+    condiment: {
+      sodium: 0.3,
+      sugar: 0.18,
+      additives: 0.22,
+      caloriesPerServing: 0.14,
+      saturatedFat: 0.08,
+      ingredientSimplicity: 0.08,
+    },
+    prepared: {
+      sodium: 0.22,
+      protein: 0.2,
+      sugar: 0.14,
+      saturatedFat: 0.14,
+      fiber: 0.14,
+      additives: 0.16,
+    },
+    supplement: {
+      protein: 0.22,
+      sugar: 0.16,
+      additives: 0.22,
+      ingredientSimplicity: 0.16,
+      caloriesPerServing: 0.08,
+      fiber: 0.08,
+      sodium: 0.08,
+    },
+    baby: {
+      sugar: 0.22,
+      sodium: 0.18,
+      additives: 0.22,
+      ingredientSimplicity: 0.2,
+      caloriesPerServing: 0.08,
+      fiber: 0.1,
+    },
   },
 };
 
-const ROLES_WITH_EXPLICIT_WEIGHTS: ProductRole[] = [
-  'generic_food',
-  'oil',
-  'sugary_drink',
-  'lean_protein',
-  'sweet_snack',
-  'savory_snack',
-  'ready_meal',
-];
+const SCORING_PROFILE_WEIGHT_OVERRIDES: Record<
+  ProductScoringProfile,
+  GoalScopedWeights<GoalRoleWeights>
+> = {
+  generic: {},
+  lean_protein: {
+    GENERAL_HEALTH: {
+      protein: 0.34,
+      saturatedFat: 0.18,
+      sodium: 0.16,
+      additives: 0.12,
+      caloriesPerServing: 0.1,
+      calorieDensity: 0.1,
+    },
+    WEIGHT_LOSS: {
+      protein: 0.38,
+      caloriesPerServing: 0.16,
+      saturatedFat: 0.2,
+      sodium: 0.14,
+      additives: 0.08,
+      calorieDensity: 0.04,
+    },
+  },
+  fatty_protein: {
+    GENERAL_HEALTH: {
+      protein: 0.24,
+      unsaturatedFatRatio: 0.18,
+      saturatedFat: 0.2,
+      sodium: 0.14,
+      additives: 0.12,
+      caloriesPerServing: 0.12,
+    },
+    WEIGHT_LOSS: {
+      protein: 0.24,
+      caloriesPerServing: 0.2,
+      unsaturatedFatRatio: 0.18,
+      saturatedFat: 0.2,
+      sodium: 0.1,
+      additives: 0.08,
+    },
+  },
+  processed_protein: {
+    GENERAL_HEALTH: {
+      protein: 0.2,
+      sodium: 0.24,
+      saturatedFat: 0.18,
+      additives: 0.18,
+      caloriesPerServing: 0.12,
+      ingredientSimplicity: 0.08,
+    },
+    DIABETES_CONTROL: {
+      protein: 0.18,
+      sugar: 0.14,
+      sodium: 0.24,
+      saturatedFat: 0.18,
+      additives: 0.18,
+      caloriesPerServing: 0.08,
+    },
+    PREGNANCY: {
+      protein: 0.18,
+      sodium: 0.24,
+      saturatedFat: 0.18,
+      additives: 0.2,
+      caloriesPerServing: 0.1,
+      ingredientSimplicity: 0.1,
+    },
+  },
+  dairy: {},
+  grain: {},
+  plant: {},
+  fat: {
+    GENERAL_HEALTH: {
+      unsaturatedFatRatio: 0.42,
+      saturatedFat: 0.3,
+      additives: 0.12,
+      caloriesPerServing: 0.1,
+      sodium: 0.06,
+    },
+    WEIGHT_LOSS: {
+      caloriesPerServing: 0.3,
+      unsaturatedFatRatio: 0.34,
+      saturatedFat: 0.24,
+      additives: 0.08,
+      sodium: 0.04,
+    },
+  },
+  snack: {
+    GENERAL_HEALTH: {
+      caloriesPerServing: 0.28,
+      sodium: 0.24,
+      additives: 0.18,
+      saturatedFat: 0.1,
+      fiber: 0.1,
+      protein: 0.1,
+    },
+    WEIGHT_LOSS: {
+      caloriesPerServing: 0.32,
+      sodium: 0.24,
+      additives: 0.2,
+      sugar: 0.08,
+      fiber: 0.08,
+      protein: 0.08,
+    },
+  },
+  sweet: {
+    GENERAL_HEALTH: {
+      sugar: 0.3,
+      caloriesPerServing: 0.24,
+      saturatedFat: 0.18,
+      additives: 0.16,
+      fiber: 0.06,
+      protein: 0.06,
+    },
+    DIABETES_CONTROL: {
+      sugar: 0.4,
+      caloriesPerServing: 0.22,
+      saturatedFat: 0.14,
+      additives: 0.14,
+      fiber: 0.05,
+      protein: 0.05,
+    },
+    WEIGHT_LOSS: {
+      sugar: 0.32,
+      caloriesPerServing: 0.28,
+      saturatedFat: 0.18,
+      additives: 0.14,
+      fiber: 0.04,
+      protein: 0.04,
+    },
+  },
+  drink: {},
+  condiment: {
+    GENERAL_HEALTH: {
+      sodium: 0.3,
+      sugar: 0.18,
+      additives: 0.22,
+      caloriesPerServing: 0.14,
+      saturatedFat: 0.06,
+      ingredientSimplicity: 0.1,
+    },
+    DIABETES_CONTROL: {
+      sugar: 0.26,
+      sodium: 0.28,
+      additives: 0.22,
+      caloriesPerServing: 0.12,
+      ingredientSimplicity: 0.12,
+    },
+  },
+  prepared_meal: {
+    GENERAL_HEALTH: {
+      caloriesPerServing: 0.24,
+      protein: 0.18,
+      fiber: 0.14,
+      sodium: 0.2,
+      saturatedFat: 0.12,
+      additives: 0.12,
+    },
+    WEIGHT_LOSS: {
+      caloriesPerServing: 0.28,
+      sodium: 0.22,
+      saturatedFat: 0.14,
+      sugar: 0.12,
+      protein: 0.12,
+      fiber: 0.12,
+    },
+  },
+  supplement: {
+    GENERAL_HEALTH: {
+      protein: 0.3,
+      sugar: 0.16,
+      additives: 0.18,
+      caloriesPerServing: 0.14,
+      sodium: 0.08,
+      ingredientSimplicity: 0.14,
+    },
+    MUSCLE_GAIN: {
+      protein: 0.42,
+      fiber: 0.12,
+      sugar: 0.12,
+      additives: 0.16,
+      caloriesPerServing: 0.1,
+      ingredientSimplicity: 0.08,
+    },
+  },
+  baby_food: {
+    GENERAL_HEALTH: {
+      sugar: 0.24,
+      sodium: 0.2,
+      additives: 0.2,
+      ingredientSimplicity: 0.22,
+      caloriesPerServing: 0.06,
+      fiber: 0.08,
+    },
+    DIABETES_CONTROL: {
+      sugar: 0.3,
+      sodium: 0.18,
+      additives: 0.2,
+      ingredientSimplicity: 0.22,
+      caloriesPerServing: 0.04,
+      fiber: 0.06,
+    },
+  },
+};
 
-export function getGoalRoleWeights(goal: MainGoal | null, role: ProductRole): GoalRoleWeights {
-  const goalKey = goal ?? 'GENERAL_HEALTH';
-  const goalWeights = WEIGHTS[goalKey] ?? WEIGHTS.GENERAL_HEALTH;
+const ROLE_WEIGHT_OVERRIDES: Partial<Record<ProductRole, GoalScopedWeights<GoalRoleWeights>>> = {
+  processed_meat: {
+    GENERAL_HEALTH: {
+      protein: 0.18,
+      sodium: 0.26,
+      saturatedFat: 0.18,
+      additives: 0.2,
+      caloriesPerServing: 0.1,
+      ingredientSimplicity: 0.08,
+    },
+  },
+  water: {
+    GENERAL_HEALTH: {
+      sodium: 0.28,
+      additives: 0.34,
+      caloriesPerServing: 0.14,
+      ingredientSimplicity: 0.24,
+    },
+    WEIGHT_LOSS: {
+      additives: 0.36,
+      sodium: 0.28,
+      caloriesPerServing: 0.16,
+      ingredientSimplicity: 0.2,
+    },
+  },
+  unsweetened_drink: {
+    GENERAL_HEALTH: {
+      sugar: 0.2,
+      additives: 0.26,
+      sodium: 0.16,
+      caloriesPerServing: 0.14,
+      ingredientSimplicity: 0.24,
+    },
+  },
+  diet_sweetened_drink: {
+    GENERAL_HEALTH: {
+      additives: 0.34,
+      ingredientSimplicity: 0.24,
+      sodium: 0.14,
+      caloriesPerServing: 0.08,
+      sugar: 0.2,
+    },
+    DIABETES_CONTROL: {
+      additives: 0.36,
+      ingredientSimplicity: 0.24,
+      sodium: 0.12,
+      caloriesPerServing: 0.08,
+      sugar: 0.2,
+    },
+  },
+  juice_smoothie: {
+    GENERAL_HEALTH: {
+      sugar: 0.24,
+      fiber: 0.16,
+      caloriesPerServing: 0.18,
+      additives: 0.12,
+      ingredientSimplicity: 0.16,
+      sodium: 0.06,
+      protein: 0.08,
+    },
+    DIABETES_CONTROL: {
+      sugar: 0.32,
+      fiber: 0.16,
+      caloriesPerServing: 0.16,
+      additives: 0.12,
+      ingredientSimplicity: 0.14,
+      sodium: 0.05,
+      protein: 0.05,
+    },
+  },
+  sauce_condiment: {
+    GENERAL_HEALTH: {
+      sodium: 0.32,
+      sugar: 0.18,
+      additives: 0.24,
+      caloriesPerServing: 0.14,
+      ingredientSimplicity: 0.12,
+    },
+  },
+  soup_broth: {
+    GENERAL_HEALTH: {
+      sodium: 0.34,
+      additives: 0.18,
+      caloriesPerServing: 0.12,
+      protein: 0.1,
+      ingredientSimplicity: 0.12,
+      saturatedFat: 0.14,
+    },
+  },
+  instant_food: {
+    GENERAL_HEALTH: {
+      sodium: 0.24,
+      additives: 0.18,
+      caloriesPerServing: 0.2,
+      protein: 0.14,
+      fiber: 0.1,
+      saturatedFat: 0.1,
+      sugar: 0.04,
+    },
+    WEIGHT_LOSS: {
+      sodium: 0.26,
+      additives: 0.2,
+      caloriesPerServing: 0.22,
+      fiber: 0.1,
+      saturatedFat: 0.1,
+      protein: 0.08,
+      sugar: 0.04,
+    },
+  },
+  meal_replacement: {
+    GENERAL_HEALTH: {
+      protein: 0.22,
+      fiber: 0.18,
+      sugar: 0.16,
+      additives: 0.16,
+      caloriesPerServing: 0.16,
+      sodium: 0.12,
+    },
+    MUSCLE_GAIN: {
+      protein: 0.34,
+      fiber: 0.16,
+      caloriesPerServing: 0.14,
+      sugar: 0.12,
+      additives: 0.14,
+      sodium: 0.1,
+    },
+  },
+  protein_powder: {
+    GENERAL_HEALTH: {
+      protein: 0.36,
+      sugar: 0.14,
+      additives: 0.16,
+      caloriesPerServing: 0.12,
+      sodium: 0.1,
+      ingredientSimplicity: 0.12,
+    },
+  },
+  protein_bar: {
+    GENERAL_HEALTH: {
+      protein: 0.26,
+      fiber: 0.16,
+      sugar: 0.18,
+      additives: 0.18,
+      caloriesPerServing: 0.16,
+      sodium: 0.06,
+    },
+    WEIGHT_LOSS: {
+      protein: 0.22,
+      fiber: 0.18,
+      sugar: 0.22,
+      additives: 0.18,
+      caloriesPerServing: 0.16,
+      sodium: 0.04,
+    },
+  },
+  baby_food: {
+    GENERAL_HEALTH: {
+      sugar: 0.26,
+      sodium: 0.2,
+      additives: 0.2,
+      ingredientSimplicity: 0.22,
+      caloriesPerServing: 0.06,
+      fiber: 0.06,
+    },
+  },
+  oil: {
+    GENERAL_HEALTH: {
+      unsaturatedFatRatio: 0.44,
+      saturatedFat: 0.3,
+      additives: 0.12,
+      caloriesPerServing: 0.08,
+      sodium: 0.06,
+    },
+  },
+  nuts_seeds: {
+    GENERAL_HEALTH: {
+      unsaturatedFatRatio: 0.2,
+      fiber: 0.2,
+      protein: 0.18,
+      calorieDensity: 0.12,
+      sodium: 0.1,
+      saturatedFat: 0.1,
+      additives: 0.1,
+    },
+  },
+};
 
-  const effectiveRole: ProductRole = ROLES_WITH_EXPLICIT_WEIGHTS.includes(role)
-    ? role
-    : 'generic_food';
-  return goalWeights[effectiveRole] ?? WEIGHTS.GENERAL_HEALTH.generic_food ?? {};
+function normalizeWeights(weights: GoalRoleWeights): GoalRoleWeights {
+  const entries = Object.entries(weights).filter(
+    ([, value]) => typeof value === 'number' && value > 0,
+  ) as Array<[keyof GoalRoleWeights, number]>;
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+
+  if (total === 0) {
+    return {};
+  }
+
+  return Object.fromEntries(entries.map(([key, value]) => [key, value / total])) as GoalRoleWeights;
+}
+
+function resolveGoalKey(goal: MainGoal | null): GoalKey {
+  return goal ?? 'GENERAL_HEALTH';
+}
+
+export function getGoalRoleWeights(
+  goal: MainGoal | null,
+  role: ProductRole,
+  roleConfig: ProductRoleConfig = getProductRoleConfig(role),
+): GoalRoleWeights {
+  const goalKey = resolveGoalKey(goal);
+  const groupWeights = GOAL_GROUP_DEFAULT_WEIGHTS[goalKey][roleConfig.group];
+  const profileWeights =
+    SCORING_PROFILE_WEIGHT_OVERRIDES[roleConfig.scoringProfile]?.[goalKey] ?? {};
+  const roleWeights = ROLE_WEIGHT_OVERRIDES[role]?.[goalKey] ?? {};
+
+  return normalizeWeights({
+    ...groupWeights,
+    ...profileWeights,
+    ...roleWeights,
+  });
 }

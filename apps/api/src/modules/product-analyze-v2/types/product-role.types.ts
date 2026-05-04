@@ -1,32 +1,58 @@
-export type ProductRole =
-  | 'generic_food'
-  | 'lean_protein'
-  | 'fatty_protein'
-  | 'processed_meat'
-  | 'seafood'
-  | 'egg_product'
-  | 'dairy_high_protein'
-  | 'whole_grain'
-  | 'refined_grain'
-  | 'starchy_food'
-  | 'breakfast_cereal'
-  | 'bakery'
-  | 'oil'
-  | 'nuts_seeds'
-  | 'spread_fat'
-  | 'vegetable'
-  | 'fruit'
-  | 'legume'
-  | 'savory_snack'
-  | 'sweet_snack'
-  | 'dessert'
-  | 'candy_chocolate'
-  | 'water_unsweetened_drink'
-  | 'sugary_drink'
-  | 'juice_smoothie'
-  | 'sauce_condiment'
-  | 'sweetener'
-  | 'supplement'
-  | 'baby_food'
-  | 'meal_replacement'
-  | 'ready_meal';
+export const VALID_PRODUCT_ROLES = [
+  'generic_food',
+  'lean_protein',
+  'fatty_protein',
+  'processed_meat',
+  'seafood',
+  'egg_product',
+  'plant_based_protein',
+  'tofu_tempeh_seitan',
+  'milk_plain',
+  'yogurt_plain',
+  'yogurt_sweetened',
+  'dairy_high_protein',
+  'cheese',
+  'butter_cream',
+  'whole_grain',
+  'refined_grain',
+  'pasta_noodles',
+  'starchy_food',
+  'breakfast_cereal',
+  'bakery_bread',
+  'pastry_sweet_bakery',
+  'vegetable',
+  'fruit',
+  'dried_fruit',
+  'legume',
+  'nuts_seeds',
+  'nut_seed_spread',
+  'oil',
+  'spread_fat',
+  'savory_snack',
+  'sweet_snack',
+  'dessert',
+  'candy_chocolate',
+  'ice_cream_frozen_dessert',
+  'water',
+  'unsweetened_drink',
+  'sugary_drink',
+  'diet_sweetened_drink',
+  'juice_smoothie',
+  'milk_based_drink',
+  'sports_energy_drink',
+  'sauce_condiment',
+  'dressing_marinade',
+  'soup_broth',
+  'seasoning_spice',
+  'sweetener',
+  'ready_meal',
+  'instant_food',
+  'canned_packaged_food',
+  'meal_replacement',
+  'protein_powder',
+  'protein_bar',
+  'supplement',
+  'baby_food',
+] as const;
+
+export type ProductRole = (typeof VALID_PRODUCT_ROLES)[number];

@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { Image, View } from 'react-native';
 import ActionSheet, { SheetManager, useSheetPayload } from 'react-native-actions-sheet';
+import type { PersonalAnalysisJob } from '@acme/shared';
 import { Button } from '../../../../shared/components/Button';
 import { Typography } from '../../../../shared/components/Typography';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
@@ -30,6 +31,16 @@ export function ProductDecisionSheet() {
   const resolvedImageUrl = resolveStorageUri(product.image_url);
   const isPending = barcodeMutation.isPending || photoMutation.isPending;
 
+  const buildCompletedAnalysisJob = (result: NonNullable<PersonalAnalysisJob['result']>): PersonalAnalysisJob => {
+    return {
+      analysisId: '',
+      status: 'completed',
+      productStatus: 'completed',
+      ingredientsStatus: 'completed',
+      result,
+    };
+  };
+
   const handleAnalyze = async () => {
     actionTakenRef.current = true;
     const sessionId = startResultSession();
@@ -45,11 +56,16 @@ export function ProductDecisionSheet() {
       if (photoUri) {
         // Photo flow: run full identification + analysis
         const result = await photoMutation.mutateAsync({ photoUri, ocr: photoOcr });
-        hydrateResultSession(sessionId, result);
+        hydrateResultSession(sessionId, {
+          result,
+          resolvedPersonalResult: result.personalAnalysis,
+        });
       } else {
         // Barcode flow: trigger analysis by barcode
         const result = await barcodeMutation.mutateAsync({ barcode: product.barcode });
-        hydrateResultSession(sessionId, result);
+        hydrateResultSession(sessionId, {
+          resolvedPersonalResult: buildCompletedAnalysisJob(result),
+        });
       }
     } catch (error) {
       resetResultSession();

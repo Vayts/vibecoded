@@ -1,7 +1,7 @@
 /* eslint-disable max-lines */
 
 import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
-import type { ProductPreview } from '@acme/shared';
+import type { PersonalAnalysisJob, ProductPreview } from '@acme/shared';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -41,6 +41,18 @@ const RESCAN_COOLDOWN_MS = 1500;
 const BARCODE_FRAME_WIDTH = Math.min(Dimensions.get('window').width - 48, 300);
 const BARCODE_FRAME_HEIGHT = 200;
 const BARCODE_DETECTION_PADDING = 20;
+
+const buildCompletedAnalysisJob = (
+  result: NonNullable<PersonalAnalysisJob['result']>,
+): PersonalAnalysisJob => {
+  return {
+    analysisId: '',
+    status: 'completed',
+    productStatus: 'completed',
+    ingredientsStatus: 'completed',
+    result,
+  };
+};
 
 interface ScannerHomeScreenProps {
   routeMode?: ScannerRouteMode;
@@ -396,7 +408,10 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
       try {
         const result = await submitPhotoScan({ photoUri: captured.uploadUri });
-        hydrateResultSession(sessionId, result);
+        hydrateResultSession(sessionId, {
+          result,
+          resolvedPersonalResult: result.personalAnalysis,
+        });
       } catch (error) {
         await handleResultSheetError(error, 'Unable to identify product');
       }
@@ -497,7 +512,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
         try {
           const result = await barcodeMutation.mutateAsync({ barcode: normalized });
-          hydrateResultSession(sessionId, result);
+          hydrateResultSession(sessionId, {
+            resolvedPersonalResult: buildCompletedAnalysisJob(result),
+          });
         } catch (error) {
           await handleResultSheetError(error, 'Unable to submit barcode');
         }

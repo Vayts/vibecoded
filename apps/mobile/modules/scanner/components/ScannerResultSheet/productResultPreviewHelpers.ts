@@ -1,8 +1,8 @@
 import type {
   BarcodeLookupProduct,
   BarcodeLookupResponse,
-  ProfileProductScore,
   ProductPreview,
+  ScannerProfileResult,
   ScanHistoryItem,
 } from '@acme/shared';
 
@@ -27,16 +27,16 @@ export const getPreviewHistoryProduct = (previewItem?: ScanHistoryItem) => {
 };
 
 export const getActiveProfile = (
-  profiles: ProfileProductScore[] | undefined,
+  profiles: ScannerProfileResult[] | undefined,
   selectedProfileId: string,
-): ProfileProductScore | undefined => {
+): ScannerProfileResult | undefined => {
   if (!profiles?.length) {
     return undefined;
   }
 
   return (
     profiles.find((profile) => profile.profileId === selectedProfileId) ??
-    profiles.find((profile) => profile.profileId === 'you') ??
+    profiles.find((profile) => profile.type === 'user') ??
     profiles[0]
   );
 };

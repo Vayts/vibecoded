@@ -14,6 +14,58 @@ import {
   type NutritionFactKey,
 } from '../constants/nutrition-role-rules.constants.js';
 
+const SAVORY_SNACK_ROLES = new Set<ProductRole>(['savory_snack']);
+const SWEET_SNACK_ROLES = new Set<ProductRole>(['sweet_snack', 'dessert', 'candy_chocolate']);
+
+function getRoleSpecificPenalty(product: NormalizedProductV2, role: ProductRole): number {
+  const caloriesPer100g = product.nutrition.caloriesPer100g ?? 0;
+  const caloriesPerServing = product.nutrition.caloriesPerServing ?? 0;
+  const sodiumPer100g = product.nutrition.sodiumPer100g ?? 0;
+  const sugarPer100g = product.nutrition.sugarPer100g ?? 0;
+  const proteinPer100g = product.nutrition.proteinPer100g ?? 0;
+  const fiberPer100g = product.nutrition.fiberPer100g ?? 0;
+  const additivesCount = product.additives.length;
+
+  let penalty = 0;
+
+  if (SAVORY_SNACK_ROLES.has(role)) {
+    if (caloriesPer100g >= 500) penalty += 14;
+    else if (caloriesPer100g >= 450) penalty += 10;
+
+    if (sodiumPer100g >= 0.6) penalty += 10;
+    else if (sodiumPer100g >= 0.4) penalty += 6;
+
+    if (additivesCount >= 4) penalty += 10;
+    else if (additivesCount >= 2) penalty += 6;
+
+    if (proteinPer100g < 7) penalty += 4;
+    if (fiberPer100g < 3) penalty += 4;
+  }
+
+  if (SWEET_SNACK_ROLES.has(role)) {
+    if (sugarPer100g >= 30) penalty += 16;
+    else if (sugarPer100g >= 20) penalty += 10;
+
+    if (caloriesPer100g >= 450) penalty += 12;
+    else if (caloriesPer100g >= 350) penalty += 8;
+
+    if (additivesCount >= 4) penalty += 8;
+    else if (additivesCount >= 2) penalty += 5;
+
+    if (fiberPer100g < 2) penalty += 4;
+  }
+
+  if (role === 'sugary_drink') {
+    if (sugarPer100g >= 10) penalty += 18;
+    else if (sugarPer100g >= 6) penalty += 12;
+
+    if (caloriesPerServing >= 120) penalty += 8;
+    if (additivesCount >= 2) penalty += 4;
+  }
+
+  return penalty;
+}
+
 function buildAllSubScores(product: NormalizedProductV2): Record<NutritionFactKey, number | null> {
   const { nutrition, additives, ingredients } = product;
   const fat = nutrition.fatPer100g ?? null;
@@ -45,7 +97,7 @@ export function calculateNutritionScore(
   product: NormalizedProductV2,
   role: ProductRole = 'generic_food',
 ): NutritionResult {
-  const { nutrition, additives, ingredients } = product;
+  const { additives, ingredients } = product;
 
   const effectiveRole: ProductRole =
     NUTRITION_ROLE_RULES[role] !== undefined ? role : FALLBACK_NUTRITION_ROLE;
@@ -69,6 +121,8 @@ export function calculateNutritionScore(
   }
 
   const { score, missingMetrics } = weightedAverage(filteredScores, filteredWeights);
+  const rolePenalty = getRoleSpecificPenalty(product, effectiveRole);
+  const finalScore = clampScore(score - rolePenalty);
 
   const displayReasons = buildNutritionDisplayReasons(product, effectiveRole);
   const positives = displayReasons
@@ -81,6 +135,7 @@ export function calculateNutritionScore(
   const details: Record<string, unknown> = {
     role,
     effectiveRole,
+    rolePenalty,
     subScores: allSubScores,
     weights: rule.weights,
     ignoredFacts: rule.ignoredFacts ?? [],
@@ -91,5 +146,5 @@ export function calculateNutritionScore(
     additivesCount: additives.length,
   };
 
-  return { score, positives, negatives, details };
+  return { score: finalScore, positives, negatives, details };
 }

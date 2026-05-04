@@ -6,12 +6,26 @@ import type {
 } from '../types/scoring.types.js';
 import { clampScore } from './nutrient-score.util.js';
 
+const OVERALL_WEIGHTS = {
+  safety: 0.2,
+  goalFit: 0.2,
+  nutrition: 0.6,
+} as const;
+
+function applyNutritionLedCap(score: number, nutritionScore: number): number {
+  if (nutritionScore < 35) return Math.min(score, 42);
+  if (nutritionScore < 45) return Math.min(score, 50);
+  if (nutritionScore < 55) return Math.min(score, 58);
+
+  return score;
+}
+
 function getRating(score: number, status: 'safe' | 'caution' | 'avoid'): OverallResult['rating'] {
   if (status === 'avoid') return 'avoid';
   if (score >= 90) return 'excellent';
   if (score >= 75) return 'good_choice';
   if (score >= 60) return 'okay';
-  if (score >= 40) return 'use_with_caution';
+  if (score >= 35) return 'use_with_caution';
   return 'avoid';
 }
 
@@ -38,7 +52,12 @@ export function calculateOverallScore(
     overallScore = Math.min(goalFit.score, 40);
     rating = 'use_with_caution';
   } else {
-    overallScore = clampScore(safety.score * 0.4 + goalFit.score * 0.35 + nutrition.score * 0.25);
+    overallScore = clampScore(
+      safety.score * OVERALL_WEIGHTS.safety +
+        goalFit.score * OVERALL_WEIGHTS.goalFit +
+        nutrition.score * OVERALL_WEIGHTS.nutrition,
+    );
+    overallScore = clampScore(applyNutritionLedCap(overallScore, nutrition.score));
     rating = getRating(overallScore, safety.status);
   }
 
