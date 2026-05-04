@@ -113,6 +113,14 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     router.replace('/(tabs)/scans');
   }, [firstProduct, isRouteCompareMode, router]);
 
+  const resetCompareIfActive = useCallback(() => {
+    if (!useCompareStore.getState().isCompareMode) {
+      return;
+    }
+
+    resetCompare();
+  }, [resetCompare]);
+
   const handleCameraPermissionPress = useCallback(() => {
     if (permission && !permission.granted && !permission.canAskAgain) {
       void Linking.openSettings().catch(() => undefined);
@@ -123,13 +131,15 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   }, [permission, requestPermission]);
 
   const handleCloseScanner = useCallback(() => {
+    resetCompareIfActive();
+
     if (router.canGoBack()) {
       router.back();
       return;
     }
 
     router.replace('/(tabs)/scans');
-  }, [router]);
+  }, [resetCompareIfActive, router]);
 
   const resumeScanner = useCallback(() => {
     isTransitioningToErrorSheetRef.current = false;
@@ -177,8 +187,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       return () => {
         wasScreenFocusedRef.current = false;
         setIsScreenFocused(false);
+        resetCompareIfActive();
       };
-    }, [resumeScanner]),
+    }, [resetCompareIfActive, resumeScanner]),
   );
 
   const capturePhotoWithCamera = useCallback(async () => {

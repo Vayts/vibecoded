@@ -38,7 +38,7 @@ const FALLBACK_NUTRITION_METRICS: FallbackMetric[] = [
 ];
 
 const PROFILE_FIT_KEYWORD =
-  /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame|vegan|vegetarian|halal|kosher|keto|paleo)/i;
+  /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame|vegan|vegetarian|pork(?:[-\s]?free)?|keto|paleo)/i;
 const ALLERGEN_KEYWORD =
   /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame)/i;
 

@@ -59,26 +59,17 @@ DIET COMPATIBILITY RULES:
 - Use "incompatible" ONLY when the ingredients explicitly contain a known forbidden ingredient.
 - Use "compatible" when the ingredients show no meaningful conflict signal for the diet, even if certification is missing.
 - Use "unclear" ONLY when there is a concrete risk signal for the diet, but the available data is insufficient to decide between compatible and incompatible.
-- Do NOT use "unclear" just because halal, kosher, gluten-free, vegan, or other certification is missing.
+- Do NOT use "unclear" just because certification is missing.
 - For ordinary packaged foods with simple plant-based ingredients and no conflict signals, prefer "compatible" over "unclear".
-- Do NOT mark halal or kosher as incompatible only because the product contains beef, veal, chicken, meat stock, or animal-derived ingredients, unless a forbidden ingredient is explicitly present.
 - Use ingredient evidence first. Certification can strengthen "compatible", but lack of certification alone should not force "unclear".
 
 - vegan: incompatible if any animal product (meat, fish, dairy, eggs, honey, gelatin, lard, etc.) is present
 - vegetarian: incompatible if meat, fish, gelatin, lard, collagen, carmine is present
 
-- halal:
-  - incompatible ONLY if pork, alcohol, lard, pork derivatives, or non-halal slaughter/source explicitly appears.
-  - unclear only if the product contains concrete halal-risk ingredients with unclear source or compliance, such as gelatin, enzymes, animal fat, shortening, mono- and diglycerides, meat stock, or ambiguous flavorings.
-  - common packaged plant-based foods like plain crackers, plain bread, salted chips, or simple cereals are usually compatible if no halal conflict signal appears in ingredients.
-  - missing halal certification alone is NOT enough for unclear.
-
-- kosher:
-  - incompatible ONLY if pork, shellfish, or explicit mixing of meat and dairy is present.
-  - unclear only if the product contains concrete kosher-risk ingredients with unclear source or compliance, such as gelatin, enzymes, animal fat, meat stock, ambiguous flavorings, or other source-sensitive animal-derived ingredients.
-  - common packaged plant-based foods like plain crackers, plain bread, salted chips, or simple cereals are usually compatible if no kosher conflict signal appears in ingredients.
-  - missing kosher certification alone is NOT enough for unclear.
-  - meat alone is not automatically incompatible, and dairy alone is not automatically incompatible.
+- porkFree:
+  - incompatible ONLY if pork or a clearly pork-derived ingredient is present, such as pork, bacon, ham, lard, prosciutto, pancetta, pork gelatin, pork fat, or pork broth.
+  - unclear only if the product contains a concrete pork-source risk with unclear origin, such as unspecified gelatin, animal fat, shortening, meat stock, sausage, salami, pepperoni, or ambiguous flavorings.
+  - common packaged plant-based foods like plain crackers, plain bread, salted chips, or simple cereals are usually compatible if no pork conflict signal appears in ingredients.
 
 - glutenFree: incompatible if wheat, barley, rye, spelt, semolina, malt, seitan is present
 - dairyFree: incompatible if milk, cream, butter, cheese, whey, casein, lactose is present
@@ -87,9 +78,9 @@ DIET COMPATIBILITY RULES:
 - When ingredients are ambiguous or missing, return "unclear" — never guess.
 
 PRACTICAL EXAMPLES:
-- Plain crackers made from wheat flour, vegetable oil, salt, and leavening agents are usually compatible for halal and kosher.
-- A candy with gelatin of unknown source may be unclear for halal or kosher.
-- A product with pork, lard, or shellfish is incompatible for the relevant diets.
+- Plain crackers made from wheat flour, vegetable oil, salt, and leavening agents are usually compatible for porkFree.
+- A candy with gelatin of unknown source may be unclear for porkFree.
+- A product with pork, lard, bacon, or ham is incompatible for porkFree.
 
 DIET COMPATIBILITY REASONS:
 - For each diet that is "incompatible" or "unclear", provide a short reason in dietCompatibilityReasons.

@@ -14,6 +14,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     'expo-image-picker',
     'expo-secure-store',
     'expo-apple-authentication',
+    "expo-video",
     [
       'expo-splash-screen',
       {

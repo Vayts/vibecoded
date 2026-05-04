@@ -31,7 +31,7 @@ const ingredientItemSchema = z.object({
     .enum(['DIET', 'ALLERGY'])
     .nullable()
     .describe(
-      'DIET = ingredient conflicts with a dietary restriction (e.g. DAIRY_FREE, HALAL). ALLERGY = ingredient conflicts with a user-declared allergy. null if status is not bad.',
+      'DIET = ingredient conflicts with a dietary restriction (e.g. DAIRY_FREE, PORK_FREE). ALLERGY = ingredient conflicts with a user-declared allergy. null if status is not bad.',
     ),
   dietConflicts: z
     .array(z.string())
@@ -163,17 +163,10 @@ NUT_FREE:
 - bad: peanut, almond, walnut, cashew, hazelnut, pistachio, pecan, macadamia, Brazil nut, pine nut, other tree nuts, nut paste, nut butter.
 - warning: natural flavor, flavoring, praline, nougat, unspecified oil/paste if nut source is unclear.
 
-HALAL:
-- bad: pork, alcohol, lard, pork gelatin, pork derivatives, explicitly non-halal meat.
-- warning: beef, chicken, veal, lamb, meat, meat broth, meat stock, gelatin, enzymes, natural flavor if halal status/source is unclear.
-- Missing halal certification is NOT a direct violation.
-
-KOSHER:
-- bad: pork, shellfish, or explicit mixing of meat and dairy in the same product.
-- warning: meat, meat broth, meat stock, dairy, cheese, gelatin, enzymes, natural flavor if kosher status/source is unclear.
-- Meat alone is NOT a kosher violation.
-- Dairy alone is NOT a kosher violation.
-- Missing kosher certification is NOT a direct violation.
+PORK_FREE:
+- bad: pork, bacon, ham, lard, pancetta, prosciutto, pork gelatin, pork fat, pork broth.
+- warning: gelatin, animal fat, shortening, meat broth, meat stock, sausage, salami, pepperoni, enzymes, natural flavor if pork source is unclear.
+- Missing certification is NOT a direct violation.
 
 KETO:
 - bad: sugar, glucose syrup, high-fructose corn syrup, wheat flour, rice, pasta, potato, corn starch, breadcrumbs, candy, sweetened ingredients when clearly high-carb.
@@ -189,7 +182,7 @@ reasonType and dietConflicts rules:
 - reasonType = null for "good", "neutral", and "warning".
 - dietConflicts must list dietary restriction enum keys ONLY when reasonType is "DIET".
 - dietConflicts must be [] when reasonType is "ALLERGY" or null.
-- Use exact enum keys only: VEGAN, VEGETARIAN, GLUTEN_FREE, DAIRY_FREE, HALAL, KOSHER, NUT_FREE, KETO, PALEO.
+- Use exact enum keys only: VEGAN, VEGETARIAN, GLUTEN_FREE, DAIRY_FREE, PORK_FREE, NUT_FREE, KETO, PALEO.
 
 REASON RULES:
 - Every ingredient must include a reason field.
@@ -197,8 +190,8 @@ REASON RULES:
 - For "good", explain the benefit briefly.
 - For "bad", name the explicit conflicting ingredient/restriction.
 - For "warning", explain the uncertainty briefly.
-- Never say "non-halal" or "non-kosher" unless the ingredient explicitly says so.
-- Never say "not certified halal/kosher" as a reason for "bad"; use "warning" instead.
+- Never claim a pork-source conflict unless the ingredient or source evidence actually points to pork.
+- Never use missing certification as a reason for "bad"; use "warning" instead.
 
 ALLERGY RULES:
 - Custom allergy entries may contain invalid or nonsensical text such as "everything", "water", "all food", or random words.

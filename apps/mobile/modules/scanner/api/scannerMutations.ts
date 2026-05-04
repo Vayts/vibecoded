@@ -49,12 +49,16 @@ export const submitBarcodeScan = async (
   payload: BarcodeLookupRequest,
 ): Promise<BarcodeLookupResponse> => {
   const parsedPayload = barcodeLookupRequestSchema.parse(payload);
-  const response = await apiFetch('/api/scanner/barcode', {
+
+  console.log(parsedPayload);
+
+  const response = await apiFetch('/product-analyze-v2/barcode', {
     method: 'POST',
     body: JSON.stringify(parsedPayload),
   });
 
   if (!response.ok) {
+    console.log(JSON.stringify(response.url));
     await throwScannerApiError(response, 'Unable to fetch barcode data');
   }
 

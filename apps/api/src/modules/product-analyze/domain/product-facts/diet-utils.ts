@@ -74,32 +74,16 @@ const VEGETARIAN_TOKENS = [
   'carmine',
 ];
 
-const HALAL_TOKENS = [
+const PORK_FREE_TOKENS = [
   'pork',
   'bacon',
   'ham',
   'lard',
-  'wine',
-  'beer',
-  'rum',
-  'alcohol',
-  'sausage',
-  'salami',
   'prosciutto',
-];
-
-const KOSHER_TOKENS = [
-  'pork',
-  'bacon',
-  'ham',
-  'shellfish',
-  'shrimp',
-  'crab',
-  'lobster',
-  'lard',
-  'sausage',
-  'salami',
-  'prosciutto',
+  'pancetta',
+  'pork gelatin',
+  'pork fat',
+  'pork broth',
 ];
 
 const GLUTEN_FREE_TOKENS = [
@@ -210,8 +194,7 @@ const DIET_TOKEN_MAP: Record<
 > = {
   vegan: { tokens: VEGAN_TOKENS, exclude: PLANT_BASED_EXCLUDE },
   vegetarian: { tokens: VEGETARIAN_TOKENS },
-  halal: { tokens: HALAL_TOKENS },
-  kosher: { tokens: KOSHER_TOKENS },
+  porkFree: { tokens: PORK_FREE_TOKENS },
   glutenFree: { tokens: GLUTEN_FREE_TOKENS },
   dairyFree: { tokens: DAIRY_FREE_TOKENS, exclude: PLANT_BASED_EXCLUDE },
   nutFree: { tokens: NUT_FREE_TOKENS },
@@ -233,8 +216,7 @@ export const detectDietCompatibilityWithReasons = (
     const compatibility: DietCompatibility = {
       vegan: 'unclear',
       vegetarian: 'unclear',
-      halal: 'unclear',
-      kosher: 'unclear',
+      porkFree: 'unclear',
       glutenFree: 'unclear',
       dairyFree: 'unclear',
       nutFree: 'unclear',
@@ -242,8 +224,7 @@ export const detectDietCompatibilityWithReasons = (
     const reasons: DietCompatibilityReasons = {
       vegan: 'Ingredients not available',
       vegetarian: 'Ingredients not available',
-      halal: 'Ingredients not available',
-      kosher: 'Ingredients not available',
+      porkFree: 'Ingredients not available',
       glutenFree: 'Ingredients not available',
       dairyFree: 'Ingredients not available',
       nutFree: 'Ingredients not available',

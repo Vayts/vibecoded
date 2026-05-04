@@ -55,7 +55,7 @@ export default function Index() {
   }
 
   if (!user) {
-    return <Redirect href="/(auth)/welcome" />;
+    return <Redirect href="/(auth)/sign-in" />;
   }
 
   if (onboardingQuery.isLoading) {

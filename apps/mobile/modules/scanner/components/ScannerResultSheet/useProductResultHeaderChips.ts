@@ -33,8 +33,7 @@ const RESTRICTION_CHIP_CONFIG: Partial<
 > = {
   VEGAN: { dietKey: 'vegan', label: 'Vegan' },
   VEGETARIAN: { dietKey: 'vegetarian', label: 'Vegetarian' },
-  HALAL: { dietKey: 'halal', label: 'Halal' },
-  KOSHER: { dietKey: 'kosher', label: 'Kosher' },
+  PORK_FREE: { dietKey: 'porkFree', label: 'Pork-free' },
   GLUTEN_FREE: { dietKey: 'glutenFree', label: 'Gluten-free' },
   DAIRY_FREE: { dietKey: 'dairyFree', label: 'Dairy-free' },
   NUT_FREE: { dietKey: 'nutFree', label: 'Nut-free' },

@@ -88,7 +88,7 @@ export function ScoreReasonsAccordion({
       >
         <View className="flex-1 flex-row items-center">
           <Info color={COLORS.neutrals500} size={18} strokeWidth={2.2} />
-          <Typography className="ml-3 text-[18px] font-semibold text-neutrals-900">
+          <Typography className="ml-3 text-[14px] font-semibold text-neutrals-900">
             Why this score?
           </Typography>
         </View>
