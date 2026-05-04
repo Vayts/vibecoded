@@ -1,4 +1,5 @@
 import { mainGoalSchema } from '@acme/shared';
+import type { ScoreReason } from '@acme/shared';
 import type { z } from 'zod';
 import type { ProductRole } from './product-role.types.js';
 
@@ -62,5 +63,7 @@ export interface ProfileAnalysisResult {
   safety: SafetyResult;
   goalFit: GoalFitResult;
   nutrition: NutritionResult;
+  positives: ScoreReason[];
+  negatives: ScoreReason[];
   overall: OverallResult;
 }

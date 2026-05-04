@@ -13,6 +13,7 @@ import { calculateSafetyScore } from '../../utils/calculate-safety-score.util.js
 import { calculateGoalFitScore } from '../../utils/calculate-goal-fit-score.util.js';
 import { calculateNutritionScore } from '../../utils/calculate-nutrition-score.util.js';
 import { calculateOverallScore } from '../../utils/calculate-overall-score.util.js';
+import { buildProfileScoreReasons } from '../../utils/build-profile-score-reasons.util.js';
 import {
   PRODUCT_ROLE_SET,
   FALLBACK_ROLE,
@@ -26,9 +27,7 @@ import type {
 } from '../../types/scoring.types.js';
 import type {
   AnalyzeBarcodeV2Response,
-  FamilyMemberAnalysisResult,
-  SubscriptionReason,
-  AiDebugSection,
+  AnalyzeBarcodeV2ProfileResult,
 } from '../../types/analyze-product-v2.types.js';
 import type { AiProfileInfo, AiProductAnalyzeV2Result } from '../../types/ai-analyze.types.js';
 import type { GraphStateType } from '../product-analyze-v2.graph.js';
@@ -548,16 +547,6 @@ function resolveProductRole(
   };
 }
 
-function resolveSubscriptionReason(
-  subscriptionStatus: string | null | undefined,
-  subscriptionExpiry: Date | null | undefined,
-): SubscriptionReason {
-  if (!subscriptionStatus) return 'missing_subscription';
-  if (subscriptionStatus !== 'active') return 'inactive_subscription';
-  if (subscriptionExpiry && subscriptionExpiry <= new Date()) return 'expired_subscription';
-  return 'active_subscription';
-}
-
 function isFamilyAnalysisEnabled(
   subscriptionStatus: string | null | undefined,
   subscriptionExpiry: Date | null | undefined,
@@ -576,6 +565,12 @@ function buildProfileAnalysis(
 ): ProfileAnalysisResult {
   const safety = calculateSafetyScore(profile, product, aiProfileInfo);
   const goalFit = calculateGoalFitScore(profile.mainGoal, role.value, product);
+  const scoreReasons = buildProfileScoreReasons({
+    product,
+    role: role.value,
+    safety,
+    aiProfileInfo,
+  });
   const overall = calculateOverallScore(safety, goalFit, nutritionResult);
 
   return {
@@ -586,7 +581,44 @@ function buildProfileAnalysis(
     safety,
     goalFit,
     nutrition: nutritionResult,
+    positives: scoreReasons.positives,
+    negatives: scoreReasons.negatives,
     overall,
+  };
+}
+
+function buildProfileAi(aiProfileInfo: AiProfileInfo | null): AnalyzeBarcodeV2ProfileResult['ai'] {
+  const canIHaveThis: AnalyzeBarcodeV2ProfileResult['ai']['canIHaveThis'] =
+    aiProfileInfo?.canIHaveThis ?? {
+      can: false,
+      reason: 'I cannot confirm this product is suitable for you.',
+    };
+
+  return {
+    allergenDetections: aiProfileInfo?.allergenDetections ?? [],
+    restrictionDetections: aiProfileInfo?.restrictionDetections ?? [],
+    canIHaveThis,
+  };
+}
+
+function buildProfileResult(
+  profile: ProfileInputForScoring,
+  analysis: ProfileAnalysisResult,
+  aiProfileInfo: AiProfileInfo | null,
+): AnalyzeBarcodeV2ProfileResult {
+  return {
+    profileId: profile.profileId,
+    type: profile.profileType,
+    displayName: profile.displayName,
+    analysis: {
+      safety: analysis.safety,
+      goalFit: analysis.goalFit,
+      nutrition: analysis.nutrition,
+      positives: analysis.positives,
+      negatives: analysis.negatives,
+      overall: analysis.overall,
+    },
+    ai: buildProfileAi(aiProfileInfo),
   };
 }
 
@@ -684,14 +716,10 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
     throw ApiError.unauthorized();
   }
 
-  const subscriptionReason = resolveSubscriptionReason(
-    user.subscriptionStatus,
-    user.subscriptionExpiry,
-  );
   const familyEnabled = isFamilyAnalysisEnabled(user.subscriptionStatus, user.subscriptionExpiry);
 
   console.log(
-    `[ProductAnalyzeV2] Subscription — status=${user.subscriptionStatus} reason=${subscriptionReason} familyEnabled=${familyEnabled}`,
+    `[ProductAnalyzeV2] Subscription — status=${user.subscriptionStatus} familyEnabled=${familyEnabled}`,
   );
 
   // 4. Build profile inputs
@@ -778,7 +806,9 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
   }
 
   // 10. Calculate scores for family members if subscription is active
-  const familyMemberResults: FamilyMemberAnalysisResult[] = [];
+  const profileResults: AnalyzeBarcodeV2ProfileResult[] = [
+    buildProfileResult(mainProfile, mainProfileAnalysis, mainAiProfileInfo),
+  ];
 
   for (const memberProfile of familyProfiles) {
     const memberAiProfileInfo =
@@ -808,33 +838,11 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
       }
     }
 
-    familyMemberResults.push({
-      profileType: 'family_member',
-      familyMemberId: memberProfile.profileId,
-      profileId: memberProfile.profileId,
-      displayName: memberProfile.displayName,
-      role: roleResult,
-      safety: memberAnalysis.safety,
-      goalFit: memberAnalysis.goalFit,
-      nutrition: memberAnalysis.nutrition,
-      overall: memberAnalysis.overall,
-    });
+    profileResults.push(buildProfileResult(memberProfile, memberAnalysis, memberAiProfileInfo));
   }
 
-  // 11. Build AI debug section
-  const aiDebug: AiDebugSection = {
-    product: {
-      role: roleResult.value,
-      confidence: roleResult.confidence,
-      validated: roleResult.validated,
-      evidence: roleResult.evidence,
-    },
-    profileInfo: aiResult.profileInfo,
-  };
-
-  // 12. Build response
+  // 11. Build response
   const response: AnalyzeBarcodeV2Response = {
-    barcode,
     product: {
       name: product.name,
       brand: product.brand,
@@ -855,23 +863,10 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
         sodiumPer100g: product.nutrition.sodiumPer100g,
       },
     },
-    analysis: {
-      mainProfile: {
-        ...mainProfileAnalysis,
-        profileType: 'user',
-      },
-      familyMembers: familyMemberResults,
-      subscription: {
-        analyzedFamilyMembers: familyEnabled,
-        reason: subscriptionReason,
-      },
-    },
-    ai: aiDebug,
+    profiles: profileResults,
   };
 
-  console.log(
-    `[ProductAnalyzeV2] Analysis complete — barcode=${barcode} rating=${response.analysis.mainProfile.overall.rating}`,
-  );
+  console.log(JSON.stringify(response, null, 2));
 
   return { result: response };
 }

@@ -1,7 +1,11 @@
 import type { NormalizedProductV2 } from '../types/normalized-product.types.js';
 import type { SafetyResult, ProfileInputForScoring } from '../types/scoring.types.js';
 import type { AiProfileInfo } from '../types/ai-analyze.types.js';
-import { SAFETY_SCORE, KETO_CARB_THRESHOLD_G } from '../constants/scoring-rules.constants.js';
+import {
+  ADDITIVES_SAFETY,
+  SAFETY_SCORE,
+  KETO_CARB_THRESHOLD_G,
+} from '../constants/scoring-rules.constants.js';
 import { clampScore } from './nutrient-score.util.js';
 
 const VALID_ALLERGIES = new Set([
@@ -54,6 +58,31 @@ function isAllergenConfirmed(source: string, confidence: number): boolean {
 
 function isAllergenTrace(source: string): boolean {
   return source === 'off_trace_tag';
+}
+
+function applyAdditivesSafety(
+  product: NormalizedProductV2,
+  reasons: string[],
+): { scorePenalty: number; status: 'safe' | 'caution' } {
+  const additivesCount = product.additives.length;
+
+  if (additivesCount >= ADDITIVES_SAFETY.HIGH_CONCERN_MIN_COUNT) {
+    reasons.push(`Contains many additives (${additivesCount})`);
+    return {
+      scorePenalty: SAFETY_SCORE.ADDITIVES_HIGH_CONCERN_PENALTY,
+      status: 'caution',
+    };
+  }
+
+  if (additivesCount >= ADDITIVES_SAFETY.CAUTION_MIN_COUNT) {
+    reasons.push(`Contains several additives (${additivesCount})`);
+    return {
+      scorePenalty: SAFETY_SCORE.ADDITIVES_CAUTION_PENALTY,
+      status: 'caution',
+    };
+  }
+
+  return { scorePenalty: 0, status: 'safe' };
 }
 
 export function calculateSafetyScore(
@@ -188,8 +217,15 @@ export function calculateSafetyScore(
     }
   }
 
+  const additivesSafety = applyAdditivesSafety(product, reasons);
+  score = clampScore(score - additivesSafety.scorePenalty);
+
+  if (status !== 'avoid' && additivesSafety.status === 'caution') {
+    status = 'caution';
+  }
+
   if (status !== 'avoid') {
-    status = score < 60 ? 'caution' : 'safe';
+    status = status === 'caution' || score < 60 ? 'caution' : 'safe';
   }
 
   return {

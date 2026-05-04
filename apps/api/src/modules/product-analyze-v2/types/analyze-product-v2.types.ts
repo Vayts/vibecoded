@@ -1,36 +1,40 @@
-import type { ProfileAnalysisResult } from './scoring.types.js';
-import type { AiProfileInfo } from './ai-analyze.types.js';
-import type { ProductRole } from './product-role.types.js';
+import type { ScoreReason } from '@acme/shared';
+import type {
+  GoalFitResult,
+  NutritionResult,
+  OverallResult,
+  SafetyResult,
+} from './scoring.types.js';
+import type {
+  AiAllergenDetection,
+  AiCanIHaveThisAnswer,
+  AiRestrictionDetection,
+} from './ai-analyze.types.js';
 
-export interface AnalyzeBarcodeV2Request {
-  barcode: string;
+export interface AnalyzeBarcodeV2ProfileAnalysis {
+  safety: SafetyResult;
+  goalFit: GoalFitResult;
+  nutrition: NutritionResult;
+  positives: ScoreReason[];
+  negatives: ScoreReason[];
+  overall: OverallResult;
 }
 
-export type SubscriptionReason =
-  | 'active_subscription'
-  | 'missing_subscription'
-  | 'inactive_subscription'
-  | 'expired_subscription';
-
-export interface FamilyMemberAnalysisResult extends Omit<ProfileAnalysisResult, 'profileType'> {
-  profileType: 'family_member';
-  familyMemberId: string;
+export interface AnalyzeBarcodeV2ProfileAi {
+  allergenDetections: AiAllergenDetection[];
+  restrictionDetections: AiRestrictionDetection[];
+  canIHaveThis: AiCanIHaveThisAnswer;
 }
 
-export interface AiDebugProduct {
-  role: ProductRole;
-  confidence: number;
-  validated: boolean;
-  evidence: string[];
-}
-
-export interface AiDebugSection {
-  product: AiDebugProduct;
-  profileInfo: AiProfileInfo[];
+export interface AnalyzeBarcodeV2ProfileResult {
+  profileId: string;
+  type: 'user' | 'family_member';
+  displayName: string | null;
+  analysis: AnalyzeBarcodeV2ProfileAnalysis;
+  ai: AnalyzeBarcodeV2ProfileAi;
 }
 
 export interface AnalyzeBarcodeV2Response {
-  barcode: string;
   product: {
     name: string | null;
     brand: string | null;
@@ -51,13 +55,5 @@ export interface AnalyzeBarcodeV2Response {
       sodiumPer100g: number | null;
     };
   };
-  analysis: {
-    mainProfile: ProfileAnalysisResult & { profileType: 'user' };
-    familyMembers: FamilyMemberAnalysisResult[];
-    subscription: {
-      analyzedFamilyMembers: boolean;
-      reason: SubscriptionReason;
-    };
-  };
-  ai: AiDebugSection;
+  profiles: AnalyzeBarcodeV2ProfileResult[];
 }
