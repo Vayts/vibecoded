@@ -104,11 +104,13 @@ export function ComparisonResultContent({
 
                   <ComparisonProductCard
                     product={leftComparedProduct.product}
+                    score={leftComparedProduct.analysis.overall?.score ?? null}
                     tone={getProductTone(leftComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(leftComparedProduct, activeProfile)}
                   />
                   <ComparisonProductCard
                     product={rightComparedProduct.product}
+                    score={rightComparedProduct.analysis.overall?.score ?? null}
                     tone={getProductTone(rightComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(rightComparedProduct, activeProfile)}
                   />

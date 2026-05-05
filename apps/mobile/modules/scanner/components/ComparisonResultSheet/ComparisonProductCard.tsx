@@ -7,11 +7,25 @@ import type { ComparedProductCore } from '../../utils/profileCompareTypes';
 
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
+  score: number | null;
   badgeLabel?: string;
   tone: 'winner' | 'neutral' | 'not-suitable';
 }
 
-export function ComparisonProductCard({ product, badgeLabel, tone }: ComparisonProductCardProps) {
+const formatScore = (score: number | null): string => {
+  if (score == null) {
+    return '—/100';
+  }
+
+  return `${Math.round(score)}/100`;
+};
+
+export function ComparisonProductCard({
+  product,
+  score,
+  badgeLabel,
+  tone,
+}: ComparisonProductCardProps) {
   const resolvedImageUrl = resolveStorageUri(product.imageUrl);
   const isWinner = tone === 'winner';
   const isRejected = tone === 'not-suitable';
@@ -93,6 +107,21 @@ export function ComparisonProductCard({ product, badgeLabel, tone }: ComparisonP
             {product.brand}
           </Typography>
         ) : null}
+
+        <View className="mt-4 rounded-xl bg-gray-50 px-3 py-2">
+          <Typography
+            variant="caption"
+            className="text-center uppercase tracking-[0.4px] text-gray-500"
+          >
+            Chozr score
+          </Typography>
+          <Typography
+            variant="sectionTitle"
+            className="mt-1 text-center text-[16px] font-bold text-gray-900"
+          >
+            {formatScore(score)}
+          </Typography>
+        </View>
       </View>
     </View>
   );
