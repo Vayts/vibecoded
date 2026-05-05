@@ -1,8 +1,10 @@
 import type { ScoreReason, ScannerOverallRating } from '@acme/shared';
 import { CircleAlert, HeartCrack, HeartHandshake } from 'lucide-react-native';
 import { View } from 'react-native';
+import { useMemo } from 'react';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
+import { RESTRICTION_ICON } from '../../constants/restriction-icon';
 import {
   formatOverallRatingColors,
   formatOverallRatingLabel,
@@ -10,18 +12,34 @@ import {
   mapOverallRatingToToneKey,
 } from './evaluationHelpers';
 import { ScoreReasonsAccordion } from './ScoreReasonsAccordion';
-import { useMemo } from 'react';
 
 interface ScoreSummaryProps {
   score: number;
   rating: ScannerOverallRating;
   summary: string;
   safetyScore: number;
+  matchedAllergens: string[];
+  violatedRestrictions: string[];
   goalFitScore: number;
   nutritionScore: number;
   positives?: ScoreReason[];
   negatives?: ScoreReason[];
 }
+
+const HARD_RESTRICTION_SCORE_THRESHOLD = 30;
+
+const resolveRestrictionIcon = (violatedRestrictions: string[], matchedAllergens: string[]) => {
+  if (violatedRestrictions.length > 0) {
+    const restrictionKey = violatedRestrictions[0]?.trim() as keyof typeof RESTRICTION_ICON;
+    return RESTRICTION_ICON[restrictionKey] ?? RESTRICTION_ICON.default;
+  }
+
+  if (matchedAllergens.length > 0) {
+    return RESTRICTION_ICON.default;
+  }
+
+  return RESTRICTION_ICON.default;
+};
 
 interface SubscoreItemProps {
   label: string;
@@ -34,9 +52,7 @@ function SubscoreItem({ label, score }: SubscoreItemProps) {
 
   return (
     <View className="flex-1 items-center">
-      <Typography className="text-[12px] text-neutrals-900">
-        {label}
-      </Typography>
+      <Typography className="text-[12px] text-neutrals-900">{label}</Typography>
 
       <View className="mt-1 h-1 w-full rounded-full bg-gray-200">
         <View
@@ -45,7 +61,9 @@ function SubscoreItem({ label, score }: SubscoreItemProps) {
         />
       </View>
 
-      <Typography className="mt-1.5 text-[12px] font-semibold text-neutrals-900">{score}</Typography>
+      <Typography className="mt-1.5 text-[12px] font-semibold text-neutrals-900">
+        {score}
+      </Typography>
     </View>
   );
 }
@@ -55,6 +73,8 @@ export function ScoreSummary({
   rating,
   summary,
   safetyScore,
+  matchedAllergens,
+  violatedRestrictions,
   goalFitScore,
   nutritionScore,
   positives = [],
@@ -63,8 +83,11 @@ export function ScoreSummary({
   const toneKey = mapOverallRatingToToneKey(rating);
   const tone = useMemo(() => formatOverallRatingColors(score), [score]);
   const ratingLabel = formatOverallRatingLabel(score);
+  const isHardRestrictionState = safetyScore < HARD_RESTRICTION_SCORE_THRESHOLD;
 
-  const Icon = toneKey === 'bad' ? HeartCrack : toneKey === 'average' ? CircleAlert : HeartHandshake;
+  const Icon =
+    toneKey === 'bad' ? HeartCrack : toneKey === 'average' ? CircleAlert : HeartHandshake;
+  const RestrictionIcon = resolveRestrictionIcon(violatedRestrictions, matchedAllergens);
 
   return (
     <View
@@ -72,26 +95,47 @@ export function ScoreSummary({
       style={{ borderWidth: 1, borderColor: COLORS.gray200 }}
     >
       <View className="px-4 pt-4">
-        <Typography className="text-[10px] font-bold uppercase text-neutral-500">Fit score</Typography>
+        <Typography className="text-[10px] font-bold uppercase text-neutral-500">
+          Fit score
+        </Typography>
       </View>
 
       <View
         className="flex-row items-center justify-between rounded-[4px] rounded-tr-[16px] rounded-tl-[16px] mx-4 mt-4 px-4 py-2 border"
-        style={{ backgroundColor: tone.backgroundColor, borderColor: tone.borderColor }}
+        style={{
+          backgroundColor: isHardRestrictionState ? COLORS.dangerSoft : tone.backgroundColor,
+          borderColor: isHardRestrictionState ? COLORS.dangerBorder : tone.borderColor,
+        }}
       >
-        <View className="flex-row items-center gap-3">
-          <Icon size={18} color={tone.textColor} strokeWidth={2.2} />
-          <Typography className="text-[19px] font-semibold" style={{ color: tone.textColor }}>
-            {ratingLabel}
+        <View className="flex-row items-center gap-3 flex-shrink">
+          {isHardRestrictionState ? null : (
+            <Icon size={18} color={tone.textColor} strokeWidth={2.2} />
+          )}
+          <Typography
+            className="flex-1 text-[19px] font-semibold flex-shrink"
+            style={
+              isHardRestrictionState
+                ? {
+                    color: isHardRestrictionState ? COLORS.danger800 : tone.textColor,
+                    fontSize: 12,
+                  }
+                : { color: tone.textColor }
+            }
+          >
+            {isHardRestrictionState ? 'Score unavailable due to hard restriction' : ratingLabel}
           </Typography>
         </View>
 
-        <Typography className="text-[22px] font-bold" style={{ color: tone.textColor }}>
-          {score}
-          <Typography className="text-[14px] font-semibold" style={{ color: tone.textColor }}>
-            /100
+        {isHardRestrictionState ? (
+          <RestrictionIcon color={COLORS.danger800} size={22} strokeWidth={2.2} />
+        ) : (
+          <Typography className="text-[22px] font-bold" style={{ color: tone.textColor }}>
+            {score}
+            <Typography className="text-[14px] font-semibold" style={{ color: tone.textColor }}>
+              /100
+            </Typography>
           </Typography>
-        </Typography>
+        )}
       </View>
 
       <View className="px-5 pb-5 pt-4">

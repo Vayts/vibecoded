@@ -328,7 +328,9 @@ function buildAiAnalysisPrompt(
       `  allergies: ${p.allergies.join(', ') || 'none'}`,
     ];
     if (p.otherAllergiesText) {
-      lines.push(`  otherAllergiesText: ${p.otherAllergiesText}`);
+      lines.push(
+        `  otherAllergiesText (specific match only — do not generalize to related allergens): ${p.otherAllergiesText}`,
+      );
     }
     lines.push(`  restrictions: ${p.restrictions.join(', ') || 'none'}`);
     return lines.join('\n');
@@ -407,12 +409,18 @@ The enum lists above are allowed output values only. They are NOT a checklist to
 
 CUSTOM ALLERGY RULES FOR OTHER:
 - When a profile's allergies array includes OTHER and otherAllergiesText is provided, treat otherAllergiesText as the profile's custom allergy details.
-- Evaluate custom allergy details semantically against the product ingredients, allergens, and traces. Do not rely only on exact word or substring matching.
+- Match the custom allergy narrowly and specifically against the product ingredients, allergens, and traces.
+- A specific custom allergen matches only itself, its simple singular/plural form, or an explicit alias clearly stated in the product data.
+- Do NOT generalize a specific custom allergen to sibling ingredients from the same family or category.
+- Example: almond matches almond or almonds only. It does NOT match cashew, walnut, hazelnut, pistachio, tree nuts, mixed nuts, or other nuts unless almond itself is explicitly present.
+- Example: shrimp does NOT match fish. Sesame does NOT match other seeds. Oat does NOT match wheat.
 - Ignore custom allergy details that are not real, specific food allergens or plausible sensitivities.
 - Return allergy: OTHER with detected:true ONLY when the product data contains affirmative evidence for the custom allergy.
 - Never return detected:true when the evidence says the custom allergen is not listed, not found, absent, missing, or not directly triggered.
+- If the evidence says the custom allergen is not present, detected must NOT be true.
 - If the custom allergy is not detected, omit the allergenDetections item for OTHER instead of returning detected:true with negative evidence.
 - If the custom allergy is detected, return an allergenDetections item with allergy: OTHER and cite the concrete matching English ingredient, allergen, trace, or evidence from the product data.
+- Do not guess or invent the custom allergen in allergenDetections[].ingredients. Only include it when that exact custom allergen text or its simple singular/plural form appears in the product data.
 - allergenDetections[].ingredients must contain product ingredients/allergens/traces only. Never put the custom allergy text itself there unless it is also present in product data.
 - If OTHER is not selected for a profile, do not analyze otherAllergiesText for that profile.
 
@@ -440,7 +448,7 @@ canIHaveThis.reason must only reference:
 It must NOT mention allergies or restrictions that are not selected by this profile.
 It must directly answer whether the user should take/eat this product.
 It must start with either "Yes –" or "No –".
-Keep it under 12 words when possible.
+Keep it under 20 words when possible.
 Prefer very short recommendation patterns such as:
 - "Yes – good everyday option."
 - "Yes – fine in small amounts."
@@ -567,7 +575,9 @@ async function analyzeWithAI(
 }
 
 const NEGATIVE_EVIDENCE_PATTERN =
-  /\b(?:no|none|without|absent|missing|unlisted)\b|\bnot\s+(?:listed|found|present|detected|triggered|directly\s+triggered)\b|\bdoes\s+not\s+(?:contain|list|show|include)\b/iu;
+  /\b(?:no|none|without|absent|missing|unlisted)\b|\bnot\s+(?:listed|found|present|detected|triggered|directly\s+triggered)\b|\bdoes\s+not\s+(?:contain|list|show|include|appear|match)\b|\b(?:isn't|is\s+not)\s+(?:listed|present|included|detected|triggered)\b|\bfree\s+from\b/iu;
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const normalizeGroundingText = (value: string): string =>
   value
@@ -590,6 +600,100 @@ const uniqueNormalizedValues = (values: string[]): string[] => {
   }
 
   return result;
+};
+
+const splitCustomAllergyEntries = (value: string | null | undefined): string[] =>
+  uniqueNormalizedValues(
+    (value ?? '')
+      .split(/\s*[,;/]\s*/)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0),
+  );
+
+const normalizeCustomAllergyEntry = (value: string): string =>
+  normalizeGroundingText(value)
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const singularizeCustomWord = (word: string): string => {
+  if (word.endsWith('ies') && word.length > 3) {
+    return `${word.slice(0, -3)}y`;
+  }
+
+  if (word.endsWith('ses') || word.endsWith('xes')) {
+    return word.slice(0, -2);
+  }
+
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 2) {
+    return word.slice(0, -1);
+  }
+
+  return word;
+};
+
+const pluralizeCustomWord = (word: string): string => {
+  if (word.endsWith('y') && word.length > 1 && !/[aeiou]y$/i.test(word)) {
+    return `${word.slice(0, -1)}ies`;
+  }
+
+  if (/(s|x|z|ch|sh)$/i.test(word)) {
+    return `${word}es`;
+  }
+
+  if (word.endsWith('s')) {
+    return word;
+  }
+
+  return `${word}s`;
+};
+
+const buildCustomAllergyVariants = (entry: string): string[] => {
+  const normalizedEntry = normalizeCustomAllergyEntry(entry);
+  if (!normalizedEntry) {
+    return [];
+  }
+
+  const words = normalizedEntry.split(' ').filter(Boolean);
+  if (words.length === 0) {
+    return [];
+  }
+
+  const lastWord = words[words.length - 1];
+  const singularVariant = [...words.slice(0, -1), singularizeCustomWord(lastWord)].join(' ');
+  const pluralVariant = [...words.slice(0, -1), pluralizeCustomWord(lastWord)].join(' ');
+
+  return uniqueNormalizedValues([normalizedEntry, singularVariant, pluralVariant]);
+};
+
+const textContainsCustomAllergyEntry = (text: string, entry: string): boolean => {
+  const normalizedText = normalizeCustomAllergyEntry(text);
+  if (!normalizedText) {
+    return false;
+  }
+
+  return buildCustomAllergyVariants(entry).some((variant) => {
+    const pattern = new RegExp(`\\b${escapeRegExp(variant).replace(/\s+/g, '\\s+')}\\b`, 'iu');
+    return pattern.test(normalizedText);
+  });
+};
+
+const hasSpecificCustomAllergyMatch = (
+  detection: AiAllergenDetectionOutput,
+  customEntries: string[],
+): boolean => {
+  if (detection.allergy !== 'OTHER' || !detection.detected) {
+    return true;
+  }
+
+  if (customEntries.length === 0) {
+    return false;
+  }
+
+  const evidenceTexts = [...detection.ingredients, ...detection.evidence];
+  return evidenceTexts.some((text) =>
+    customEntries.some((entry) => textContainsCustomAllergyEntry(text, entry)),
+  );
 };
 
 const buildAllergenGroundingValues = (
@@ -695,12 +799,13 @@ function validateAndNormalizeAiResult(
       typeof aiProfile.overallSummary === 'string' && aiProfile.overallSummary.trim().length > 0
         ? normalizeOverallSummaryText(aiProfile.overallSummary)
         : null;
+    const customAllergyEntries = splitCustomAllergyEntries(profile.otherAllergiesText);
 
     const rawValidAllergenDetections = (aiProfile.allergenDetections ?? []).filter(
       (d) => VALID_ALLERGY_SET.has(d.allergy) && d.confidence >= 0 && d.confidence <= 1,
     );
 
-    const allergenDetections = rawValidAllergenDetections
+    const normalizedAllergenDetections = rawValidAllergenDetections
       .map((d) =>
         normalizeAllergenDetection(
           {
@@ -712,6 +817,14 @@ function validateAndNormalizeAiResult(
         ),
       )
       .filter((d): d is AiAllergenDetectionOutput => d !== null);
+
+    const droppedCustomOtherDetections = normalizedAllergenDetections.filter(
+      (d) => d.allergy === 'OTHER' && !hasSpecificCustomAllergyMatch(d, customAllergyEntries),
+    );
+
+    const allergenDetections = normalizedAllergenDetections.filter(
+      (d) => d.allergy !== 'OTHER' || hasSpecificCustomAllergyMatch(d, customAllergyEntries),
+    );
 
     const restrictionDetections = (aiProfile.restrictionDetections ?? [])
       .filter(
@@ -761,12 +874,17 @@ function validateAndNormalizeAiResult(
     );
     if (
       invalidAllergenDetectionCount > 0 ||
+      droppedCustomOtherDetections.length > 0 ||
       droppedAllergens.length > 0 ||
       droppedRestrictions.length > 0
     ) {
       console.warn(`[ProductAnalyzeV2] Invalid or out-of-scope AI detections dropped`, {
         profileId: profile.profileId,
         invalidAllergenDetectionCount,
+        droppedCustomOtherDetections: droppedCustomOtherDetections.map((d) => ({
+          ingredients: d.ingredients,
+          evidence: d.evidence,
+        })),
         droppedAllergenDetections: droppedAllergens.map((d) => d.allergy),
         droppedRestrictionDetections: droppedRestrictions.map((d) => d.restriction),
       });

@@ -55,7 +55,10 @@ export function ProductResultContent({
       ? successResult.personalAnalysis
       : undefined;
   const personalQuery = usePersonalAnalysisQuery(initialAnalysis);
-  const personalData = personalQuery.data ?? initialAnalysis;
+  const hasServerAnalysisId = Boolean(initialAnalysis?.analysisId);
+  const personalData = hasServerAnalysisId
+    ? (personalQuery.data ?? initialAnalysis)
+    : initialAnalysis;
   const analysisProductPreview: ProductPreview | undefined = personalData?.result?.product
     ? {
         productId: '',
@@ -68,7 +71,7 @@ export function ProductResultContent({
     : undefined;
   const hasHandledNotFoodRef = useRef(false);
   const personalError =
-    Boolean(initialAnalysis?.analysisId) &&
+    hasServerAnalysisId &&
     !personalData?.result &&
     (personalData?.status === 'failed' || personalQuery.isError);
   const personalRetry = () => {};

@@ -15,11 +15,7 @@ interface ProfileDetailProps {
   rawIngredientsText: string | null;
 }
 
-export function ProfileDetail({
-  profile,
-  rawIngredients,
-  rawIngredientsText,
-}: ProfileDetailProps) {
+export function ProfileDetail({ profile, rawIngredients, rawIngredientsText }: ProfileDetailProps) {
   const forLabel = `For ${profile.displayName?.toLowerCase() === 'you' ? 'you' : (profile.displayName ?? 'this profile')}`;
   const evaluationBlocks = getEvaluationBlockConfigs(profile);
 
@@ -34,6 +30,8 @@ export function ProfileDetail({
         rating={profile.analysis.overall.rating}
         summary={profile.analysis.overall.summary}
         safetyScore={profile.analysis.safety.score}
+        matchedAllergens={profile.analysis.safety.matchedAllergens}
+        violatedRestrictions={profile.analysis.safety.violatedRestrictions}
         goalFitScore={profile.analysis.goalFit.score}
         nutritionScore={profile.analysis.nutrition.score}
         positives={profile.analysis.positives}
@@ -57,5 +55,3 @@ export function ProfileDetail({
     </View>
   );
 }
-
-
