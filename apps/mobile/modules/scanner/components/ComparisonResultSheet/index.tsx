@@ -52,7 +52,7 @@ export function ComparisonResultScreen() {
     (comparisonDetail?.comparisonResult as RawComparisonResult | undefined) ??
     (scanDetail?.comparisonResult as RawComparisonResult | undefined) ??
     (isLiveRoute ? (liveResult ?? undefined) : undefined);
-  const resolvedComparisonId = comparisonId;
+  const resolvedComparisonId = comparisonId ?? result?.comparisonId;
   const { activeProfile, profileResults, selectedProfileId, setSelectedProfileId } =
     useProfileCompareResults(result);
 

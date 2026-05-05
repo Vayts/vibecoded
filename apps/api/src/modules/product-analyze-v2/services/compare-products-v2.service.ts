@@ -1,10 +1,14 @@
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { productAnalyzeV2CompareGraph } from '../langgraph/product-analyze-v2.graph.js';
 import type {
   AnalyzeBarcodeV2Response,
+  CompareProductV2Result,
   CompareProductsV2Response,
 } from '../types/analyze-product-v2.types.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { prisma } from '../../product-analyze/lib/prisma.js';
+import { buildCompareProfileResults } from '../utils/build-compare-profile-results.util.js';
 
 const compareProductsRequestSchema = z
   .object({
@@ -24,6 +28,37 @@ export interface PersistProductAnalyzeV2ScanInput {
 export type PersistProductAnalyzeV2Scan = (
   input: PersistProductAnalyzeV2ScanInput,
 ) => Promise<string>;
+
+const createComparisonRecord = async (input: {
+  barcodeA: string;
+  barcodeB: string;
+  product1Id?: string;
+  product2Id?: string;
+  userId: string;
+}) => {
+  return prisma.comparison.create({
+    data: {
+      userId: input.userId,
+      product1Id: input.product1Id ?? null,
+      product2Id: input.product2Id ?? null,
+      barcode1: input.barcodeA,
+      barcode2: input.barcodeB,
+      comparisonResult: {} as Prisma.InputJsonValue,
+    },
+  });
+};
+
+const updateComparisonRecord = async (
+  comparisonId: string,
+  comparisonResult: CompareProductsV2Response,
+) => {
+  await prisma.comparison.update({
+    where: { id: comparisonId },
+    data: {
+      comparisonResult: comparisonResult as unknown as Prisma.InputJsonValue,
+    },
+  });
+};
 
 export async function compareProductsV2(input: {
   body: unknown;
@@ -50,7 +85,7 @@ export async function compareProductsV2(input: {
     throw ApiError.unprocessable('Comparison failed to produce a result', 'ANALYSIS_FAILED');
   }
 
-  const products = await Promise.all(
+  const products = (await Promise.all(
     finalState.products.map(async (analyzedProduct) => {
       const scanId = analyzedProduct.reusedExistingAnalysis
         ? analyzedProduct.scanId
@@ -69,7 +104,23 @@ export async function compareProductsV2(input: {
         ...(scanId ? { scanId } : {}),
       };
     }),
-  );
+  )) as [CompareProductV2Result, CompareProductV2Result];
 
-  return { products };
+  const comparison = await createComparisonRecord({
+    userId: input.userId,
+    barcodeA,
+    barcodeB,
+    product1Id: products[0].productId,
+    product2Id: products[1].productId,
+  });
+
+  const response: CompareProductsV2Response = {
+    comparisonId: comparison.id,
+    products,
+    profileResults: buildCompareProfileResults(products),
+  };
+
+  await updateComparisonRecord(comparison.id, response);
+
+  return response;
 }

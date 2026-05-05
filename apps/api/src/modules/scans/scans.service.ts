@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Product } from '@prisma/client';
 import type {
@@ -8,8 +10,8 @@ import type {
   SharedScanFilters,
 } from '@acme/shared';
 import {
+  compareProductsResponseSchema,
   normalizedProductSchema,
-  productComparisonResultSchema,
   scannerProductAnalysisResultSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
@@ -312,7 +314,7 @@ export class ScansService {
 
     const comparisonResult =
       scan.type === 'comparison' && scan.comparisonResult
-        ? (productComparisonResultSchema.safeParse(scan.comparisonResult).data ?? null)
+        ? (compareProductsResponseSchema.safeParse(scan.comparisonResult).data ?? null)
         : null;
 
     const isFavourite = scan.productId ? await this.isFavourite(userId, scan.productId) : false;

@@ -6,6 +6,7 @@ import type {
 } from '@acme/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { submitBarcodeScan, compareProducts } from '../api/scannerMutations';
+import { COMPARISONS_QUERY_KEY } from '../../scans/hooks/useComparisonsQuery';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 export const useScanBarcodeMutation = () => {
@@ -24,6 +25,7 @@ export const useCompareProductsMutation = () => {
     mutationFn: compareProducts,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [...COMPARISONS_QUERY_KEY] });
     },
   });
 };

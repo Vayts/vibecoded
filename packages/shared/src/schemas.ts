@@ -13,7 +13,10 @@ import {
   fitLabelSchema,
 } from './product-analysis';
 import { barcodeLookupProductSchema } from './scanner-core-schemas';
-import { scannerProductAnalysisResultSchema } from './scanner-analysis';
+import {
+  scannerProductAnalysisResultSchema,
+  scannerProfileTypeSchema,
+} from './scanner-analysis';
 
 export * from './scanner-core-schemas';
 // ============================================================
@@ -88,7 +91,7 @@ export const scanDetailResponseSchema = z.object({
   product: barcodeLookupProductSchema.nullable(),
   analysisResult: scannerProductAnalysisResultSchema.nullable(),
   comparisonResult: z
-    .lazy(() => productComparisonResultSchema)
+    .lazy(() => compareProductsResponseSchema)
     .nullable()
     .optional(),
 });
@@ -160,7 +163,7 @@ export type ComparisonHistoryResponse = z.infer<typeof comparisonHistoryResponse
 export const comparisonDetailResponseSchema = z.object({
   id: z.string(),
   createdAt: z.string(),
-  comparisonResult: z.lazy(() => productComparisonResultSchema).nullable(),
+  comparisonResult: z.lazy(() => compareProductsResponseSchema).nullable(),
 });
 export type ComparisonDetailResponse = z.infer<typeof comparisonDetailResponseSchema>;
 
@@ -313,8 +316,49 @@ export const compareProductV2ResultSchema = scannerProductAnalysisResultSchema.e
 });
 export type CompareProductV2Result = z.infer<typeof compareProductV2ResultSchema>;
 
+const compareFactValueSchema = z.union([z.string(), z.number()]);
+
+export const compareFactCategorySchema = z.enum([
+  'safety',
+  'allergens',
+  'restrictions',
+  'nutrition',
+  'ingredients',
+]);
+export type CompareFactCategory = z.infer<typeof compareFactCategorySchema>;
+
+export const compareFactSchema = z.object({
+  category: compareFactCategorySchema,
+  comparedTo: compareFactValueSchema.nullable().optional(),
+  key: z.string(),
+  label: z.string(),
+  value: compareFactValueSchema.nullable().optional(),
+});
+export type CompareFact = z.infer<typeof compareFactSchema>;
+
+export const compareProfileStatusSchema = z.enum([
+  'winner_found',
+  'no_suitable_product',
+  'equivalent',
+]);
+export type CompareProfileStatus = z.infer<typeof compareProfileStatusSchema>;
+
+export const compareProductsProfileResultSchema = z.object({
+  profileId: z.string(),
+  displayName: z.string(),
+  type: scannerProfileTypeSchema,
+  status: compareProfileStatusSchema,
+  winnerBarcode: z.string().nullable(),
+  otherProductBarcode: z.string().nullable(),
+  winnerBestAt: z.array(compareFactSchema),
+  anotherProductMayBeBetterAt: z.array(compareFactSchema),
+});
+export type CompareProductsProfileResult = z.infer<typeof compareProductsProfileResultSchema>;
+
 export const compareProductsV2ResponseSchema = z.object({
-  products: z.array(compareProductV2ResultSchema),
+  comparisonId: z.string(),
+  products: z.array(compareProductV2ResultSchema).length(2),
+  profileResults: z.array(compareProductsProfileResultSchema),
 });
 export type CompareProductsV2Response = z.infer<typeof compareProductsV2ResponseSchema>;
 

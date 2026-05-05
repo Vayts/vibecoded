@@ -1,4 +1,4 @@
-import type { ScoreReason } from '@acme/shared';
+import type { CompareProductsProfileResult, ScoreReason } from '@acme/shared';
 import type {
   GoalFitResult,
   NutritionResult,
@@ -67,5 +67,7 @@ export interface CompareProductV2Result extends AnalyzeBarcodeV2Response {
 }
 
 export interface CompareProductsV2Response {
+  comparisonId: string;
   products: CompareProductV2Result[];
+  profileResults: CompareProductsProfileResult[];
 }

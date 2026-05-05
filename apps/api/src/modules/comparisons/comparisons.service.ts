@@ -6,7 +6,7 @@ import type {
   ComparisonHistoryItem,
   ComparisonHistoryResponse,
 } from '@acme/shared';
-import { productComparisonResultSchema } from '@acme/shared';
+import { compareProductsResponseSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
 import { prisma } from '../product-analyze/lib/prisma';
@@ -32,19 +32,26 @@ const serializeComparisonProduct = (product: ComparisonProduct) => ({
 
 const getBestFitProfiles = (
   comparisonResult: unknown,
-  winner: 'product1' | 'product2',
+  winnerProductIndex: 0 | 1,
 ): ComparisonHistoryItem['product1BestFitProfiles'] => {
-  const parsedResult = productComparisonResultSchema.safeParse(comparisonResult);
+  const parsedResult = compareProductsResponseSchema.safeParse(comparisonResult);
 
   if (!parsedResult.success) {
     return [];
   }
 
-  return parsedResult.data.profiles
-    .filter((profile) => profile.winner === winner)
+  const winnerBarcode = parsedResult.data.products[winnerProductIndex]?.barcode;
+  if (!winnerBarcode) {
+    return [];
+  }
+
+  return parsedResult.data.profileResults
+    .filter(
+      (profile) => profile.status === 'winner_found' && profile.winnerBarcode === winnerBarcode,
+    )
     .map((profile) => ({
       profileId: profile.profileId,
-      profileName: profile.profileName,
+      profileName: profile.displayName,
     }));
 };
 
@@ -57,16 +64,14 @@ export const matchesComparisonFilters = (
   }
 
   const profileIds = new Set(filters.profileIds);
-  const parsedResult = productComparisonResultSchema.safeParse(comparisonResult);
+  const parsedResult = compareProductsResponseSchema.safeParse(comparisonResult);
 
   if (!parsedResult.success) {
     return false;
   }
 
-  return parsedResult.data.profiles.some(
-    (profile) =>
-      profileIds.has(profile.profileId) &&
-      (profile.winner === 'product1' || profile.winner === 'product2'),
+  return parsedResult.data.profileResults.some(
+    (profile) => profileIds.has(profile.profileId) && profile.status === 'winner_found',
   );
 };
 
@@ -280,7 +285,7 @@ export class ComparisonsService {
       id: comparison.id,
       createdAt: comparison.createdAt.toISOString(),
       comparisonResult:
-        productComparisonResultSchema.safeParse(comparison.comparisonResult).data ?? null,
+        compareProductsResponseSchema.safeParse(comparison.comparisonResult).data ?? null,
     };
   }
 
@@ -309,8 +314,8 @@ export class ComparisonsService {
       createdAt: comparison.createdAt.toISOString(),
       product1: comparison.product1 ? serializeComparisonProduct(comparison.product1) : null,
       product2: comparison.product2 ? serializeComparisonProduct(comparison.product2) : null,
-      product1BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product1'),
-      product2BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 'product2'),
+      product1BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 0),
+      product2BestFitProfiles: getBestFitProfiles(comparison.comparisonResult, 1),
     };
   }
 }
