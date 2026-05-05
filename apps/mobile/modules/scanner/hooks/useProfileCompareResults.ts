@@ -21,11 +21,9 @@ export function useProfileCompareResults(result: RawComparisonResult | null | un
   }, [result]);
 
   const [selectedProfileId, setSelectedProfileId] = useState('');
-  const [isSwapped, setIsSwapped] = useState(false);
 
   useEffect(() => {
     setSelectedProfileId('');
-    setIsSwapped(false);
   }, [result]);
 
   const activeProfileId =
@@ -37,10 +35,8 @@ export function useProfileCompareResults(result: RawComparisonResult | null | un
   return {
     activeProfile,
     activeProfileId,
-    isSwapped,
     profileResults,
     selectedProfileId: activeProfileId,
     setSelectedProfileId,
-    toggleSwappedProducts: () => setIsSwapped((current) => !current),
   };
 }

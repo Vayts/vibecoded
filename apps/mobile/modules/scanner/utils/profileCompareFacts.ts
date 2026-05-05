@@ -9,7 +9,6 @@ const MEANINGFUL_DIFF = {
   saturatedFatPer100g: 1,
   sodiumPer100g: 0.05,
   caloriesPer100g: 20,
-  caloriesPerServing: 20,
   additivesCount: 1,
   ingredientsCount: 3,
 };
@@ -54,12 +53,6 @@ const LOWER_BETTER_NUTRITION = [
     field: 'caloriesPer100g',
     label: 'Lower calories',
     threshold: MEANINGFUL_DIFF.caloriesPer100g,
-  },
-  {
-    key: 'calories-per-serving',
-    field: 'caloriesPerServing',
-    label: 'Lower calories per serving',
-    threshold: MEANINGFUL_DIFF.caloriesPerServing,
   },
 ] as const;
 

@@ -53,14 +53,8 @@ export function ComparisonResultScreen() {
     (scanDetail?.comparisonResult as RawComparisonResult | undefined) ??
     (isLiveRoute ? (liveResult ?? undefined) : undefined);
   const resolvedComparisonId = comparisonId;
-  const {
-    activeProfile,
-    isSwapped,
-    profileResults,
-    selectedProfileId,
-    setSelectedProfileId,
-    toggleSwappedProducts,
-  } = useProfileCompareResults(result);
+  const { activeProfile, profileResults, selectedProfileId, setSelectedProfileId } =
+    useProfileCompareResults(result);
 
   const currentUser = currentUserQuery.data ?? authUser;
   const currentUserFallbackImageUrl = getUserFallbackAvatarImage(currentUser);
@@ -181,9 +175,7 @@ export function ComparisonResultScreen() {
           }
           chipItems={chipItems}
           insetsBottom={insets.bottom}
-          isSwapped={isSwapped}
           onSelectProfile={setSelectedProfileId}
-          onSwapProducts={toggleSwappedProducts}
           selectedProfileId={selectedProfileId}
         />
       </Animated.View>

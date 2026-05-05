@@ -57,13 +57,20 @@ const formatNumericValue = (value: number, unit: string): string => {
   return unit.toLowerCase() === 'kcal' ? `${formattedValue} kcal` : `${formattedValue}${unit}`;
 };
 
+const normalizeComparableValue = (value: number): number => {
+  return Number.isInteger(value) ? value : Number(value.toFixed(1));
+};
+
 const getComparisonMark = (
   leftValue: number | null,
   rightValue: number | null,
 ): ComparisonDisplayNutritionRow['comparisonMark'] => {
   if (leftValue == null || rightValue == null) return null;
-  if (leftValue === rightValue) return '=' as const;
-  return leftValue > rightValue ? '>' : '<';
+  const normalizedLeftValue = normalizeComparableValue(leftValue);
+  const normalizedRightValue = normalizeComparableValue(rightValue);
+
+  if (normalizedLeftValue === normalizedRightValue) return '=' as const;
+  return normalizedLeftValue > normalizedRightValue ? '>' : '<';
 };
 
 const getMetricWinner = (
@@ -72,9 +79,15 @@ const getMetricWinner = (
   rightValue: number | null,
 ): ComparisonProductKey | 'tie' | null => {
   if (leftValue == null || rightValue == null) return null;
-  if (leftValue === rightValue) return 'tie';
-  if (metric.direction === 'higher_better') return leftValue > rightValue ? 'product1' : 'product2';
-  return leftValue < rightValue ? 'product1' : 'product2';
+  const normalizedLeftValue = normalizeComparableValue(leftValue);
+  const normalizedRightValue = normalizeComparableValue(rightValue);
+
+  if (normalizedLeftValue === normalizedRightValue) return 'tie';
+  if (metric.direction === 'higher_better') {
+    return normalizedLeftValue > normalizedRightValue ? 'product1' : 'product2';
+  }
+
+  return normalizedLeftValue < normalizedRightValue ? 'product1' : 'product2';
 };
 
 const getProfileFitStatus = (product: ComparedProduct): ComparisonStatusIndicator => {
@@ -124,30 +137,3 @@ export const getDisplayNutritionRows = (
     },
   ];
 };
-
-const swapWinner = (
-  winner: ComparisonDisplayNutritionRow['winner'],
-): ComparisonDisplayNutritionRow['winner'] => {
-  if (winner === 'product1') return 'product2';
-  if (winner === 'product2') return 'product1';
-  return winner;
-};
-
-const swapMark = (mark: ComparisonDisplayNutritionRow['comparisonMark']) => {
-  if (mark === '>') return '<';
-  if (mark === '<') return '>';
-  return mark;
-};
-
-export const swapDisplayNutritionRows = (
-  rows: ComparisonDisplayNutritionRow[],
-): ComparisonDisplayNutritionRow[] =>
-  rows.map((row) => ({
-    ...row,
-    comparisonMark: swapMark(row.comparisonMark),
-    leftStatus: row.rightStatus,
-    leftValue: row.rightValue,
-    rightStatus: row.leftStatus,
-    rightValue: row.leftValue,
-    winner: swapWinner(row.winner),
-  }));

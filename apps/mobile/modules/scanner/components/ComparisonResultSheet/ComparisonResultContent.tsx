@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowLeftRight, CircleX } from 'lucide-react-native';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -24,9 +24,7 @@ interface ComparisonResultContentProps {
   bottomAction?: ReactNode;
   chipItems: ComparisonChipItem[];
   insetsBottom: number;
-  isSwapped: boolean;
   onSelectProfile: (profileId: string) => void;
-  onSwapProducts: () => void;
   selectedProfileId: string;
 }
 
@@ -56,13 +54,11 @@ export function ComparisonResultContent({
   bottomAction,
   chipItems,
   insetsBottom,
-  isSwapped,
   onSelectProfile,
-  onSwapProducts,
   selectedProfileId,
 }: ComparisonResultContentProps) {
-  const leftComparedProduct = activeProfile?.products[isSwapped ? 1 : 0];
-  const rightComparedProduct = activeProfile?.products[isSwapped ? 0 : 1];
+  const leftComparedProduct = activeProfile?.products[0];
+  const rightComparedProduct = activeProfile?.products[1];
   const displayRows =
     leftComparedProduct && rightComparedProduct
       ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
@@ -117,10 +113,7 @@ export function ComparisonResultContent({
                     badgeLabel={getBadgeLabel(rightComparedProduct, activeProfile)}
                   />
 
-                  <TouchableOpacity
-                    accessibilityLabel="Swap compared products"
-                    accessibilityRole="button"
-                    activeOpacity={0.8}
+                  <View
                     className="absolute left-1/2 top-1/2 h-10 w-10 items-center justify-center rounded-full border bg-white"
                     style={{
                       borderColor: COLORS.gray200,
@@ -132,10 +125,9 @@ export function ComparisonResultContent({
                       shadowRadius: 10,
                       elevation: 3,
                     }}
-                    onPress={onSwapProducts}
                   >
                     <ArrowLeftRight color={COLORS.gray700} size={18} strokeWidth={2} />
-                  </TouchableOpacity>
+                  </View>
                 </View>
                 <ComparisonExplanationSection profileResult={activeProfile} />
                 <ComparisonNutritionTable
