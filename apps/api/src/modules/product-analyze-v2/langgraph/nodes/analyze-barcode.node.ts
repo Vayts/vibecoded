@@ -385,7 +385,7 @@ Each ProfileIngredient item must include:
   "evidence": string[]
 }
 
-The canIHaveThis.reason must be in English and must be 1-2 short sentences. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
+The canIHaveThis.reason must be in English and must be exactly 1 very short sentence. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
 The overallSummary must be in English and must be 3 short sentences. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
 
 Allowed product.role values: ${rolesStr}
@@ -438,6 +438,18 @@ canIHaveThis.reason must only reference:
 - product-level nutrition or portion guidance,
 - product role.
 It must NOT mention allergies or restrictions that are not selected by this profile.
+It must directly answer whether the user should take/eat this product.
+It must start with either "Yes –" or "No –".
+Keep it under 12 words when possible.
+Prefer very short recommendation patterns such as:
+- "Yes – good everyday option."
+- "Yes – fine in small amounts."
+- "Yes – okay occasionally, but keep portions modest."
+- "No – it conflicts with your profile."
+- "No – better avoid this one."
+- "No – not a good fit for your needs."
+When the product is generally fine but calorie-dense or nutritionally heavy, prefer short portion guidance such as "in small amounts", "occasionally", or "keep portions modest".
+When the product is clearly unsuitable, prefer a short No-answer instead of a long explanation.
 
 overallSummary must be a short profile-level recommendation summary.
 It should sound like a natural conclusion for the profile after considering the selected allergies, selected restrictions, product role, and practical nutrition trade-offs.
@@ -524,8 +536,8 @@ canIHaveThis policy:
 - Do not set can=false only because certification might theoretically be needed.
 - Do not set can=false for simple olive oil, plain fish, sardines in oil/brine/tomato/water, fruit, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflict with selected allergies/restrictions.
 - Do not mention certification in canIHaveThis.reason unless the profile has a selected restriction where certification is actually relevant.
-- For unclear PORK_FREE cases, use wording like: "Yes, but check whether the gelatin is pork-free if that matters for you."
-- Keep reason in English and 1-2 short sentences.
+- For unclear PORK_FREE cases, prefer short wording like: "Yes – check the gelatin source first."
+- Keep reason in English and exactly 1 very short sentence.
 
 confidence must be a number from 0 to 1.
 ingredients must be an array of exact ingredient strings from the product data IN ENGLISH.
