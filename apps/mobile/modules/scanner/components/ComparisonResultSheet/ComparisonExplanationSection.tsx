@@ -1,20 +1,11 @@
-import type {
-  ComparisonProductKey,
-  ComparisonProductPreview,
-  ProfileComparisonResult,
-  ComparisonSummaryItem,
-} from '@acme/shared';
 import { View } from 'react-native';
 import { ComparisonSummaryChip } from './ComparisonSummaryChip';
 import { Typography } from '../../../../shared/components/Typography';
-import { getProductDisplayName } from './comparisonResultHelpers';
+import type { CompareFact, ProfileCompareResult } from '../../utils/profileCompareTypes';
+import { getComparedProductDisplayName } from './comparisonResultHelpers';
 
 interface ComparisonExplanationSectionProps {
-  bestProductKey: ComparisonProductKey | null;
-  outcome: 'best-choice' | 'close-match' | 'neutral' | 'no-match';
-  product1: ComparisonProductPreview;
-  product2: ComparisonProductPreview;
-  profile: ProfileComparisonResult;
+  profileResult: ProfileCompareResult;
 }
 
 type DisplayChip = { iconKey?: string | null; text: string };
@@ -41,12 +32,6 @@ const toDisplayChip = (text: string, iconKey?: string | null): DisplayChip => ({
   text: simplifyChipText(text),
 });
 
-const matchesProduct = (
-  item: ComparisonSummaryItem,
-  productKey: ComparisonProductKey,
-  product: ComparisonProductPreview,
-) => item.productKey === productKey || item.productId === product.productId;
-
 const dedupeChips = (items: DisplayChip[]) => {
   const seen = new Set<string>();
   return items.filter((item) => {
@@ -57,6 +42,38 @@ const dedupeChips = (items: DisplayChip[]) => {
     seen.add(key);
     return true;
   });
+};
+
+const getFactIconKey = (fact: CompareFact): string | null => {
+  if (fact.key === 'diet-match' || fact.category === 'restrictions') return 'diet-match';
+  return fact.key;
+};
+
+const factsToChips = (facts: CompareFact[]): DisplayChip[] =>
+  facts.map((fact) => toDisplayChip(fact.label, getFactIconKey(fact)));
+
+const getTitle = (profileResult: ProfileCompareResult, targetLabel: string) => {
+  if (profileResult.status === 'no_suitable_product') {
+    return `No suitable product for ${targetLabel}`;
+  }
+
+  if (profileResult.status === 'equivalent') {
+    return `Both products are similarly suitable for ${targetLabel}`;
+  }
+
+  return `Why is ${getComparedProductDisplayName(profileResult.winner)} a better fit for ${targetLabel}?`;
+};
+
+const getDescription = (profileResult: ProfileCompareResult) => {
+  if (profileResult.status === 'no_suitable_product') {
+    return 'Neither product is recommended for this profile.';
+  }
+
+  if (profileResult.status === 'equivalent') {
+    return 'The products are close across safety, goal fit, and nutrition. Review the strengths below to choose what matters most.';
+  }
+
+  return profileResult.winner?.analysis.overall?.summary ?? null;
 };
 
 function ChipGroup({
@@ -84,84 +101,45 @@ function ChipGroup({
   );
 }
 
-export function ComparisonExplanationSection({
-  bestProductKey,
-  outcome,
-  product1,
-  product2,
-  profile,
-}: ComparisonExplanationSectionProps) {
-  const winnerProduct = bestProductKey === 'product1' ? product1 : bestProductKey === 'product2' ? product2 : null;
-  const otherProduct = bestProductKey === 'product1' ? product2 : bestProductKey === 'product2' ? product1 : null;
-  const targetLabel = getTargetLabel(profile.profileName);
-  const title =
-    outcome === 'no-match'
-      ? `Why neither product is a good fit for ${targetLabel}`
-      : outcome === 'close-match'
-        ? `Why are these products closely matched for ${targetLabel}?`
-        : winnerProduct
-          ? `Why is ${getProductDisplayName(winnerProduct)} better fit for ${targetLabel}?`
-          : 'Why this result';
-
-  const summaryItems = profile.comparisonSummary ?? [];
-  const winnerSummary = bestProductKey
-    ? summaryItems
-        .filter((item) => item.tone !== 'negative')
-        .filter((item) => matchesProduct(item, bestProductKey, winnerProduct ?? product1))
-        .map((item) => toDisplayChip(item.text))
-    : [];
-  const otherSummary = otherProduct && bestProductKey
-    ? summaryItems
-        .filter((item) => item.tone !== 'negative')
-        .filter((item) => matchesProduct(item, bestProductKey === 'product1' ? 'product2' : 'product1', otherProduct))
-        .map((item) => toDisplayChip(item.text))
-    : [];
-  const negativeSummary = summaryItems
-    .filter((item) => item.tone === 'negative')
-    .map((item) => toDisplayChip(item.text));
-
-  const primaryChips = dedupeChips(
-    outcome === 'no-match'
-      ? negativeSummary.length > 0
-        ? negativeSummary
-        : [...profile.product1.negatives, ...profile.product2.negatives].map((text) => toDisplayChip(text))
-      : winnerSummary.length > 0
-        ? winnerSummary
-        : winnerProduct && bestProductKey
-          ? profile[bestProductKey].positives.map((text) => toDisplayChip(text))
-          : [],
-  );
-  const secondaryChips = dedupeChips(
-    otherSummary.length > 0
-      ? otherSummary
-      : otherProduct && bestProductKey
-        ? profile[bestProductKey === 'product1' ? 'product2' : 'product1'].positives.map((text) => toDisplayChip(text))
-        : [],
-  );
+export function ComparisonExplanationSection({ profileResult }: ComparisonExplanationSectionProps) {
+  const targetLabel = getTargetLabel(profileResult.displayName);
+  const title = getTitle(profileResult, targetLabel);
+  const description = getDescription(profileResult);
+  const primaryChips = dedupeChips(factsToChips(profileResult.winnerBestAt));
+  const secondaryChips = dedupeChips(factsToChips(profileResult.anotherProductMayBeBetterAt));
   const secondaryTitle =
-    outcome === 'no-match'
+    profileResult.status === 'no_suitable_product'
       ? null
-      : otherProduct && secondaryChips.length > 0
-        ? `${getProductDisplayName(otherProduct)} may be better at:`
+      : profileResult.otherProduct && secondaryChips.length > 0
+        ? `${getComparedProductDisplayName(profileResult.otherProduct)} may be better at:`
         : null;
 
   return (
     <View className="pt-4">
-      <Typography variant="sectionTitle" className="text-[16px] leading-7 text-neutrals-900 font-bold">
+      <Typography
+        variant="sectionTitle"
+        className="text-[16px] leading-7 text-neutrals-900 font-bold"
+      >
         {title}
       </Typography>
 
-      {profile.conclusion?.trim() ? (
+      {description?.trim() ? (
         <Typography variant="body" className="mt-4 leading-7 text-neutrals-700">
-          {profile.conclusion}
+          {description}
         </Typography>
       ) : null}
 
-      <ChipGroup items={primaryChips} variant={outcome === 'no-match' ? 'negative' : 'primary'} />
+      <ChipGroup
+        items={primaryChips}
+        variant={profileResult.status === 'no_suitable_product' ? 'negative' : 'primary'}
+      />
 
       {secondaryTitle ? (
         <View className="pt-6">
-          <Typography variant="sectionTitle" className="text-[16px] leading-7 text-neutrals-900 font-bold">
+          <Typography
+            variant="sectionTitle"
+            className="text-[16px] leading-7 text-neutrals-900 font-bold"
+          >
             {secondaryTitle}
           </Typography>
           <ChipGroup items={secondaryChips} variant="secondary" />

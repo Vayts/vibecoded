@@ -1,4 +1,3 @@
-import type { ProductComparisonResult, ProfileComparisonResult } from '@acme/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View } from 'react-native';
@@ -9,6 +8,10 @@ import { useFamilyMembersQuery } from '../../../family/hooks/useFamilyMembers';
 import { useCurrentUserQuery } from '../../../profile/api/profileQueries';
 import { useComparisonDetailQuery } from '../../../scans/hooks/useComparisonsQuery';
 import { useScanDetailQuery } from '../../../scans/hooks/useScanHistoryQuery';
+import {
+  useProfileCompareResults,
+  type RawComparisonResult,
+} from '../../hooks/useProfileCompareResults';
 import { useComparisonResultStore } from '../../stores/comparisonResultStore';
 import { ComparisonDeleteAction } from './ComparisonDeleteAction';
 import { ComparisonResultContent } from './ComparisonResultContent';
@@ -19,7 +22,10 @@ const getParamValue = (value: string | string[] | undefined) =>
 
 export function ComparisonResultScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ comparisonId?: string | string[]; scanId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    comparisonId?: string | string[];
+    scanId?: string | string[];
+  }>();
   const authUser = useAuthStore((s) => s.user);
   const clearLiveResult = useComparisonResultStore((state) => state.clearLiveResult);
   const liveErrorMessage = useComparisonResultStore((state) => state.liveErrorMessage);
@@ -34,20 +40,28 @@ export function ComparisonResultScreen() {
   const comparisonId = getParamValue(params.comparisonId);
   const scanId = getParamValue(params.scanId);
   const { data: scanDetail, isLoading: isScanLoading } = useScanDetailQuery(scanId);
-  const { data: comparisonDetail, isLoading: isComparisonLoading } = useComparisonDetailQuery(comparisonId);
+  const { data: comparisonDetail, isLoading: isComparisonLoading } =
+    useComparisonDetailQuery(comparisonId);
 
-  const isHistoryLoading = Boolean((scanId && isScanLoading) || (comparisonId && isComparisonLoading));
+  const isHistoryLoading = Boolean(
+    (scanId && isScanLoading) || (comparisonId && isComparisonLoading),
+  );
   const isLiveRoute = !comparisonId && !scanId;
   const isPendingLiveComparison = isLiveRoute && liveStatus === 'loading';
-  const result: ProductComparisonResult | undefined =
-    (comparisonDetail?.comparisonResult as ProductComparisonResult | undefined) ??
-    (scanDetail?.comparisonResult as ProductComparisonResult | undefined) ??
-    (isLiveRoute ? liveResult ?? undefined : undefined);
-  const resolvedComparisonId = comparisonId ?? result?.comparisonId;
+  const result: RawComparisonResult | undefined =
+    (comparisonDetail?.comparisonResult as RawComparisonResult | undefined) ??
+    (scanDetail?.comparisonResult as RawComparisonResult | undefined) ??
+    (isLiveRoute ? (liveResult ?? undefined) : undefined);
+  const resolvedComparisonId = comparisonId;
+  const {
+    activeProfile,
+    isSwapped,
+    profileResults,
+    selectedProfileId,
+    setSelectedProfileId,
+    toggleSwappedProducts,
+  } = useProfileCompareResults(result);
 
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
-  const [isSwapped, setIsSwapped] = useState(false);
-  const profiles = result?.profiles;
   const currentUser = currentUserQuery.data ?? authUser;
   const currentUserFallbackImageUrl = getUserFallbackAvatarImage(currentUser);
   const familyMembersById = useMemo(
@@ -56,23 +70,21 @@ export function ComparisonResultScreen() {
   );
   const chipItems = useMemo(
     () =>
-      profiles?.map((profile) => {
+      profileResults.map((profile) => {
         const familyMember = familyMembersById.get(profile.profileId);
         const isCurrentUser = profile.profileId === 'you';
 
         return {
           id: profile.profileId,
-          name: profile.profileName,
-          imageUrl: isCurrentUser ? currentUser?.avatarUrl ?? null : familyMember?.avatarUrl ?? null,
+          name: profile.displayName,
+          imageUrl: isCurrentUser
+            ? (currentUser?.avatarUrl ?? null)
+            : (familyMember?.avatarUrl ?? null),
           fallbackImageUrl: isCurrentUser ? currentUserFallbackImageUrl : null,
         };
-      }) ?? [],
-    [currentUser?.avatarUrl, currentUserFallbackImageUrl, familyMembersById, profiles],
+      }),
+    [currentUser?.avatarUrl, currentUserFallbackImageUrl, familyMembersById, profileResults],
   );
-  useEffect(() => {
-    setSelectedProfileId('');
-    setIsSwapped(false);
-  }, [comparisonDetail?.id, comparisonId, liveResult, scanDetail?.id, scanId]);
   useEffect(() => () => clearLiveResult(), [clearLiveResult]);
 
   useEffect(() => {
@@ -117,7 +129,15 @@ export function ComparisonResultScreen() {
     contentOpacity.setValue(1);
     loaderOpacity.setValue(0);
     setIsLoaderOverlayVisible(false);
-  }, [contentOpacity, isLiveRoute, isLoaderOverlayVisible, isPendingLiveComparison, liveStatus, loaderOpacity, result]);
+  }, [
+    contentOpacity,
+    isLiveRoute,
+    isLoaderOverlayVisible,
+    isPendingLiveComparison,
+    liveStatus,
+    loaderOpacity,
+    result,
+  ]);
 
   if (isHistoryLoading) {
     return <ComparisonStatusView description="Loading comparison..." showLoader />;
@@ -132,7 +152,7 @@ export function ComparisonResultScreen() {
     );
   }
 
-  if (!result || !profiles) {
+  if (!result || profileResults.length === 0) {
     if (isPendingLiveComparison) {
       return (
         <View className="flex-1 bg-background">
@@ -151,26 +171,28 @@ export function ComparisonResultScreen() {
     );
   }
 
-  const activeProfileId = profiles.find((p) => p.profileId === selectedProfileId)?.profileId ?? profiles[0]?.profileId ?? '';
-  const activeProfile: ProfileComparisonResult | undefined = profiles.find((p) => p.profileId === activeProfileId);
-
   return (
     <View className="flex-1 bg-background">
       <Animated.View className="flex-1" style={{ opacity: isLiveRoute ? contentOpacity : 1 }}>
         <ComparisonResultContent
           activeProfile={activeProfile}
-          bottomAction={<ComparisonDeleteAction comparisonId={resolvedComparisonId} scanId={scanId} />}
+          bottomAction={
+            <ComparisonDeleteAction comparisonId={resolvedComparisonId} scanId={scanId} />
+          }
           chipItems={chipItems}
           insetsBottom={insets.bottom}
           isSwapped={isSwapped}
           onSelectProfile={setSelectedProfileId}
-          onSwapProducts={() => setIsSwapped((current) => !current)}
-          result={result}
-          selectedProfileId={activeProfileId}
+          onSwapProducts={toggleSwappedProducts}
+          selectedProfileId={selectedProfileId}
         />
       </Animated.View>
       {isLoaderOverlayVisible ? (
-        <Animated.View className="absolute inset-0" pointerEvents="none" style={{ opacity: loaderOpacity }}>
+        <Animated.View
+          className="absolute inset-0"
+          pointerEvents="none"
+          style={{ opacity: loaderOpacity }}
+        >
           <ComparisonStatusView description="Preparing comparison..." showLoader />
         </Animated.View>
       ) : null}

@@ -1,4 +1,4 @@
-import type { ProductComparisonResult } from '@acme/shared';
+import type { CompareProductsResponse } from '@acme/shared';
 import type { Href } from 'expo-router';
 import { usePathname, useRouter } from 'expo-router';
 import { useCallback } from 'react';
@@ -70,7 +70,7 @@ export function useOpenComparisonRoute() {
   );
 
   const openLiveComparison = useCallback(
-    (result: ProductComparisonResult, options?: ComparisonNavigationOptions) => {
+    (result: CompareProductsResponse, options?: ComparisonNavigationOptions) => {
       setLiveResult(result);
       navigateToComparison(undefined, options);
     },
@@ -94,7 +94,7 @@ export function useOpenComparisonRoute() {
   );
 
   const resolvePendingComparison = useCallback(
-    (requestId: number, result: ProductComparisonResult) => {
+    (requestId: number, result: CompareProductsResponse) => {
       resolveLiveComparison(requestId, result);
     },
     [resolveLiveComparison],

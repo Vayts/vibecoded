@@ -31,7 +31,8 @@ export type ProfileChip = z.infer<typeof profileChipSchema>;
 // Scan history schemas
 // ============================================================
 
-export const scanSourceSchema = z.enum(['barcode', 'photo']); export type ScanSource = z.infer<typeof scanSourceSchema>;
+export const scanSourceSchema = z.enum(['barcode', 'photo']);
+export type ScanSource = z.infer<typeof scanSourceSchema>;
 
 export const scanTypeSchema = z.enum(['product', 'comparison']);
 export type ScanType = z.infer<typeof scanTypeSchema>;
@@ -86,7 +87,10 @@ export const scanDetailResponseSchema = z.object({
   isFavourite: z.boolean().optional(),
   product: barcodeLookupProductSchema.nullable(),
   analysisResult: scannerProductAnalysisResultSchema.nullable(),
-  comparisonResult: z.lazy(() => productComparisonResultSchema).nullable().optional(),
+  comparisonResult: z
+    .lazy(() => productComparisonResultSchema)
+    .nullable()
+    .optional(),
 });
 export type ScanDetailResponse = z.infer<typeof scanDetailResponseSchema>;
 
@@ -302,11 +306,23 @@ export const productComparisonResultSchema = z.object({
 });
 export type ProductComparisonResult = z.infer<typeof productComparisonResultSchema>;
 
+export const compareProductV2ResultSchema = scannerProductAnalysisResultSchema.extend({
+  barcode: z.string(),
+  productId: z.string().optional(),
+  scanId: z.string().optional(),
+});
+export type CompareProductV2Result = z.infer<typeof compareProductV2ResultSchema>;
+
+export const compareProductsV2ResponseSchema = z.object({
+  products: z.array(compareProductV2ResultSchema),
+});
+export type CompareProductsV2Response = z.infer<typeof compareProductsV2ResponseSchema>;
+
 export const compareProductsRequestSchema = z.object({
   barcode1: z.string().min(1, 'First barcode is required'),
   barcode2: z.string().min(1, 'Second barcode is required'),
 });
 export type CompareProductsRequest = z.infer<typeof compareProductsRequestSchema>;
 
-export const compareProductsResponseSchema = productComparisonResultSchema;
+export const compareProductsResponseSchema = compareProductsV2ResponseSchema;
 export type CompareProductsResponse = z.infer<typeof compareProductsResponseSchema>;

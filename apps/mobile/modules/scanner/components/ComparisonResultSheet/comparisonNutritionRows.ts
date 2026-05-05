@@ -1,10 +1,5 @@
-import type {
-  ComparisonNutrition,
-  ComparisonNutritionRow,
-  ComparisonProductKey,
-  ProductComparisonResult,
-  ProfileComparisonResult,
-} from '@acme/shared';
+import type { ComparisonProductKey } from '@acme/shared';
+import type { ComparedProduct } from '../../utils/profileCompareTypes';
 
 export type ComparisonStatusIndicator = 'positive' | 'negative' | 'neutral';
 
@@ -21,46 +16,45 @@ export interface ComparisonDisplayNutritionRow {
   winner: ComparisonProductKey | 'tie' | null;
 }
 
-interface FallbackMetric {
+interface NutritionMetric {
   direction: 'higher_better' | 'lower_better';
   iconKey: string;
-  key: keyof ComparisonNutrition;
+  key: keyof ComparedProduct['product']['nutrition'];
   label: string;
   unit: string;
 }
 
-const FALLBACK_NUTRITION_METRICS: FallbackMetric[] = [
-  { key: 'sugars', label: 'Sugar', unit: 'g', iconKey: 'sugar', direction: 'lower_better' },
-  { key: 'fat', label: 'Fat', unit: 'g', iconKey: 'fat', direction: 'lower_better' },
-  { key: 'salt', label: 'Salt', unit: 'g', iconKey: 'salt', direction: 'lower_better' },
-  { key: 'fiber', label: 'Fiber', unit: 'g', iconKey: 'fiber', direction: 'higher_better' },
-  { key: 'protein', label: 'Protein', unit: 'g', iconKey: 'protein', direction: 'higher_better' },
+const NUTRITION_METRICS: NutritionMetric[] = [
+  {
+    key: 'caloriesPer100g',
+    label: 'Calories',
+    unit: 'kcal',
+    iconKey: 'calories',
+    direction: 'lower_better',
+  },
+  { key: 'sugarPer100g', label: 'Sugar', unit: 'g', iconKey: 'sugar', direction: 'lower_better' },
+  { key: 'fatPer100g', label: 'Fat', unit: 'g', iconKey: 'fat', direction: 'lower_better' },
+  {
+    key: 'saturatedFatPer100g',
+    label: 'Saturated fat',
+    unit: 'g',
+    iconKey: 'saturated-fat',
+    direction: 'lower_better',
+  },
+  { key: 'sodiumPer100g', label: 'Sodium', unit: 'g', iconKey: 'salt', direction: 'lower_better' },
+  { key: 'fiberPer100g', label: 'Fiber', unit: 'g', iconKey: 'fiber', direction: 'higher_better' },
+  {
+    key: 'proteinPer100g',
+    label: 'Protein',
+    unit: 'g',
+    iconKey: 'protein',
+    direction: 'higher_better',
+  },
 ];
-
-const PROFILE_FIT_KEYWORD =
-  /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame|vegan|vegetarian|pork(?:[-\s]?free)?|keto|paleo)/i;
-const ALLERGEN_KEYWORD =
-  /(allergen|allergy|gluten|dairy|lactose|nut|peanut|soy|egg|shellfish|sesame)/i;
 
 const formatNumericValue = (value: number, unit: string): string => {
   const formattedValue = Number.isInteger(value) ? String(value) : value.toFixed(1);
   return unit.toLowerCase() === 'kcal' ? `${formattedValue} kcal` : `${formattedValue}${unit}`;
-};
-
-const formatComparisonValue = (
-  value: ComparisonNutritionRow['product1Value'],
-  unit?: string | null,
-): string => {
-  if (value == null) return '—';
-  if (typeof value === 'string') return value;
-  return formatNumericValue(value, unit ?? '');
-};
-
-const toRowWinner = (
-  winner: ComparisonNutritionRow['winner'],
-): ComparisonDisplayNutritionRow['winner'] => {
-  if (!winner || winner === 'none') return null;
-  return winner;
 };
 
 const getComparisonMark = (
@@ -73,7 +67,7 @@ const getComparisonMark = (
 };
 
 const getMetricWinner = (
-  metric: FallbackMetric,
+  metric: NutritionMetric,
   leftValue: number | null,
   rightValue: number | null,
 ): ComparisonProductKey | 'tie' | null => {
@@ -83,90 +77,52 @@ const getMetricWinner = (
   return leftValue < rightValue ? 'product1' : 'product2';
 };
 
-const hasCompatibilitySignal = (comparison: ProfileComparisonResult['product1']): boolean =>
-  [...comparison.positives, ...comparison.negatives].some((text) => PROFILE_FIT_KEYWORD.test(text));
+const getProfileFitStatus = (product: ComparedProduct): ComparisonStatusIndicator => {
+  const matchedAllergens = product.analysis.safety?.matchedAllergens?.length ?? 0;
+  const violatedRestrictions = product.analysis.safety?.violatedRestrictions?.length ?? 0;
+  const safetyStatus = product.analysis.safety?.status;
 
-const getCompatibilityStatus = (
-  comparison: ProfileComparisonResult['product1'],
-  fallbackWinner: ProfileComparisonResult['winner'],
-  side: ComparisonProductKey,
-): ComparisonStatusIndicator => {
-  if (comparison.negatives.some((text) => PROFILE_FIT_KEYWORD.test(text))) return 'negative';
-  if (comparison.positives.some((text) => PROFILE_FIT_KEYWORD.test(text))) return 'positive';
-  if (fallbackWinner === 'neither') return 'negative';
-  if (fallbackWinner === side) return 'positive';
+  if (safetyStatus === 'avoid' || matchedAllergens > 0 || violatedRestrictions > 0)
+    return 'negative';
+  if (safetyStatus === 'safe') return 'positive';
   return 'neutral';
 };
 
-const getFallbackRows = (
-  profile: ProfileComparisonResult,
-  result: ProductComparisonResult,
-): ComparisonDisplayNutritionRow[] => [
-  ...FALLBACK_NUTRITION_METRICS.map((metric) => {
-    const leftMetricValue = result.product1.nutrition[metric.key] as number | null;
-    const rightMetricValue = result.product2.nutrition[metric.key] as number | null;
+export const getDisplayNutritionRows = (
+  leftProduct: ComparedProduct,
+  rightProduct: ComparedProduct,
+): ComparisonDisplayNutritionRow[] => {
+  const metricRows = NUTRITION_METRICS.map((metric) => {
+    const leftValue = leftProduct.product.nutrition?.[metric.key] ?? null;
+    const rightValue = rightProduct.product.nutrition?.[metric.key] ?? null;
 
     return {
-      comparisonMark: getComparisonMark(leftMetricValue, rightMetricValue),
+      comparisonMark: getComparisonMark(leftValue, rightValue),
       iconKey: metric.iconKey,
       key: String(metric.key),
       kind: 'metric' as const,
       label: metric.label,
-      leftValue: leftMetricValue == null ? '—' : formatNumericValue(leftMetricValue, metric.unit),
-      rightValue: rightMetricValue == null ? '—' : formatNumericValue(rightMetricValue, metric.unit),
-      winner: getMetricWinner(metric, leftMetricValue, rightMetricValue),
+      leftValue: leftValue == null ? '—' : formatNumericValue(leftValue, metric.unit),
+      rightValue: rightValue == null ? '—' : formatNumericValue(rightValue, metric.unit),
+      winner: getMetricWinner(metric, leftValue, rightValue),
     };
-  }).filter((row) => row.leftValue !== '—' || row.rightValue !== '—'),
-  {
-    comparisonMark: null,
-    iconKey: hasCompatibilitySignal(profile.product1) || hasCompatibilitySignal(profile.product2)
-      ? 'allergens'
-      : 'diet-match',
-    key: 'profile-fit',
-    kind: 'status' as const,
-    label:
-      profile.product1.negatives.some((text) => ALLERGEN_KEYWORD.test(text)) ||
-      profile.product2.negatives.some((text) => ALLERGEN_KEYWORD.test(text))
-        ? 'Allergens'
-        : 'Profile fit',
-    leftStatus: getCompatibilityStatus(profile.product1, profile.winner, 'product1'),
-    leftValue: '',
-    rightStatus: getCompatibilityStatus(profile.product2, profile.winner, 'product2'),
-    rightValue: '',
-    winner: null,
-  },
-];
+  }).filter((row) => row.leftValue !== '—' || row.rightValue !== '—');
 
-export const getDisplayNutritionRows = (
-  profile: ProfileComparisonResult,
-  result: ProductComparisonResult,
-): ComparisonDisplayNutritionRow[] => {
-  if (!profile.nutritionComparison?.length) {
-    return getFallbackRows(profile, result);
-  }
-
-  return profile.nutritionComparison
-    .map((row) => ({
-      comparisonMark:
-        typeof row.product1Value === 'number' && typeof row.product2Value === 'number'
-          ? getComparisonMark(row.product1Value, row.product2Value)
-          : null,
-      iconKey: row.icon ?? row.key,
-      kind:
-        /allergen|profile|diet|fit|compat/i.test(`${row.key} ${row.label}`) &&
-        typeof row.product1Value !== 'number' &&
-        typeof row.product2Value !== 'number'
-          ? ('status' as const)
-          : ('metric' as const),
-      key: row.key,
-      label: row.label,
-      leftStatus: undefined,
-      leftValue: row.product1DisplayValue ?? formatComparisonValue(row.product1Value, row.unit),
-      rightStatus: undefined,
-      rightValue: row.product2DisplayValue ?? formatComparisonValue(row.product2Value, row.unit),
-      winner: toRowWinner(row.winner),
-    }))
-    .filter((row) => row.leftValue !== '—' || row.rightValue !== '—');
+  return [
+    ...metricRows,
+    {
+      comparisonMark: null,
+      iconKey: 'diet-match',
+      key: 'profile-fit',
+      kind: 'status' as const,
+      label: 'Profile fit',
+      leftStatus: getProfileFitStatus(leftProduct),
+      leftValue: '',
+      rightStatus: getProfileFitStatus(rightProduct),
+      rightValue: '',
+      winner: null,
+    },
+  ];
 };
 
 const swapWinner = (

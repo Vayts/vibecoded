@@ -62,9 +62,14 @@ export const compareProducts = async (
   payload: CompareProductsRequest,
 ): Promise<CompareProductsResponse> => {
   const parsedPayload = compareProductsRequestSchema.parse(payload);
-  const response = await apiFetch('/api/scanner/compare', {
+  const formattedPayload = {
+    barcodeA: parsedPayload.barcode1,
+    barcodeB: parsedPayload.barcode2,
+  };
+
+  const response = await apiFetch('/product-analyze-v2/compare', {
     method: 'POST',
-    body: JSON.stringify(parsedPayload),
+    body: JSON.stringify(formattedPayload),
   });
 
   if (!response.ok) {
