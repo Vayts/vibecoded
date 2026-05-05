@@ -812,46 +812,16 @@ function buildSafetyBasedCanIHaveThis(safety: SafetyResult): { can: boolean; rea
   };
 }
 
-export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
-  const { barcode, userId } = state;
-
-  console.log(`[ProductAnalyzeV2] Starting barcode analysis — barcode=${barcode} userId=${userId}`);
-
-  // 1. Fetch product from Open Food Facts
-  console.log(`[ProductAnalyzeV2] Fetching product from OpenFoodFacts — barcode=${barcode}`);
-  let rawProduct: NormalizedProduct | null;
-  try {
-    rawProduct = await lookupBarcode(barcode);
-  } catch (err) {
-    if (err instanceof OpenFoodFactsLookupError) {
-      console.error(
-        `[ProductAnalyzeV2] OFF lookup error — code=${err.code} message=${err.message}`,
-      );
-      throw ApiError.badGateway(
-        'Product data service is temporarily unavailable',
-        'OFF_UPSTREAM_ERROR',
-      );
-    }
-    throw err;
-  }
-
-  if (!rawProduct) {
-    console.warn(`[ProductAnalyzeV2] Product not found — barcode=${barcode}`);
-    throw ApiError.notFound('Product not found for this barcode', 'PRODUCT_NOT_FOUND');
-  }
-
-  console.log(
-    `[ProductAnalyzeV2] Product fetched — name="${rawProduct.product_name ?? 'unknown'}"`,
-  );
-
-  // 2. Normalize product to V2 format
-  const product = normalizeOpenFoodFactsProduct(barcode, rawProduct);
-  console.log(
-    `[ProductAnalyzeV2] Product normalized — ingredients=${product.ingredients.length} allergens=${product.allergens.length}`,
-  );
+export async function analyzeNormalizedProductForUser(input: {
+  product: ReturnType<typeof normalizeOpenFoodFactsProduct>;
+  userId: string;
+  logContext?: string;
+}): Promise<AnalyzeBarcodeV2Response> {
+  const { product, userId } = input;
+  const logContext = input.logContext ?? `barcode=${product.barcode}`;
 
   // 3. Load user with subscription and profile
-  console.log(`[ProductAnalyzeV2] Loading user — userId=${userId}`);
+  console.log(`[ProductAnalyzeV2] Loading user — userId=${userId} ${logContext}`);
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -925,7 +895,7 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
 
   // 6. Classify product role and detect profile allergens/restrictions via AI (once per product+profiles)
   console.log(
-    `[ProductAnalyzeV2] Running AI analysis — barcode=${barcode} profiles=${allProfiles.length}`,
+    `[ProductAnalyzeV2] Running AI analysis — ${logContext} profiles=${allProfiles.length}`,
   );
   const rawAiOutput = await analyzeWithAI(product, allProfiles, translatedIngredients);
   const { result: aiResult, unscopedReasonProfileIds } = validateAndNormalizeAiResult(
@@ -1037,5 +1007,52 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
 
   console.log(JSON.stringify(response, null, 2));
 
-  return { result: response };
+  return response;
+}
+
+export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
+  const { barcode, userId } = state;
+
+  console.log(`[ProductAnalyzeV2] Starting barcode analysis — barcode=${barcode} userId=${userId}`);
+
+  // 1. Fetch product from Open Food Facts
+  console.log(`[ProductAnalyzeV2] Fetching product from OpenFoodFacts — barcode=${barcode}`);
+  let rawProduct: NormalizedProduct | null;
+  try {
+    rawProduct = await lookupBarcode(barcode);
+  } catch (err) {
+    if (err instanceof OpenFoodFactsLookupError) {
+      console.error(
+        `[ProductAnalyzeV2] OFF lookup error — code=${err.code} message=${err.message}`,
+      );
+      throw ApiError.badGateway(
+        'Product data service is temporarily unavailable',
+        'OFF_UPSTREAM_ERROR',
+      );
+    }
+    throw err;
+  }
+
+  if (!rawProduct) {
+    console.warn(`[ProductAnalyzeV2] Product not found — barcode=${barcode}`);
+    throw ApiError.notFound('Product not found for this barcode', 'PRODUCT_NOT_FOUND');
+  }
+
+  console.log(
+    `[ProductAnalyzeV2] Product fetched — name="${rawProduct.product_name ?? 'unknown'}"`,
+  );
+
+  // 2. Normalize product to V2 format
+  const product = normalizeOpenFoodFactsProduct(barcode, rawProduct);
+  console.log(
+    `[ProductAnalyzeV2] Product normalized — ingredients=${product.ingredients.length} allergens=${product.allergens.length}`,
+  );
+
+  const result = await analyzeNormalizedProductForUser({
+    product,
+    userId,
+    logContext: `barcode=${barcode}`,
+  });
+
+  return { result };
 }
