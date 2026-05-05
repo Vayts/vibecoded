@@ -36,7 +36,7 @@ const isSameComparedProduct = (left: ComparedProduct, right: ComparedProduct | n
 };
 
 const getBadgeLabel = (product: ComparedProduct, profile: ProfileCompareResult) => {
-  if (profile.status === 'no_suitable_product') return 'Not suitable';
+  if (profile.status === 'no_suitable_product') return undefined;
   if (profile.status === 'equivalent') return 'Similar fit';
   return isSameComparedProduct(product, profile.winner) ? 'Best choice' : undefined;
 };

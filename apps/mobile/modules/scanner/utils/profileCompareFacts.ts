@@ -1,5 +1,4 @@
 import type { CompareFact, ComparedProduct } from './profileCompareTypes';
-import { getSafetyRank } from './profileCompareRanking';
 
 const MEANINGFUL_DIFF = {
   proteinPer100g: 1,
@@ -81,10 +80,6 @@ const addSafetyFacts = (
 ) => {
   const better = betterProduct.analysis;
   const other = otherProduct.analysis;
-
-  if (getSafetyRank(better.safety?.status) > getSafetyRank(other.safety?.status)) {
-    facts.push({ key: 'safety', label: 'Safer for this profile', category: 'safety' });
-  }
 
   const betterAllergens = better.safety?.matchedAllergens?.length ?? 0;
   const otherAllergens = other.safety?.matchedAllergens?.length ?? 0;
