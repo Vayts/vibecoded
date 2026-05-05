@@ -1,5 +1,8 @@
 import { Annotation, StateGraph, START, END } from '@langchain/langgraph';
-import type { AnalyzeBarcodeV2Response } from '../types/analyze-product-v2.types.js';
+import type {
+  AnalyzeBarcodeV2Response,
+  CompareProductV2Source,
+} from '../types/analyze-product-v2.types.js';
 import {
   analyzeBarcodeNode,
   type AnalyzedProductByBarcodeResult,
@@ -20,8 +23,8 @@ export const GraphStateAnnotation = Annotation.Root({
 });
 
 export const CompareGraphStateAnnotation = Annotation.Root({
-  barcodeA: Annotation<string>(),
-  barcodeB: Annotation<string>(),
+  productA: Annotation<CompareProductV2Source>(),
+  productB: Annotation<CompareProductV2Source>(),
   userId: Annotation<string>(),
   products: Annotation<AnalyzedProductByBarcodeResult[] | null>({
     reducer: (_prev, next) => next,

@@ -1,11 +1,9 @@
 import {
   barcodeLookupRequestSchema,
   scannerProductAnalysisResultSchema,
-  compareProductsRequestSchema,
   compareProductsResponseSchema,
   type BarcodeLookupRequest,
   type ScannerProductAnalysisResult,
-  type CompareProductsRequest,
   type CompareProductsResponse,
 } from '@acme/shared';
 import { z } from 'zod';
@@ -58,18 +56,93 @@ export const submitBarcodeScan = async (
   return scannerProductAnalysisResultSchema.parse(json);
 };
 
+export type CompareProductRequestSource =
+  | {
+      type: 'barcode';
+      barcode: string;
+    }
+  | {
+      type: 'photo';
+      photoUri: string;
+      ocr?: PhotoOcrData;
+    };
+
+export type CompareProductsRequest =
+  | {
+      barcode1: string;
+      barcode2: string;
+    }
+  | {
+      productA: CompareProductRequestSource;
+      productB: CompareProductRequestSource;
+    };
+
+const isSourceCompareRequest = (
+  payload: CompareProductsRequest,
+): payload is { productA: CompareProductRequestSource; productB: CompareProductRequestSource } => {
+  return 'productA' in payload && 'productB' in payload;
+};
+
+const isPhotoCompareSource = (
+  source: CompareProductRequestSource,
+): source is Extract<CompareProductRequestSource, { type: 'photo' }> => source.type === 'photo';
+
+const toCompareProductBody = (source: CompareProductRequestSource) => {
+  if (source.type === 'barcode') {
+    return { type: 'barcode', barcode: source.barcode.trim() };
+  }
+
+  return {
+    type: 'photo',
+    ...(source.ocr ? { ocr: source.ocr } : {}),
+  };
+};
+
+const appendComparePhoto = (
+  formData: FormData,
+  fieldName: 'photoA' | 'photoB',
+  source: CompareProductRequestSource,
+) => {
+  if (!isPhotoCompareSource(source)) {
+    return;
+  }
+
+  const photoFile: ReactNativeFile = {
+    uri: source.photoUri,
+    name: `${fieldName}.jpg`,
+    type: 'image/jpeg',
+  };
+
+  formData.append(fieldName, photoFile as unknown as Blob);
+};
+
+const buildCompareFormData = (payload: {
+  productA: CompareProductRequestSource;
+  productB: CompareProductRequestSource;
+}): FormData => {
+  const formData = new FormData();
+
+  formData.append('productA', JSON.stringify(toCompareProductBody(payload.productA)));
+  formData.append('productB', JSON.stringify(toCompareProductBody(payload.productB)));
+  appendComparePhoto(formData, 'photoA', payload.productA);
+  appendComparePhoto(formData, 'photoB', payload.productB);
+
+  return formData;
+};
+
 export const compareProducts = async (
   payload: CompareProductsRequest,
 ): Promise<CompareProductsResponse> => {
-  const parsedPayload = compareProductsRequestSchema.parse(payload);
-  const formattedPayload = {
-    barcodeA: parsedPayload.barcode1,
-    barcodeB: parsedPayload.barcode2,
-  };
+  const requestBody = isSourceCompareRequest(payload)
+    ? buildCompareFormData(payload)
+    : JSON.stringify({
+        barcodeA: payload.barcode1.trim(),
+        barcodeB: payload.barcode2.trim(),
+      });
 
   const response = await apiFetch('/product-analyze-v2/compare', {
     method: 'POST',
-    body: JSON.stringify(formattedPayload),
+    body: requestBody,
   });
 
   if (!response.ok) {

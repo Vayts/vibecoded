@@ -1,4 +1,5 @@
 import type { CompareProductsProfileResult, ScoreReason } from '@acme/shared';
+import type { PhotoOcrPayloadV2 } from './analyze-photo-v2.types.js';
 import type {
   GoalFitResult,
   NutritionResult,
@@ -65,6 +66,17 @@ export interface CompareProductV2Result extends AnalyzeBarcodeV2Response {
   productId?: string;
   scanId?: string;
 }
+
+export type CompareProductV2Source =
+  | {
+      type: 'barcode';
+      barcode: string;
+    }
+  | {
+      type: 'photo';
+      imageBase64: string;
+      ocr?: PhotoOcrPayloadV2;
+    };
 
 export interface CompareProductsV2Response {
   comparisonId: string;

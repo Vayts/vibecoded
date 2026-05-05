@@ -5,26 +5,18 @@ import { z } from 'zod';
 import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
 import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
-import { toRawPhotoBodyV2 } from './utils/photo-request.util.js';
+import { parsePhotoRequestV2 } from './utils/parse-photo-request-v2.util.js';
 import {
+  type CompareProductsV2UploadedFiles,
   compareProductsV2,
   type PersistProductAnalyzeV2ScanInput,
 } from './services/compare-products-v2.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
-import {
-  IMAGE_TOO_LARGE_ERROR,
-  INVALID_OCR_FIELD_ERROR,
-  INVALID_PHOTO_FILE_ERROR,
-  MAX_PHOTO_BASE64_SIZE,
-  MAX_PHOTO_UPLOAD_SIZE,
-  PHOTO_FILE_REQUIRED_ERROR,
-} from './constants/photo-analysis.constants.js';
 import type {
   AnalyzeBarcodeV2Response,
   CompareProductsV2Response,
 } from './types/analyze-product-v2.types.js';
 import {
-  photoOcrPayloadV2Schema,
   type AnalyzePhotoV2Response,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
@@ -35,11 +27,6 @@ import { findProductIdByBarcode } from '../product-analyze/repositories/scanRepo
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
 });
-
-interface ParsedPhotoRequestV2 {
-  imageBase64: string;
-  ocr?: z.infer<typeof photoOcrPayloadV2Schema>;
-}
 
 @Injectable()
 export class ProductAnalyzeV2Service {
@@ -66,69 +53,6 @@ export class ProductAnalyzeV2Service {
     });
 
     return scan.id;
-  }
-
-  private parsePhotoRequest(body: unknown, file?: UploadedPhotoFileV2): ParsedPhotoRequestV2 {
-    const request = toRawPhotoBodyV2(body);
-    const imageBase64 = this.getImageBase64(request, file);
-    const rawOcr = this.parseRawOcr(request.ocr);
-    const parsedOcr = rawOcr == null ? null : photoOcrPayloadV2Schema.safeParse(rawOcr);
-
-    if (parsedOcr && !parsedOcr.success) {
-      throw ApiError.badRequest(INVALID_OCR_FIELD_ERROR);
-    }
-
-    return {
-      imageBase64,
-      ...(parsedOcr ? { ocr: parsedOcr.data } : {}),
-    };
-  }
-
-  private getImageBase64(
-    body: ReturnType<typeof toRawPhotoBodyV2>,
-    file?: UploadedPhotoFileV2,
-  ): string {
-    if (file) {
-      return this.fileToBase64(file);
-    }
-
-    if (typeof body.imageBase64 !== 'string' || body.imageBase64.length === 0) {
-      throw ApiError.badRequest(PHOTO_FILE_REQUIRED_ERROR);
-    }
-
-    if (body.imageBase64.length > MAX_PHOTO_BASE64_SIZE) {
-      throw ApiError.badRequest(IMAGE_TOO_LARGE_ERROR);
-    }
-
-    return body.imageBase64;
-  }
-
-  private fileToBase64(file: UploadedPhotoFileV2): string {
-    if (!file.buffer || file.buffer.length === 0) {
-      throw ApiError.badRequest(PHOTO_FILE_REQUIRED_ERROR);
-    }
-
-    if (file.size > MAX_PHOTO_UPLOAD_SIZE) {
-      throw ApiError.badRequest(IMAGE_TOO_LARGE_ERROR);
-    }
-
-    if (!file.mimetype.startsWith('image/')) {
-      throw ApiError.badRequest(INVALID_PHOTO_FILE_ERROR);
-    }
-
-    return file.buffer.toString('base64');
-  }
-
-  private parseRawOcr(value: unknown): unknown {
-    if (typeof value !== 'string') {
-      return value;
-    }
-
-    try {
-      return JSON.parse(value);
-    } catch {
-      throw ApiError.badRequest(INVALID_OCR_FIELD_ERROR);
-    }
   }
 
   async analyzeBarcode(body: unknown, userId: string): Promise<AnalyzeBarcodeV2Response> {
@@ -160,9 +84,14 @@ export class ProductAnalyzeV2Service {
     return finalState.result;
   }
 
-  async compareProducts(body: unknown, userId: string): Promise<CompareProductsV2Response> {
+  async compareProducts(
+    body: unknown,
+    userId: string,
+    files?: CompareProductsV2UploadedFiles,
+  ): Promise<CompareProductsV2Response> {
     return compareProductsV2({
       body,
+      files,
       userId,
       persistScanResult: (input) => this.persistScanResult(input),
     });
@@ -173,7 +102,7 @@ export class ProductAnalyzeV2Service {
     userId: string,
     file?: UploadedPhotoFileV2,
   ): Promise<AnalyzePhotoV2Response> {
-    const request = this.parsePhotoRequest(body, file);
+    const request = parsePhotoRequestV2(body, file);
     console.log(`[ProductAnalyzeV2Service] analyzePhoto — userId=${userId}`);
 
     const resolvedContext = await resolvePhotoProductV2Context({

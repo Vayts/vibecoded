@@ -22,6 +22,7 @@ export type ScannerRouteMode = 'default' | 'compare';
 
 export interface CompareProductSource {
   barcode: string;
+  photoUri?: string;
   productId?: string | null;
   productName?: string | null;
 }
@@ -31,6 +32,7 @@ export interface ScannerResultSheetPayload {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
+  photoUri?: string;
   resolvedPersonalResult?: PersonalAnalysisJob;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
@@ -62,4 +64,3 @@ export interface ProfileScoreSelectorSheetPayload {
   selectedProfileId: string;
   onSelect: (profileId: string) => void;
 }
-

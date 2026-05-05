@@ -10,6 +10,7 @@ import { ScanDetailLoader } from './ScanDetailLoader';
 interface ScannerResultSheetContentProps {
   scanId?: string;
   item?: ScanHistoryItem;
+  photoUri?: string;
   previewProduct?: ProductPreview;
   result?: BarcodeLookupResponse;
   resolvedPersonalResult?: PersonalAnalysisJob;
@@ -24,6 +25,7 @@ interface ScannerResultSheetContentProps {
 export function ScannerResultSheetContent({
   scanId,
   item,
+  photoUri,
   previewProduct,
   result,
   resolvedPersonalResult,
@@ -32,13 +34,7 @@ export function ScannerResultSheetContent({
   onErrorSheetDismiss,
 }: ScannerResultSheetContentProps) {
   if (scanId) {
-    return (
-      <ScanDetailLoader
-        scanId={scanId}
-        previewItem={item}
-        previewProduct={previewProduct}
-      />
-    );
+    return <ScanDetailLoader scanId={scanId} previewItem={item} previewProduct={previewProduct} />;
   }
 
   if (result || previewProduct || item) {
@@ -47,6 +43,7 @@ export function ScannerResultSheetContent({
         previewItem={item}
         result={result}
         scanId={scanId}
+        photoUri={photoUri}
         previewProduct={previewProduct}
         resolvedPersonalResult={resolvedPersonalResult}
         detailState={detailState}

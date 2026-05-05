@@ -14,6 +14,7 @@ type ProductImageSource =
 
 interface CompareSource {
   barcode: string;
+  photoUri?: string;
   productId: string | null;
   productName: string | null;
 }
@@ -45,9 +46,11 @@ export const getCompareSource = ({
   product,
   previewHistoryProduct,
   previewProduct,
+  photoUri,
   successResult,
 }: {
   product: ProductImageSource | null | undefined;
+  photoUri?: string;
   previewHistoryProduct: NonNullable<ScanHistoryItem['product']> | null;
   previewProduct?: ProductPreview;
   successResult?: BarcodeLookupSuccessResponse;
@@ -58,10 +61,8 @@ export const getCompareSource = ({
 
   return {
     barcode:
-      successResult?.barcode ??
-      previewProduct?.barcode ??
-      previewHistoryProduct?.barcode ??
-      '',
+      successResult?.barcode ?? previewProduct?.barcode ?? previewHistoryProduct?.barcode ?? '',
+    ...(photoUri ? { photoUri } : {}),
     productId:
       successResult?.productId ??
       (previewProduct?.productId?.trim() ? previewProduct.productId : null) ??

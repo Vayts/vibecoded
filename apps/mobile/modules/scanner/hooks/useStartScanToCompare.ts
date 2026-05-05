@@ -22,6 +22,7 @@ export function useStartScanToCompare() {
   return useCallback(
     (product: CompareProductSource, options?: StartScanToCompareOptions) => {
       startCompare(mapCompareSourceToPreview(product), {
+        photoUri: product.photoUri,
         source: options?.source ?? 'compare-picker',
       });
 

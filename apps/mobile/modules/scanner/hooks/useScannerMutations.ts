@@ -1,11 +1,14 @@
 import type {
   BarcodeLookupRequest,
-  CompareProductsRequest,
   CompareProductsResponse,
   ScannerProductAnalysisResult,
 } from '@acme/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { submitBarcodeScan, compareProducts } from '../api/scannerMutations';
+import {
+  submitBarcodeScan,
+  compareProducts,
+  type CompareProductsRequest,
+} from '../api/scannerMutations';
 import { COMPARISONS_QUERY_KEY } from '../../scans/hooks/useComparisonsQuery';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 

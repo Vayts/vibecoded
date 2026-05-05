@@ -1,5 +1,13 @@
-import { Body, Controller, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  Body,
+  Controller,
+  Post,
+  Req,
+  UploadedFile,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service.js';
 import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
@@ -12,6 +20,11 @@ import type {
   AnalyzeBarcodeV2Response,
   CompareProductsV2Response,
 } from './types/analyze-product-v2.types.js';
+
+interface CompareProductsV2UploadedFiles {
+  photoA?: UploadedPhotoFileV2[];
+  photoB?: UploadedPhotoFileV2[];
+}
 
 @Controller('product-analyze-v2')
 export class ProductAnalyzeV2Controller {
@@ -30,12 +43,22 @@ export class ProductAnalyzeV2Controller {
   }
 
   @Post('compare')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'photoA', maxCount: 1 },
+        { name: 'photoB', maxCount: 1 },
+      ],
+      { limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE } },
+    ),
+  )
   async compareProducts(
     @Body() body: unknown,
+    @UploadedFiles() files: CompareProductsV2UploadedFiles | undefined,
     @Req() request: Request,
   ): Promise<CompareProductsV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
-    return this.productAnalyzeV2Service.compareProducts(body, userId);
+    return this.productAnalyzeV2Service.compareProducts(body, userId, files);
   }
 
   @Post('photo')

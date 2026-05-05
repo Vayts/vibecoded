@@ -1051,7 +1051,7 @@ function canReuseAnalysis(createdAt: Date, preferencesUpdatedAt: Date | null): b
   return !preferencesUpdatedAt || createdAt > preferencesUpdatedAt;
 }
 
-async function findReusableAnalyzedProductByBarcode(input: {
+export async function findReusableAnalyzedProductByBarcode(input: {
   barcode: string;
   userId: string;
 }): Promise<AnalyzedProductByBarcodeResult | null> {

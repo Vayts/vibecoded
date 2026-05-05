@@ -27,11 +27,15 @@ import {
   useCompareProductsMutation,
 } from '../../hooks/useScannerMutations';
 import { usePhotoCapture } from '../../hooks/usePhotoCapture';
-import { ScannerApiError, submitPhotoScan } from '../../api/scannerMutations';
+import {
+  ScannerApiError,
+  submitPhotoScan,
+  type CompareProductRequestSource,
+} from '../../api/scannerMutations';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
 import { useCompareStore } from '../../stores/compareStore';
 import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
-import type { ScannerRouteMode } from '../../types/scanner';
+import type { PhotoOcrData, ScannerRouteMode } from '../../types/scanner';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
 import { ScannerPermissionState } from '../ScannerPermissionState';
@@ -53,6 +57,20 @@ const buildCompletedAnalysisJob = (
     result,
   };
 };
+
+const buildBarcodeCompareSource = (barcode: string): CompareProductRequestSource => ({
+  type: 'barcode',
+  barcode,
+});
+
+const buildPhotoCompareSource = (
+  photoUri: string,
+  ocr?: PhotoOcrData,
+): CompareProductRequestSource => ({
+  type: 'photo',
+  photoUri,
+  ...(ocr ? { ocr } : {}),
+});
 
 interface ScannerHomeScreenProps {
   routeMode?: ScannerRouteMode;
@@ -331,12 +349,13 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   }, [isScannerErrorSheetOpen, resumeScanner]);
 
   const beginResultSheetSession = useCallback(
-    (previewProduct?: ProductPreview) => {
+    (previewProduct?: ProductPreview, photoUri?: string) => {
       const sessionId = startResultSession();
 
       void SheetManager.show(SheetsEnum.ScannerResultSheet, {
         payload: {
           ...(previewProduct ? { previewProduct } : {}),
+          ...(photoUri ? { photoUri } : {}),
           onBeforeErrorSheetOpen: pauseScannerForErrorSheet,
           onErrorSheetDismiss: handleScannerErrorSheetDismiss,
         },
@@ -379,18 +398,13 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
         setIsScannerPaused(true);
         setIsResolvingFirstProduct(true);
-        const [firstResolved, secondResolved] = await Promise.all([
-          firstPhotoUri
-            ? submitPhotoScan({ photoUri: firstPhotoUri, ocr: firstProductOcr ?? undefined })
-            : Promise.resolve({ barcode: first.barcode }),
-          submitPhotoScan({ photoUri: captured.uploadUri }),
-        ]);
-        setIsResolvingFirstProduct(false);
-
         const result = await compareMutation.mutateAsync({
-          barcode1: firstResolved.barcode,
-          barcode2: secondResolved.barcode,
+          productA: firstPhotoUri
+            ? buildPhotoCompareSource(firstPhotoUri, firstProductOcr ?? undefined)
+            : buildBarcodeCompareSource(first.barcode),
+          productB: buildPhotoCompareSource(captured.uploadUri),
         });
+        setIsResolvingFirstProduct(false);
         openComparisonResult(result);
         return;
       }
@@ -409,7 +423,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         brands: null,
         image_url: captured.localUri,
       };
-      const sessionId = beginResultSheetSession(previewProduct);
+      const sessionId = beginResultSheetSession(previewProduct, captured.uploadUri);
 
       try {
         const result = await submitPhotoScan({ photoUri: captured.uploadUri });
@@ -475,20 +489,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
           const firstProductOcr = useCompareStore.getState().firstProductOcr;
 
-          let barcode1: string;
-          if (firstPhotoUri) {
-            setIsResolvingFirstProduct(true);
-            const firstResolved = await submitPhotoScan({
-              photoUri: firstPhotoUri,
-              ocr: firstProductOcr ?? undefined,
-            });
-            setIsResolvingFirstProduct(false);
-            barcode1 = firstResolved.barcode;
-          } else {
-            barcode1 = first.barcode;
-          }
-
-          if (barcode1.trim() === normalized) {
+          if (!firstPhotoUri && first.barcode.trim() === normalized) {
             await openScannerErrorSheet(
               new ScannerApiError(
                 'We identified the same product in both scans. Scan a different product to compare.',
@@ -500,8 +501,10 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           }
 
           const result = await compareMutation.mutateAsync({
-            barcode1,
-            barcode2: normalized,
+            productA: firstPhotoUri
+              ? buildPhotoCompareSource(firstPhotoUri, firstProductOcr ?? undefined)
+              : buildBarcodeCompareSource(first.barcode),
+            productB: buildBarcodeCompareSource(normalized),
           });
           openComparisonResult(result);
           return;
