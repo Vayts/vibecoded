@@ -4,6 +4,8 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorageUri';
 import type { ComparedProductCore } from '../../utils/profileCompareTypes';
+import { useMemo } from 'react';
+import { formatOverallRatingColors } from '../ScannerResultSheet/evaluationHelpers';
 
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
@@ -11,14 +13,6 @@ interface ComparisonProductCardProps {
   badgeLabel?: string;
   tone: 'winner' | 'neutral' | 'not-suitable';
 }
-
-const formatScore = (score: number | null): string => {
-  if (score == null) {
-    return '—/100';
-  }
-
-  return `${Math.round(score)}/100`;
-};
 
 export function ComparisonProductCard({
   product,
@@ -30,6 +24,15 @@ export function ComparisonProductCard({
   const isWinner = tone === 'winner';
   const isRejected = tone === 'not-suitable';
   const productName = product.name?.trim() || 'Unknown product';
+  const colors = useMemo(() => {
+    if (score == null)
+      return {
+        backgroundColor: COLORS.gray100,
+        textColor: COLORS.gray500,
+      };
+
+    return formatOverallRatingColors(score);
+  }, [score]);
 
   const borderColor = isRejected ? COLORS.danger500 : isWinner ? COLORS.primary300 : COLORS.gray200;
   const badgeBackgroundColor = isRejected
@@ -88,12 +91,10 @@ export function ComparisonProductCard({
           </View>
         )}
 
-        <View className="h-[23px] -mt-4 items-center" />
-
         <Typography
           variant="headerTitle"
           numberOfLines={1}
-          className="mt-5 text-center text-[15px] font-bold"
+          className="mt-2 text-center text-[15px] font-bold"
         >
           {productName}
         </Typography>
@@ -108,18 +109,25 @@ export function ComparisonProductCard({
           </Typography>
         ) : null}
 
-        <View className="mt-4 rounded-xl bg-gray-50 px-3 py-2">
+        <View
+          className="mt-2 flex-row items-center justify-between px-2 py-1 rounded-[6px]"
+          style={{ backgroundColor: `${colors.backgroundColor}80` }}
+        >
           <Typography
             variant="caption"
-            className="text-center uppercase tracking-[0.4px] text-gray-500"
+            className="text-center uppercase font-bold text-[8px] text-gray-500"
           >
             Chozr score
           </Typography>
           <Typography
             variant="sectionTitle"
-            className="mt-1 text-center text-[16px] font-bold text-gray-900"
+            className="text-center text-[12px] text-gray-900"
+            style={{ color: colors.textColor }}
           >
-            {formatScore(score)}
+            {score || '-'}
+            <Typography className="text-[12px] font-bold" style={{ color: colors.textColor }}>
+              /100
+            </Typography>
           </Typography>
         </View>
       </View>

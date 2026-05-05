@@ -8,6 +8,7 @@ import { ComparisonExplanationSection } from './ComparisonExplanationSection';
 import { ComparisonNutritionTable } from './ComparisonNutritionTable';
 import { ComparisonProductCard } from './ComparisonProductCard';
 import { ComparisonProfileSelector } from './ComparisonProfileSelector';
+import { ComparisonVerdictCard } from './ComparisonVerdictCard';
 import { getProductDisplayName } from './comparisonResultHelpers';
 import { getDisplayNutritionRows } from './comparisonNutritionRows';
 import type { ComparedProduct, ProfileCompareResult } from '../../utils/profileCompareTypes';
@@ -64,6 +65,8 @@ export function ComparisonResultContent({
       ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
       : [];
   const isNoMatch = activeProfile?.status === 'no_suitable_product';
+  const shouldShowVerdict =
+    activeProfile?.status === 'winner_found' && Boolean(activeProfile.winner);
 
   return (
     <View className="flex-1 bg-background">
@@ -131,7 +134,11 @@ export function ComparisonResultContent({
                     <ArrowLeftRight color={COLORS.gray700} size={18} strokeWidth={2} />
                   </View>
                 </View>
-                <ComparisonExplanationSection profileResult={activeProfile} />
+                {shouldShowVerdict ? <ComparisonVerdictCard profileResult={activeProfile} /> : null}
+                <ComparisonExplanationSection
+                  hidePrimaryDetails={shouldShowVerdict}
+                  profileResult={activeProfile}
+                />
                 <ComparisonNutritionTable
                   leftProduct={{
                     brand: leftComparedProduct.product.brand,
