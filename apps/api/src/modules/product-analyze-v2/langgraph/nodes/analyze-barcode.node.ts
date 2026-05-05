@@ -409,7 +409,11 @@ CUSTOM ALLERGY RULES FOR OTHER:
 - When a profile's allergies array includes OTHER and otherAllergiesText is provided, treat otherAllergiesText as the profile's custom allergy details.
 - Evaluate custom allergy details semantically against the product ingredients, allergens, and traces. Do not rely only on exact word or substring matching.
 - Ignore custom allergy details that are not real, specific food allergens or plausible sensitivities.
-- If the custom allergy is detected, return an allergenDetections item with allergy: OTHER and cite the concrete matching English ingredient, allergen, trace, or evidence.
+- Return allergy: OTHER with detected:true ONLY when the product data contains affirmative evidence for the custom allergy.
+- Never return detected:true when the evidence says the custom allergen is not listed, not found, absent, missing, or not directly triggered.
+- If the custom allergy is not detected, omit the allergenDetections item for OTHER instead of returning detected:true with negative evidence.
+- If the custom allergy is detected, return an allergenDetections item with allergy: OTHER and cite the concrete matching English ingredient, allergen, trace, or evidence from the product data.
+- allergenDetections[].ingredients must contain product ingredients/allergens/traces only. Never put the custom allergy text itself there unless it is also present in product data.
 - If OTHER is not selected for a profile, do not analyze otherAllergiesText for that profile.
 
 If profile.allergies is empty, return: "allergenDetections": []
@@ -550,11 +554,96 @@ async function analyzeWithAI(
   }
 }
 
+const NEGATIVE_EVIDENCE_PATTERN =
+  /\b(?:no|none|without|absent|missing|unlisted)\b|\bnot\s+(?:listed|found|present|detected|triggered|directly\s+triggered)\b|\bdoes\s+not\s+(?:contain|list|show|include)\b/iu;
+
+const normalizeGroundingText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const uniqueNormalizedValues = (values: string[]): string[] => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const value of values) {
+    const normalized = normalizeGroundingText(value);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(value.trim());
+  }
+
+  return result;
+};
+
+const buildAllergenGroundingValues = (
+  product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
+  translatedIngredients: TranslatedIngredients,
+): string[] =>
+  uniqueNormalizedValues([
+    ...product.ingredients,
+    ...product.allergens,
+    ...product.traces,
+    ...translatedIngredients.ingredientsEnglish,
+  ]);
+
+const textContainsGroundedValue = (text: string, groundingValues: string[]): boolean => {
+  const normalizedText = normalizeGroundingText(text);
+  if (!normalizedText) return false;
+
+  return groundingValues.some((value) => {
+    const normalizedValue = normalizeGroundingText(value);
+    return (
+      normalizedValue.length > 1 &&
+      (normalizedText.includes(normalizedValue) || normalizedValue.includes(normalizedText))
+    );
+  });
+};
+
+const filterGroundedIngredients = (ingredients: string[], groundingValues: string[]): string[] =>
+  uniqueNormalizedValues(
+    ingredients.filter((ingredient) => textContainsGroundedValue(ingredient, groundingValues)),
+  );
+
+const normalizeAllergenDetection = (
+  detection: AiAllergenDetectionOutput,
+  groundingValues: string[],
+): AiAllergenDetectionOutput | null => {
+  const evidence = Array.isArray(detection.evidence) ? detection.evidence : [];
+  const evidenceText = evidence.join(' ');
+  const groundedIngredients = filterGroundedIngredients(detection.ingredients, groundingValues);
+
+  if (!detection.detected) {
+    return { ...detection, ingredients: groundedIngredients, evidence };
+  }
+
+  if (NEGATIVE_EVIDENCE_PATTERN.test(evidenceText)) {
+    return null;
+  }
+
+  const hasGroundedEvidence =
+    groundedIngredients.length > 0 ||
+    evidence.some((item) => textContainsGroundedValue(item, groundingValues));
+
+  if (!hasGroundedEvidence) {
+    return null;
+  }
+
+  return { ...detection, ingredients: groundedIngredients, evidence };
+};
+
 function validateAndNormalizeAiResult(
   raw: AiAnalyzeV2Output | null,
   profiles: ProfileInputForScoring[],
+  product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
+  translatedIngredients: TranslatedIngredients,
 ): { result: ValidatedAiAnalyzeV2Result; unscopedReasonProfileIds: Set<string> } {
   const unscopedReasonProfileIds = new Set<string>();
+  const groundingValues = buildAllergenGroundingValues(product, translatedIngredients);
 
   const fallbackResult: ValidatedAiAnalyzeV2Result = {
     product: {
@@ -595,13 +684,22 @@ function validateAndNormalizeAiResult(
         ? normalizeOverallSummaryText(aiProfile.overallSummary)
         : null;
 
-    const allergenDetections = (aiProfile.allergenDetections ?? [])
-      .filter((d) => VALID_ALLERGY_SET.has(d.allergy) && d.confidence >= 0 && d.confidence <= 1)
-      .map((d) => ({
-        ...d,
-        ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
-        evidence: Array.isArray(d.evidence) ? d.evidence : [],
-      }));
+    const rawValidAllergenDetections = (aiProfile.allergenDetections ?? []).filter(
+      (d) => VALID_ALLERGY_SET.has(d.allergy) && d.confidence >= 0 && d.confidence <= 1,
+    );
+
+    const allergenDetections = rawValidAllergenDetections
+      .map((d) =>
+        normalizeAllergenDetection(
+          {
+            ...d,
+            ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+            evidence: Array.isArray(d.evidence) ? d.evidence : [],
+          },
+          groundingValues,
+        ),
+      )
+      .filter((d): d is AiAllergenDetectionOutput => d !== null);
 
     const restrictionDetections = (aiProfile.restrictionDetections ?? [])
       .filter(
@@ -643,13 +741,20 @@ function validateAndNormalizeAiResult(
     );
 
     // Log warning if AI returned out-of-scope detections
+    const invalidAllergenDetectionCount =
+      rawValidAllergenDetections.length - allergenDetections.length;
     const droppedAllergens = allergenDetections.filter((d) => !allowedAllergies.has(d.allergy));
     const droppedRestrictions = restrictionDetections.filter(
       (d) => !allowedRestrictions.has(d.restriction),
     );
-    if (droppedAllergens.length > 0 || droppedRestrictions.length > 0) {
-      console.warn(`[ProductAnalyzeV2] Out-of-scope AI detections dropped`, {
+    if (
+      invalidAllergenDetectionCount > 0 ||
+      droppedAllergens.length > 0 ||
+      droppedRestrictions.length > 0
+    ) {
+      console.warn(`[ProductAnalyzeV2] Invalid or out-of-scope AI detections dropped`, {
         profileId: profile.profileId,
+        invalidAllergenDetectionCount,
         droppedAllergenDetections: droppedAllergens.map((d) => d.allergy),
         droppedRestrictionDetections: droppedRestrictions.map((d) => d.restriction),
       });
@@ -922,6 +1027,8 @@ export async function analyzeNormalizedProductForUser(input: {
   const { result: aiResult, unscopedReasonProfileIds } = validateAndNormalizeAiResult(
     rawAiOutput,
     allProfiles,
+    product,
+    translatedIngredients,
   );
 
   console.log(`[ProductAnalyzeV2] Ai result], ${JSON.stringify(aiResult, null, 2)}`);
