@@ -1,32 +1,65 @@
-import type { ProductFacts, ProfileProductScore } from '@acme/shared';
+import type { ScannerProfileResult } from '@acme/shared';
 import { ChevronDown, ChevronUp } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
-import {
-  buildCompatibilityAccordionItems,
-  getIngredientCountLabel,
-  type ProfileCompatibilityPreferences,
-} from './profileCompatibilityAccordionHelpers';
 import LeavesIcon from '../../../../assets/icons/leaves.svg';
 
-interface ProfileCompatibilityAccordionProps {
-  profile: ProfileProductScore;
-  productFacts?: ProductFacts | null;
-  profilePreferences: ProfileCompatibilityPreferences | null;
+interface CompatibilityAccordionItem {
+  key: string;
+  title: string;
+  statusLabel: string;
+  ingredients: string[];
+  evidence: string[];
 }
 
-export function ProfileCompatibilityAccordion({
-  profile,
-  productFacts,
-  profilePreferences,
-}: ProfileCompatibilityAccordionProps) {
+interface ProfileCompatibilityAccordionProps {
+  profile: ScannerProfileResult;
+}
+
+const normalizeLabel = (value: string): string =>
+  value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
+const getIngredientCountLabel = (count: number): string =>
+  `${count} ingredient${count === 1 ? '' : 's'}`;
+
+const getRestrictionStatusLabel = (status: string): string => {
+  if (status === 'not_compatible') return 'Not compatible';
+  if (status === 'semi_compatible') return 'Trace risk';
+  if (status === 'requires_certification') return 'Needs verification';
+  if (status === 'unclear') return 'Unclear';
+  return 'Compatible';
+};
+
+export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityAccordionProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const concerns = useMemo(
-    () => buildCompatibilityAccordionItems(profile, productFacts, profilePreferences),
-    [profile, productFacts, profilePreferences],
+    () => {
+      const restrictionItems = profile.ai.restrictionDetections
+        .filter((detection) => detection.status !== 'compatible')
+        .map<CompatibilityAccordionItem>((detection) => ({
+          key: `restriction-${detection.restriction}`,
+          title: normalizeLabel(detection.restriction),
+          statusLabel: getRestrictionStatusLabel(detection.status),
+          ingredients: detection.ingredients,
+          evidence: detection.evidence,
+        }));
+
+      const allergenItems = profile.ai.allergenDetections
+        .filter((detection) => detection.detected)
+        .map<CompatibilityAccordionItem>((detection) => ({
+          key: `allergen-${detection.allergy}`,
+          title: normalizeLabel(detection.allergy),
+          statusLabel: detection.source === 'off_trace_tag' ? 'Trace detected' : 'Detected',
+          ingredients: detection.ingredients,
+          evidence: detection.evidence,
+        }));
+
+      return [...restrictionItems, ...allergenItems];
+    },
+    [profile],
   );
 
   if (concerns.length === 0) {
@@ -62,7 +95,9 @@ export function ProfileCompatibilityAccordion({
                       {concern.title}
                     </Typography>
                     <Typography variant="bodySecondary" className="mt-1 text-neutrals-600">
-                      {getIngredientCountLabel(concern.ingredients.length)}
+                      {concern.ingredients.length > 0
+                        ? `${getIngredientCountLabel(concern.ingredients.length)}`
+                        : concern.statusLabel}
                     </Typography>
                   </View>
                 </View>
@@ -75,20 +110,24 @@ export function ProfileCompatibilityAccordion({
               </TouchableOpacity>
 
               {isExpanded ? (
-                <View className="flex-row flex-wrap gap-1 pb-3 pr-2">
-                  {concern.ingredients.map((ingredient) => (
-                    <View
-                      key={`${concern.key}-${ingredient}`}
-                      className="rounded-full border px-3 py-1 bg-accent-100 border-accent-300"
-                    >
-                      <Typography
-                        variant="bodySecondary"
-                        className="font-semibold text-[12px] text-accent-900"
-                      >
-                        {ingredient}
-                      </Typography>
+                <View className="pb-3 pr-2">
+                  {concern.ingredients.length > 0 ? (
+                    <View className="flex-row flex-wrap gap-1">
+                      {concern.ingredients.map((ingredient) => (
+                        <View
+                          key={`${concern.key}-${ingredient}`}
+                          className="rounded-full border px-3 py-1 bg-accent-100 border-accent-300"
+                        >
+                          <Typography
+                            variant="bodySecondary"
+                            className="font-semibold text-[12px] text-accent-900"
+                          >
+                            {ingredient}
+                          </Typography>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  ) : null}
                 </View>
               ) : null}
             </View>

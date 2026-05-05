@@ -1,19 +1,20 @@
 import type {
-  ComparisonProductKey,
-  ComparisonProductPreview,
-  ProductComparisonResult,
-  ProfileComparisonResult,
-} from '@acme/shared';
+  CompareFact,
+  ComparedProduct,
+  ComparedProductCore,
+  ProfileCompareResult,
+} from '../../utils/profileCompareTypes';
 
-export type ComparisonOutcomeState = 'best-choice' | 'close-match' | 'neutral' | 'no-match';
+export type DisplayChip = { iconKey?: string | null; text: string };
 
-export const getProductDisplayName = (product: ComparisonProductPreview): string => {
-  const productName = product.product_name?.trim();
+export const getProductDisplayName = (product: ComparedProductCore): string => {
+  const productName = product.name?.trim();
+
   if (productName) {
     return productName;
   }
 
-  const brand = product.brands?.trim();
+  const brand = product.brand?.trim();
   if (brand) {
     return brand;
   }
@@ -21,54 +22,97 @@ export const getProductDisplayName = (product: ComparisonProductPreview): string
   return 'Unknown product';
 };
 
-export const getBestProductKey = (
-  profile: ProfileComparisonResult,
-  result: ProductComparisonResult,
-): ComparisonProductKey | null => {
-  if (profile.bestProductId) {
-    if (profile.bestProductId === result.product1.productId) {
-      return 'product1';
-    }
-
-    if (profile.bestProductId === result.product2.productId) {
-      return 'product2';
-    }
-  }
-
-  return profile.winner === 'product1' || profile.winner === 'product2' ? profile.winner : null;
+export const getComparedProductDisplayName = (product: ComparedProduct | null): string => {
+  if (!product) return 'Unknown product';
+  return getProductDisplayName(product.product);
 };
 
-export const getOutcomeState = (
-  profile: ProfileComparisonResult,
-  result: ProductComparisonResult,
-): ComparisonOutcomeState => {
-  if (profile.winner === 'neither') {
-    return 'no-match';
-  }
+export const getTargetLabel = (profileName: string) =>
+  profileName.trim().toLowerCase() === 'you' ? 'you' : profileName;
 
-  if (profile.winner === 'tie') {
-    return 'close-match';
-  }
+export const simplifyChipText = (text: string): string => {
+  const simplified = text
+    .replace(/\([^)]*\d[^)]*\)/g, '')
+    .replace(/:\s*.*\d.*$/g, '')
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:kcal|kj|mg|g|grams?)\b/gi, '')
+    .replace(/\bvs\.?\b.*$/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/[,:;.\-–—\s]+$/g, '')
+    .trim();
 
-  return getBestProductKey(profile, result) ? 'best-choice' : 'neutral';
+  return simplified || text.trim();
 };
 
-export const getProductStatusLabel = (
-  productKey: ComparisonProductKey,
-  outcome: ComparisonOutcomeState,
-  bestProductKey: ComparisonProductKey | null,
-): string | undefined => {
-  if (outcome === 'no-match') {
-    return 'Not suitable';
+export const toDisplayChip = (text: string, iconKey?: string | null): DisplayChip => ({
+  iconKey,
+  text: simplifyChipText(text),
+});
+
+export const dedupeChips = (items: DisplayChip[]) => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    const key = item.text.trim().toLowerCase();
+    if (!key || seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
+export const getFactIconKey = (fact: CompareFact): string | null => {
+  if (fact.key === 'diet-match' || fact.category === 'restrictions') return 'diet-match';
+  return fact.key;
+};
+
+export const factsToChips = (facts: CompareFact[]): DisplayChip[] =>
+  facts.map((fact) => toDisplayChip(fact.label, getFactIconKey(fact)));
+
+const formatRestrictionChipText = (restriction: string): string => {
+  const normalizedRestriction = restriction.trim().replace(/[_-]+/g, ' ');
+
+  if (!normalizedRestriction) {
+    return 'Diet conflicts';
   }
 
-  if (bestProductKey === productKey) {
-    return 'Best choice';
+  return `Not ${normalizedRestriction.toLowerCase()}-friendly`;
+};
+
+const formatAllergenChipText = (allergen: string): string => {
+  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
+
+  if (!normalizedAllergen) {
+    return 'Allergen conflicts';
   }
 
-  if (outcome === 'close-match') {
-    return 'Close match';
+  if (normalizedAllergen.toLowerCase() === 'other') {
+    return 'Contains your allergen';
   }
 
-  return undefined;
+  return `Contains ${normalizedAllergen.toLowerCase()}`;
+};
+
+export const getNoSuitableProductChips = (profileResult: ProfileCompareResult): DisplayChip[] => {
+  const allergenChips = profileResult.products.flatMap((product) =>
+    (product.analysis.safety?.matchedAllergens ?? []).map((allergen) =>
+      toDisplayChip(formatAllergenChipText(allergen), 'allergens'),
+    ),
+  );
+
+  const restrictionChips = profileResult.products.flatMap((product) =>
+    (product.analysis.safety?.violatedRestrictions ?? []).map((restriction) =>
+      toDisplayChip(formatRestrictionChipText(restriction), 'diet-match'),
+    ),
+  );
+
+  const chips = dedupeChips([...allergenChips, ...restrictionChips]);
+
+  if (chips.length > 0) {
+    return chips;
+  }
+
+  return [toDisplayChip('Allergen or diet conflicts', 'diet-match')];
 };

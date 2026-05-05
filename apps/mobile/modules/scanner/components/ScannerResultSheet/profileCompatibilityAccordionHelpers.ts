@@ -24,8 +24,7 @@ const RESTRICTION_LABELS: Record<string, string> = {
   PALEO: 'paleo',
   GLUTEN_FREE: 'gluten-free',
   DAIRY_FREE: 'dairy-free',
-  HALAL: 'halal',
-  KOSHER: 'kosher',
+  PORK_FREE: 'pork-free',
   NUT_FREE: 'nut-free',
 };
 
@@ -56,8 +55,7 @@ const RESTRICTION_TO_DIET_KEY = {
   VEGETARIAN: 'vegetarian',
   GLUTEN_FREE: 'glutenFree',
   DAIRY_FREE: 'dairyFree',
-  HALAL: 'halal',
-  KOSHER: 'kosher',
+  PORK_FREE: 'porkFree',
   NUT_FREE: 'nutFree',
 } as const;
 

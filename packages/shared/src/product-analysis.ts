@@ -38,8 +38,7 @@ export type DietCompatibilityValue = z.infer<typeof dietCompatibilityValueSchema
 export const dietCompatibilitySchema = z.object({
   vegan: dietCompatibilityValueSchema,
   vegetarian: dietCompatibilityValueSchema,
-  halal: dietCompatibilityValueSchema,
-  kosher: dietCompatibilityValueSchema,
+  porkFree: dietCompatibilityValueSchema,
   glutenFree: dietCompatibilityValueSchema,
   dairyFree: dietCompatibilityValueSchema,
   nutFree: dietCompatibilityValueSchema,
@@ -47,15 +46,14 @@ export const dietCompatibilitySchema = z.object({
 export type DietCompatibility = z.infer<typeof dietCompatibilitySchema>;
 
 export const DIET_KEYS = [
-  'vegan', 'vegetarian', 'halal', 'kosher', 'glutenFree', 'dairyFree', 'nutFree',
+  'vegan', 'vegetarian', 'porkFree', 'glutenFree', 'dairyFree', 'nutFree',
 ] as const;
 export type DietKey = (typeof DIET_KEYS)[number];
 
 export const dietCompatibilityReasonsSchema = z.object({
   vegan: z.string().nullable().optional(),
   vegetarian: z.string().nullable().optional(),
-  halal: z.string().nullable().optional(),
-  kosher: z.string().nullable().optional(),
+  porkFree: z.string().nullable().optional(),
   glutenFree: z.string().nullable().optional(),
   dairyFree: z.string().nullable().optional(),
   nutFree: z.string().nullable().optional(),
@@ -245,7 +243,7 @@ export const analyzedIngredientSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      'When reasonType is DIET, lists the restriction enum keys this ingredient conflicts with, e.g. ["DAIRY_FREE", "HALAL"]. Empty or absent otherwise.',
+      'When reasonType is DIET, lists the restriction enum keys this ingredient conflicts with, e.g. ["DAIRY_FREE", "PORK_FREE"]. Empty or absent otherwise.',
     ),
 });
 export type AnalyzedIngredient = z.infer<typeof analyzedIngredientSchema>;

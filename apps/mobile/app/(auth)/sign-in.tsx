@@ -10,7 +10,7 @@ import googleIcon from '../../assets/google.png';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { useEffect } from 'react';
 import { toast } from '@backpackapp-io/react-native-toast';
-import SignInMascot from '../../assets/icons/mascot/sign-in-mascot.svg';
+import SignInMascot from '../../assets/icons/mascot/welcome-mascot.svg';
 
 const ICON_SIZE_APPLE = { width: 20, height: 20 };
 const ICON_SIZE_GOOGLE = { width: 16, height: 16 };

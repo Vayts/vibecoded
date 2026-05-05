@@ -93,8 +93,10 @@ export function CompareProductPickerSheet() {
       isClosingForComparisonRef.current = true;
 
       const comparisonPromise = mutateAsync({
-        barcode1: currentProduct.barcode,
-        barcode2: item.product.barcode,
+        productA: currentProduct.photoUri
+          ? { type: 'photo', photoUri: currentProduct.photoUri }
+          : { type: 'barcode', barcode: currentProduct.barcode },
+        productB: { type: 'barcode', barcode: item.product.barcode },
       })
         .then((result) => {
           resolvePendingComparison(requestId, result);

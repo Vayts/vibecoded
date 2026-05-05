@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Product } from '@prisma/client';
 import type {
@@ -8,9 +10,9 @@ import type {
   SharedScanFilters,
 } from '@acme/shared';
 import {
+  compareProductsResponseSchema,
   normalizedProductSchema,
-  productAnalysisResultSchema,
-  productComparisonResultSchema,
+  scannerProductAnalysisResultSchema,
 } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import {
@@ -66,15 +68,9 @@ const serializeHistoryProduct = (product: HistoryProduct) => {
   };
 };
 
-const serializeDetailProduct = (
-  product: Product,
-  analysisResult?: Prisma.JsonValue | null,
-): BarcodeLookupProduct | null => {
+const serializeDetailProduct = (product: Product): BarcodeLookupProduct | null => {
   const canonicalImageUrl = resolveCanonicalProductImageUrl(product.image_url, product.images);
   const classification = productFactsAiOutputSchema.safeParse(product.classificationCache).data;
-  const parsedAnalysisResult = analysisResult
-    ? productAnalysisResultSchema.safeParse(analysisResult).data
-    : undefined;
 
   const parsedProduct = normalizedProductSchema.safeParse({
     code: product.code,
@@ -103,10 +99,7 @@ const serializeDetailProduct = (
   });
 
   return parsedProduct.success
-    ? toBarcodeLookupProduct(
-        parsedProduct.data,
-        classification?.dietCompatibility ?? parsedAnalysisResult?.productFacts.dietCompatibility,
-      )
+    ? toBarcodeLookupProduct(parsedProduct.data, classification?.dietCompatibility)
     : null;
 };
 
@@ -313,15 +306,15 @@ export class ScansService {
       throw ApiError.notFound('Scan not found');
     }
 
-    const product = scan.product ? serializeDetailProduct(scan.product, scan.personalResult) : null;
+    const product = scan.product ? serializeDetailProduct(scan.product) : null;
 
     const analysisResult = scan.personalResult
-      ? (productAnalysisResultSchema.safeParse(scan.personalResult).data ?? null)
+      ? (scannerProductAnalysisResultSchema.safeParse(scan.personalResult).data ?? null)
       : null;
 
     const comparisonResult =
       scan.type === 'comparison' && scan.comparisonResult
-        ? (productComparisonResultSchema.safeParse(scan.comparisonResult).data ?? null)
+        ? (compareProductsResponseSchema.safeParse(scan.comparisonResult).data ?? null)
         : null;
 
     const isFavourite = scan.productId ? await this.isFavourite(userId, scan.productId) : false;

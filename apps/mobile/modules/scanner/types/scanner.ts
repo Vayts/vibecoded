@@ -1,6 +1,6 @@
 import type {
-  AnalysisJobResponse,
   BarcodeLookupResponse,
+  PersonalAnalysisJob,
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
@@ -22,6 +22,7 @@ export type ScannerRouteMode = 'default' | 'compare';
 
 export interface CompareProductSource {
   barcode: string;
+  photoUri?: string;
   productId?: string | null;
   productName?: string | null;
 }
@@ -31,7 +32,8 @@ export interface ScannerResultSheetPayload {
   scanId?: string;
   item?: ScanHistoryItem;
   previewProduct?: ProductPreview;
-  resolvedPersonalResult?: AnalysisJobResponse;
+  photoUri?: string;
+  resolvedPersonalResult?: PersonalAnalysisJob;
   presentationMode?: ScannerResultPresentationMode;
   origin?: ScannerResultOrigin;
   onBeforeErrorSheetOpen?: () => void;
@@ -47,4 +49,18 @@ export interface ProductDecisionSheetPayload {
 
 export interface CompareProductPickerSheetPayload {
   currentProduct: CompareProductSource;
+}
+
+export interface ProfileScoreSelectorSheetProfile {
+  id: string;
+  name: string;
+  score?: number;
+  imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
+}
+
+export interface ProfileScoreSelectorSheetPayload {
+  profiles: ProfileScoreSelectorSheetProfile[];
+  selectedProfileId: string;
+  onSelect: (profileId: string) => void;
 }

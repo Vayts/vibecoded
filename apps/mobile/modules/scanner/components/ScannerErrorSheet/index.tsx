@@ -1,4 +1,4 @@
-import { AlertTriangle, Camera, ScanBarcode } from 'lucide-react-native';
+import { Camera, ScanBarcode } from 'lucide-react-native';
 import { useRef } from 'react';
 import ActionSheet, { useSheetPayload, SheetManager } from 'react-native-actions-sheet';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -16,9 +16,13 @@ export interface ScannerErrorSheetPayload {
 }
 
 export function ScannerErrorSheet() {
-  const { variant = 'generic', title, message, onDismiss, onPhotoPress } = useSheetPayload(
-    SheetsEnum.ScannerErrorSheet,
-  );
+  const {
+    variant = 'generic',
+    title,
+    message,
+    onDismiss,
+    onPhotoPress,
+  } = useSheetPayload(SheetsEnum.ScannerErrorSheet);
   const isNotFound = variant === 'not-found';
   const isNotFood = variant === 'not-food';
   const isSameProduct = variant === 'same-product';
@@ -31,7 +35,7 @@ export function ScannerErrorSheet() {
       ? 'This is not a food product'
       : isSameProduct
         ? (title ?? 'This is the same product')
-      : (title ?? 'Something went wrong');
+        : (title ?? 'Something went wrong');
   const resolvedMessage =
     isNotFound && hasPhotoAction
       ? 'We couldn’t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
@@ -56,15 +60,18 @@ export function ScannerErrorSheet() {
   };
 
   return (
-    <ActionSheet containerStyle={{borderTopLeftRadius: 32, borderTopRightRadius: 32}} gestureEnabled useBottomSafeAreaPadding onClose={handleSheetClose}>
+    <ActionSheet
+      containerStyle={{ borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
+      gestureEnabled
+      useBottomSafeAreaPadding
+      onClose={handleSheetClose}
+    >
       <View className="items-center px-6 pb-4 pt-6">
         <ErrorMascot />
 
         <Text className="text-[18px] font-bold mb-2 mt-6 text-center">{resolvedTitle}</Text>
 
-        <Text className="text-[14px] mb-6 text-center text-gray-500">
-          {resolvedMessage}
-        </Text>
+        <Text className="text-[14px] mb-6 text-center text-gray-500">{resolvedMessage}</Text>
 
         {isNotFound && hasPhotoAction ? (
           <View className="w-full gap-3">

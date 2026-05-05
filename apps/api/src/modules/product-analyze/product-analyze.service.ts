@@ -195,7 +195,8 @@ export class ProductAnalyzeService {
       barcode: input.barcode,
       source: input.source,
       product: toBarcodeLookupProduct(input.product, input.dietCompatibility),
-      personalAnalysis: input.analysis,
+      personalAnalysis:
+        input.analysis as unknown as BarcodeLookupSuccessResponse['personalAnalysis'],
       scanId: input.scanId,
       productId: input.productId,
       ...(typeof input.isFavourite === 'boolean' ? { isFavourite: input.isFavourite } : {}),

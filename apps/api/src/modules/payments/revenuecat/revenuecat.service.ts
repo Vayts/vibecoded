@@ -232,9 +232,13 @@ export class RevenueCatService {
     const nextStatus = mapRevenueCatStatus(event.type);
 
     if (!nextStatus) {
-      this.logger.warn(
-        `Skipping RevenueCat webhook with unsupported event type ${formatLogContext(eventContext)}`,
-      );
+      const message = `Skipping RevenueCat webhook with unsupported event type ${formatLogContext(eventContext)}`;
+
+      if (INFORMATIONAL_REVENUECAT_EVENTS.has(event.type)) {
+        this.logger.log(message);
+      } else {
+        this.logger.warn(message);
+      }
 
       return { duplicate: false, updated: false, skippedReason: 'unsupported_event' };
     }

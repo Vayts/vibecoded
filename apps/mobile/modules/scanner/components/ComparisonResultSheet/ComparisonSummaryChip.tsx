@@ -9,7 +9,7 @@ import SaltIcon from '../../../../assets/icons/salt.svg';
 import FiberIcon from '../../../../assets/icons/fiber.svg';
 import SaturatedFatIcon from '../../../../assets/icons/saturated-fat.svg';
 import SugarIcon from '../../../../assets/icons/sugar.svg';
-import { ArrowDown, ArrowUp, Leaf } from 'lucide-react-native';
+import { ArrowDown, ArrowUp } from 'lucide-react-native';
 import type { ComponentType } from 'react';
 import type { SvgProps } from 'react-native-svg';
 import { View } from 'react-native';
@@ -89,7 +89,7 @@ const inferIconKey = (text: string, iconKey?: string | null): string | null => {
   if (/salt/.test(source)) return 'salt';
   if (/sugar/.test(source)) return 'sugar';
   if (/fiber/.test(source)) return 'fiber';
-  if (/(keto|vegan|vegetarian|halal|kosher|fit|friendly|compatible|profile)/.test(source)) {
+  if (/(keto|vegan|vegetarian|pork(?:[-\s]?free)?|fit|friendly|compatible|profile)/.test(source)) {
     return 'dietmatch';
   }
 

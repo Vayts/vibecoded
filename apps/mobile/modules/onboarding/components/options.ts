@@ -47,8 +47,11 @@ export const RESTRICTION_OPTIONS: Array<{
     label: 'Dairy-free',
     description: 'Exclude milk-based ingredients and products.',
   },
-  { value: 'HALAL', label: 'Halal', description: 'Only return halal-compliant options.' },
-  { value: 'KOSHER', label: 'Kosher', description: 'Only return kosher-compliant options.' },
+  {
+    value: 'PORK_FREE',
+    label: 'Pork-free',
+    description: 'Exclude pork and pork-derived ingredients.',
+  },
   {
     value: 'NUT_FREE',
     label: 'Nut-free',

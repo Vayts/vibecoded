@@ -1,22 +1,20 @@
 import type {
   BarcodeLookupRequest,
-  BarcodeLookupResponse,
-  BarcodeLookupSuccessResponse,
-  CompareProductsRequest,
   CompareProductsResponse,
+  ScannerProductAnalysisResult,
 } from '@acme/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   submitBarcodeScan,
   compareProducts,
-  submitPhotoScan,
-  type PhotoScanRequest,
+  type CompareProductsRequest,
 } from '../api/scannerMutations';
+import { COMPARISONS_QUERY_KEY } from '../../scans/hooks/useComparisonsQuery';
 import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 export const useScanBarcodeMutation = () => {
   const queryClient = useQueryClient();
-  return useMutation<BarcodeLookupResponse, Error, BarcodeLookupRequest>({
+  return useMutation<ScannerProductAnalysisResult, Error, BarcodeLookupRequest>({
     mutationFn: submitBarcodeScan,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
@@ -30,16 +28,7 @@ export const useCompareProductsMutation = () => {
     mutationFn: compareProducts,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
-    },
-  });
-};
-
-export const usePhotoScanMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation<BarcodeLookupSuccessResponse, Error, PhotoScanRequest>({
-    mutationFn: submitPhotoScan,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [...COMPARISONS_QUERY_KEY] });
     },
   });
 };

@@ -9,7 +9,7 @@ import ProteinIcon from '../../../../assets/icons/protein.svg';
 import SaltIcon from '../../../../assets/icons/salt.svg';
 import SaturatedFatIcon from '../../../../assets/icons/saturated-fat.svg';
 import SugarIcon from '../../../../assets/icons/sugar.svg';
-import { CircleCheck, CircleX, Leaf } from 'lucide-react-native';
+import { CircleCheck, CircleX } from 'lucide-react-native';
 import type { ComparisonProductKey } from '@acme/shared';
 import type { ComponentType } from 'react';
 import type { SvgProps } from 'react-native-svg';
@@ -71,7 +71,11 @@ function StatusCell({ status }: { status: ComparisonStatusIndicator | undefined 
     return <CircleX color={COLORS.danger800} size={18} strokeWidth={2.4} />;
   }
 
-  return <Typography variant="buttonSmall" className="text-gray-400">—</Typography>;
+  return (
+    <Typography variant="buttonSmall" className="text-gray-400">
+      —
+    </Typography>
+  );
 }
 
 function ValueCell({ emphasized, value }: { emphasized: boolean; value: string }) {
@@ -100,7 +104,9 @@ export function ComparisonNutritionTable({
 
   return (
     <View className="pt-6">
-      <Typography variant="sectionTitle" className="text-neutrals-900 font-bold text-[16px]">Nutrition comparison</Typography>
+      <Typography variant="sectionTitle" className="text-neutrals-900 font-bold text-[16px]">
+        Nutrition comparison
+      </Typography>
 
       <View className="mt-4 flex-row items-center border-b border-gray-200 pb-3">
         <View className="w-[108px] pr-3">
@@ -112,7 +118,11 @@ export function ComparisonNutritionTable({
           <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
             {leftProduct.title}
           </Typography>
-          <Typography variant="caption" numberOfLines={1} className="mt-1 text-center text-gray-500">
+          <Typography
+            variant="caption"
+            numberOfLines={1}
+            className="mt-1 text-center text-gray-500"
+          >
             {leftProduct.brand ?? ' '}
           </Typography>
         </View>
@@ -121,7 +131,11 @@ export function ComparisonNutritionTable({
           <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
             {rightProduct.title}
           </Typography>
-          <Typography variant="caption" numberOfLines={1} className="mt-1 text-center text-gray-500">
+          <Typography
+            variant="caption"
+            numberOfLines={1}
+            className="mt-1 text-center text-gray-500"
+          >
             {rightProduct.brand ?? ' '}
           </Typography>
         </View>

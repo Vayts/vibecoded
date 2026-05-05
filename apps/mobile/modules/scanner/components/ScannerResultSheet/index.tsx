@@ -19,6 +19,7 @@ export function ScannerResultSheet() {
   const scanId = payload?.scanId;
   const item = payload?.item;
   const previewProduct = payload?.previewProduct;
+  const photoUri = payload?.photoUri;
   const onBeforeErrorSheetOpen = payload?.onBeforeErrorSheetOpen;
   const onErrorSheetDismiss = payload?.onErrorSheetDismiss;
 
@@ -37,11 +38,16 @@ export function ScannerResultSheet() {
       gestureEnabled
       useBottomSafeAreaPadding={false}
       onClose={handleClose}
-      containerStyle={{ maxHeight: maxSheetHeight, borderTopLeftRadius: 32, borderTopRightRadius: 32 }}
+      containerStyle={{
+        maxHeight: maxSheetHeight,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+      }}
     >
       <ScannerResultSheetContent
         scanId={scanId}
         item={item}
+        photoUri={photoUri}
         previewProduct={previewProduct}
         result={resolvedResult}
         resolvedPersonalResult={resolvedPersonalResult}

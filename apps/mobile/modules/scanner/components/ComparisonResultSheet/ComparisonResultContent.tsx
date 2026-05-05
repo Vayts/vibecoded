@@ -1,7 +1,6 @@
-import type { ProductComparisonResult, ProfileComparisonResult } from '@acme/shared';
 import type { ReactNode } from 'react';
 import { ArrowLeftRight, CircleX } from 'lucide-react-native';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { ScreenSheet } from '../../../../shared/components/ScreenSheet';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
@@ -9,16 +8,10 @@ import { ComparisonExplanationSection } from './ComparisonExplanationSection';
 import { ComparisonNutritionTable } from './ComparisonNutritionTable';
 import { ComparisonProductCard } from './ComparisonProductCard';
 import { ComparisonProfileSelector } from './ComparisonProfileSelector';
-import {
-  getBestProductKey,
-  getOutcomeState,
-  getProductDisplayName,
-  getProductStatusLabel,
-} from './comparisonResultHelpers';
-import {
-  getDisplayNutritionRows,
-  swapDisplayNutritionRows,
-} from './comparisonNutritionRows';
+import { ComparisonVerdictCard } from './ComparisonVerdictCard';
+import { getProductDisplayName } from './comparisonResultHelpers';
+import { getDisplayNutritionRows } from './comparisonNutritionRows';
+import type { ComparedProduct, ProfileCompareResult } from '../../utils/profileCompareTypes';
 
 interface ComparisonChipItem {
   fallbackImageUrl: string | null;
@@ -28,37 +21,52 @@ interface ComparisonChipItem {
 }
 
 interface ComparisonResultContentProps {
-  activeProfile?: ProfileComparisonResult;
+  activeProfile?: ProfileCompareResult;
   bottomAction?: ReactNode;
   chipItems: ComparisonChipItem[];
   insetsBottom: number;
-  isSwapped: boolean;
   onSelectProfile: (profileId: string) => void;
-  onSwapProducts: () => void;
-  result: ProductComparisonResult;
   selectedProfileId: string;
 }
+
+const isSameComparedProduct = (left: ComparedProduct, right: ComparedProduct | null) => {
+  if (!right) return false;
+  const leftKey = left.productId || left.barcode;
+  const rightKey = right.productId || right.barcode;
+  return leftKey === rightKey;
+};
+
+const getBadgeLabel = (product: ComparedProduct, profile: ProfileCompareResult) => {
+  if (profile.status === 'no_suitable_product') return undefined;
+  if (profile.status === 'equivalent') return 'Similar fit';
+  return isSameComparedProduct(product, profile.winner) ? 'Best choice' : undefined;
+};
+
+const getProductTone = (product: ComparedProduct, profile: ProfileCompareResult) => {
+  if (profile.status === 'no_suitable_product') return 'not-suitable' as const;
+  if (profile.status === 'winner_found' && isSameComparedProduct(product, profile.winner)) {
+    return 'winner' as const;
+  }
+  return 'neutral' as const;
+};
 
 export function ComparisonResultContent({
   activeProfile,
   bottomAction,
   chipItems,
   insetsBottom,
-  isSwapped,
   onSelectProfile,
-  onSwapProducts,
-  result,
   selectedProfileId,
 }: ComparisonResultContentProps) {
-  const bestProductKey = activeProfile ? getBestProductKey(activeProfile, result) : null;
-  const outcome = activeProfile ? getOutcomeState(activeProfile, result) : 'neutral';
-  const nutritionRows = activeProfile ? getDisplayNutritionRows(activeProfile, result) : [];
-  const displayRows = isSwapped ? swapDisplayNutritionRows(nutritionRows) : nutritionRows;
-  const leftProduct = isSwapped ? result.product2 : result.product1;
-  const rightProduct = isSwapped ? result.product1 : result.product2;
-  const leftProductKey = isSwapped ? 'product2' : 'product1';
-  const rightProductKey = isSwapped ? 'product1' : 'product2';
-  const isNoMatch = outcome === 'no-match';
+  const leftComparedProduct = activeProfile?.products[0];
+  const rightComparedProduct = activeProfile?.products[1];
+  const displayRows =
+    leftComparedProduct && rightComparedProduct
+      ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
+      : [];
+  const isNoMatch = activeProfile?.status === 'no_suitable_product';
+  const shouldShowVerdict =
+    activeProfile?.status === 'winner_found' && Boolean(activeProfile.winner);
 
   return (
     <View className="flex-1 bg-background">
@@ -73,7 +81,7 @@ export function ComparisonResultContent({
             onSelect={onSelectProfile}
           />
           <View className="mt-2 px-4 pb-4">
-            {activeProfile ? (
+            {activeProfile && leftComparedProduct && rightComparedProduct ? (
               <View>
                 <View className="relative flex-row gap-4">
                   {isNoMatch ? (
@@ -91,47 +99,26 @@ export function ComparisonResultContent({
                       >
                         <CircleX color={COLORS.white} size={18} strokeWidth={2.25} />
                         <Typography variant="buttonSmall" className="ml-2 text-white">
-                          No matches
+                          No suitable product
                         </Typography>
                       </View>
                     </View>
                   ) : null}
 
                   <ComparisonProductCard
-                    product={leftProduct}
-                    tone={
-                      isNoMatch
-                        ? 'not-suitable'
-                        : bestProductKey === leftProductKey
-                          ? 'winner'
-                          : 'neutral'
-                    }
-                    badgeLabel={
-                      isNoMatch
-                        ? undefined
-                        : getProductStatusLabel(leftProductKey, outcome, bestProductKey)
-                    }
+                    product={leftComparedProduct.product}
+                    score={leftComparedProduct.analysis.overall?.score ?? null}
+                    tone={getProductTone(leftComparedProduct, activeProfile)}
+                    badgeLabel={getBadgeLabel(leftComparedProduct, activeProfile)}
                   />
                   <ComparisonProductCard
-                    product={rightProduct}
-                    tone={
-                      isNoMatch
-                        ? 'not-suitable'
-                        : bestProductKey === rightProductKey
-                          ? 'winner'
-                          : 'neutral'
-                    }
-                    badgeLabel={
-                      isNoMatch
-                        ? undefined
-                        : getProductStatusLabel(rightProductKey, outcome, bestProductKey)
-                    }
+                    product={rightComparedProduct.product}
+                    score={rightComparedProduct.analysis.overall?.score ?? null}
+                    tone={getProductTone(rightComparedProduct, activeProfile)}
+                    badgeLabel={getBadgeLabel(rightComparedProduct, activeProfile)}
                   />
 
-                  <TouchableOpacity
-                    accessibilityLabel="Swap compared products"
-                    accessibilityRole="button"
-                    activeOpacity={0.8}
+                  <View
                     className="absolute left-1/2 top-1/2 h-10 w-10 items-center justify-center rounded-full border bg-white"
                     style={{
                       borderColor: COLORS.gray200,
@@ -143,26 +130,23 @@ export function ComparisonResultContent({
                       shadowRadius: 10,
                       elevation: 3,
                     }}
-                    onPress={onSwapProducts}
                   >
                     <ArrowLeftRight color={COLORS.gray700} size={18} strokeWidth={2} />
-                  </TouchableOpacity>
+                  </View>
                 </View>
+                {shouldShowVerdict ? <ComparisonVerdictCard profileResult={activeProfile} /> : null}
                 <ComparisonExplanationSection
-                  bestProductKey={bestProductKey}
-                  outcome={outcome}
-                  product1={result.product1}
-                  product2={result.product2}
-                  profile={activeProfile}
+                  hidePrimaryDetails={shouldShowVerdict}
+                  profileResult={activeProfile}
                 />
                 <ComparisonNutritionTable
                   leftProduct={{
-                    brand: leftProduct.brands,
-                    title: getProductDisplayName(leftProduct),
+                    brand: leftComparedProduct.product.brand,
+                    title: getProductDisplayName(leftComparedProduct.product),
                   }}
                   rightProduct={{
-                    brand: rightProduct.brands,
-                    title: getProductDisplayName(rightProduct),
+                    brand: rightComparedProduct.product.brand,
+                    title: getProductDisplayName(rightComparedProduct.product),
                   }}
                   rows={displayRows}
                 />

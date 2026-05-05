@@ -12,6 +12,7 @@ import { ScansModule } from './modules/scans/scans.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { UserModule } from './modules/user/user.module';
 import { ProductAnalyzeModule } from './modules/product-analyze/product-analyze.module';
+import { ProductAnalyzeV2Module } from './modules/product-analyze-v2/product-analyze-v2.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ProductAnalyzeModule } from './modules/product-analyze/product-analyze.
     ScansModule,
     ComparisonsModule,
     StorageModule,
+    ProductAnalyzeV2Module,
   ],
   controllers: [AppController],
   providers: [AppService],

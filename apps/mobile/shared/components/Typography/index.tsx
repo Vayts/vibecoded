@@ -47,23 +47,9 @@ const variantClasses: Record<TypographyVariant, string> = {
 };
 
 export interface TypographyProps extends TextProps {
-  /** Semantic text variant — controls size, weight, and default color. */
   variant?: TypographyVariant;
 }
 
-/**
- * Drop-in replacement for React Native `<Text>`.
- *
- * Usage:
- *   <Typography variant="hero">Acme</Typography>
- *   <Typography variant="body" className="mt-2">Some text</Typography>
- *   <Typography variant="button" className="text-white">Save</Typography>
- *
- * Falls back to `body` when no variant is given.
- * Any extra `className` is merged on top of the variant defaults.
- * Conflicting utility classes from `className` override the defaults,
- * so you can replace color, size, weight, alignment, margins, etc.
- */
 export function Typography({ variant = 'body', className, ...props }: TypographyProps) {
   return <Text className={twMerge(variantClasses[variant], className)} {...props} />;
 }

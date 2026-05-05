@@ -20,8 +20,7 @@ const getProfileLabel = (index: number): string =>
 const RESTRICTION_KEYWORDS: Record<string, string[]> = {
   VEGAN: ['vegan'],
   VEGETARIAN: ['vegetarian'],
-  HALAL: ['halal'],
-  KOSHER: ['kosher'],
+  PORK_FREE: ['pork-free', 'pork free', 'pork'],
   GLUTEN_FREE: ['gluten-free', 'gluten free', 'celiac'],
   DAIRY_FREE: ['dairy-free', 'dairy free'],
   KETO: ['keto'],
@@ -165,8 +164,7 @@ Flag ONLY if an ingredient name EXPLICITLY matches a BANNED item. Do not specula
 BANNED = confirmed violation (Tier 1).
 If no BANNED ingredient appears in the product → the product is compatible. Compatible = NO output.
 
-HALAL — BANNED: pork, bacon, ham, lard, prosciutto, pancetta, alcohol, wine, beer, spirits.
-KOSHER — BANNED: pork, bacon, ham, lard, shellfish, shrimp, crab, lobster, squid, octopus.
+PORK_FREE — BANNED: pork, bacon, ham, lard, prosciutto, pancetta, pork gelatin, pork fat, pork broth.
 VEGAN — BANNED: meat, fish, shellfish, dairy, milk, cream, butter, cheese, whey, casein, eggs, honey, gelatin, lard.
 VEGETARIAN — BANNED: meat, fish, shellfish, gelatin, lard, collagen, carmine.
 GLUTEN_FREE — BANNED: wheat, barley, rye, spelt, semolina, bulgur, malt, seitan, farro, durum.
@@ -351,8 +349,7 @@ const buildNutritionComparison = (
 const RESTRICTION_LABELS: Record<string, string> = {
   VEGAN: 'VEGAN',
   VEGETARIAN: 'VEGETARIAN',
-  HALAL: 'HALAL',
-  KOSHER: 'KOSHER',
+  PORK_FREE: 'PORK-FREE',
   GLUTEN_FREE: 'GLUTEN-FREE',
   DAIRY_FREE: 'DAIRY-FREE',
   KETO: 'KETO',

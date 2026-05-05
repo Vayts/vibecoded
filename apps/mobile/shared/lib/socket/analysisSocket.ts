@@ -1,13 +1,13 @@
 import {
   ANALYSIS_SOCKET_EVENTS,
-  analysisSocketEventPayloadSchema,
-  type AnalysisSocketEventPayload,
+  personalAnalysisSocketEventPayloadSchema,
+  type PersonalAnalysisSocketEventPayload,
 } from '@acme/shared';
 import { io, type Socket } from 'socket.io-client';
 import { getCookieString } from '../auth/betterAuthClient';
 import { ENV } from '../env';
 
-type AnalysisEventHandler = (payload: AnalysisSocketEventPayload) => void;
+type AnalysisEventHandler = (payload: PersonalAnalysisSocketEventPayload) => void;
 
 type IncomingAnalysisEvent =
   | typeof ANALYSIS_SOCKET_EVENTS.subscribed
@@ -62,7 +62,7 @@ class AnalysisSocketClient {
     const socket = this.connect();
 
     const wrappedHandler = (payload: unknown) => {
-      const parsed = analysisSocketEventPayloadSchema.safeParse(payload);
+      const parsed = personalAnalysisSocketEventPayloadSchema.safeParse(payload);
       if (parsed.success) {
         handler(parsed.data);
       }

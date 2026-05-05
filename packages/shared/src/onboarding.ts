@@ -15,8 +15,7 @@ export const RESTRICTION_VALUES = [
   'PALEO',
   'GLUTEN_FREE',
   'DAIRY_FREE',
-  'HALAL',
-  'KOSHER',
+  'PORK_FREE',
   'NUT_FREE',
 ] as const;
 

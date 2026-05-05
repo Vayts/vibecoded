@@ -4,26 +4,30 @@ import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import { getProductImageUri } from './productResultHelpers';
 import { type ProductHeaderData } from './useProductResultHeaderChips';
+import { ProfileScoreSelector, ProfileScoreSelectorItem } from './ProfileScoreSelector';
 
 interface ProductResultHeaderProps {
   product: ProductHeaderData;
+  profiles: ProfileScoreSelectorItem[];
+  selectedProfileId: string;
+  onSelect: (profileId: string) => void;
 }
 
-export function ProductResultHeader({ product }: ProductResultHeaderProps) {
+export function ProductResultHeader({ product, profiles, selectedProfileId, onSelect }: ProductResultHeaderProps) {
   const resolvedImageUrl = getProductImageUri(product);
 
 
   return (
     <View className="rounded-xl bg-white pt-4">
-      <View className="flex-row gap-4">
+      <View className="flex-row gap-2">
         {resolvedImageUrl ? (
           <Image
             source={{ uri: resolvedImageUrl }}
-            className="h-20 w-20 rounded-xl bg-gray-100"
+            className="h-[90px] w-[90px] rounded-xl bg-gray-100"
             resizeMode="cover"
           />
         ) : (
-          <View className="h-20 w-20 items-center justify-center rounded-xl bg-blue-50">
+          <View className="h-[90px] w-[90px] items-center justify-center rounded-xl bg-blue-50">
             <Barcode color={COLORS.primary} size={26} />
           </View>
         )}
@@ -37,6 +41,13 @@ export function ProductResultHeader({ product }: ProductResultHeaderProps) {
               {product.brands}
             </Typography>
           ) : null}
+
+          <ProfileScoreSelector
+            className="mt-2"
+            profiles={profiles}
+            selectedProfileId={selectedProfileId}
+            onSelect={onSelect}
+          />
         </View>
       </View>
     </View>

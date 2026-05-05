@@ -1,15 +1,12 @@
 import {
   barcodeLookupRequestSchema,
-  barcodeLookupResponseSchema,
-  compareProductsRequestSchema,
+  scannerProductAnalysisResultSchema,
   compareProductsResponseSchema,
-  barcodeLookupSuccessResponseSchema,
   type BarcodeLookupRequest,
-  type BarcodeLookupResponse,
-  type BarcodeLookupSuccessResponse,
-  type CompareProductsRequest,
+  type ScannerProductAnalysisResult,
   type CompareProductsResponse,
 } from '@acme/shared';
+import { z } from 'zod';
 import { apiFetch } from '../../../shared/lib/client/client';
 import type { PhotoOcrData } from '../types/scanner';
 
@@ -38,18 +35,15 @@ const throwScannerApiError = async (
   fallbackMessage: string,
 ): Promise<never> => {
   const payload = await getErrorPayload(response);
-  throw new ScannerApiError(
-    payload?.error ?? fallbackMessage,
-    payload?.code,
-    response.status,
-  );
+  throw new ScannerApiError(payload?.error ?? fallbackMessage, payload?.code, response.status);
 };
 
 export const submitBarcodeScan = async (
   payload: BarcodeLookupRequest,
-): Promise<BarcodeLookupResponse> => {
+): Promise<ScannerProductAnalysisResult> => {
   const parsedPayload = barcodeLookupRequestSchema.parse(payload);
-  const response = await apiFetch('/api/scanner/barcode', {
+
+  const response = await apiFetch('/product-analyze-v2/barcode', {
     method: 'POST',
     body: JSON.stringify(parsedPayload),
   });
@@ -59,16 +53,96 @@ export const submitBarcodeScan = async (
   }
 
   const json = await response.json();
-  return barcodeLookupResponseSchema.parse(json);
+  return scannerProductAnalysisResultSchema.parse(json);
+};
+
+export type CompareProductRequestSource =
+  | {
+      type: 'barcode';
+      barcode: string;
+    }
+  | {
+      type: 'photo';
+      photoUri: string;
+      ocr?: PhotoOcrData;
+    };
+
+export type CompareProductsRequest =
+  | {
+      barcode1: string;
+      barcode2: string;
+    }
+  | {
+      productA: CompareProductRequestSource;
+      productB: CompareProductRequestSource;
+    };
+
+const isSourceCompareRequest = (
+  payload: CompareProductsRequest,
+): payload is { productA: CompareProductRequestSource; productB: CompareProductRequestSource } => {
+  return 'productA' in payload && 'productB' in payload;
+};
+
+const isPhotoCompareSource = (
+  source: CompareProductRequestSource,
+): source is Extract<CompareProductRequestSource, { type: 'photo' }> => source.type === 'photo';
+
+const toCompareProductBody = (source: CompareProductRequestSource) => {
+  if (source.type === 'barcode') {
+    return { type: 'barcode', barcode: source.barcode.trim() };
+  }
+
+  return {
+    type: 'photo',
+    ...(source.ocr ? { ocr: source.ocr } : {}),
+  };
+};
+
+const appendComparePhoto = (
+  formData: FormData,
+  fieldName: 'photoA' | 'photoB',
+  source: CompareProductRequestSource,
+) => {
+  if (!isPhotoCompareSource(source)) {
+    return;
+  }
+
+  const photoFile: ReactNativeFile = {
+    uri: source.photoUri,
+    name: `${fieldName}.jpg`,
+    type: 'image/jpeg',
+  };
+
+  formData.append(fieldName, photoFile as unknown as Blob);
+};
+
+const buildCompareFormData = (payload: {
+  productA: CompareProductRequestSource;
+  productB: CompareProductRequestSource;
+}): FormData => {
+  const formData = new FormData();
+
+  formData.append('productA', JSON.stringify(toCompareProductBody(payload.productA)));
+  formData.append('productB', JSON.stringify(toCompareProductBody(payload.productB)));
+  appendComparePhoto(formData, 'photoA', payload.productA);
+  appendComparePhoto(formData, 'photoB', payload.productB);
+
+  return formData;
 };
 
 export const compareProducts = async (
   payload: CompareProductsRequest,
 ): Promise<CompareProductsResponse> => {
-  const parsedPayload = compareProductsRequestSchema.parse(payload);
-  const response = await apiFetch('/api/scanner/compare', {
+  const requestBody = isSourceCompareRequest(payload)
+    ? buildCompareFormData(payload)
+    : JSON.stringify({
+        barcodeA: payload.barcode1.trim(),
+        barcodeB: payload.barcode2.trim(),
+      });
+
+  const response = await apiFetch('/product-analyze-v2/compare', {
     method: 'POST',
-    body: JSON.stringify(parsedPayload),
+    body: requestBody,
   });
 
   if (!response.ok) {
@@ -90,6 +164,13 @@ interface ReactNativeFile {
   type: string;
 }
 
+const photoScanResponseSchema = scannerProductAnalysisResultSchema.extend({
+  barcode: z.string(),
+  productId: z.string().optional(),
+});
+
+export type PhotoScanResponse = z.infer<typeof photoScanResponseSchema>;
+
 const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
   const formData = new FormData();
   const photoFile: ReactNativeFile = {
@@ -107,10 +188,8 @@ const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
   return formData;
 };
 
-export const submitPhotoScan = async (
-  payload: PhotoScanRequest,
-): Promise<BarcodeLookupSuccessResponse> => {
-  const response = await apiFetch('/api/scanner/photo', {
+export const submitPhotoScan = async (payload: PhotoScanRequest): Promise<PhotoScanResponse> => {
+  const response = await apiFetch('/product-analyze-v2/photo', {
     method: 'POST',
     body: buildPhotoFormData(payload),
   });
@@ -120,5 +199,5 @@ export const submitPhotoScan = async (
   }
 
   const json = await response.json();
-  return barcodeLookupSuccessResponseSchema.parse(json);
+  return photoScanResponseSchema.parse(json);
 };

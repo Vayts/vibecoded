@@ -63,11 +63,12 @@ export function ScoreCalculationSheet() {
               {item.list ? (
                 <View className="mt-3 gap-2">
                   {item.list.map((subItem, index) => (
-                    <View className="flex items-center flex-row gap-1">
-                      <View className="bg-primary-500 rounded-full h-2 w-2"/>
-                      <Text className="text-neutral-600" key={`${item.title}-${index}-list`}>
-                        {subItem}
-                      </Text>
+                    <View
+                      className="flex items-center flex-row gap-1"
+                      key={`${item.title}-${index}-list`}
+                    >
+                      <View className="bg-primary-500 rounded-full h-2 w-2" />
+                      <Text className="text-neutral-600">{subItem}</Text>
                     </View>
                   ))}
                 </View>
@@ -76,7 +77,7 @@ export function ScoreCalculationSheet() {
           ))}
         </View>
 
-        <View style={{height: insets.bottom + 32}}/>
+        <View style={{ height: insets.bottom + 32 }} />
       </ScrollView>
     </ActionSheet>
   );
