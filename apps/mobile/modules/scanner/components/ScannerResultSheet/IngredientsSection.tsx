@@ -1,26 +1,22 @@
+import type { ScannerProfileIngredient } from '@acme/shared';
 import { Text, View } from 'react-native';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 
-const normalizeIngredient = (value: string): string =>
-  value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-
 interface IngredientsSectionProps {
   rawIngredients: string[];
   rawIngredientsText: string | null;
-  highlightedIngredients?: string[];
+  profileIngredients?: ScannerProfileIngredient[];
 }
 
 export function IngredientsSection({
   rawIngredients,
   rawIngredientsText,
-  highlightedIngredients = [],
+  profileIngredients = [],
 }: IngredientsSectionProps) {
-  if (rawIngredients.length === 0 && !rawIngredientsText) {
+  if (profileIngredients.length === 0 && rawIngredients.length === 0 && !rawIngredientsText) {
     return null;
   }
-
-  const highlightedSet = new Set(highlightedIngredients.map((ingredient) => normalizeIngredient(ingredient)));
 
   return (
     <View className="mt-5 overflow-hidden bg-white">
@@ -31,17 +27,26 @@ export function IngredientsSection({
       </View>
 
       <Text className="py-1 leading-6">
-        {rawIngredients.length > 0 ? (
-          rawIngredients.map((ingredient, index) => (
+        {profileIngredients.length > 0 ? (
+          profileIngredients.map((ingredient, index) => (
             <Text key={`ingredient-${index}`}>
               <Text
                 className="text-sm font-medium"
                 style={{
-                  color: highlightedSet.has(normalizeIngredient(ingredient))
-                    ? COLORS.accent900
-                    : COLORS.gray700,
+                  color: ingredient.compatible ? COLORS.black : COLORS.danger,
                 }}
               >
+                {ingredient.name}
+              </Text>
+              {index < profileIngredients.length - 1 ? (
+                <Text className="text-sm text-gray-500">{', '}</Text>
+              ) : null}
+            </Text>
+          ))
+        ) : rawIngredients.length > 0 ? (
+          rawIngredients.map((ingredient, index) => (
+            <Text key={`ingredient-${index}`}>
+              <Text className="text-sm font-medium" style={{ color: COLORS.black }}>
                 {ingredient}
               </Text>
               {index < rawIngredients.length - 1 ? (

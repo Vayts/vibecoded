@@ -33,6 +33,7 @@ const VALID_RESTRICTIONS = new Set([
 
 const VALID_RESTRICTION_STATUSES = new Set([
   'compatible',
+  'semi_compatible',
   'not_compatible',
   'unclear',
   'requires_certification',
@@ -40,6 +41,7 @@ const VALID_RESTRICTION_STATUSES = new Set([
 
 const AI_HIGH_CONF_THRESHOLD = 0.9;
 const INGREDIENT_TEXT_CONF_THRESHOLD = 0.85;
+const TRACE_RESTRICTION_MAX_SCORE = 40;
 
 function ingredientSuffix(ingredients: string[]): string {
   return ingredients.length ? `: ${ingredients.join(', ')}` : '';
@@ -52,8 +54,7 @@ function humanLabel(enumValue: string): string {
 function isAllergenConfirmed(source: string, confidence: number): boolean {
   if (source === 'off_allergen_tag') return true;
   if (source === 'ingredient_text' && confidence >= INGREDIENT_TEXT_CONF_THRESHOLD) return true;
-  if (source === 'ai_inference' && confidence >= AI_HIGH_CONF_THRESHOLD) return true;
-  return false;
+  return source === 'ai_inference' && confidence >= AI_HIGH_CONF_THRESHOLD;
 }
 
 function isAllergenTrace(source: string): boolean {
@@ -99,12 +100,7 @@ export function calculateSafetyScore(
   if (aiProfileInfo) {
     for (const detection of aiProfileInfo.allergenDetections) {
       if (!VALID_ALLERGIES.has(detection.allergy)) continue;
-      if (
-        typeof detection.confidence !== 'number' ||
-        detection.confidence < 0 ||
-        detection.confidence > 1
-      )
-        continue;
+      if (detection.confidence < 0 || detection.confidence > 1) continue;
       if (!detection.detected) continue;
 
       const ingr = Array.isArray(detection.ingredients) ? detection.ingredients : [];
@@ -125,27 +121,27 @@ export function calculateSafetyScore(
 
     for (const detection of aiProfileInfo.restrictionDetections) {
       if (!VALID_RESTRICTIONS.has(detection.restriction)) continue;
-      if (!VALID_RESTRICTION_STATUSES.has(detection.status)) continue;
-      if (
-        typeof detection.confidence !== 'number' ||
-        detection.confidence < 0 ||
-        detection.confidence > 1
-      )
-        continue;
+      const restrictionStatus = String(detection.status);
+      if (!VALID_RESTRICTION_STATUSES.has(restrictionStatus)) continue;
+      if (detection.confidence < 0 || detection.confidence > 1) continue;
 
       const ingr = Array.isArray(detection.ingredients) ? detection.ingredients : [];
       const label = humanLabel(detection.restriction);
 
-      if (detection.status === 'not_compatible') {
+      if (restrictionStatus === 'not_compatible') {
         score = Math.min(score, SAFETY_SCORE.HARD_RESTRICTION_MAX_SCORE);
         status = 'avoid';
         reasons.push(`Not compatible with ${label} restriction${ingredientSuffix(ingr)}`);
         if (!violatedRestrictions.includes(detection.restriction))
           violatedRestrictions.push(detection.restriction);
-      } else if (detection.status === 'requires_certification') {
+      } else if (restrictionStatus === 'semi_compatible') {
+        score = Math.min(score, TRACE_RESTRICTION_MAX_SCORE);
+        if (status !== 'avoid') status = 'caution';
+        reasons.push(`Trace risk for ${label} restriction${ingredientSuffix(ingr)}`);
+      } else if (restrictionStatus === 'requires_certification') {
         if (status !== 'avoid') status = 'caution';
         reasons.push(`Requires ${label} certification — not confirmed${ingredientSuffix(ingr)}`);
-      } else if (detection.status === 'unclear') {
+      } else if (restrictionStatus === 'unclear') {
         if (status !== 'avoid') status = 'caution';
         reasons.push(`${label} compatibility is unclear${ingredientSuffix(ingr)}`);
       }

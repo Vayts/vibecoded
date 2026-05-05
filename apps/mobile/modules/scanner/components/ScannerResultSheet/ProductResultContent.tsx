@@ -137,7 +137,13 @@ export function ProductResultContent({
       contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
     >
       <View>
-        <ProductResultHero nutriScoreGrade={nutriScoreGrade} product={heroProduct} />
+        <ProductResultHero
+          nutriScoreGrade={nutriScoreGrade}
+          product={heroProduct}
+          personalResult={personalData}
+          selectedProfileId={selectedProfileId}
+          onSelectProfile={setSelectedProfileId}
+        />
         {detailState?.isLoading || detailState?.isError ? (
           <DetailStateContent detailState={detailState} bottomAction={errorBottomAction} />
         ) : (
@@ -154,7 +160,6 @@ export function ProductResultContent({
             personalResult={personalData}
             isError={personalError}
             onRetry={personalRetry}
-            onSelectProfile={setSelectedProfileId}
             rawIngredients={successResult?.product.ingredients ?? personalData?.result?.product.ingredients ?? []}
             rawIngredientsText={successResult?.product.ingredients_text ?? null}
             selectedProfileId={selectedProfileId}

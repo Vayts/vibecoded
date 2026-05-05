@@ -32,7 +32,13 @@ export type ScannerAllergenDetection = z.infer<typeof scannerAllergenDetectionSc
 
 export const scannerRestrictionDetectionSchema = z.object({
   restriction: z.string(),
-  status: z.enum(['compatible', 'not_compatible', 'unclear', 'requires_certification']),
+  status: z.enum([
+    'compatible',
+    'semi_compatible',
+    'not_compatible',
+    'unclear',
+    'requires_certification',
+  ]),
   compatible: z.boolean().nullable().optional(),
   source: z.enum(['off_tag', 'ingredient_text', 'certification_tag', 'ai_inference']),
   confidence: z.number().min(0).max(1),
@@ -46,6 +52,14 @@ export const scannerCanIHaveThisSchema = z.object({
   reason: z.string(),
 });
 export type ScannerCanIHaveThis = z.infer<typeof scannerCanIHaveThisSchema>;
+
+export const scannerProfileIngredientSchema = z.object({
+  name: z.string().trim().min(1),
+  compatible: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  evidence: z.array(z.string()),
+});
+export type ScannerProfileIngredient = z.infer<typeof scannerProfileIngredientSchema>;
 
 export const scannerProfileAnalysisSchema = z.object({
   safety: z.object({
@@ -82,6 +96,7 @@ export type ScannerProfileAnalysis = z.infer<typeof scannerProfileAnalysisSchema
 export const scannerProfileAiSchema = z.object({
   allergenDetections: z.array(scannerAllergenDetectionSchema),
   restrictionDetections: z.array(scannerRestrictionDetectionSchema),
+  ingredients: z.array(scannerProfileIngredientSchema).default([]),
   canIHaveThis: scannerCanIHaveThisSchema,
 });
 export type ScannerProfileAi = z.infer<typeof scannerProfileAiSchema>;

@@ -14,6 +14,7 @@ export type AiRestrictionDetectionSource =
 
 export type AiRestrictionStatus =
   | 'compatible'
+  | 'semi_compatible'
   | 'not_compatible'
   | 'unclear'
   | 'requires_certification';
@@ -49,6 +50,13 @@ export type AiCanIHaveThisAnswer = {
   reason: string;
 };
 
+export type AiProfileIngredient = {
+  name: string;
+  compatible: boolean;
+  confidence: number;
+  evidence: string[];
+};
+
 export type AiUncertaintyFlag = {
   type: AiUncertaintyFlagType;
   message: string;
@@ -60,6 +68,8 @@ export type AiProfileInfo = {
   displayName?: string | null;
   allergenDetections: AiAllergenDetection[];
   restrictionDetections: AiRestrictionDetection[];
+  ingredients: AiProfileIngredient[];
+  overallSummary?: string | null;
   canIHaveThis: AiCanIHaveThisAnswer;
   uncertaintyFlags: AiUncertaintyFlag[];
 };

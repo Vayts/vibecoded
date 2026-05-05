@@ -8,6 +8,7 @@ import type {
 import type {
   AiAllergenDetection,
   AiCanIHaveThisAnswer,
+  AiProfileIngredient,
   AiRestrictionDetection,
 } from './ai-analyze.types.js';
 
@@ -23,6 +24,7 @@ export interface AnalyzeBarcodeV2ProfileAnalysis {
 export interface AnalyzeBarcodeV2ProfileAi {
   allergenDetections: AiAllergenDetection[];
   restrictionDetections: AiRestrictionDetection[];
+  ingredients: AiProfileIngredient[];
   canIHaveThis: AiCanIHaveThisAnswer;
 }
 

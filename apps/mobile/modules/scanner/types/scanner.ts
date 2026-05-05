@@ -48,3 +48,18 @@ export interface ProductDecisionSheetPayload {
 export interface CompareProductPickerSheetPayload {
   currentProduct: CompareProductSource;
 }
+
+export interface ProfileScoreSelectorSheetProfile {
+  id: string;
+  name: string;
+  score?: number;
+  imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
+}
+
+export interface ProfileScoreSelectorSheetPayload {
+  profiles: ProfileScoreSelectorSheetProfile[];
+  selectedProfileId: string;
+  onSelect: (profileId: string) => void;
+}
+

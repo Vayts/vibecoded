@@ -5,7 +5,6 @@ import { View } from 'react-native';
 import { CanIHaveThisCard } from './CanIHaveThisCard';
 import { EvaluationSection } from './EvaluationSection';
 import { IngredientsSection } from './IngredientsSection';
-import { ProfileAnalysisTags } from './ProfileAnalysisTags';
 import { getEvaluationBlockConfigs } from './evaluationBlockConfigs';
 import { ProfileCompatibilityAccordion } from './ProfileCompatibilityAccordion';
 import { ScoreSummary } from './ScoreSummary';
@@ -23,10 +22,6 @@ export function ProfileDetail({
 }: ProfileDetailProps) {
   const forLabel = `For ${profile.displayName?.toLowerCase() === 'you' ? 'you' : (profile.displayName ?? 'this profile')}`;
   const evaluationBlocks = getEvaluationBlockConfigs(profile);
-  const highlightedIngredients = [
-    ...profile.ai.restrictionDetections.flatMap((detection) => detection.ingredients),
-    ...profile.ai.allergenDetections.flatMap((detection) => detection.ingredients),
-  ];
 
   return (
     <View>
@@ -57,7 +52,7 @@ export function ProfileDetail({
       <IngredientsSection
         rawIngredients={rawIngredients}
         rawIngredientsText={rawIngredientsText}
-        highlightedIngredients={highlightedIngredients}
+        profileIngredients={profile.ai.ingredients}
       />
     </View>
   );

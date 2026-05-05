@@ -27,6 +27,7 @@ const getIngredientCountLabel = (count: number): string =>
 
 const getRestrictionStatusLabel = (status: string): string => {
   if (status === 'not_compatible') return 'Not compatible';
+  if (status === 'semi_compatible') return 'Trace risk';
   if (status === 'requires_certification') return 'Needs verification';
   if (status === 'unclear') return 'Unclear';
   return 'Compatible';

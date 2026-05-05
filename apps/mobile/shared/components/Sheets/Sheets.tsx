@@ -1,6 +1,7 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
 import { CompareProductPickerSheet } from '../../../modules/scanner/components/CompareProductPickerSheet';
+import { ProfileScoreSelectorSheet } from '../../../modules/scanner/components/ProfileScoreSelectorSheet';
 import { ScoreCalculationSheet } from '../../../modules/scanner/components/ScoreCalculationSheet';
 import {
   ScannerErrorSheet,
@@ -10,6 +11,7 @@ import { ScannerResultSheet } from '../../../modules/scanner/components/ScannerR
 import type { ScansFilterSheetPayload } from '../../../modules/scans/types/filters';
 import type {
   CompareProductPickerSheetPayload,
+  ProfileScoreSelectorSheetPayload,
   ScannerResultSheetPayload,
 } from '../../../modules/scanner/types/scanner';
 import { SheetsEnum } from '../../types/sheets';
@@ -26,6 +28,7 @@ declare module 'react-native-actions-sheet' {
     [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{ payload: CompareProductPickerSheetPayload }>;
     [SheetsEnum.ScannerErrorSheet]: SheetDefinition<{ payload: ScannerErrorSheetPayload }>;
     [SheetsEnum.ScansFilterSheet]: SheetDefinition<{ payload: ScansFilterSheetPayload }>;
+    [SheetsEnum.ProfileScoreSelectorSheet]: SheetDefinition<{ payload: ProfileScoreSelectorSheetPayload }>;
   }
 }
 
@@ -39,6 +42,7 @@ export const Sheets = () => {
         [SheetsEnum.ScoreCalculationSheet]: ScoreCalculationSheet,
         [SheetsEnum.ScannerErrorSheet]: ScannerErrorSheet,
         [SheetsEnum.ScansFilterSheet]: ScansFilterSheet,
+        [SheetsEnum.ProfileScoreSelectorSheet]: ProfileScoreSelectorSheet,
       }}
     />
   );

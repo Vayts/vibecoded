@@ -1,18 +1,16 @@
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { SheetManager } from 'react-native-actions-sheet';
 import { Typography } from '../../../../shared/components/Typography';
 import { UserAvatar } from '../../../../shared/components/UserAvatar';
 import { COLORS } from '../../../../shared/constants/colors';
+import { SheetsEnum } from '../../../../shared/types/sheets';
+import type { ProfileScoreSelectorSheetProfile } from '../../types/scanner';
+import { ChevronDown } from 'lucide-react-native';
 
 const GOOD_SCORE_MIN = 70;
 const NEUTRAL_SCORE_MIN = 40;
 
-export interface ProfileScoreSelectorItem {
-  id: string;
-  name: string;
-  score?: number;
-  imageUrl?: string | null;
-  fallbackImageUrl?: string | null;
-}
+export type ProfileScoreSelectorItem = ProfileScoreSelectorSheetProfile;
 
 interface ProfileScoreSelectorProps {
   profiles: ProfileScoreSelectorItem[];
@@ -23,7 +21,7 @@ interface ProfileScoreSelectorProps {
 
 type SelectorTone = 'good' | 'neutral' | 'bad';
 
-const SELECTOR_TONES = {
+export const PROFILE_SCORE_TONES = {
   good: {
     backgroundColor: COLORS.successSoft,
     borderColor: COLORS.profileChipGoodBorder,
@@ -41,7 +39,7 @@ const SELECTOR_TONES = {
   },
 } as const;
 
-const getSelectorTone = (score?: number): SelectorTone => {
+export const getProfileScoreTone = (score?: number): SelectorTone => {
   if (score == null) {
     return 'neutral';
   }
@@ -67,61 +65,40 @@ export function ProfileScoreSelector({
     return null;
   }
 
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className={className}
-      contentContainerStyle={{ paddingHorizontal: 16, gap: 8, paddingTop: 16 }}
-    >
-      {profiles.map((profile) => {
-        const tone = SELECTOR_TONES[getSelectorTone(profile.score)];
-        const isSelected = profile.id === selectedProfileId;
+  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId) ?? profiles[0];
 
-        return (
-          <TouchableOpacity
-            key={profile.id}
-            accessibilityRole="button"
-            accessibilityLabel={
-              profile.score !== undefined
-                ? `${profile.name}: ${profile.score}/100`
-                : profile.name
-            }
-            activeOpacity={0.7}
-            className="flex-row items-center rounded-lg px-2 py-0.5"
-            style={{
-              backgroundColor: tone.backgroundColor,
-              borderWidth: 1.5,
-              borderColor: isSelected ? tone.borderColor : COLORS.transparent,
-            }}
-            onPress={() => onSelect(profile.id)}
-          >
-            <UserAvatar
-              imageUrl={profile.imageUrl}
-              fallbackImageUrl={profile.fallbackImageUrl}
-              name={profile.name}
-              size="xs"
-            />
-            <View className="ml-1 flex-row gap-1 items-center shrink">
-              <Typography
-                numberOfLines={1}
-                style={{ color: tone.textColor, flexShrink: 1, fontSize: 13 }}
-              >
-                {profile.name}
-              </Typography>
-              {profile.score != null ? (
-                <Typography
-                  variant="button"
-                  numberOfLines={1}
-                  style={{ color: tone.textColor, fontWeight: '700', fontSize: 13 }}
-                >
-                  {profile.score}
-                </Typography>
-              ) : null}
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+  const handlePress = () => {
+    void SheetManager.show(SheetsEnum.ProfileScoreSelectorSheet, {
+      payload: {
+        profiles,
+        selectedProfileId: selectedProfile.id,
+        onSelect,
+      },
+    });
+  };
+
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      activeOpacity={0.7}
+      className={`min-h-[32px] self-start flex-row items-center rounded-[8px] w-fit border px-2 py-1 ${className ?? ''}`.trim()}
+      style={{ borderColor: COLORS.neutrals200 }}
+      onPress={handlePress}
+    >
+      <UserAvatar
+        imageUrl={selectedProfile.imageUrl}
+        fallbackImageUrl={selectedProfile.fallbackImageUrl}
+        name={selectedProfile.name}
+        size="xss"
+      />
+
+      <View className="ml-1 flex-row items-center gap-2 flex-shrink">
+        <Typography numberOfLines={1} className="text-neutrals-900 text-[14px] line-clamp-1 flex-shrink">
+          {selectedProfile.name}
+        </Typography>
+
+        <ChevronDown strokeWidth={1} size={18}/>
+      </View>
+    </TouchableOpacity>
   );
 }

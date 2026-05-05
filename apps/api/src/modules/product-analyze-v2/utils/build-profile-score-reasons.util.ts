@@ -135,15 +135,18 @@ const addSafetyReasons = (
   }
 
   for (const detection of aiProfileInfo?.restrictionDetections ?? []) {
-    if (detection.status === 'compatible') continue;
+    const restrictionStatus = String(detection.status);
+    if (restrictionStatus === 'compatible') continue;
 
     const label = getRestrictionLabel(detection.restriction);
     const description =
-      detection.status === 'not_compatible'
+      restrictionStatus === 'not_compatible'
         ? `Not compatible with ${label.toLowerCase()} restriction${ingredientSuffix(detection.ingredients)}`
-        : detection.status === 'requires_certification'
-          ? `Requires ${label.toLowerCase()} certification — not confirmed${ingredientSuffix(detection.ingredients)}`
-          : `${label} compatibility is unclear${ingredientSuffix(detection.ingredients)}`;
+        : restrictionStatus === 'semi_compatible'
+          ? `Trace risk for ${label.toLowerCase()} restriction${ingredientSuffix(detection.ingredients)}`
+          : restrictionStatus === 'requires_certification'
+            ? `Requires ${label.toLowerCase()} certification — not confirmed${ingredientSuffix(detection.ingredients)}`
+            : `${label} compatibility is unclear${ingredientSuffix(detection.ingredients)}`;
 
     addReason(
       negatives,
@@ -153,7 +156,12 @@ const addSafetyReasons = (
         description,
         value: null,
         unit: null,
-        impact: detection.status === 'not_compatible' ? -50 : -20,
+        impact:
+          restrictionStatus === 'not_compatible'
+            ? -50
+            : restrictionStatus === 'semi_compatible'
+              ? -35
+              : -20,
         kind: 'negative',
         source: 'restriction',
         category: 'diet-matching',
