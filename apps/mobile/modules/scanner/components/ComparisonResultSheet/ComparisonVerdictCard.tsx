@@ -20,6 +20,28 @@ interface VerdictSubscoreItemProps {
   score: number;
 }
 
+const getShortProfileName = (displayName: string): string => {
+  const normalizedName = displayName.trim();
+
+  if (!normalizedName) {
+    return '';
+  }
+
+  if (normalizedName.toLowerCase() === 'you') {
+    return '';
+  }
+
+  return normalizedName.split(/\s+/)[0] ?? normalizedName;
+};
+
+const toPossessiveName = (name: string): string => {
+  if (!name) {
+    return 'their';
+  }
+
+  return name.endsWith('s') ? `${name}'` : `${name}'s`;
+};
+
 function VerdictSubscoreItem({ label, score }: VerdictSubscoreItemProps) {
   const progress = Math.max(5, Math.min(score, 100));
   const color = formatScoreColors(score);
@@ -54,42 +76,62 @@ export function ComparisonVerdictCard({ profileResult }: ComparisonVerdictCardPr
   const safetyScore = winner.analysis.safety?.score ?? 0;
   const goalFitScore = winner.analysis.goalFit?.score ?? 0;
   const nutritionScore = winner.analysis.nutrition?.score ?? 0;
+  const shortProfileName = getShortProfileName(profileResult.displayName);
+  const verdictTitle =
+    profileResult.type === 'user'
+      ? shortProfileName
+        ? `Better fit for you, ${shortProfileName}`
+        : 'Better fit for you'
+      : shortProfileName
+        ? `Better fit for ${shortProfileName}`
+        : 'Better fit for this profile';
+  const verdictSubtitle =
+    profileResult.type === 'user'
+      ? `${getComparedProductDisplayName(winner)} is the best choice based on your profile and goals`
+      : `${getComparedProductDisplayName(winner)} is the best choice based on ${toPossessiveName(shortProfileName)} profile and goals`;
 
   return (
     <View
-      className="mt-4 overflow-hidden rounded-[16px] border bg-white px-4 py-4"
+      className="mt-4 overflow-hidden rounded-[16px] border bg-white py-4"
       style={{ borderColor: COLORS.gray200 }}
     >
-      <Typography className="text-[10px] font-bold uppercase text-neutral-500">Verdict</Typography>
+      <View className="px-4">
+        <Typography className="text-[10px] font-bold uppercase text-primary-700">
+          Verdict
+        </Typography>
 
-      <Typography variant="sectionTitle" className="mt-2 text-[18px] font-bold text-neutrals-900">
-        {getComparedProductDisplayName(winner)} is the best fit
-      </Typography>
+        <Typography variant="sectionTitle" className="mt-2 text-[18px] font-bold text-neutrals-900">
+          {verdictTitle}
+        </Typography>
+        <Typography className="mt-1 text-[14px] text-neutrals-600">{verdictSubtitle}</Typography>
+      </View>
 
-      <View className="mt-4 flex-row gap-4">
+      <View className="mt-4 px-4 flex-row gap-4 border-t border-b py-3 border-neutral-200">
         <VerdictSubscoreItem label="Safety" score={safetyScore} />
         <VerdictSubscoreItem label="Goal fit" score={goalFitScore} />
         <VerdictSubscoreItem label="Nutrition" score={nutritionScore} />
       </View>
 
-      {summary ? (
-        <Typography variant="body" className="mt-4 leading-6 text-neutrals-700">
-          {summary}
-        </Typography>
-      ) : null}
+      <View className="px-4">
+        {summary ? (
+          <Typography variant="body" className="mt-4 leading-6 text-neutrals-700">
+            {summary}
+          </Typography>
+        ) : null}
 
-      {winnerChips.length > 0 ? (
-        <View className="mt-4 flex-row flex-wrap gap-2">
-          {winnerChips.map((chip, index) => (
-            <ComparisonSummaryChip
-              key={`${chip.text}-${index}`}
-              iconKey={chip.iconKey}
-              text={chip.text}
-              variant="primary"
-            />
-          ))}
-        </View>
-      ) : null}
+        {winnerChips.length > 0 ? (
+          <View className="mt-4 flex-row flex-wrap gap-2">
+            {winnerChips.map((chip, index) => (
+              <ComparisonSummaryChip
+                key={`${chip.text}-${index}`}
+                iconKey={chip.iconKey}
+                text={chip.text}
+                variant="primary"
+              />
+            ))}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
