@@ -22,19 +22,27 @@ export interface ResolvedPhotoProductV2Context {
 const hasValidImage = (product: NormalizedProduct): boolean =>
   resolveCanonicalProductImageUrl(product.image_url, product.images) !== null;
 
-const syncPhotoImageInBackground = (imageBase64: string, product: NormalizedProduct): void => {
-  void (async () => {
+const ensureProductImage = async (
+  imageBase64: string,
+  product: NormalizedProduct,
+): Promise<NormalizedProduct> => {
+  if (hasValidImage(product)) {
+    return product;
+  }
+
+  try {
     const rawBuffer = Buffer.from(imageBase64, 'base64');
     const processed = await processProductImage(rawBuffer);
     const photoImagePath = await uploadProductImage(processed.buffer);
 
-    await createProduct(attachPhotoImagePathV2(product, photoImagePath));
-  })().catch((error) => {
+    return createProduct(attachPhotoImagePathV2(product, photoImagePath));
+  } catch (error) {
     console.error(
-      '[ProductAnalyzeV2:photo] Deferred image processing/upload failed:',
+      '[ProductAnalyzeV2:photo] Image processing/upload failed:',
       error instanceof Error ? error.message : error,
     );
-  });
+    return product;
+  }
 };
 
 const resolveOcr = async (input: AnalyzePhotoV2Input): Promise<PhotoOcrPayloadV2> => {
@@ -79,12 +87,11 @@ export const resolvePhotoProductV2Context = async (
     throw ApiError.notFound('Could not identify product from photo', 'PRODUCT_NOT_FOUND');
   }
 
-  const savedProduct = await reuseOrCreateProduct(product);
+  const savedProduct = await ensureProductImage(
+    input.imageBase64,
+    await reuseOrCreateProduct(product),
+  );
   const productId = await findProductIdByBarcode(savedProduct.code);
-
-  if (!hasValidImage(savedProduct)) {
-    syncPhotoImageInBackground(input.imageBase64, savedProduct);
-  }
 
   return {
     product: savedProduct,
