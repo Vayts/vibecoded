@@ -9,10 +9,6 @@ export interface CapturedCameraPhoto {
 
 type CaptureFromCamera = () => Promise<CapturedCameraPhoto | null>;
 
-/**
- * Hook for capturing a product photo from the in-app camera,
- * compressing it, and uploading for identification.
- */
 export function usePhotoCapture(captureFromCamera: CaptureFromCamera) {
   const [isPreparing, setIsPreparing] = useState(false);
 
@@ -30,7 +26,6 @@ export function usePhotoCapture(captureFromCamera: CaptureFromCamera) {
     }
   }, [captureFromCamera]);
 
-  /** Camera → compress only, returns upload URI + local preview URI without any API call */
   const captureAndCompress = useCallback(async () => {
     return captureCompressedPhoto();
   }, [captureCompressedPhoto]);
