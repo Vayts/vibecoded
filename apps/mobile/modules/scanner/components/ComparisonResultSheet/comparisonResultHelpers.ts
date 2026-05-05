@@ -88,6 +88,10 @@ const formatAllergenChipText = (allergen: string): string => {
     return 'Allergen conflicts';
   }
 
+  if (normalizedAllergen.toLowerCase() === 'other') {
+    return 'Contains your allergen';
+  }
+
   return `Contains ${normalizedAllergen.toLowerCase()}`;
 };
 
