@@ -6,6 +6,10 @@ import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
 import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
 import { toRawPhotoBodyV2 } from './utils/photo-request.util.js';
+import {
+  compareProductsV2,
+  type PersistProductAnalyzeV2ScanInput,
+} from './services/compare-products-v2.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import {
   IMAGE_TOO_LARGE_ERROR,
@@ -15,15 +19,18 @@ import {
   MAX_PHOTO_UPLOAD_SIZE,
   PHOTO_FILE_REQUIRED_ERROR,
 } from './constants/photo-analysis.constants.js';
-import type { AnalyzeBarcodeV2Response } from './types/analyze-product-v2.types.js';
+import type {
+  AnalyzeBarcodeV2Response,
+  CompareProductsV2Response,
+} from './types/analyze-product-v2.types.js';
 import {
   photoOcrPayloadV2Schema,
   type AnalyzePhotoV2Response,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
-import { ProductAnalyzeService } from '../product-analyze/product-analyze.service.js';
 import { prisma } from '../product-analyze/lib/prisma.js';
+import { findProductIdByBarcode } from '../product-analyze/repositories/scanRepository.js';
 
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
@@ -34,28 +41,14 @@ interface ParsedPhotoRequestV2 {
   ocr?: z.infer<typeof photoOcrPayloadV2Schema>;
 }
 
-interface PersistScanResultInput {
-  userId: string;
-  barcode: string;
-  source: 'barcode' | 'photo';
-  result: AnalyzeBarcodeV2Response;
-  productId?: string;
-}
-
 @Injectable()
 export class ProductAnalyzeV2Service {
-  constructor(private readonly productAnalyzeService: ProductAnalyzeService) {}
-
-  private async persistScanResult(input: PersistScanResultInput): Promise<void> {
-    const productId =
-      input.productId ??
-      (input.source === 'barcode'
-        ? (await this.productAnalyzeService.resolveBarcodeScanContext(input.barcode)).productId
-        : undefined);
+  private async persistScanResult(input: PersistProductAnalyzeV2ScanInput): Promise<string> {
+    const productId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
     const mainProfile =
       input.result.profiles.find((profile) => profile.type === 'user') ?? input.result.profiles[0];
 
-    await prisma.scan.create({
+    const scan = await prisma.scan.create({
       data: {
         userId: input.userId,
         type: 'product',
@@ -71,6 +64,8 @@ export class ProductAnalyzeV2Service {
         multiProfileResult: input.result as unknown as Prisma.InputJsonValue,
       },
     });
+
+    return scan.id;
   }
 
   private parsePhotoRequest(body: unknown, file?: UploadedPhotoFileV2): ParsedPhotoRequestV2 {
@@ -152,14 +147,25 @@ export class ProductAnalyzeV2Service {
       throw ApiError.unprocessable('Analysis failed to produce a result', 'ANALYSIS_FAILED');
     }
 
-    await this.persistScanResult({
-      userId,
-      barcode,
-      source: 'barcode',
-      result: finalState.result,
-    });
+    if (!finalState.analyzedProduct?.reusedExistingAnalysis) {
+      await this.persistScanResult({
+        userId,
+        barcode,
+        source: 'barcode',
+        result: finalState.result,
+        productId: finalState.analyzedProduct?.productId,
+      });
+    }
 
     return finalState.result;
+  }
+
+  async compareProducts(body: unknown, userId: string): Promise<CompareProductsV2Response> {
+    return compareProductsV2({
+      body,
+      userId,
+      persistScanResult: (input) => this.persistScanResult(input),
+    });
   }
 
   async analyzePhoto(

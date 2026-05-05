@@ -59,3 +59,13 @@ export interface AnalyzeBarcodeV2Response {
   };
   profiles: AnalyzeBarcodeV2ProfileResult[];
 }
+
+export interface CompareProductV2Result extends AnalyzeBarcodeV2Response {
+  barcode: string;
+  productId?: string;
+  scanId?: string;
+}
+
+export interface CompareProductsV2Response {
+  products: CompareProductV2Result[];
+}

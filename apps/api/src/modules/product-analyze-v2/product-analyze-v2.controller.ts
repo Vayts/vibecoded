@@ -8,7 +8,10 @@ import type {
   AnalyzePhotoV2Response,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
-import type { AnalyzeBarcodeV2Response } from './types/analyze-product-v2.types.js';
+import type {
+  AnalyzeBarcodeV2Response,
+  CompareProductsV2Response,
+} from './types/analyze-product-v2.types.js';
 
 @Controller('product-analyze-v2')
 export class ProductAnalyzeV2Controller {
@@ -24,6 +27,15 @@ export class ProductAnalyzeV2Controller {
   ): Promise<AnalyzeBarcodeV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.analyzeBarcode(body, userId);
+  }
+
+  @Post('compare')
+  async compareProducts(
+    @Body() body: unknown,
+    @Req() request: Request,
+  ): Promise<CompareProductsV2Response> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.productAnalyzeV2Service.compareProducts(body, userId);
   }
 
   @Post('photo')

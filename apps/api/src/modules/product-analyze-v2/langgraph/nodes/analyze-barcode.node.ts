@@ -7,6 +7,8 @@ import {
   lookupBarcode,
   OpenFoodFactsLookupError,
 } from '../../../product-analyze/services/openfoodfacts-client.js';
+import { createProduct } from '../../../product-analyze/repositories/productRepository.js';
+import { findProductIdByBarcode } from '../../../product-analyze/repositories/scanRepository.js';
 import { normalizeOpenFoodFactsProduct } from '../../utils/normalize-open-food-facts-product.util.js';
 import { validateProductRole } from '../../utils/validate-product-role.util.js';
 import { calculateSafetyScore } from '../../utils/calculate-safety-score.util.js';
@@ -31,12 +33,24 @@ import type {
   AnalyzeBarcodeV2ProfileResult,
 } from '../../types/analyze-product-v2.types.js';
 import type { AiProfileInfo, AiProductAnalyzeV2Result } from '../../types/ai-analyze.types.js';
-import type { GraphStateType } from '../product-analyze-v2.graph.js';
 import { ApiError } from '../../../../shared/errors/api-error.js';
 import {
   translateIngredientsToEnglish,
   type TranslatedIngredients,
 } from '../../utils/translate-ingredients.util.js';
+
+export interface AnalyzedProductByBarcodeResult {
+  barcode: string;
+  result: AnalyzeBarcodeV2Response;
+  reusedExistingAnalysis: boolean;
+  productId?: string;
+  scanId?: string;
+}
+
+interface AnalyzeBarcodeNodeState {
+  barcode: string;
+  userId: string;
+}
 
 const AI_MODEL = 'gpt-5.4-mini';
 
@@ -1010,8 +1024,87 @@ export async function analyzeNormalizedProductForUser(input: {
   return response;
 }
 
-export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial<GraphStateType>> {
-  const { barcode, userId } = state;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isAnalyzeBarcodeV2Response(value: unknown): value is AnalyzeBarcodeV2Response {
+  if (!isRecord(value) || !isRecord(value.product) || !Array.isArray(value.profiles)) {
+    return false;
+  }
+
+  const { product } = value;
+  return (
+    isStringArray(product.ingredients) &&
+    isStringArray(product.allergens) &&
+    isStringArray(product.traces) &&
+    isStringArray(product.additives) &&
+    isRecord(product.nutrition)
+  );
+}
+
+function canReuseAnalysis(createdAt: Date, preferencesUpdatedAt: Date | null): boolean {
+  return !preferencesUpdatedAt || createdAt > preferencesUpdatedAt;
+}
+
+async function findReusableAnalyzedProductByBarcode(input: {
+  barcode: string;
+  userId: string;
+}): Promise<AnalyzedProductByBarcodeResult | null> {
+  const [user, scans] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { analysisPreferencesUpdatedAt: true },
+    }),
+    prisma.scan.findMany({
+      where: {
+        userId: input.userId,
+        barcode: input.barcode,
+        personalAnalysisStatus: 'completed',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        productId: true,
+        createdAt: true,
+        multiProfileResult: true,
+      },
+    }),
+  ]);
+
+  if (!user) {
+    throw ApiError.unauthorized();
+  }
+
+  const reusableScan = scans.find(
+    (scan) =>
+      canReuseAnalysis(scan.createdAt, user.analysisPreferencesUpdatedAt) &&
+      isAnalyzeBarcodeV2Response(scan.multiProfileResult),
+  );
+
+  if (!reusableScan || !isAnalyzeBarcodeV2Response(reusableScan.multiProfileResult)) {
+    return null;
+  }
+
+  return {
+    barcode: input.barcode,
+    result: reusableScan.multiProfileResult,
+    reusedExistingAnalysis: true,
+    scanId: reusableScan.id,
+    ...(reusableScan.productId ? { productId: reusableScan.productId } : {}),
+  };
+}
+
+async function analyzeFreshProductByBarcode(input: {
+  barcode: string;
+  userId: string;
+}): Promise<AnalyzedProductByBarcodeResult> {
+  const { barcode, userId } = input;
 
   console.log(`[ProductAnalyzeV2] Starting barcode analysis — barcode=${barcode} userId=${userId}`);
 
@@ -1048,11 +1141,43 @@ export async function analyzeBarcodeNode(state: GraphStateType): Promise<Partial
     `[ProductAnalyzeV2] Product normalized — ingredients=${product.ingredients.length} allergens=${product.allergens.length}`,
   );
 
+  await createProduct(rawProduct);
+  const productId = await findProductIdByBarcode(rawProduct.code);
   const result = await analyzeNormalizedProductForUser({
     product,
     userId,
     logContext: `barcode=${barcode}`,
   });
 
-  return { result };
+  return {
+    barcode,
+    result,
+    reusedExistingAnalysis: false,
+    ...(productId ? { productId } : {}),
+  };
+}
+
+export async function getOrAnalyzeProductByBarcode(input: {
+  barcode: string;
+  userId: string;
+}): Promise<AnalyzedProductByBarcodeResult> {
+  const reusableProduct = await findReusableAnalyzedProductByBarcode(input);
+
+  if (reusableProduct) {
+    return reusableProduct;
+  }
+
+  return analyzeFreshProductByBarcode(input);
+}
+
+export async function analyzeBarcodeNode(state: AnalyzeBarcodeNodeState): Promise<{
+  result: AnalyzeBarcodeV2Response;
+  analyzedProduct: AnalyzedProductByBarcodeResult;
+}> {
+  const analyzedProduct = await getOrAnalyzeProductByBarcode({
+    barcode: state.barcode,
+    userId: state.userId,
+  });
+
+  return { result: analyzedProduct.result, analyzedProduct };
 }
