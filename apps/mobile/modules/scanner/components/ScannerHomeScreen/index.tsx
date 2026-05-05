@@ -345,7 +345,12 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
       return sessionId;
     },
-    [handleResultSheetClose, handleScannerErrorSheetDismiss, pauseScannerForErrorSheet, startResultSession],
+    [
+      handleResultSheetClose,
+      handleScannerErrorSheetDismiss,
+      pauseScannerForErrorSheet,
+      startResultSession,
+    ],
   );
 
   const handleResultSheetError = useCallback(
@@ -408,9 +413,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
 
       try {
         const result = await submitPhotoScan({ photoUri: captured.uploadUri });
+
         hydrateResultSession(sessionId, {
-          result,
-          resolvedPersonalResult: result.personalAnalysis,
+          resolvedPersonalResult: buildCompletedAnalysisJob(result),
         });
       } catch (error) {
         await handleResultSheetError(error, 'Unable to identify product');
@@ -560,8 +565,6 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       }
     }
 
-    console.log('Barcode scanned:', data);
-
     await submitBarcode(data);
   };
 
@@ -601,9 +604,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       ? 'Identifying products…'
       : barcodeMutation.isPending
         ? 'Analyzing product…'
-      : compareMutation.isPending
-        ? 'Comparing products…'
-        : 'Processing…';
+        : compareMutation.isPending
+          ? 'Comparing products…'
+          : 'Processing…';
 
   const isPhotoMode = scannerMode === 'photo';
   const isAppActive = appState === 'active';

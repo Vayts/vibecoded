@@ -21,4 +21,7 @@ export interface AnalyzePhotoV2Input {
 }
 
 export type PhotoOcrPayloadV2 = z.infer<typeof photoOcrPayloadV2Schema>;
-export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response;
+export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response & {
+  barcode: string;
+  productId?: string;
+};

@@ -193,6 +193,10 @@ export class ProductAnalyzeV2Service {
       productId: resolvedContext.productId,
     });
 
-    return result;
+    return {
+      ...result,
+      barcode: resolvedContext.product.code,
+      ...(resolvedContext.productId ? { productId: resolvedContext.productId } : {}),
+    };
   }
 }

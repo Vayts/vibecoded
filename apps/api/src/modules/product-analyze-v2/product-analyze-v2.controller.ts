@@ -4,7 +4,10 @@ import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service.js';
 import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
 import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
-import type { UploadedPhotoFileV2 } from './types/analyze-photo-v2.types.js';
+import type {
+  AnalyzePhotoV2Response,
+  UploadedPhotoFileV2,
+} from './types/analyze-photo-v2.types.js';
 import type { AnalyzeBarcodeV2Response } from './types/analyze-product-v2.types.js';
 
 @Controller('product-analyze-v2')
@@ -33,7 +36,7 @@ export class ProductAnalyzeV2Controller {
     @Body() body: unknown,
     @UploadedFile() file: UploadedPhotoFileV2 | undefined,
     @Req() request: Request,
-  ): Promise<AnalyzeBarcodeV2Response> {
+  ): Promise<AnalyzePhotoV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.analyzePhoto(body, userId, file);
   }

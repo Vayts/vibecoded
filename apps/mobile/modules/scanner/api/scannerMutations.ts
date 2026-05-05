@@ -3,13 +3,12 @@ import {
   scannerProductAnalysisResultSchema,
   compareProductsRequestSchema,
   compareProductsResponseSchema,
-  barcodeLookupSuccessResponseSchema,
   type BarcodeLookupRequest,
-  type BarcodeLookupSuccessResponse,
   type ScannerProductAnalysisResult,
   type CompareProductsRequest,
   type CompareProductsResponse,
 } from '@acme/shared';
+import { z } from 'zod';
 import { apiFetch } from '../../../shared/lib/client/client';
 import type { PhotoOcrData } from '../types/scanner';
 
@@ -38,11 +37,7 @@ const throwScannerApiError = async (
   fallbackMessage: string,
 ): Promise<never> => {
   const payload = await getErrorPayload(response);
-  throw new ScannerApiError(
-    payload?.error ?? fallbackMessage,
-    payload?.code,
-    response.status,
-  );
+  throw new ScannerApiError(payload?.error ?? fallbackMessage, payload?.code, response.status);
 };
 
 export const submitBarcodeScan = async (
@@ -91,6 +86,13 @@ interface ReactNativeFile {
   type: string;
 }
 
+const photoScanResponseSchema = scannerProductAnalysisResultSchema.extend({
+  barcode: z.string(),
+  productId: z.string().optional(),
+});
+
+export type PhotoScanResponse = z.infer<typeof photoScanResponseSchema>;
+
 const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
   const formData = new FormData();
   const photoFile: ReactNativeFile = {
@@ -108,10 +110,8 @@ const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
   return formData;
 };
 
-export const submitPhotoScan = async (
-  payload: PhotoScanRequest,
-): Promise<BarcodeLookupSuccessResponse> => {
-  const response = await apiFetch('/api/scanner/photo', {
+export const submitPhotoScan = async (payload: PhotoScanRequest): Promise<PhotoScanResponse> => {
+  const response = await apiFetch('/product-analyze-v2/photo', {
     method: 'POST',
     body: buildPhotoFormData(payload),
   });
@@ -121,5 +121,5 @@ export const submitPhotoScan = async (
   }
 
   const json = await response.json();
-  return barcodeLookupSuccessResponseSchema.parse(json);
+  return photoScanResponseSchema.parse(json);
 };
