@@ -6,6 +6,7 @@ import {
   dedupeChips,
   factsToChips,
   getComparedProductDisplayName,
+  getNoSuitableProductChips,
   getTargetLabel,
   type DisplayChip,
 } from './comparisonResultHelpers';
@@ -24,7 +25,7 @@ const getTitle = (profileResult: ProfileCompareResult, targetLabel: string) => {
     return `Both products are similarly suitable for ${targetLabel}`;
   }
 
-  return `Why is ${getComparedProductDisplayName(profileResult.winner)} a better fit for ${targetLabel}?`;
+  return null;
 };
 
 const getDescription = (profileResult: ProfileCompareResult) => {
@@ -71,7 +72,10 @@ export function ComparisonExplanationSection({
   const targetLabel = getTargetLabel(profileResult.displayName);
   const title = getTitle(profileResult, targetLabel);
   const description = getDescription(profileResult);
-  const primaryChips = dedupeChips(factsToChips(profileResult.winnerBestAt));
+  const primaryChips =
+    profileResult.status === 'no_suitable_product'
+      ? getNoSuitableProductChips(profileResult)
+      : dedupeChips(factsToChips(profileResult.winnerBestAt));
   const secondaryChips = dedupeChips(factsToChips(profileResult.anotherProductMayBeBetterAt));
   const secondaryTitle =
     profileResult.status === 'no_suitable_product'
@@ -81,16 +85,18 @@ export function ComparisonExplanationSection({
         : null;
 
   return (
-    <View className="pt-4">
-      <Typography
-        variant="sectionTitle"
-        className="text-[16px] leading-7 text-neutrals-900 font-bold"
-      >
-        {title}
-      </Typography>
+    <View className="pt-2">
+      {title ? (
+        <Typography
+          variant="sectionTitle"
+          className="text-[16px] leading-7 mt-2 text-neutrals-900 font-bold"
+        >
+          {title}
+        </Typography>
+      ) : null}
 
       {!hidePrimaryDetails && description?.trim() ? (
-        <Typography variant="body" className="mt-4 leading-7 text-neutrals-700">
+        <Typography variant="body" className="mt-2 leading-7 text-neutrals-700">
           {description}
         </Typography>
       ) : null}
@@ -103,7 +109,7 @@ export function ComparisonExplanationSection({
       ) : null}
 
       {secondaryTitle ? (
-        <View className="pt-6">
+        <View className="pt-2">
           <Typography
             variant="sectionTitle"
             className="text-[16px] leading-7 text-neutrals-900 font-bold"

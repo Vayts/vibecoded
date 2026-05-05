@@ -2,6 +2,7 @@ import type {
   CompareFact,
   ComparedProduct,
   ComparedProductCore,
+  ProfileCompareResult,
 } from '../../utils/profileCompareTypes';
 
 export type DisplayChip = { iconKey?: string | null; text: string };
@@ -69,3 +70,45 @@ export const getFactIconKey = (fact: CompareFact): string | null => {
 
 export const factsToChips = (facts: CompareFact[]): DisplayChip[] =>
   facts.map((fact) => toDisplayChip(fact.label, getFactIconKey(fact)));
+
+const formatRestrictionChipText = (restriction: string): string => {
+  const normalizedRestriction = restriction.trim().replace(/[_-]+/g, ' ');
+
+  if (!normalizedRestriction) {
+    return 'Diet conflicts';
+  }
+
+  return `Not ${normalizedRestriction.toLowerCase()}-friendly`;
+};
+
+const formatAllergenChipText = (allergen: string): string => {
+  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
+
+  if (!normalizedAllergen) {
+    return 'Allergen conflicts';
+  }
+
+  return `Contains ${normalizedAllergen.toLowerCase()}`;
+};
+
+export const getNoSuitableProductChips = (profileResult: ProfileCompareResult): DisplayChip[] => {
+  const allergenChips = profileResult.products.flatMap((product) =>
+    (product.analysis.safety?.matchedAllergens ?? []).map((allergen) =>
+      toDisplayChip(formatAllergenChipText(allergen), 'allergens'),
+    ),
+  );
+
+  const restrictionChips = profileResult.products.flatMap((product) =>
+    (product.analysis.safety?.violatedRestrictions ?? []).map((restriction) =>
+      toDisplayChip(formatRestrictionChipText(restriction), 'diet-match'),
+    ),
+  );
+
+  const chips = dedupeChips([...allergenChips, ...restrictionChips]);
+
+  if (chips.length > 0) {
+    return chips;
+  }
+
+  return [toDisplayChip('Allergen or diet conflicts', 'diet-match')];
+};
