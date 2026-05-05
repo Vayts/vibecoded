@@ -1,11 +1,16 @@
 /* eslint-disable max-lines */
 
 import type { CompareFact, CompareProductsProfileResult } from '@acme/shared';
+import {
+  NUTRITION_ROLE_RULES,
+  type NutritionFactKey,
+} from '../constants/nutrition-role-rules.constants.js';
 import type {
   AnalyzeBarcodeV2ProfileAnalysis,
   AnalyzeBarcodeV2ProfileResult,
   CompareProductV2Result,
 } from '../types/analyze-product-v2.types.js';
+import type { ProductRole } from '../types/product-role.types.js';
 
 interface ComparedProduct {
   analysis: AnalyzeBarcodeV2ProfileAnalysis;
@@ -26,6 +31,68 @@ const MEANINGFUL_DIFF = {
   caloriesPer100g: 20,
   additivesCount: 1,
   ingredientsCount: 3,
+};
+
+const COMPARE_FACT_NUTRITION_KEYS = {
+  protein: 'protein',
+  fiber: 'fiber',
+  sugar: 'sugar',
+  fat: 'fat',
+  'saturated-fat': 'saturatedFat',
+  sodium: 'sodium',
+  calories: 'calorieDensity',
+  additives: 'additives',
+  ingredients: 'ingredientSimplicity',
+} satisfies Record<string, NutritionFactKey>;
+
+const NUTRITION_FACT_KEYS = new Set<NutritionFactKey>([
+  'protein',
+  'fiber',
+  'sugar',
+  'sodium',
+  'saturatedFat',
+  'calorieDensity',
+  'caloriesPerServing',
+  'additives',
+  'ingredientSimplicity',
+  'unsaturatedFatRatio',
+  'fat',
+]);
+
+const isNutritionFactKey = (value: unknown): value is NutritionFactKey => {
+  return typeof value === 'string' && NUTRITION_FACT_KEYS.has(value as NutritionFactKey);
+};
+
+const isProductRole = (value: unknown): value is ProductRole => {
+  return typeof value === 'string' && value in NUTRITION_ROLE_RULES;
+};
+
+const getIgnoredFactsFromRole = (role: unknown): NutritionFactKey[] => {
+  if (!isProductRole(role)) return [];
+  return NUTRITION_ROLE_RULES[role]?.ignoredFacts ?? [];
+};
+
+const getIgnoredFacts = (analysis: AnalyzeBarcodeV2ProfileAnalysis): Set<NutritionFactKey> => {
+  const details = analysis.nutrition?.details ?? {};
+  const rawIgnoredFacts = details.ignoredFacts;
+  const ignoredFacts = Array.isArray(rawIgnoredFacts)
+    ? rawIgnoredFacts.filter(isNutritionFactKey)
+    : [];
+
+  return new Set([
+    ...getIgnoredFactsFromRole(details.role),
+    ...getIgnoredFactsFromRole(details.effectiveRole),
+    ...ignoredFacts,
+  ]);
+};
+
+const shouldIncludeCompareFact = (
+  key: keyof typeof COMPARE_FACT_NUTRITION_KEYS,
+  betterIgnoredFacts: Set<NutritionFactKey>,
+  otherIgnoredFacts: Set<NutritionFactKey>,
+): boolean => {
+  const nutritionFactKey = COMPARE_FACT_NUTRITION_KEYS[key];
+  return !betterIgnoredFacts.has(nutritionFactKey) && !otherIgnoredFacts.has(nutritionFactKey);
 };
 
 const getSafetyRank = (status?: string | null): number => {
@@ -105,6 +172,8 @@ const buildComparisonFacts = (
   const other = otherProduct.analysis;
   const betterNutrition = betterProduct.product.nutrition;
   const otherNutrition = otherProduct.product.nutrition;
+  const betterIgnoredFacts = getIgnoredFacts(better);
+  const otherIgnoredFacts = getIgnoredFacts(other);
 
   const betterAllergens = better.safety?.matchedAllergens?.length ?? 0;
   const otherAllergens = other.safety?.matchedAllergens?.length ?? 0;
@@ -141,6 +210,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('protein', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyHigher(
       betterNutrition?.proteinPer100g,
       otherNutrition?.proteinPer100g,
@@ -157,6 +227,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('fiber', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyHigher(
       betterNutrition?.fiberPer100g,
       otherNutrition?.fiberPer100g,
@@ -173,6 +244,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('sugar', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyLower(
       betterNutrition?.sugarPer100g,
       otherNutrition?.sugarPer100g,
@@ -189,6 +261,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('fat', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyLower(
       betterNutrition?.fatPer100g,
       otherNutrition?.fatPer100g,
@@ -205,6 +278,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('saturated-fat', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyLower(
       betterNutrition?.saturatedFatPer100g,
       otherNutrition?.saturatedFatPer100g,
@@ -221,6 +295,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('sodium', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyLower(
       betterNutrition?.sodiumPer100g,
       otherNutrition?.sodiumPer100g,
@@ -237,6 +312,7 @@ const buildComparisonFacts = (
   }
 
   if (
+    shouldIncludeCompareFact('calories', betterIgnoredFacts, otherIgnoredFacts) &&
     isMeaningfullyLower(
       betterNutrition?.caloriesPer100g,
       otherNutrition?.caloriesPer100g,
@@ -254,7 +330,10 @@ const buildComparisonFacts = (
 
   const betterAdditives = betterProduct.product.additives?.length ?? 0;
   const otherAdditives = otherProduct.product.additives?.length ?? 0;
-  if (isMeaningfullyLower(betterAdditives, otherAdditives, MEANINGFUL_DIFF.additivesCount)) {
+  if (
+    shouldIncludeCompareFact('additives', betterIgnoredFacts, otherIgnoredFacts) &&
+    isMeaningfullyLower(betterAdditives, otherAdditives, MEANINGFUL_DIFF.additivesCount)
+  ) {
     facts.push({
       key: 'additives',
       label: 'Fewer additives',
@@ -266,7 +345,10 @@ const buildComparisonFacts = (
 
   const betterIngredients = betterProduct.product.ingredients?.length ?? 0;
   const otherIngredients = otherProduct.product.ingredients?.length ?? 0;
-  if (isMeaningfullyLower(betterIngredients, otherIngredients, MEANINGFUL_DIFF.ingredientsCount)) {
+  if (
+    shouldIncludeCompareFact('ingredients', betterIgnoredFacts, otherIgnoredFacts) &&
+    isMeaningfullyLower(betterIngredients, otherIngredients, MEANINGFUL_DIFF.ingredientsCount)
+  ) {
     facts.push({
       key: 'ingredients',
       label: 'Simpler ingredient list',
