@@ -38,13 +38,9 @@ export function ComparisonProductCard({
   const badgeBackgroundColor = isRejected
     ? COLORS.dangerSoft
     : isWinner
-      ? COLORS.primary100
+      ? COLORS.primary700
       : COLORS.gray100;
-  const badgeTextColor = isRejected
-    ? COLORS.danger800
-    : isWinner
-      ? COLORS.primary900
-      : COLORS.gray500;
+  const badgeTextColor = isRejected ? COLORS.danger800 : isWinner ? COLORS.white : COLORS.gray500;
 
   return (
     <View className="flex-1 pt-4">
@@ -73,10 +69,7 @@ export function ComparisonProductCard({
         </View>
       ) : null}
 
-      <View
-        className="rounded-[20px] border bg-white px-3 pb-4 pt-4"
-        style={{ borderColor, borderWidth: isWinner ? 2 : 1.5 }}
-      >
+      <View className="rounded-[16px] border bg-white px-3 pb-4 pt-4" style={{ borderColor }}>
         {resolvedImageUrl ? (
           <Image
             source={{ uri: resolvedImageUrl }}
