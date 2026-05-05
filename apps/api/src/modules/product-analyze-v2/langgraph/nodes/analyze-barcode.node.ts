@@ -405,6 +405,13 @@ Do not analyze restrictions that are not present in the profile.
 
 The enum lists above are allowed output values only. They are NOT a checklist to analyze every item.
 
+CUSTOM ALLERGY RULES FOR OTHER:
+- When a profile's allergies array includes OTHER and otherAllergiesText is provided, treat otherAllergiesText as the profile's custom allergy details.
+- Evaluate custom allergy details semantically against the product ingredients, allergens, and traces. Do not rely only on exact word or substring matching.
+- Ignore custom allergy details that are not real, specific food allergens or plausible sensitivities.
+- If the custom allergy is detected, return an allergenDetections item with allergy: OTHER and cite the concrete matching English ingredient, allergen, trace, or evidence.
+- If OTHER is not selected for a profile, do not analyze otherAllergiesText for that profile.
+
 If profile.allergies is empty, return: "allergenDetections": []
 If profile.restrictions is empty, return: "restrictionDetections": []
 If the product ingredient list is unavailable, return: "ingredients": []

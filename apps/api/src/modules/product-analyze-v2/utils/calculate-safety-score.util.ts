@@ -160,23 +160,7 @@ export function calculateSafetyScore(
     // Fallback: use OFF allergen/trace tags only (AI unavailable)
     for (const allergy of profile.allergies) {
       if (allergy === 'OTHER') {
-        if (profile.otherAllergiesText) {
-          const customKeywords = profile.otherAllergiesText.split(/[\s,]+/).filter(Boolean);
-          const matchInAllergens = customKeywords.some((kw) =>
-            product.allergens.some((a) => a.toLowerCase().includes(kw.toLowerCase())),
-          );
-          const matchInIngredients = customKeywords.some((kw) =>
-            product.ingredients.some((i) => i.toLowerCase().includes(kw.toLowerCase())),
-          );
-          if (matchInAllergens || matchInIngredients) {
-            score = SAFETY_SCORE.CONFIRMED_ALLERGEN;
-            status = 'avoid';
-            reasons.push(
-              `Contains ingredient matching custom allergy: ${profile.otherAllergiesText}`,
-            );
-            matchedAllergens.push(profile.otherAllergiesText);
-          }
-        }
+        // Custom allergy text needs semantic analysis and is handled only by AI.
         continue;
       }
 
