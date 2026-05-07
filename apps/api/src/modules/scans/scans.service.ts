@@ -374,9 +374,12 @@ export class ScansService {
       },
     });
 
-    console.log(
-      `[scans] Removed favourite for productId=${scan.productId} after deleting the last product scan`,
-    );
+    await prisma.comparison.deleteMany({
+      where: {
+        userId,
+        OR: [{ product1Id: scan.productId }, { product2Id: scan.productId }],
+      },
+    });
   }
 
   private serializeHistoryItem(

@@ -31,7 +31,11 @@ import type {
   AnalyzeBarcodeV2Response,
   AnalyzeBarcodeV2ProfileResult,
 } from '../../types/analyze-product-v2.types.js';
-import type { AiProfileInfo, AiProductAnalyzeV2Result } from '../../types/ai-analyze.types.js';
+import type {
+  AiCanIHaveThisStatus,
+  AiProfileInfo,
+  AiProductAnalyzeV2Result,
+} from '../../types/ai-analyze.types.js';
 import { ApiError } from '../../../../shared/errors/api-error.js';
 import {
   translateIngredientsToEnglish,
@@ -148,6 +152,11 @@ export function normalizeOverallSummaryText(summary: string): string {
 
 const allergenDetectionSchema = z.object({
   allergy: z.string(),
+  customAllergy: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Required when allergy is OTHER. Exact matched custom allergy, e.g. almond.'),
   detected: z.boolean(),
   source: z.enum(['off_allergen_tag', 'ingredient_text', 'ai_inference']),
   confidence: z.number().min(0).max(1),
@@ -181,6 +190,11 @@ const traceDetectionSchema = z.object({
     .optional()
     .catch(null)
     .describe('Selected profile allergy affected by this trace, or null.'),
+  customAllergy: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Required when allergy is OTHER. Exact matched custom allergy, e.g. almond.'),
   restriction: z
     .enum(VALID_RESTRICTIONS_LIST)
     .nullable()
@@ -199,6 +213,8 @@ const profileIngredientSchema = z.object({
   evidence: z.array(z.string()).default([]),
 });
 
+const canIHaveThisStatusSchema = z.enum(['yes', 'warning', 'no']);
+
 const profileInfoSchema = z.object({
   profileType: z.enum(['user', 'family_member']),
   profileId: z.string(),
@@ -213,6 +229,7 @@ const profileInfoSchema = z.object({
   overallSummary: z.string().nullable().optional(),
   canIHaveThis: z.object({
     can: z.boolean(),
+    status: canIHaveThisStatusSchema,
     reason: z.string().min(1),
   }),
   uncertaintyFlags: z
@@ -248,6 +265,7 @@ type IngredientCompatibilityItem = {
 };
 type AiAllergenDetectionOutput = {
   allergy: string;
+  customAllergy?: string | null;
   detected: boolean;
   source: 'off_allergen_tag' | 'ingredient_text' | 'ai_inference';
   confidence: number;
@@ -271,6 +289,7 @@ type AiRestrictionDetectionOutput = {
 type AiTraceDetectionOutput = {
   trace: string;
   allergy?: string | null;
+  customAllergy?: string | null;
   restriction?: string | null;
   source: 'off_trace_tag' | 'ingredient_text' | 'ai_inference';
   confidence: number;
@@ -287,6 +306,7 @@ type AiProfileInfoWithIngredients = {
   overallSummary?: string | null;
   canIHaveThis: {
     can: boolean;
+    status: AiCanIHaveThisStatus;
     reason: string;
   };
   uncertaintyFlags: Array<{
@@ -318,6 +338,68 @@ type BuildProfileAiResult = {
   ingredients: IngredientCompatibilityItem[];
   canIHaveThis: AnalyzeBarcodeV2ProfileResult['ai']['canIHaveThis'];
 };
+
+type CanIHaveThisStatusInput = Pick<
+  AnalyzeBarcodeV2ProfileResult['ai'],
+  'allergenDetections' | 'restrictionDetections' | 'traceDetections' | 'canIHaveThis'
+>;
+
+const CAN_I_HAVE_THIS_STATUS_SET = new Set<AiCanIHaveThisStatus>(['yes', 'warning', 'no']);
+
+function isCanIHaveThisStatus(value: unknown): value is AiCanIHaveThisStatus {
+  return typeof value === 'string' && CAN_I_HAVE_THIS_STATUS_SET.has(value as AiCanIHaveThisStatus);
+}
+
+function resolveFallbackCanIHaveThisStatus(input: CanIHaveThisStatusInput): AiCanIHaveThisStatus {
+  const hasDirectAllergen = input.allergenDetections.some((detection) => detection.detected);
+  const hasHardRestriction = input.restrictionDetections.some(
+    (detection) => detection.status === 'not_compatible',
+  );
+
+  if (hasDirectAllergen || hasHardRestriction) {
+    return 'no';
+  }
+
+  const hasRestrictionConcern = input.restrictionDetections.some(
+    (detection) => detection.status !== 'compatible',
+  );
+  const hasAllergyTrace = input.traceDetections.some((detection) => Boolean(detection.allergy));
+
+  if (!hasRestrictionConcern && hasAllergyTrace) {
+    return 'warning';
+  }
+
+  return input.canIHaveThis.can ? 'yes' : 'no';
+}
+
+function buildCanIHaveThisAnswer(
+  input: CanIHaveThisStatusInput,
+): AnalyzeBarcodeV2ProfileResult['ai']['canIHaveThis'] {
+  const status = isCanIHaveThisStatus(input.canIHaveThis.status)
+    ? input.canIHaveThis.status
+    : resolveFallbackCanIHaveThisStatus(input);
+
+  return {
+    can: status !== 'no',
+    status,
+    reason: input.canIHaveThis.reason,
+  };
+}
+
+function withResolvedCanIHaveThisStatuses(
+  response: AnalyzeBarcodeV2Response,
+): AnalyzeBarcodeV2Response {
+  return {
+    ...response,
+    profiles: response.profiles.map((profile) => ({
+      ...profile,
+      ai: {
+        ...profile.ai,
+        canIHaveThis: buildCanIHaveThisAnswer(profile.ai),
+      },
+    })),
+  };
+}
 
 function buildAiAnalysisPrompt(
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
@@ -413,6 +495,7 @@ Each ProfileInfo item must include:
   "overallSummary": string,
   "canIHaveThis": {
     "can": boolean,
+    "status": "yes" | "warning" | "no",
     "reason": string
   },
   "uncertaintyFlags": UncertaintyFlag[]
@@ -426,6 +509,30 @@ Each ProfileIngredient item must include:
   "evidence": string[]
 }
 
+Each AllergenDetection item must include:
+{
+  "allergy": AllergyEnum,
+  "customAllergy": string | null,
+  "detected": boolean,
+  "source": "off_allergen_tag" | "ingredient_text" | "ai_inference",
+  "confidence": number,
+  "ingredients": string[],
+  "evidence": string[]
+}
+
+Each TraceDetection item must include:
+{
+  "trace": string,
+  "allergy": AllergyEnum | null,
+  "customAllergy": string | null,
+  "restriction": RestrictionEnum | null,
+  "source": "off_trace_tag" | "ingredient_text" | "ai_inference",
+  "confidence": number,
+  "evidence": string[]
+}
+
+The canIHaveThis.status must be one of: yes, warning, no.
+The canIHaveThis.can value must match status: true for yes or warning, false for no.
 The canIHaveThis.reason must be in English and must be exactly 1 very short sentence. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
 The overallSummary must be in English and must be 3 short sentences. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
 
@@ -449,6 +556,11 @@ The enum lists above are allowed output values only. They are NOT a checklist to
 
 CUSTOM ALLERGY RULES FOR OTHER:
 - When a profile's allergies array includes OTHER and otherAllergiesText is provided, treat otherAllergiesText as the profile's custom allergy details.
+- When allergy is OTHER, customAllergy is required and must be the exact custom allergy entry from otherAllergiesText that matched, e.g. "almond".
+- When allergy is not OTHER, customAllergy must be null.
+- If multiple custom allergies are listed in otherAllergiesText, analyze them separately.
+- For direct custom allergy matches, return separate allergenDetections items with allergy: OTHER and different customAllergy values.
+- For custom allergy trace matches, return separate traceDetections items with allergy: OTHER and different customAllergy values.
 - Match the custom allergy narrowly and specifically against the product ingredients, allergens, and traces.
 - A specific custom allergen matches only itself, its simple singular/plural form, or an explicit alias clearly stated in the product data.
 - Do NOT generalize a specific custom allergen to sibling ingredients from the same family or category.
@@ -492,12 +604,15 @@ canIHaveThis.reason must only reference:
 - product role.
 It must NOT mention allergies or restrictions that are not selected by this profile.
 It must directly answer whether the user should take/eat this product.
-It must start with either "Yes –" or "No –".
+It must start with "Yes –", "Warning –", or "No –" matching canIHaveThis.status.
 Keep it under 20 words when possible.
 Prefer very short recommendation patterns such as:
 - "Yes – good everyday option."
 - "Yes – fine in small amounts."
 - "Yes – okay occasionally, but keep portions modest."
+- "Warning – may contain traces relevant to your profile."
+- "Warning – trace allergen risk is listed."
+- "Warning – check the may-contain warning first."
 - "No – it conflicts with your profile."
 - "No – better avoid this one."
 - "No – not a good fit for your needs."
@@ -594,18 +709,20 @@ Existing hard rules:
 - For PALEO: processed additives may make compatibility unclear only when actually present and relevant.
 
 canIHaveThis policy:
-- canIHaveThis.can is a practical user-facing recommendation, not a certification guarantee.
-- If a selected allergy is detected as present, can must be false.
-- If a selected restriction is not_compatible, can must be false.
-- If a selected traceDetection is present, can can be true, but the reason must clearly mention the trace or cross-contamination risk.
-- If a selected restriction has status semi_compatible, can can be true, but the reason must clearly mention the ingredient-based partial compatibility concern.
-- If a selected restriction has status requires_certification, can should usually be true, but the reason must clearly say the user should verify the relevant certification before consuming.
-- If a selected restriction has status unclear, can can be true when the risk is low or theoretical, but the reason must mention what to check.
-- If all selected restrictions/allergies are compatible, can should be true.
-- Do not set can=false only because certification might theoretically be needed.
-- Do not set can=false for simple olive oil, plain fish, sardines in oil/brine/tomato/water, fruit, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflict with selected allergies/restrictions.
+- canIHaveThis.status is the practical user-facing recommendation, not a certification guarantee.
+- status "no" and can false: use when a selected allergy is directly detected in ingredients/allergen tags, or a selected restriction is not_compatible.
+- status "warning" and can true: use when there is no direct selected allergy and no not_compatible selected restriction, but there is a relevant traceDetection for a selected allergy or restriction.
+- status "warning" and can true: also use for selected restriction statuses semi_compatible, unclear, or requires_certification when the product may still be usable after checking the stated concern.
+- status "yes" and can true: use only when selected allergies/restrictions are compatible and there are no relevant traceDetections.
+- If a selected traceDetection is present, status must be warning unless a direct selected allergy or not_compatible restriction makes it no.
+- If a selected traceDetection is present, the reason must clearly mention the trace or cross-contamination risk.
+- If a selected restriction has status semi_compatible, the reason must clearly mention the ingredient-based partial compatibility concern.
+- If a selected restriction has status requires_certification, the reason must clearly say the user should verify the relevant certification before consuming.
+- If a selected restriction has status unclear, the reason must mention what to check.
+- Do not use status no only because certification might theoretically be needed.
+- Do not use status no for simple olive oil, plain fish, sardines in oil/brine/tomato/water, fruit, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflict with selected allergies/restrictions.
 - Do not mention certification in canIHaveThis.reason unless the profile has a selected restriction where certification is actually relevant.
-- For unclear PORK_FREE cases, prefer short wording like: "Yes – check the gelatin source first."
+- For unclear PORK_FREE cases, prefer short wording like: "Warning – check the gelatin source first."
 - Keep reason in English and exactly 1 very short sentence.
 
 confidence must be a number from 0 to 1.
@@ -638,8 +755,6 @@ async function analyzeWithAI(
 const NEGATIVE_EVIDENCE_PATTERN =
   /\b(?:no|none|without|absent|missing|unlisted)\b|\bnot\s+(?:listed|found|present|detected|triggered|directly\s+triggered)\b|\bdoes\s+not\s+(?:contain|list|show|include|appear|match)\b|\b(?:isn't|is\s+not)\s+(?:listed|present|included|detected|triggered)\b|\bfree\s+from\b/iu;
 
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const normalizeGroundingText = (value: string): string =>
   value
     .normalize('NFD')
@@ -663,128 +778,6 @@ const uniqueNormalizedValues = (values: string[]): string[] => {
   return result;
 };
 
-const splitCustomAllergyEntries = (value: string | null | undefined): string[] =>
-  uniqueNormalizedValues(
-    (value ?? '')
-      .split(/\s*[,;/]\s*/)
-      .map((entry) => entry.trim())
-      .filter((entry) => entry.length > 0),
-  );
-
-const normalizeCustomAllergyEntry = (value: string): string =>
-  normalizeGroundingText(value)
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const singularizeCustomWord = (word: string): string => {
-  if (word.endsWith('ies') && word.length > 3) {
-    return `${word.slice(0, -3)}y`;
-  }
-
-  if (word.endsWith('ses') || word.endsWith('xes')) {
-    return word.slice(0, -2);
-  }
-
-  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 2) {
-    return word.slice(0, -1);
-  }
-
-  return word;
-};
-
-const pluralizeCustomWord = (word: string): string => {
-  if (word.endsWith('y') && word.length > 1 && !/[aeiou]y$/i.test(word)) {
-    return `${word.slice(0, -1)}ies`;
-  }
-
-  if (/(s|x|z|ch|sh)$/i.test(word)) {
-    return `${word}es`;
-  }
-
-  if (word.endsWith('s')) {
-    return word;
-  }
-
-  return `${word}s`;
-};
-
-const buildCustomAllergyVariants = (entry: string): string[] => {
-  const normalizedEntry = normalizeCustomAllergyEntry(entry);
-  if (!normalizedEntry) {
-    return [];
-  }
-
-  const words = normalizedEntry.split(' ').filter(Boolean);
-  if (words.length === 0) {
-    return [];
-  }
-
-  const lastWord = words[words.length - 1];
-  const singularVariant = [...words.slice(0, -1), singularizeCustomWord(lastWord)].join(' ');
-  const pluralVariant = [...words.slice(0, -1), pluralizeCustomWord(lastWord)].join(' ');
-
-  return uniqueNormalizedValues([normalizedEntry, singularVariant, pluralVariant]);
-};
-
-const textContainsCustomAllergyEntry = (text: string, entry: string): boolean => {
-  const normalizedText = normalizeCustomAllergyEntry(text);
-  if (!normalizedText) {
-    return false;
-  }
-
-  return buildCustomAllergyVariants(entry).some((variant) => {
-    const pattern = new RegExp(`\\b${escapeRegExp(variant).replace(/\s+/g, '\\s+')}\\b`, 'iu');
-    return pattern.test(normalizedText);
-  });
-};
-
-const hasSpecificCustomAllergyMatch = (
-  detection: AiAllergenDetectionOutput,
-  customEntries: string[],
-): boolean => {
-  if (detection.allergy !== 'OTHER' || !detection.detected) {
-    return true;
-  }
-
-  if (customEntries.length === 0) {
-    return false;
-  }
-
-  const evidenceTexts = [...detection.ingredients, ...detection.evidence];
-  return evidenceTexts.some((text) =>
-    customEntries.some((entry) => textContainsCustomAllergyEntry(text, entry)),
-  );
-};
-
-const hasSpecificCustomTraceMatch = (
-  detection: AiTraceDetectionOutput,
-  customEntries: string[],
-): boolean => {
-  if (detection.allergy !== 'OTHER') {
-    return true;
-  }
-
-  if (customEntries.length === 0) {
-    return false;
-  }
-
-  const evidenceTexts = [detection.trace, ...detection.evidence];
-  return evidenceTexts.some((text) =>
-    customEntries.some((entry) => textContainsCustomAllergyEntry(text, entry)),
-  );
-};
-
-const buildAllergenGroundingValues = (
-  product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
-  translatedIngredients: TranslatedIngredients,
-): string[] =>
-  uniqueNormalizedValues([
-    ...product.ingredients,
-    ...product.allergens,
-    ...translatedIngredients.ingredientsEnglish,
-  ]);
-
 const buildTraceGroundingValues = (
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
 ): string[] => uniqueNormalizedValues(product.traces);
@@ -802,36 +795,44 @@ const textContainsGroundedValue = (text: string, groundingValues: string[]): boo
   });
 };
 
-const filterGroundedIngredients = (ingredients: string[], groundingValues: string[]): string[] =>
-  uniqueNormalizedValues(
-    ingredients.filter((ingredient) => textContainsGroundedValue(ingredient, groundingValues)),
-  );
+const normalizeCustomAllergyValue = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim().replace(/\s+/g, ' ') ?? '';
+  return normalized.length > 0 ? normalized : null;
+};
 
-const normalizeAllergenDetection = (
-  detection: AiAllergenDetectionOutput,
-  groundingValues: string[],
-): AiAllergenDetectionOutput | null => {
-  const evidence = Array.isArray(detection.evidence) ? detection.evidence : [];
-  const evidenceText = evidence.join(' ');
-  const groundedIngredients = filterGroundedIngredients(detection.ingredients, groundingValues);
+const buildAllergyDedupeKey = (
+  allergy: string | null | undefined,
+  customAllergy?: string | null,
+): string | null => {
+  if (!allergy) return null;
 
-  if (!detection.detected) {
-    return { ...detection, ingredients: groundedIngredients, evidence };
+  if (allergy === 'OTHER') {
+    const customKey = normalizeCustomAllergyValue(customAllergy)?.toLowerCase();
+    return customKey ? `OTHER:${customKey}` : null;
   }
 
-  if (NEGATIVE_EVIDENCE_PATTERN.test(evidenceText)) {
-    return null;
+  return allergy;
+};
+
+const removeDuplicateTraceAllergy = (
+  detection: AiTraceDetectionOutput,
+  directAllergyKeys: Set<string>,
+): AiTraceDetectionOutput | null => {
+  const allergyKey = buildAllergyDedupeKey(detection.allergy, detection.customAllergy);
+
+  if (!allergyKey || !directAllergyKeys.has(allergyKey)) {
+    return detection;
   }
 
-  const hasGroundedEvidence =
-    groundedIngredients.length > 0 ||
-    evidence.some((item) => textContainsGroundedValue(item, groundingValues));
-
-  if (!hasGroundedEvidence) {
-    return null;
+  if (detection.restriction) {
+    return {
+      ...detection,
+      allergy: null,
+      customAllergy: null,
+    };
   }
 
-  return { ...detection, ingredients: groundedIngredients, evidence };
+  return null;
 };
 
 const normalizeTraceDetection = (
@@ -865,6 +866,8 @@ const normalizeTraceDetection = (
   return {
     trace,
     allergy,
+    customAllergy:
+      allergy === 'OTHER' ? normalizeCustomAllergyValue(detection.customAllergy) : null,
     restriction,
     source: detection.source,
     confidence: detection.confidence,
@@ -876,10 +879,8 @@ function validateAndNormalizeAiResult(
   raw: AiAnalyzeV2Output | null,
   profiles: ProfileInputForScoring[],
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
-  translatedIngredients: TranslatedIngredients,
 ): { result: ValidatedAiAnalyzeV2Result; unscopedReasonProfileIds: Set<string> } {
   const unscopedReasonProfileIds = new Set<string>();
-  const groundingValues = buildAllergenGroundingValues(product, translatedIngredients);
   const traceGroundingValues = buildTraceGroundingValues(product);
 
   const fallbackResult: ValidatedAiAnalyzeV2Result = {
@@ -913,38 +914,39 @@ function validateAndNormalizeAiResult(
 
     const canIHaveThis =
       aiProfile.canIHaveThis.reason.trim().length > 0
-        ? { can: aiProfile.canIHaveThis.can, reason: aiProfile.canIHaveThis.reason.trim() }
-        : { can: false, reason: 'I cannot confirm this product is suitable for you.' };
+        ? {
+            can: aiProfile.canIHaveThis.can,
+            status: aiProfile.canIHaveThis.status,
+            reason: aiProfile.canIHaveThis.reason.trim(),
+          }
+        : {
+            can: false,
+            status: 'no' as const,
+            reason: 'I cannot confirm this product is suitable for you.',
+          };
 
     const overallSummary =
       typeof aiProfile.overallSummary === 'string' && aiProfile.overallSummary.trim().length > 0
         ? normalizeOverallSummaryText(aiProfile.overallSummary)
         : null;
-    const customAllergyEntries = splitCustomAllergyEntries(profile.otherAllergiesText);
 
-    const rawValidAllergenDetections = (aiProfile.allergenDetections ?? []).filter(
-      (d) => VALID_ALLERGY_SET.has(d.allergy) && d.confidence >= 0 && d.confidence <= 1,
+    const rawDetectedAllergenDetections = (aiProfile.allergenDetections ?? []).filter(
+      (d) => d.detected,
     );
 
-    const normalizedAllergenDetections = rawValidAllergenDetections
-      .map((d) =>
-        normalizeAllergenDetection(
-          {
-            ...d,
-            ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
-            evidence: Array.isArray(d.evidence) ? d.evidence : [],
-          },
-          groundingValues,
-        ),
-      )
-      .filter((d): d is AiAllergenDetectionOutput => d !== null);
+    const allergenDetections = rawDetectedAllergenDetections
+      .filter((d) => VALID_ALLERGY_SET.has(d.allergy) && d.confidence >= 0 && d.confidence <= 1)
+      .map((d) => ({
+        ...d,
+        customAllergy: d.allergy === 'OTHER' ? normalizeCustomAllergyValue(d.customAllergy) : null,
+        ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+        evidence: Array.isArray(d.evidence) ? d.evidence : [],
+      }));
 
-    const droppedCustomOtherDetections = normalizedAllergenDetections.filter(
-      (d) => d.allergy === 'OTHER' && !hasSpecificCustomAllergyMatch(d, customAllergyEntries),
-    );
-
-    const allergenDetections = normalizedAllergenDetections.filter(
-      (d) => d.allergy !== 'OTHER' || hasSpecificCustomAllergyMatch(d, customAllergyEntries),
+    const directAllergyKeys = new Set(
+      allergenDetections
+        .map((d) => buildAllergyDedupeKey(d.allergy, d.customAllergy))
+        .filter((key): key is string => key !== null),
     );
 
     const restrictionDetections = (aiProfile.restrictionDetections ?? [])
@@ -965,12 +967,13 @@ function validateAndNormalizeAiResult(
       (d) => d.trace.trim().length > 0 && d.confidence >= 0 && d.confidence <= 1,
     );
 
-    const normalizedTraceDetections = rawValidTraceDetections
+    const traceDetections = rawValidTraceDetections
       .map((d) =>
         normalizeTraceDetection(
           {
             ...d,
             allergy: d.allergy ?? null,
+            customAllergy: d.customAllergy ?? null,
             restriction: d.restriction ?? null,
             evidence: Array.isArray(d.evidence) ? d.evidence : [],
           },
@@ -978,15 +981,9 @@ function validateAndNormalizeAiResult(
         ),
       )
       .filter((d): d is AiTraceDetectionOutput => d !== null)
+      .map((d) => removeDuplicateTraceAllergy(d, directAllergyKeys))
+      .filter((d): d is AiTraceDetectionOutput => d !== null)
       .filter((d) => d.allergy || d.restriction);
-
-    const droppedCustomOtherTraceDetections = normalizedTraceDetections.filter(
-      (d) => d.allergy === 'OTHER' && !hasSpecificCustomTraceMatch(d, customAllergyEntries),
-    );
-
-    const traceDetections = normalizedTraceDetections.filter(
-      (d) => d.allergy !== 'OTHER' || hasSpecificCustomTraceMatch(d, customAllergyEntries),
-    );
 
     const ingredients = (aiProfile.ingredients ?? [])
       .filter(
@@ -1021,7 +1018,7 @@ function validateAndNormalizeAiResult(
 
     // Log warning if AI returned out-of-scope detections
     const invalidAllergenDetectionCount =
-      rawValidAllergenDetections.length - allergenDetections.length;
+      rawDetectedAllergenDetections.length - allergenDetections.length;
     const droppedAllergens = allergenDetections.filter((d) => !allowedAllergies.has(d.allergy));
     const droppedRestrictions = restrictionDetections.filter(
       (d) => !allowedRestrictions.has(d.restriction),
@@ -1033,8 +1030,6 @@ function validateAndNormalizeAiResult(
     });
     if (
       invalidAllergenDetectionCount > 0 ||
-      droppedCustomOtherDetections.length > 0 ||
-      droppedCustomOtherTraceDetections.length > 0 ||
       droppedAllergens.length > 0 ||
       droppedRestrictions.length > 0 ||
       droppedTraceDetections.length > 0
@@ -1042,14 +1037,6 @@ function validateAndNormalizeAiResult(
       console.warn(`[ProductAnalyzeV2] Invalid or out-of-scope AI detections dropped`, {
         profileId: profile.profileId,
         invalidAllergenDetectionCount,
-        droppedCustomOtherDetections: droppedCustomOtherDetections.map((d) => ({
-          ingredients: d.ingredients,
-          evidence: d.evidence,
-        })),
-        droppedCustomOtherTraceDetections: droppedCustomOtherTraceDetections.map((d) => ({
-          trace: d.trace,
-          evidence: d.evidence,
-        })),
         droppedAllergenDetections: droppedAllergens.map((d) => d.allergy),
         droppedRestrictionDetections: droppedRestrictions.map((d) => d.restriction),
         droppedTraceDetections: droppedTraceDetections.map((d) => ({
@@ -1100,6 +1087,7 @@ function buildFallbackProfileInfo(profile: ProfileInputForScoring): AiProfileInf
     overallSummary: null,
     canIHaveThis: {
       can: false,
+      status: 'no',
       reason:
         'I cannot confirm this product is suitable for you because profile-specific AI analysis was not returned.',
     },
@@ -1183,15 +1171,21 @@ function buildProfileAnalysis(
 function buildProfileAi(aiProfileInfo: AiProfileInfoWithIngredients | null): BuildProfileAiResult {
   const canIHaveThis: BuildProfileAiResult['canIHaveThis'] = aiProfileInfo?.canIHaveThis ?? {
     can: false,
+    status: 'no',
     reason: 'I cannot confirm this product is suitable for you.',
   };
 
-  return {
+  const profileAi = {
     allergenDetections: aiProfileInfo?.allergenDetections ?? [],
     restrictionDetections: aiProfileInfo?.restrictionDetections ?? [],
     traceDetections: aiProfileInfo?.traceDetections ?? [],
     ingredients: aiProfileInfo?.ingredients ?? [],
     canIHaveThis,
+  };
+
+  return {
+    ...profileAi,
+    canIHaveThis: buildCanIHaveThisAnswer(profileAi),
   };
 }
 
@@ -1216,22 +1210,39 @@ function buildProfileResult(
   };
 }
 
-function buildSafetyBasedCanIHaveThis(safety: SafetyResult): { can: boolean; reason: string } {
+function buildSafetyBasedCanIHaveThis(
+  safety: SafetyResult,
+): AiProfileInfoWithIngredients['canIHaveThis'] {
   if (safety.status === 'avoid') {
     return {
       can: false,
+      status: 'no',
       reason: safety.reasons[0] ?? 'No, this product does not appear suitable for your profile.',
+    };
+  }
+  if (
+    safety.status === 'caution' &&
+    safety.matchedAllergens.length === 0 &&
+    safety.violatedRestrictions.length === 0 &&
+    safety.traceAllergens.length > 0
+  ) {
+    return {
+      can: true,
+      status: 'warning',
+      reason: safety.reasons[0] ?? 'This may contain traces of an allergen in your profile.',
     };
   }
   if (safety.status === 'caution') {
     return {
       can: false,
+      status: 'no',
       reason:
         safety.reasons[0] ?? 'You may need to be cautious with this product based on your profile.',
     };
   }
   return {
     can: true,
+    status: 'yes',
     reason:
       'Yes, this appears suitable for your selected preferences. Check portion size and nutrition details if relevant.',
   };
@@ -1327,7 +1338,6 @@ export async function analyzeNormalizedProductForUser(input: {
     rawAiOutput,
     allProfiles,
     product,
-    translatedIngredients,
   );
 
   console.log(`[ProductAnalyzeV2] Ai result], ${JSON.stringify(aiResult, null, 2)}`);
@@ -1506,7 +1516,7 @@ export async function findReusableAnalyzedProductByBarcode(input: {
 
   return {
     barcode: input.barcode,
-    result: reusableScan.multiProfileResult,
+    result: withResolvedCanIHaveThisStatuses(reusableScan.multiProfileResult),
     reusedExistingAnalysis: true,
     scanId: reusableScan.id,
     ...(reusableScan.productId ? { productId: reusableScan.productId } : {}),

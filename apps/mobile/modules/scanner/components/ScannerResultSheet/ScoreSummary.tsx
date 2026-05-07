@@ -1,10 +1,10 @@
 import type { ScoreReason, ScannerOverallRating } from '@acme/shared';
 import { CircleAlert, HeartCrack, HeartHandshake } from 'lucide-react-native';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useMemo } from 'react';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
-import { RESTRICTION_ICON } from '../../constants/restriction-icon';
+import { getSafetyRestrictionImage } from '../../utils/safetyRestrictionImage';
 import {
   formatOverallRatingColors,
   formatOverallRatingLabel,
@@ -18,6 +18,15 @@ interface ScoreSummaryProps {
   rating: ScannerOverallRating;
   summary: string;
   safetyScore: number;
+  safetyInfo: {
+    score: number;
+    violatedRestrictions: string[];
+    matchedAllergens: string[];
+    status: 'avoid' | 'safe' | 'caution';
+    reasons: string[];
+    traceAllergens: string[];
+    traceRestrictions: string[];
+  };
   matchedAllergens: string[];
   violatedRestrictions: string[];
   goalFitScore: number;
@@ -27,19 +36,6 @@ interface ScoreSummaryProps {
 }
 
 const HARD_RESTRICTION_SCORE_THRESHOLD = 30;
-
-const resolveRestrictionIcon = (violatedRestrictions: string[], matchedAllergens: string[]) => {
-  if (violatedRestrictions.length > 0) {
-    const restrictionKey = violatedRestrictions[0]?.trim() as keyof typeof RESTRICTION_ICON;
-    return RESTRICTION_ICON[restrictionKey] ?? RESTRICTION_ICON.default;
-  }
-
-  if (matchedAllergens.length > 0) {
-    return RESTRICTION_ICON.default;
-  }
-
-  return RESTRICTION_ICON.default;
-};
 
 interface SubscoreItemProps {
   label: string;
@@ -73,8 +69,7 @@ export function ScoreSummary({
   rating,
   summary,
   safetyScore,
-  matchedAllergens,
-  violatedRestrictions,
+  safetyInfo,
   goalFitScore,
   nutritionScore,
   positives = [],
@@ -84,10 +79,10 @@ export function ScoreSummary({
   const tone = useMemo(() => formatOverallRatingColors(score), [score]);
   const ratingLabel = formatOverallRatingLabel(score);
   const isHardRestrictionState = safetyScore < HARD_RESTRICTION_SCORE_THRESHOLD;
+  const hardRestrictionImage = useMemo(() => getSafetyRestrictionImage(safetyInfo), [safetyInfo]);
 
   const Icon =
     toneKey === 'bad' ? HeartCrack : toneKey === 'average' ? CircleAlert : HeartHandshake;
-  const RestrictionIcon = resolveRestrictionIcon(violatedRestrictions, matchedAllergens);
 
   return (
     <View
@@ -111,23 +106,29 @@ export function ScoreSummary({
           {isHardRestrictionState ? null : (
             <Icon size={18} color={tone.textColor} strokeWidth={2.2} />
           )}
-          <Typography
-            className="flex-1 text-[19px] font-semibold flex-shrink"
-            style={
-              isHardRestrictionState
-                ? {
-                    color: isHardRestrictionState ? COLORS.danger800 : tone.textColor,
-                    fontSize: 12,
-                  }
-                : { color: tone.textColor }
-            }
-          >
-            {isHardRestrictionState ? 'Score unavailable due to hard restriction' : ratingLabel}
-          </Typography>
+          {isHardRestrictionState ? (
+            <View>
+              <Typography className="font-bold" style={{ color: tone.textColor }}>
+                Alert!
+              </Typography>
+              <Typography className="font-medium text-[14p]" style={{ color: tone.textColor }}>
+                Score unavailable due to hard restriction
+              </Typography>
+            </View>
+          ) : (
+            <Typography className="flex-1 text-[19px] font-semibold flex-shrink">
+              {ratingLabel}
+            </Typography>
+          )}
         </View>
 
         {isHardRestrictionState ? (
-          <RestrictionIcon color={COLORS.danger800} size={22} strokeWidth={2.2} />
+          <Image
+            source={hardRestrictionImage}
+            className="h-[60px] w-[60px]"
+            accessibilityLabel="Restriction warning"
+            accessibilityIgnoresInvertColors
+          />
         ) : (
           <Typography className="text-[22px] font-bold" style={{ color: tone.textColor }}>
             {score}

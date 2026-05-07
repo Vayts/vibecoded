@@ -14,6 +14,8 @@ export type AiRestrictionDetectionSource =
 
 export type AiTraceDetectionSource = 'off_trace_tag' | 'ingredient_text' | 'ai_inference';
 
+export type AiCanIHaveThisStatus = 'yes' | 'warning' | 'no';
+
 export type AiRestrictionStatus =
   | 'compatible'
   | 'semi_compatible'
@@ -30,6 +32,7 @@ export type AiUncertaintyFlagType =
 
 export type AiAllergenDetection = {
   allergy: string;
+  customAllergy?: string | null;
   detected: boolean;
   source: AiAllergenDetectionSource;
   confidence: number;
@@ -50,6 +53,7 @@ export type AiRestrictionDetection = {
 export type AiTraceDetection = {
   trace: string;
   allergy?: string | null;
+  customAllergy?: string | null;
   restriction?: string | null;
   source: AiTraceDetectionSource;
   confidence: number;
@@ -58,6 +62,7 @@ export type AiTraceDetection = {
 
 export type AiCanIHaveThisAnswer = {
   can: boolean;
+  status: AiCanIHaveThisStatus;
   reason: string;
 };
 
