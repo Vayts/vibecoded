@@ -35,7 +35,9 @@ const SAFETY_ICON_ALIASES = {
 
 const getSafetyIcon = (value: string): LucideIcon => {
   const iconKey =
-    SAFETY_ICON_ALIASES[value.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof SAFETY_ICON_ALIASES];
+    SAFETY_ICON_ALIASES[
+      value.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof SAFETY_ICON_ALIASES
+    ];
 
   return iconKey ? RESTRICTION_ICON[iconKey] : RESTRICTION_ICON.default;
 };
@@ -85,6 +87,26 @@ export const formatAllergenConflictText = (allergen: string): string => {
   return `Contains ${normalizedAllergen.toLowerCase()}`;
 };
 
+const formatTraceAllergenText = (allergen: string): string => {
+  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
+
+  if (!normalizedAllergen || normalizedAllergen.toLowerCase() === 'other') {
+    return 'May contain your allergen';
+  }
+
+  return `May contain ${normalizedAllergen.toLowerCase()}`;
+};
+
+const formatTraceRestrictionText = (restriction: string): string => {
+  const normalizedRestriction = restriction.trim().toLowerCase().replace(/_/g, '-');
+
+  if (!normalizedRestriction) {
+    return 'Trace diet risk';
+  }
+
+  return `Trace risk: ${normalizedRestriction}`;
+};
+
 const formatSafeAllergenBadgeText = (allergen: string): string => {
   const normalizedAllergen = normalizeSafetyValue(allergen);
 
@@ -114,8 +136,25 @@ const toAllergenBadge = (
 ): ComparisonSafetyBadge => ({
   Icon: getSafetyIcon(allergen),
   key: `allergen-${tone}-${allergen}`,
-  label: tone === 'positive' ? formatSafeAllergenBadgeText(allergen) : formatAllergenConflictText(allergen),
+  label:
+    tone === 'positive'
+      ? formatSafeAllergenBadgeText(allergen)
+      : formatAllergenConflictText(allergen),
   tone,
+});
+
+const toTraceRestrictionBadge = (restriction: string): ComparisonSafetyBadge => ({
+  Icon: getSafetyIcon(restriction),
+  key: `trace-restriction-${restriction}`,
+  label: formatTraceRestrictionText(restriction),
+  tone: 'negative',
+});
+
+const toTraceAllergenBadge = (allergen: string): ComparisonSafetyBadge => ({
+  Icon: getSafetyIcon(allergen),
+  key: `trace-allergen-${allergen}`,
+  label: formatTraceAllergenText(allergen),
+  tone: 'negative',
 });
 
 export const getComparisonSafetyBadges = (product: ComparedProduct): ComparisonSafetyBadge[] => {
@@ -125,6 +164,12 @@ export const getComparisonSafetyBadges = (product: ComparedProduct): ComparisonS
   const violatedRestrictions = new Set(
     (product.analysis.safety?.violatedRestrictions ?? []).map(normalizeSafetyValue),
   );
+  const traceAllergens = new Set(
+    (product.analysis.safety?.traceAllergens ?? []).map(normalizeSafetyValue),
+  );
+  const traceRestrictions = new Set(
+    (product.analysis.safety?.traceRestrictions ?? []).map(normalizeSafetyValue),
+  );
 
   const badges = [
     ...(product.analysis.safety?.violatedRestrictions ?? []).map((restriction) =>
@@ -133,16 +178,28 @@ export const getComparisonSafetyBadges = (product: ComparedProduct): ComparisonS
     ...(product.analysis.safety?.matchedAllergens ?? []).map((allergen) =>
       toAllergenBadge(allergen, 'negative'),
     ),
+    ...(product.analysis.safety?.traceRestrictions ?? []).map(toTraceRestrictionBadge),
+    ...(product.analysis.safety?.traceAllergens ?? []).map(toTraceAllergenBadge),
     ...(product.profile.ai?.restrictionDetections ?? [])
       .filter((detection) => {
         const restriction = normalizeSafetyValue(detection.restriction);
-        return restriction && detection.status === 'compatible' && !violatedRestrictions.has(restriction);
+        return (
+          restriction &&
+          detection.status === 'compatible' &&
+          !violatedRestrictions.has(restriction) &&
+          !traceRestrictions.has(restriction)
+        );
       })
       .map((detection) => toRestrictionBadge(detection.restriction, 'positive')),
     ...(product.profile.ai?.allergenDetections ?? [])
       .filter((detection) => {
         const allergen = normalizeSafetyValue(detection.allergy);
-        return allergen && !detection.detected && !matchedAllergens.has(allergen);
+        return (
+          allergen &&
+          !detection.detected &&
+          !matchedAllergens.has(allergen) &&
+          !traceAllergens.has(allergen)
+        );
       })
       .map((detection) => toAllergenBadge(detection.allergy, 'positive')),
   ];

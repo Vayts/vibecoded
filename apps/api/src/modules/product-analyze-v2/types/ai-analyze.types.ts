@@ -12,6 +12,8 @@ export type AiRestrictionDetectionSource =
   | 'certification_tag'
   | 'ai_inference';
 
+export type AiTraceDetectionSource = 'off_trace_tag' | 'ingredient_text' | 'ai_inference';
+
 export type AiRestrictionStatus =
   | 'compatible'
   | 'semi_compatible'
@@ -45,6 +47,15 @@ export type AiRestrictionDetection = {
   evidence: string[];
 };
 
+export type AiTraceDetection = {
+  trace: string;
+  allergy?: string | null;
+  restriction?: string | null;
+  source: AiTraceDetectionSource;
+  confidence: number;
+  evidence: string[];
+};
+
 export type AiCanIHaveThisAnswer = {
   can: boolean;
   reason: string;
@@ -68,6 +79,7 @@ export type AiProfileInfo = {
   displayName?: string | null;
   allergenDetections: AiAllergenDetection[];
   restrictionDetections: AiRestrictionDetection[];
+  traceDetections: AiTraceDetection[];
   ingredients: AiProfileIngredient[];
   overallSummary?: string | null;
   canIHaveThis: AiCanIHaveThisAnswer;

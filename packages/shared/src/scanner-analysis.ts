@@ -47,11 +47,23 @@ export const scannerRestrictionDetectionSchema = z.object({
 });
 export type ScannerRestrictionDetection = z.infer<typeof scannerRestrictionDetectionSchema>;
 
+export const scannerTraceDetectionSchema = z.object({
+  trace: z.string(),
+  allergy: z.string().nullable().optional(),
+  restriction: z.string().nullable().optional(),
+  source: z.enum(['off_trace_tag', 'ingredient_text', 'ai_inference']),
+  confidence: z.number().min(0).max(1),
+  evidence: z.array(z.string()),
+});
+export type ScannerTraceDetection = z.infer<typeof scannerTraceDetectionSchema>;
+
 export const scannerCanIHaveThisSchema = z.object({
   can: z.boolean(),
   reason: z.string(),
 });
 export type ScannerCanIHaveThis = z.infer<typeof scannerCanIHaveThisSchema>;
+export const scannerCanIHaveThisAnswerSchema = scannerCanIHaveThisSchema;
+export type ScannerCanIHaveThisAnswer = ScannerCanIHaveThis;
 
 export const scannerProfileIngredientSchema = z.object({
   name: z.string().trim().min(1),
@@ -68,6 +80,8 @@ export const scannerProfileAnalysisSchema = z.object({
     reasons: z.array(z.string()),
     matchedAllergens: z.array(z.string()),
     violatedRestrictions: z.array(z.string()),
+    traceAllergens: z.array(z.string()).default([]),
+    traceRestrictions: z.array(z.string()).default([]),
   }),
   goalFit: z.object({
     score: z.number(),
@@ -96,6 +110,7 @@ export type ScannerProfileAnalysis = z.infer<typeof scannerProfileAnalysisSchema
 export const scannerProfileAiSchema = z.object({
   allergenDetections: z.array(scannerAllergenDetectionSchema),
   restrictionDetections: z.array(scannerRestrictionDetectionSchema),
+  traceDetections: z.array(scannerTraceDetectionSchema).default([]),
   ingredients: z.array(scannerProfileIngredientSchema).default([]),
   canIHaveThis: scannerCanIHaveThisSchema,
 });

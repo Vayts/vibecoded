@@ -38,41 +38,50 @@ const getRestrictionStatusLabel = (status: string): string => {
 
 export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityAccordionProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const concerns = useMemo(
-    () => {
-      const restrictionItems = profile.ai.restrictionDetections
-        .filter((detection) => detection.status !== 'compatible')
-        .map<CompatibilityAccordionItem>((detection) => ({
-          key: `restriction-${detection.restriction}`,
-          title: normalizeLabel(detection.restriction),
-          statusLabel: getRestrictionStatusLabel(detection.status),
-          ingredients: detection.ingredients,
-          evidence: detection.evidence,
-        }));
+  const concerns = useMemo(() => {
+    const restrictionItems = profile.ai.restrictionDetections
+      .filter((detection) => detection.status !== 'compatible')
+      .map<CompatibilityAccordionItem>((detection) => ({
+        key: `restriction-${detection.restriction}`,
+        title: normalizeLabel(detection.restriction),
+        statusLabel: getRestrictionStatusLabel(detection.status),
+        ingredients: detection.ingredients,
+        evidence: detection.evidence,
+      }));
 
-      const allergenItems = profile.ai.allergenDetections
-        .filter((detection) => detection.detected)
-        .map<CompatibilityAccordionItem>((detection) => ({
-          key: `allergen-${detection.allergy}`,
-          title: normalizeLabel(detection.allergy),
-          statusLabel: detection.source === 'off_trace_tag' ? 'Trace detected' : 'Detected',
-          ingredients: detection.ingredients,
-          evidence: detection.evidence,
-        }));
+    const allergenItems = profile.ai.allergenDetections
+      .filter((detection) => detection.detected)
+      .map<CompatibilityAccordionItem>((detection) => ({
+        key: `allergen-${detection.allergy}`,
+        title: normalizeLabel(detection.allergy),
+        statusLabel: 'Detected',
+        ingredients: detection.ingredients,
+        evidence: detection.evidence,
+      }));
 
-      return [...restrictionItems, ...allergenItems];
-    },
-    [profile],
-  );
+    const traceItems = profile.ai.traceDetections.map<CompatibilityAccordionItem>(
+      (detection, index) => {
+        const target = detection.restriction ?? detection.allergy ?? detection.trace;
+
+        return {
+          key: `trace-${target}-${index}`,
+          title: normalizeLabel(target),
+          statusLabel: 'Trace risk',
+          ingredients: detection.trace.trim() ? [detection.trace.trim()] : [],
+          evidence: detection.evidence,
+        };
+      },
+    );
+
+    return [...restrictionItems, ...allergenItems, ...traceItems];
+  }, [profile]);
 
   if (concerns.length === 0) {
     return null;
   }
 
   return (
-    <View
-      className="mt-4 border bg-accent-50 border-accent-200 overflow-hidden rounded-[20px]"
-    >
+    <View className="mt-4 border bg-accent-50 border-accent-200 overflow-hidden rounded-[20px]">
       <View className="px-4">
         {concerns.map((concern, index) => {
           const isExpanded = expandedKey === concern.key;
@@ -94,7 +103,10 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
                   </View>
 
                   <View>
-                    <Typography variant="body" className="font-semibold text-[14px] text-neutrals-900">
+                    <Typography
+                      variant="body"
+                      className="font-semibold text-[14px] text-neutrals-900"
+                    >
                       {concern.title}
                     </Typography>
                     <Typography variant="bodySecondary" className="mt-1 text-neutrals-600">
