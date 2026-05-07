@@ -30,6 +30,11 @@ const RESTRICTION_LABELS: Record<string, string> = {
   NUT_FREE: 'Nut-free',
 };
 
+const isValidAllergy = (value: string): value is keyof typeof ALLERGY_LABELS =>
+  Object.prototype.hasOwnProperty.call(ALLERGY_LABELS, value);
+const isValidRestriction = (value: string): value is keyof typeof RESTRICTION_LABELS =>
+  Object.prototype.hasOwnProperty.call(RESTRICTION_LABELS, value);
+
 interface NegativeReasonInput {
   category: ScoreReasonCategory;
   dedupeKey: string;
@@ -117,7 +122,7 @@ const addAiTraceReasons = (
   bucket: Map<string, ScoreReason>,
 ) => {
   for (const detection of ai?.traceDetections ?? []) {
-    if (detection.allergy) {
+    if (detection.allergy && isValidAllergy(detection.allergy)) {
       const label = getAllergyLabel(detection.allergy);
       addNegative(bucket, {
         key: 'allergens',
@@ -129,7 +134,7 @@ const addAiTraceReasons = (
         dedupeKey: `trace-allergen-${detection.allergy.toLowerCase()}`,
       });
     }
-    if (detection.restriction) {
+    if (detection.restriction && isValidRestriction(detection.restriction)) {
       const label = getRestrictionLabel(detection.restriction);
       addNegative(bucket, {
         key: 'diet-matching',

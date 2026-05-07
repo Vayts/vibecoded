@@ -176,14 +176,16 @@ const traceDetectionSchema = z.object({
     .string()
     .describe('Concise English trace/cross-contamination warning from product traces, e.g. milk.'),
   allergy: z
-    .string()
+    .enum(VALID_ALLERGIES_LIST)
     .nullable()
     .optional()
+    .catch(null)
     .describe('Selected profile allergy affected by this trace, or null.'),
   restriction: z
-    .string()
+    .enum(VALID_RESTRICTIONS_LIST)
     .nullable()
     .optional()
+    .catch(null)
     .describe('Selected profile restriction affected by this trace, e.g. DAIRY_FREE, or null.'),
   source: z.enum(['off_trace_tag', 'ingredient_text', 'ai_inference']),
   confidence: z.number().min(0).max(1),
@@ -853,10 +855,17 @@ const normalizeTraceDetection = (
     return null;
   }
 
+  const allergy =
+    detection.allergy && VALID_ALLERGY_SET.has(detection.allergy) ? detection.allergy : null;
+  const restriction =
+    detection.restriction && VALID_RESTRICTION_SET.has(detection.restriction)
+      ? detection.restriction
+      : null;
+
   return {
     trace,
-    allergy: detection.allergy ?? null,
-    restriction: detection.restriction ?? null,
+    allergy,
+    restriction,
     source: detection.source,
     confidence: detection.confidence,
     evidence,
@@ -953,13 +962,7 @@ function validateAndNormalizeAiResult(
       }));
 
     const rawValidTraceDetections = (aiProfile.traceDetections ?? []).filter(
-      (d) =>
-        d.trace.trim().length > 0 &&
-        d.confidence >= 0 &&
-        d.confidence <= 1 &&
-        ((!d.allergy && !d.restriction) ||
-          (d.allergy ? VALID_ALLERGY_SET.has(d.allergy) : true) ||
-          (d.restriction ? VALID_RESTRICTION_SET.has(d.restriction) : true)),
+      (d) => d.trace.trim().length > 0 && d.confidence >= 0 && d.confidence <= 1,
     );
 
     const normalizedTraceDetections = rawValidTraceDetections
