@@ -172,12 +172,22 @@ const restrictionDetectionSchema = z.object({
 });
 
 const traceDetectionSchema = z.object({
-  trace: z.string(),
-  allergy: z.string().nullable().optional(),
-  restriction: z.string().nullable().optional(),
+  trace: z
+    .string()
+    .describe('Concise English trace/cross-contamination warning from product traces, e.g. milk.'),
+  allergy: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Selected profile allergy affected by this trace, or null.'),
+  restriction: z
+    .string()
+    .nullable()
+    .optional()
+    .describe('Selected profile restriction affected by this trace, e.g. DAIRY_FREE, or null.'),
   source: z.enum(['off_trace_tag', 'ingredient_text', 'ai_inference']),
   confidence: z.number().min(0).max(1),
-  evidence: z.array(z.string()).default([]),
+  evidence: z.array(z.string()).default([]).describe('Short evidence grounded in product traces.'),
 });
 
 const profileIngredientSchema = z.object({
@@ -193,7 +203,10 @@ const profileInfoSchema = z.object({
   displayName: z.string().nullable().optional(),
   allergenDetections: z.array(allergenDetectionSchema).default([]),
   restrictionDetections: z.array(restrictionDetectionSchema).default([]),
-  traceDetections: z.array(traceDetectionSchema).default([]),
+  traceDetections: z
+    .array(traceDetectionSchema)
+    .default([])
+    .describe('Required for every relevant product trace/may-contain warning for this profile.'),
   ingredients: z.array(profileIngredientSchema).default([]),
   overallSummary: z.string().nullable().optional(),
   canIHaveThis: z.object({
@@ -339,6 +352,7 @@ function buildAiAnalysisPrompt(
   if (n.carbsPer100g !== null) productLines.push(`Carbohydrates per 100g: ${n.carbsPer100g}g`);
 
   const profileLines: string[] = profiles.map((p, i) => {
+    const selectedConcerns = [...p.allergies, ...p.restrictions].join(', ') || 'none';
     const lines = [
       `Profile ${i + 1}:`,
       `  profileType: ${p.profileType}`,
@@ -352,6 +366,9 @@ function buildAiAnalysisPrompt(
       );
     }
     lines.push(`  restrictions: ${p.restrictions.join(', ') || 'none'}`);
+    lines.push(
+      `  traceAuditRequired: Compare EVERY product trace (${product.traces.join(', ') || 'none'}) semantically against this profile's selected concerns (${selectedConcerns}). If any trace is relevant, return it in traceDetections for this profile before mentioning it in canIHaveThis.reason or overallSummary.`,
+    );
     return lines.join('\n');
   });
 
@@ -468,6 +485,7 @@ ingredients[].evidence must be a non-empty array of short English strings.
 canIHaveThis.reason must only reference:
 - selected allergies of this profile,
 - selected restrictions of this profile,
+- trace/cross-contamination warnings that are relevant to selected allergies or restrictions,
 - product-level nutrition or portion guidance,
 - product role.
 It must NOT mention allergies or restrictions that are not selected by this profile.
@@ -500,6 +518,9 @@ Evidence may mention both the original and English ingredient, for example: "Ori
 
 IMPORTANT trace rules:
 - traceDetections is the ONLY place for product traces, "may contain", "may contain traces of", shared-facility, shared-equipment, and cross-contamination warnings.
+- For every profile, perform a trace audit before writing canIHaveThis.reason or overallSummary.
+- If you mention any trace, may-contain warning, cross-contamination risk, shared facility, or shared equipment in canIHaveThis.reason or overallSummary, traceDetections MUST contain the matching traceDetection item.
+- If traceDetections is empty, do NOT mention trace warnings in canIHaveThis.reason or overallSummary.
 - Do NOT put trace/cross-contamination warnings in allergenDetections.
 - Do NOT put trace/cross-contamination warnings in restrictionDetections.
 - allergenDetections are only for direct listed ingredients or explicit product allergen tags, never traces.
@@ -508,7 +529,8 @@ IMPORTANT trace rules:
 - Use traceDetections[].allergy when the trace affects a selected allergy.
 - Use traceDetections[].restriction when the trace affects a selected restriction such as DAIRY_FREE, GLUTEN_FREE, or NUT_FREE.
 - A single traceDetection may include both allergy and restriction when both are selected and affected.
-- Example: profile has restriction DAIRY_FREE and product traces include milk → return traceDetections: [{ "trace": "milk", "allergy": null, "restriction": "DAIRY_FREE", "source": "off_trace_tag", "confidence": 1, "evidence": ["Product traces list milk."] }]. Do not add DAIRY_FREE to restrictionDetections as not_compatible or semi_compatible for this trace.
+- Mandatory example: profile has restriction DAIRY_FREE and product traces include milk → return traceDetections: [{ "trace": "milk", "allergy": null, "restriction": "DAIRY_FREE", "source": "off_trace_tag", "confidence": 1, "evidence": ["Product traces list milk."] }]. Do not add DAIRY_FREE to restrictionDetections as not_compatible or semi_compatible for this trace.
+- Consistency example: canIHaveThis.reason "Yes – dairy-free, but trace milk is present." is INVALID unless traceDetections includes the milk/DAIRY_FREE traceDetection.
 
 IMPORTANT restriction rules:
 
