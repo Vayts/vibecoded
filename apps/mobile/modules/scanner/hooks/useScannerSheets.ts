@@ -5,6 +5,11 @@ import { ScannerApiError } from '../api/scannerMutations';
 import { useScannerResultSheetStore } from '../stores/scannerResultSheetStore';
 import { SheetsEnum } from '../../../shared/types/sheets';
 
+export type BeginResultSheetSession = (
+  previewProduct?: ProductPreview,
+  photoUri?: string,
+) => number;
+
 interface UseScannerSheetsInput {
   isScannerErrorSheetOpen: boolean;
   isTransitioningToErrorSheetRef: RefObject<boolean>;

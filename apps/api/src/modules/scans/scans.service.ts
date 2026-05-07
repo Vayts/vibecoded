@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 import { Injectable } from '@nestjs/common';
 import { Prisma, type Product } from '@prisma/client';
 import type {

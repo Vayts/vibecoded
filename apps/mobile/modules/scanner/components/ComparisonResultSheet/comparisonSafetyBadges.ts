@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react-native';
-import { getSafetyIcon } from '../../constants/restriction-icon';
+import { RESTRICTION_ICON } from '../../constants/restriction-icon';
 import type { ComparedProduct } from '../../utils/profileCompareTypes';
 
 export interface ComparisonSafetyBadge {
@@ -12,7 +12,40 @@ export interface ComparisonSafetyBadge {
 const normalizeSafetyValue = (value: string): string =>
   value.trim().toLowerCase().replace(/[_-]+/g, ' ');
 
+const SAFETY_ICON_ALIASES = {
+  vegan: 'VEGAN',
+  vegetarian: 'VEGETARIAN',
+  keto: 'KETO',
+  paleo: 'PALEO',
+  gluten: 'GLUTEN_FREE',
+  glutenfree: 'GLUTEN_FREE',
+  wheat: 'GLUTEN_FREE',
+  dairy: 'DAIRY_FREE',
+  milk: 'DAIRY_FREE',
+  lactose: 'DAIRY_FREE',
+  pork: 'PORK_FREE',
+  porkfree: 'PORK_FREE',
+  nut: 'NUT_FREE',
+  nuts: 'NUT_FREE',
+  peanut: 'NUT_FREE',
+  peanuts: 'NUT_FREE',
+  treenut: 'NUT_FREE',
+  treenuts: 'NUT_FREE',
+} as const;
+
+const getSafetyIcon = (value: string): LucideIcon => {
+  const iconKey =
+    SAFETY_ICON_ALIASES[value.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof SAFETY_ICON_ALIASES];
+
+  return iconKey ? RESTRICTION_ICON[iconKey] : RESTRICTION_ICON.default;
+};
+
 const toTitleCase = (value: string): string => value.replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatFreeLabel = (value: string): string => {
+  const freeLabel = value.endsWith('free') ? value.replace(/\s+free$/, '-free') : `${value}-free`;
+  return toTitleCase(freeLabel).replace(/-Free\b/g, '-free');
+};
 
 export const formatRestrictionConflictText = (restriction: string): string => {
   const normalizedRestriction = restriction.trim().toLowerCase().replace(/_/g, '-');
@@ -32,7 +65,7 @@ const formatCompatibleRestrictionBadgeText = (restriction: string): string => {
   }
 
   if (normalizedRestriction.endsWith('free')) {
-    return toTitleCase(normalizedRestriction.replace(/\s+free$/, '-free'));
+    return formatFreeLabel(normalizedRestriction);
   }
 
   return toTitleCase(normalizedRestriction);
@@ -59,11 +92,7 @@ const formatSafeAllergenBadgeText = (allergen: string): string => {
     return 'Allergen-safe';
   }
 
-  if (normalizedAllergen.endsWith('free')) {
-    return toTitleCase(normalizedAllergen.replace(/\s+free$/, '-free'));
-  }
-
-  return `${toTitleCase(normalizedAllergen)}-free`;
+  return formatFreeLabel(normalizedAllergen);
 };
 
 const toRestrictionBadge = (
@@ -127,6 +156,5 @@ export const getComparisonSafetyBadges = (product: ComparedProduct): ComparisonS
     }
   });
 
-  return [...uniqueBadges.values()];
+  return Array.from(uniqueBadges.values());
 };
-

@@ -734,6 +734,12 @@ const ROLE_WEIGHT_OVERRIDES: Partial<Record<ProductRole, GoalScopedWeights<GoalR
       caloriesPerServing: 0.14,
       ingredientSimplicity: 0.24,
     },
+    PREGNANCY: {
+      sodium: 0.3,
+      additives: 0.32,
+      caloriesPerServing: 0.18,
+      ingredientSimplicity: 0.2,
+    },
     WEIGHT_LOSS: {
       additives: 0.36,
       sodium: 0.28,

@@ -21,11 +21,13 @@ export const VALIDATION_RULES: Partial<Record<ProductRole, ValidationRule>> = {
   },
   water: {
     check: (p) =>
-      (p.nutrition.sugarPer100g ?? 100) <= 1 && (p.nutrition.caloriesPer100g ?? 100) <= 10,
+      (p.nutrition.sugarPer100g == null || p.nutrition.sugarPer100g <= 1) &&
+      (p.nutrition.caloriesPer100g == null || p.nutrition.caloriesPer100g <= 10),
   },
   unsweetened_drink: {
     check: (p) =>
-      (p.nutrition.sugarPer100g ?? 100) <= 1 && (p.nutrition.caloriesPer100g ?? 100) <= 10,
+      (p.nutrition.sugarPer100g == null || p.nutrition.sugarPer100g <= 1) &&
+      (p.nutrition.caloriesPer100g == null || p.nutrition.caloriesPer100g <= 10),
   },
   nuts_seeds: {
     check: (p) => (p.nutrition.fatPer100g ?? 0) >= 30 && (p.nutrition.proteinPer100g ?? 0) >= 8,

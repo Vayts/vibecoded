@@ -153,4 +153,3 @@ export const personalAnalysisSocketEventPayloadSchema = personalAnalysisJobSchem
 export type PersonalAnalysisSocketEventPayload = z.infer<
   typeof personalAnalysisSocketEventPayloadSchema
 >;
-

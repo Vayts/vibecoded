@@ -1,14 +1,12 @@
 import { z } from 'zod';
-import {
-  analysisJobStatusSchema,
-  dietCompatibilitySchema,
-} from './product-analysis';
+import { analysisJobStatusSchema, dietCompatibilitySchema } from './product-analysis';
 import { ingredientStatusSchema } from './product-analysis';
 import { personalAnalysisJobSchema } from './scanner-analysis';
 export {
   personalAnalysisJobSchema,
   personalAnalysisSocketEventPayloadSchema,
   scannerAllergenDetectionSchema,
+  scannerCanIHaveThisAnswerSchema,
   scannerCanIHaveThisSchema,
   scannerOverallRatingSchema,
   scannerProfileIngredientSchema,
@@ -18,11 +16,13 @@ export {
   scannerProfileResultSchema,
   scannerRestrictionDetectionSchema,
   scannerSafetyStatusSchema,
+  scannerTraceDetectionSchema,
 } from './scanner-analysis';
 export type {
   PersonalAnalysisJob,
   PersonalAnalysisSocketEventPayload,
   ScannerAllergenDetection,
+  ScannerCanIHaveThisAnswer,
   ScannerCanIHaveThis,
   ScannerOverallRating,
   ScannerProfileIngredient,
@@ -32,6 +32,7 @@ export type {
   ScannerProfileResult,
   ScannerRestrictionDetection,
   ScannerSafetyStatus,
+  ScannerTraceDetection,
 } from './scanner-analysis';
 
 export const barcodeLookupRequestSchema = z.object({
@@ -43,11 +44,7 @@ export const barcodeLookupRequestSchema = z.object({
 });
 export type BarcodeLookupRequest = z.infer<typeof barcodeLookupRequestSchema>;
 
-export const scannerLookupSourceSchema = z.enum([
-  'openfoodfacts',
-  'websearch',
-  'photo',
-]);
+export const scannerLookupSourceSchema = z.enum(['openfoodfacts', 'websearch', 'photo']);
 export type ScannerLookupSource = z.infer<typeof scannerLookupSourceSchema>;
 
 const productImagesSchema = z.object({
@@ -122,13 +119,9 @@ export type ProductEvaluation = z.infer<typeof productEvaluationSchema>;
 
 export const ingredientAnalysisItemSchema = z.object({
   original: z.string().describe('Raw ingredient string from source'),
-  normalized: z.string().describe(
-    'Normalized/translated canonical English form',
-  ),
+  normalized: z.string().describe('Normalized/translated canonical English form'),
   label: z.string().describe('UI-friendly display label'),
-  status: ingredientStatusSchema.describe(
-    'How frontend should highlight the ingredient',
-  ),
+  status: ingredientStatusSchema.describe('How frontend should highlight the ingredient'),
   reason: z
     .string()
     .describe(
@@ -148,10 +141,7 @@ export const ingredientAnalysisResultSchema = z.object({
 export type IngredientAnalysisResult = z.infer<typeof ingredientAnalysisResultSchema>;
 
 export const personalAnalysisJobStatusSchema = analysisJobStatusSchema;
-export type PersonalAnalysisJobStatus = z.infer<
-  typeof personalAnalysisJobStatusSchema
->;
-
+export type PersonalAnalysisJobStatus = z.infer<typeof personalAnalysisJobStatusSchema>;
 
 export const barcodeLookupSuccessResponseSchema = z.object({
   success: z.literal(true),
@@ -163,9 +153,7 @@ export const barcodeLookupSuccessResponseSchema = z.object({
   productId: z.string().optional(),
   isFavourite: z.boolean().optional(),
 });
-export type BarcodeLookupSuccessResponse = z.infer<
-  typeof barcodeLookupSuccessResponseSchema
->;
+export type BarcodeLookupSuccessResponse = z.infer<typeof barcodeLookupSuccessResponseSchema>;
 
 export const barcodeLookupNotFoundResponseSchema = z.object({
   success: z.literal(false),
@@ -173,9 +161,7 @@ export const barcodeLookupNotFoundResponseSchema = z.object({
   source: scannerLookupSourceSchema,
   error: z.literal('PRODUCT_NOT_FOUND'),
 });
-export type BarcodeLookupNotFoundResponse = z.infer<
-  typeof barcodeLookupNotFoundResponseSchema
->;
+export type BarcodeLookupNotFoundResponse = z.infer<typeof barcodeLookupNotFoundResponseSchema>;
 
 export const barcodeLookupResponseSchema = z.union([
   barcodeLookupSuccessResponseSchema,

@@ -20,7 +20,10 @@ interface ProfileCompatibilityAccordionProps {
 }
 
 const normalizeLabel = (value: string): string =>
-  value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  value
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getIngredientCountLabel = (count: number): string =>
   `${count} ingredient${count === 1 ? '' : 's'}`;
@@ -87,7 +90,7 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
               >
                 <View className="flex-1 flex-row items-center gap-2">
                   <View className="h-8 w-8 rounded-full justify-center items-center bg-accent-600">
-                    <LeavesIcon color={COLORS.white}/>
+                    <LeavesIcon color={COLORS.white} />
                   </View>
 
                   <View>
@@ -137,6 +140,3 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
     </View>
   );
 }
-
-
-

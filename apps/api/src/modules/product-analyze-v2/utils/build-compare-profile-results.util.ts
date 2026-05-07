@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 import type { CompareFact, CompareProductsProfileResult } from '@acme/shared';
 import {
   NUTRITION_ROLE_RULES,

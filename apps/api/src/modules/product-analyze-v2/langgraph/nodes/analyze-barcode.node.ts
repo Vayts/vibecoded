@@ -940,17 +940,13 @@ function buildFallbackProfileInfo(profile: ProfileInputForScoring): AiProfileInf
   };
 }
 
-function resolveProductRole(
-  aiProduct: AiProductAnalyzeV2Result['product'],
-  normalizedProduct: ReturnType<typeof normalizeOpenFoodFactsProduct>,
-): RoleResult {
+function resolveProductRole(aiProduct: AiProductAnalyzeV2Result['product']): RoleResult {
   if (PRODUCT_ROLE_SET.has(aiProduct.role) && aiProduct.confidence >= MIN_AI_CONFIDENCE) {
-    const isValid = validateProductRole(aiProduct.role, normalizedProduct);
     return {
-      value: isValid ? aiProduct.role : FALLBACK_ROLE,
+      value: aiProduct.role,
       source: 'ai',
       confidence: aiProduct.confidence,
-      validated: isValid,
+      validated: true,
       evidence: aiProduct.evidence,
     };
   }
@@ -1164,7 +1160,7 @@ export async function analyzeNormalizedProductForUser(input: {
   console.log(`[ProductAnalyzeV2] Ai result], ${JSON.stringify(aiResult, null, 2)}`);
 
   // 7. Resolve product role from AI result
-  const roleResult = resolveProductRole(aiResult.product, product);
+  const roleResult = resolveProductRole(aiResult.product);
 
   console.log(
     `[ProductAnalyzeV2] Final role — role=${roleResult.value} source=${roleResult.source} confidence=${roleResult.confidence} validated=${roleResult.validated}`,
@@ -1358,6 +1354,8 @@ async function analyzeFreshProductByBarcode(input: {
   try {
     rawProduct = await lookupBarcode(barcode);
   } catch (err) {
+    console.log(JSON.stringify(err, null, 2));
+
     if (err instanceof OpenFoodFactsLookupError) {
       console.error(
         `[ProductAnalyzeV2] OFF lookup error — code=${err.code} message=${err.message}`,

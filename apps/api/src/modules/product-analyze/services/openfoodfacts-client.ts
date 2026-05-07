@@ -3,23 +3,49 @@ import { normalizeOpenFoodFactsProduct } from '../domain/product-normalization/n
 import type { OpenFoodFactsProduct } from '../domain/product-normalization/openfoodfacts-types';
 
 interface OpenFoodFactsBarcodeResponse {
-  data?: {
-    status?: number;
-    product?: OpenFoodFactsProduct;
+  code?: string;
+  status?: string;
+  product?: OpenFoodFactsProduct;
+  status_verbose?: string;
+}
+
+interface OpenFoodFactsLookupFailure {
+  code?: string;
+  status?: string;
+  result?: {
+    id?: string;
+    name?: string;
+    lc_name?: string;
   };
+  errors?: Array<{
+    message?: {
+      id?: string;
+      name?: string;
+      lc_name?: string;
+    };
+  }>;
+}
+
+interface OpenFoodFactsSdkResponse {
+  data?: OpenFoodFactsBarcodeResponse;
+  error?: unknown;
 }
 
 interface OpenFoodFactsClient {
-  getProductV2(barcode: string): Promise<OpenFoodFactsBarcodeResponse>;
+  getProductV3(barcode: string): Promise<OpenFoodFactsSdkResponse>;
 }
 
 export class OpenFoodFactsLookupError extends Error {
+  public readonly cause?: unknown;
+
   constructor(
     public readonly code: 'UPSTREAM_ERROR' | 'TIMEOUT',
     message: string,
+    options?: { cause?: unknown },
   ) {
     super(message);
     this.name = 'OpenFoodFactsLookupError';
+    this.cause = options?.cause;
   }
 }
 
@@ -27,7 +53,7 @@ export class OpenFoodFactsLookupError extends Error {
 // Timeout + miss cache
 // ---------------------------------------------------------------------------
 
-const OFF_TIMEOUT_MS = 6_000; // 6s max for OpenFoodFacts API
+const OFF_TIMEOUT_MS = 35_000;
 const MISS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 /** In-memory cache of barcodes known to be missing from OFF */
@@ -52,80 +78,164 @@ const recordMiss = (barcode: string): void => {
   }
 };
 
-const withTimeout = <T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> =>
-  new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () =>
-        reject(
-          new OpenFoodFactsLookupError(
-            'TIMEOUT',
-            `${label} timed out after ${ms}ms`,
-          ),
-        ),
-      ms,
-    );
-    promise.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(timer);
-        reject(e);
-      },
-    );
-  });
+const toErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  if (typeof error === 'string' && error.trim().length > 0) {
+    return error.trim();
+  }
+
+  return 'Unknown upstream error';
+};
+
+const stripHtml = (value: string): string => value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const isLookupFailureObject = (value: unknown): value is OpenFoodFactsLookupFailure => {
+  return typeof value === 'object' && value !== null;
+};
 
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
 
-let clientPromise: Promise<OpenFoodFactsClient> | null = null;
+const createTimeoutFetch = (baseFetch: typeof globalThis.fetch): typeof globalThis.fetch => {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), OFF_TIMEOUT_MS);
+    const onAbort = () => controller.abort();
 
-const dynamicImport = new Function('specifier', 'return import(specifier)') as (
-  specifier: string,
-) => Promise<{
-  OpenFoodFacts: new (fetchFn: typeof globalThis.fetch) => OpenFoodFactsClient;
-}>;
+    init?.signal?.addEventListener('abort', onAbort);
 
-const getClient = async (): Promise<OpenFoodFactsClient> => {
-  if (!clientPromise) {
-    clientPromise = dynamicImport('@openfoodfacts/openfoodfacts-nodejs')
-      .then(({ OpenFoodFacts }) => new OpenFoodFacts(globalThis.fetch))
-      .catch(() => {
-        clientPromise = null;
+    try {
+      return await baseFetch(input, {
+        ...init,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+      init?.signal?.removeEventListener('abort', onAbort);
+    }
+  };
+};
+
+let openFoodFactsClientPromise: Promise<OpenFoodFactsClient> | null = null;
+
+const getOpenFoodFactsClient = async (): Promise<OpenFoodFactsClient> => {
+  if (!openFoodFactsClientPromise) {
+    openFoodFactsClientPromise = import('@openfoodfacts/openfoodfacts-nodejs')
+      .then(({ OpenFoodFacts }) => new OpenFoodFacts(createTimeoutFetch(globalThis.fetch)))
+      .catch((error: unknown) => {
+        openFoodFactsClientPromise = null;
         throw new OpenFoodFactsLookupError(
           'UPSTREAM_ERROR',
-          'Unable to load Open Food Facts client',
+          `Unable to load Open Food Facts client: ${toErrorMessage(error)}`,
+          { cause: error },
         );
       });
   }
 
-  return clientPromise;
+  return openFoodFactsClientPromise;
 };
 
-/**
- * Look up a product by barcode on OpenFoodFacts.
- * Returns the normalized product or null if not found.
- * Enforces a 6s timeout and caches misses for 24h.
- */
+const getFailureMessage = (failure: unknown): string => {
+  if (typeof failure === 'string') {
+    if (failure.includes('429 Too Many Requests')) {
+      return 'Open Food Facts rate limit exceeded (HTTP 429)';
+    }
+
+    const normalizedFailure = stripHtml(failure);
+    return normalizedFailure.length > 0 ? normalizedFailure : 'Unknown upstream error';
+  }
+
+  if (!isLookupFailureObject(failure)) {
+    return 'Unknown upstream error';
+  }
+
+  return (
+    failure.result?.lc_name ??
+    failure.result?.name ??
+    failure.errors?.find((entry) => entry.message?.lc_name || entry.message?.name)?.message?.lc_name ??
+    failure.errors?.find((entry) => entry.message?.lc_name || entry.message?.name)?.message?.name ??
+    'Unknown upstream error'
+  );
+};
+
+const isMissingProductFailure = (failure: OpenFoodFactsLookupFailure): boolean => {
+  if (!isLookupFailureObject(failure)) {
+    return false;
+  }
+
+  if (failure.result?.id === 'product_not_found') {
+    return true;
+  }
+
+  return failure.errors?.some((entry) => {
+    return (
+      entry.message?.id === 'product_not_found' ||
+      entry.message?.id === 'invalid_code'
+    );
+  }) ?? false;
+};
+
+const fetchProduct = async (barcode: string): Promise<OpenFoodFactsBarcodeResponse | null> => {
+  try {
+    const openFoodFactsClient = await getOpenFoodFactsClient();
+    const response = await openFoodFactsClient.getProductV3(barcode);
+
+    if (response.error) {
+      if (isMissingProductFailure(response.error)) {
+        return null;
+      }
+
+      throw new OpenFoodFactsLookupError(
+        'UPSTREAM_ERROR',
+        `Open Food Facts error: ${getFailureMessage(response.error)}`,
+        { cause: response.error },
+      );
+    }
+
+    if (!response.data) {
+      throw new OpenFoodFactsLookupError(
+        'UPSTREAM_ERROR',
+        'Open Food Facts returned an empty response',
+      );
+    }
+
+    return response.data as OpenFoodFactsBarcodeResponse;
+  } catch (error) {
+    if (error instanceof OpenFoodFactsLookupError) {
+      throw error;
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new OpenFoodFactsLookupError(
+        'TIMEOUT',
+        `OFF lookup timed out after ${OFF_TIMEOUT_MS}ms`,
+        { cause: error },
+      );
+    }
+
+    throw new OpenFoodFactsLookupError(
+      'UPSTREAM_ERROR',
+      `Unable to fetch product data: ${toErrorMessage(error)}`,
+      { cause: error },
+    );
+  }
+};
+
 export const lookupBarcode = async (
   barcode: string,
 ): Promise<NormalizedProduct | null> => {
-  const client = await getClient();
+  if (isCachedMiss(barcode)) {
+    return null;
+  }
 
-  let response: OpenFoodFactsBarcodeResponse;
+  let response: OpenFoodFactsBarcodeResponse | null;
 
   try {
-    response = await withTimeout(
-      client.getProductV2(barcode),
-      OFF_TIMEOUT_MS,
-      'OFF lookup',
-    );
+    response = await fetchProduct(barcode);
   } catch (err) {
     if (err instanceof OpenFoodFactsLookupError && err.code === 'TIMEOUT') {
       console.warn(
@@ -133,15 +243,18 @@ export const lookupBarcode = async (
       );
       return null;
     }
-    throw new OpenFoodFactsLookupError(
-      'UPSTREAM_ERROR',
-      'Unable to fetch product data',
-    );
+
+    throw err;
   }
 
-  const product = response.data?.product;
+  if (!response) {
+    recordMiss(barcode);
+    return null;
+  }
 
-  if (response.data?.status !== 1 || !product) {
+  const product = response.product;
+
+  if (response.status !== 'success' || !product) {
     recordMiss(barcode);
     return null;
   }
