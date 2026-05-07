@@ -9,6 +9,9 @@ import ProteinIcon from '../../../../assets/icons/protein.svg';
 import SaltIcon from '../../../../assets/icons/salt.svg';
 import SaturatedFatIcon from '../../../../assets/icons/saturated-fat.svg';
 import SugarIcon from '../../../../assets/icons/sugar.svg';
+import NutritionIcon from '../../../../assets/icons/nutrition.svg';
+import GoalIcon from '../../../../assets/icons/goal.svg';
+import SafetyIcon from '../../../../assets/icons/safety.svg';
 import { CircleCheck, CircleX } from 'lucide-react-native';
 import type { ComparisonProductKey } from '@acme/shared';
 import type { ComponentType } from 'react';
@@ -47,12 +50,17 @@ const ICONS: Record<string, ComponentType<SvgProps>> = {
   saturatedfat: SaturatedFatIcon,
   sugar: SugarIcon,
   sugars: SugarIcon,
+  safety: SafetyIcon,
+  nutrition: NutritionIcon,
+  goal: GoalIcon,
 };
 
 const normalizeIconKey = (value: string | null): string =>
   (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
 
 function MetricIcon({ iconKey }: { iconKey: string | null }) {
+  console.log(iconKey);
+
   if (!iconKey) {
     return null;
   }
@@ -113,7 +121,7 @@ export function ComparisonNutritionTable({
       </Typography>
 
       <View className="mt-4 flex-row items-center border-b border-gray-200 pb-3">
-        <View className="w-[108px] pr-3"/>
+        <View className="w-[108px] pr-3" />
         <View className="flex-1 items-center px-1">
           <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
             {leftProduct.title}

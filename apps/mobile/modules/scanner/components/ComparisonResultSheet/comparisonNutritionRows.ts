@@ -26,6 +26,7 @@ interface NutritionMetric {
 
 interface ScoreMetric {
   key: 'safety' | 'goal-fit' | 'nutrition-fit';
+  iconKey: string;
   label: string;
   getValue: (product: ComparedProduct) => number | null;
 }
@@ -61,16 +62,19 @@ const NUTRITION_METRICS: NutritionMetric[] = [
 const SCORE_METRICS: ScoreMetric[] = [
   {
     key: 'safety',
+    iconKey: 'safety',
     label: 'Safety fit',
     getValue: (product) => product.analysis.safety?.score ?? null,
   },
   {
     key: 'goal-fit',
+    iconKey: 'goal',
     label: 'Goal fit',
     getValue: (product) => product.analysis.goalFit?.score ?? null,
   },
   {
     key: 'nutrition-fit',
+    iconKey: 'nutrition',
     label: 'Nutrition fit',
     getValue: (product) => product.analysis.nutrition?.score ?? null,
   },
@@ -135,7 +139,7 @@ export const getDisplayNutritionRows = (
 
     return {
       comparisonMark: getComparisonMark(leftValue, rightValue),
-      iconKey: null,
+      iconKey: metric.iconKey,
       key: metric.key,
       kind: 'score' as const,
       label: metric.label,

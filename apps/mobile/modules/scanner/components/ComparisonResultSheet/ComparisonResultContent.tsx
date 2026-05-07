@@ -65,6 +65,9 @@ export function ComparisonResultContent({
     leftComparedProduct && rightComparedProduct
       ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
       : [];
+
+  console.log(JSON.stringify(displayRows, null, 2));
+
   const isNoMatch = activeProfile?.status === 'no_suitable_product';
   const shouldShowVerdict =
     activeProfile?.status === 'winner_found' && Boolean(activeProfile.winner);
