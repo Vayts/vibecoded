@@ -9,6 +9,9 @@ import ProteinIcon from '../../../../assets/icons/protein.svg';
 import SaltIcon from '../../../../assets/icons/salt.svg';
 import SaturatedFatIcon from '../../../../assets/icons/saturated-fat.svg';
 import SugarIcon from '../../../../assets/icons/sugar.svg';
+import NutritionIcon from '../../../../assets/icons/nutrition.svg';
+import GoalIcon from '../../../../assets/icons/goal.svg';
+import SafetyIcon from '../../../../assets/icons/safety.svg';
 import { CircleCheck, CircleX } from 'lucide-react-native';
 import type { ComparisonProductKey } from '@acme/shared';
 import type { ComponentType } from 'react';
@@ -47,12 +50,19 @@ const ICONS: Record<string, ComponentType<SvgProps>> = {
   saturatedfat: SaturatedFatIcon,
   sugar: SugarIcon,
   sugars: SugarIcon,
+  safety: SafetyIcon,
+  nutrition: NutritionIcon,
+  goal: GoalIcon,
 };
 
 const normalizeIconKey = (value: string | null): string =>
   (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
 
 function MetricIcon({ iconKey }: { iconKey: string | null }) {
+  if (!iconKey) {
+    return null;
+  }
+
   const Icon = ICONS[normalizeIconKey(iconKey)] ?? DietMatchIcon;
 
   return (
@@ -78,7 +88,7 @@ function StatusCell({ status }: { status: ComparisonStatusIndicator | undefined 
   );
 }
 
-function ValueCell({ emphasized, value }: { emphasized: boolean; value: string }) {
+function ValueCell({ emphasized, value }: { emphasized: boolean; value: string | number }) {
   return (
     <Typography
       variant="buttonSmall"
@@ -105,15 +115,11 @@ export function ComparisonNutritionTable({
   return (
     <View className="pt-6">
       <Typography variant="sectionTitle" className="text-neutrals-900 font-bold text-[16px]">
-        Nutrition comparison
+        Detailed comparison
       </Typography>
 
       <View className="mt-4 flex-row items-center border-b border-gray-200 pb-3">
-        <View className="w-[108px] pr-3">
-          <Typography variant="bodySecondary" className="text-gray-500">
-            per 100g
-          </Typography>
-        </View>
+        <View className="w-[108px] pr-3" />
         <View className="flex-1 items-center px-1">
           <Typography variant="buttonSmall" numberOfLines={1} className="text-center text-gray-900">
             {leftProduct.title}
@@ -144,8 +150,12 @@ export function ComparisonNutritionTable({
       <View>
         {rows.map((row) => (
           <View key={row.key} className="flex-row items-center border-b border-gray-200 py-3">
-            <View className="w-[108px] flex-row items-center gap-2 pr-2">
-              <MetricIcon iconKey={row.iconKey} />
+            <View className="w-[108px] flex-row items-center pr-2">
+              {row.iconKey ? (
+                <View className="mr-2">
+                  <MetricIcon iconKey={row.iconKey} />
+                </View>
+              ) : null}
               <Typography variant="bodySecondary" className="flex-1 text-gray-700">
                 {row.label}
               </Typography>

@@ -6,10 +6,13 @@ import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorage
 import type { ComparedProductCore } from '../../utils/profileCompareTypes';
 import { useMemo } from 'react';
 import { formatOverallRatingColors } from '../ScannerResultSheet/evaluationHelpers';
+import BestMascot from '../../../../assets/icons/mascot/best-mascot.svg';
+import type { ComparisonSafetyBadge } from './comparisonSafetyBadges';
 
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
   score: number | null;
+  safetyBadges?: ComparisonSafetyBadge[];
   badgeLabel?: string;
   tone: 'winner' | 'neutral' | 'not-suitable';
 }
@@ -17,6 +20,7 @@ interface ComparisonProductCardProps {
 export function ComparisonProductCard({
   product,
   score,
+  safetyBadges = [],
   badgeLabel,
   tone,
 }: ComparisonProductCardProps) {
@@ -38,14 +42,28 @@ export function ComparisonProductCard({
   const badgeBackgroundColor = isRejected
     ? COLORS.dangerSoft
     : isWinner
-      ? COLORS.primary700
+      ? COLORS.primary100
       : COLORS.gray100;
-  const badgeTextColor = isRejected ? COLORS.danger800 : isWinner ? COLORS.white : COLORS.gray500;
+  const badgeTextColor = isRejected ? COLORS.danger800 : isWinner ? COLORS.neutrals900 : COLORS.gray500;
+  const safetyBadgeColors = {
+    negative: {
+      backgroundColor: COLORS.dangerSoft,
+      borderColor: COLORS.dangerBorder,
+      textColor: COLORS.danger800,
+    },
+    positive: {
+      backgroundColor: COLORS.successSoft,
+      borderColor: COLORS.successBorder,
+      textColor: COLORS.primary900,
+    },
+  } as const;
 
   return (
-    <View className="flex-1 pt-4">
+    <View className="flex-1 self-stretch pt-4">
       {badgeLabel ? (
-        <View className="absolute left-0 right-0 top-0 z-20 items-center">
+        <View
+          className={`absolute left-0 ${isWinner ? 'left-3' : 'right-0'} top-0 z-20 items-center`}
+        >
           <View
             className="flex-row items-center rounded-full border-[3px] border-white px-3 py-1"
             style={{
@@ -69,20 +87,27 @@ export function ComparisonProductCard({
         </View>
       ) : null}
 
-      <View className="rounded-[16px] border bg-white px-3 pb-4 pt-4" style={{ borderColor }}>
-        {resolvedImageUrl ? (
-          <Image
-            source={{ uri: resolvedImageUrl }}
-            className="h-[88px] w-full rounded-[16px] bg-gray-50"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="h-[88px] w-full items-center justify-center rounded-[16px] bg-gray-50">
-            <Typography variant="sectionTitle" className="text-gray-300">
-              📦
-            </Typography>
-          </View>
-        )}
+      <View className="flex-1 rounded-[16px] border bg-white px-3 pb-4 pt-4" style={{ borderColor }}>
+        <View>
+          {resolvedImageUrl ? (
+            <Image
+              source={{ uri: resolvedImageUrl }}
+              className="h-[130px] w-full rounded-[16px] bg-gray-50"
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="h-[130px] w-full items-center justify-center rounded-[16px] bg-gray-50">
+              <Typography variant="sectionTitle" className="text-gray-300">
+                📦
+              </Typography>
+            </View>
+          )}
+          {isWinner ? (
+            <View className="absolute bottom-[98%] right-2">
+              <BestMascot />
+            </View>
+          ) : null}
+        </View>
 
         <Typography
           variant="headerTitle"
@@ -123,6 +148,35 @@ export function ComparisonProductCard({
             </Typography>
           </Typography>
         </View>
+
+        {safetyBadges.length > 0 ? (
+          <View className="mt-3 flex-row flex-wrap gap-2">
+            {safetyBadges.map((badge) => {
+              const Icon = badge.Icon;
+              const colors = safetyBadgeColors[badge.tone];
+
+              return (
+                <View
+                  key={badge.key}
+                  className="flex-row items-center rounded-full border px-2 py-1"
+                  style={{
+                    backgroundColor: colors.backgroundColor,
+                    borderColor: colors.borderColor,
+                  }}
+                >
+                  <Icon color={colors.textColor} size={12} strokeWidth={2.2} />
+                  <Typography
+                    variant="caption"
+                    className="ml-1 text-[10px]"
+                    style={{ color: colors.textColor }}
+                  >
+                    {badge.label}
+                  </Typography>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
     </View>
   );

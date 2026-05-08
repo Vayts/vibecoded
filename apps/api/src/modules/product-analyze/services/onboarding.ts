@@ -60,7 +60,7 @@ const toComparableOnboarding = (profile: UserProfile | null): OnboardingResponse
   profile ? toOnboardingResponse(profile) : DEFAULT_ONBOARDING_RESPONSE;
 
 export const getUserOnboarding = async (userId: string): Promise<OnboardingResponse> => {
-  const profile = await prisma.userProfile.findUnique({
+  let profile = await prisma.userProfile.findUnique({
     where: { userId },
   });
 

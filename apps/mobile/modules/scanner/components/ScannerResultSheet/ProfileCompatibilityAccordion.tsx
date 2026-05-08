@@ -20,7 +20,10 @@ interface ProfileCompatibilityAccordionProps {
 }
 
 const normalizeLabel = (value: string): string =>
-  value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  value
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getIngredientCountLabel = (count: number): string =>
   `${count} ingredient${count === 1 ? '' : 's'}`;
@@ -35,43 +38,53 @@ const getRestrictionStatusLabel = (status: string): string => {
 
 export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityAccordionProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const concerns = useMemo(
-    () => {
-      const restrictionItems = profile.ai.restrictionDetections
-        .filter((detection) => detection.status !== 'compatible')
-        .map<CompatibilityAccordionItem>((detection) => ({
-          key: `restriction-${detection.restriction}`,
-          title: normalizeLabel(detection.restriction),
-          statusLabel: getRestrictionStatusLabel(detection.status),
-          ingredients: detection.ingredients,
-          evidence: detection.evidence,
-        }));
+  const concerns = useMemo(() => {
+    const restrictionItems = profile.ai.restrictionDetections
+      .filter((detection) => detection.status !== 'compatible')
+      .map<CompatibilityAccordionItem>((detection) => ({
+        key: `restriction-${detection.restriction}`,
+        title: normalizeLabel(detection.restriction),
+        statusLabel: getRestrictionStatusLabel(detection.status),
+        ingredients: detection.ingredients,
+        evidence: detection.evidence,
+      }));
 
-      const allergenItems = profile.ai.allergenDetections
-        .filter((detection) => detection.detected)
-        .map<CompatibilityAccordionItem>((detection) => ({
-          key: `allergen-${detection.allergy}`,
-          title: normalizeLabel(detection.allergy),
-          statusLabel: detection.source === 'off_trace_tag' ? 'Trace detected' : 'Detected',
-          ingredients: detection.ingredients,
-          evidence: detection.evidence,
-        }));
+    const allergenItems = profile.ai.allergenDetections
+      .filter((detection) => detection.detected)
+      .map<CompatibilityAccordionItem>((detection) => ({
+        key: `allergen-${detection.allergy}`,
+        title: normalizeLabel(detection.allergy),
+        statusLabel: 'Detected',
+        ingredients: detection.ingredients,
+        evidence: detection.evidence,
+      }));
 
-      return [...restrictionItems, ...allergenItems];
-    },
-    [profile],
-  );
+    const traceItems = profile.ai.traceDetections.map<CompatibilityAccordionItem>(
+      (detection, index) => {
+        const target = detection.restriction ?? detection.allergy ?? detection.trace;
+
+        return {
+          key: `trace-${target}-${index}`,
+          title: normalizeLabel(target),
+          statusLabel: 'Trace risk',
+          ingredients: detection.trace.trim() ? [detection.trace.trim()] : [],
+          evidence: detection.evidence,
+        };
+      },
+    );
+
+    return [...restrictionItems, ...allergenItems, ...traceItems];
+  }, [profile]);
 
   if (concerns.length === 0) {
     return null;
   }
 
   return (
-    <View
-      className="mt-4 border bg-accent-50 border-accent-200 overflow-hidden rounded-[20px]"
-    >
+    <View className="mt-4 border bg-accent-50 border-accent-200 overflow-hidden rounded-[20px]">
       <View className="px-4">
         {concerns.map((concern, index) => {
+          const isExpandable = concern.ingredients.length > 0;
           const isExpanded = expandedKey === concern.key;
 
           return (
@@ -79,19 +92,35 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
               <TouchableOpacity
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`${concern.title}. ${isExpanded ? 'Hide details' : 'Show details'}`}
+                accessibilityLabel={
+                  isExpandable
+                    ? `${concern.title}. ${isExpanded ? 'Hide details' : 'Show details'}`
+                    : `${concern.title}. ${concern.statusLabel}`
+                }
+                accessibilityState={{
+                  disabled: !isExpandable,
+                  expanded: isExpandable ? isExpanded : undefined,
+                }}
                 className="flex-row items-center justify-between gap-3 py-3"
+                disabled={!isExpandable}
                 onPress={() => {
+                  if (!isExpandable) {
+                    return;
+                  }
+
                   setExpandedKey((currentKey) => (currentKey === concern.key ? null : concern.key));
                 }}
               >
                 <View className="flex-1 flex-row items-center gap-2">
                   <View className="h-8 w-8 rounded-full justify-center items-center bg-accent-600">
-                    <LeavesIcon color={COLORS.white}/>
+                    <LeavesIcon color={COLORS.white} />
                   </View>
 
                   <View>
-                    <Typography variant="body" className="font-semibold text-[14px] text-neutrals-900">
+                    <Typography
+                      variant="body"
+                      className="font-semibold text-[14px] text-neutrals-900"
+                    >
                       {concern.title}
                     </Typography>
                     <Typography variant="bodySecondary" className="mt-1 text-neutrals-600">
@@ -102,14 +131,16 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
                   </View>
                 </View>
 
-                {isExpanded ? (
-                  <ChevronUp color={COLORS.accent900} size={18} strokeWidth={2.2} />
-                ) : (
-                  <ChevronDown color={COLORS.accent900} size={18} strokeWidth={2.2} />
-                )}
+                {isExpandable ? (
+                  isExpanded ? (
+                    <ChevronUp color={COLORS.accent900} size={18} strokeWidth={2.2} />
+                  ) : (
+                    <ChevronDown color={COLORS.accent900} size={18} strokeWidth={2.2} />
+                  )
+                ) : null}
               </TouchableOpacity>
 
-              {isExpanded ? (
+              {isExpandable && isExpanded ? (
                 <View className="pb-3 pr-2">
                   {concern.ingredients.length > 0 ? (
                     <View className="flex-row flex-wrap gap-1">
@@ -137,6 +168,3 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
     </View>
   );
 }
-
-
-

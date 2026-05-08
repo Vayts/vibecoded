@@ -1,76 +1,39 @@
 /* eslint-disable max-lines */
 
-import { CameraView, type BarcodeScanningResult, useCameraPermissions } from 'expo-camera';
-import type { PersonalAnalysisJob, ProductPreview } from '@acme/shared';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Zap } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  AppState,
-  type AppStateStatus,
-  Dimensions,
-  InteractionManager,
-  Linking,
-  Platform,
-  TouchableOpacity,
-  Vibration,
-  View,
-} from 'react-native';
-import { SheetManager } from 'react-native-actions-sheet';
+import { InteractionManager, Linking, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../../../shared/components/BackButton';
+import { CustomLoader } from '../../../../shared/components/CustomLoader';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
-import { SheetsEnum } from '../../../../shared/types/sheets';
-import {
-  useScanBarcodeMutation,
-  useCompareProductsMutation,
-} from '../../hooks/useScannerMutations';
-import { usePhotoCapture } from '../../hooks/usePhotoCapture';
-import {
-  ScannerApiError,
-  submitPhotoScan,
-  type CompareProductRequestSource,
-} from '../../api/scannerMutations';
+import { useBarcodeConfirmation } from '../../hooks/useBarcodeConfirmation';
 import { useOpenComparisonRoute } from '../../hooks/useOpenComparisonRoute';
+import { useScannerAppState } from '../../hooks/useScannerAppState';
+import { useScannerBarcodeFlow } from '../../hooks/useScannerBarcodeFlow';
+import { useScannerPhotoFlow } from '../../hooks/useScannerPhotoFlow';
+import { useScannerSheets } from '../../hooks/useScannerSheets';
+import {
+  useCompareProductsMutation,
+  useScanBarcodeMutation,
+} from '../../hooks/useScannerMutations';
 import { useCompareStore } from '../../stores/compareStore';
-import { useScannerResultSheetStore } from '../../stores/scannerResultSheetStore';
-import type { PhotoOcrData, ScannerRouteMode } from '../../types/scanner';
+import type { ScannerRouteMode } from '../../types/scanner';
+import {
+  BARCODE_FRAME_HEIGHT,
+  BARCODE_FRAME_WIDTH,
+  type ScannerFrameBounds,
+} from '../../utils/scannerBarcodeFrame';
+import { getScannerStatusMessage } from '../../utils/scannerResultBuilders';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
 import { ScannerPermissionState } from '../ScannerPermissionState';
-import { CustomLoader } from '../../../../shared/components/CustomLoader';
 
 const RESCAN_COOLDOWN_MS = 1500;
-const BARCODE_FRAME_WIDTH = Math.min(Dimensions.get('window').width - 48, 300);
-const BARCODE_FRAME_HEIGHT = 200;
-const BARCODE_DETECTION_PADDING = 20;
-
-const buildCompletedAnalysisJob = (
-  result: NonNullable<PersonalAnalysisJob['result']>,
-): PersonalAnalysisJob => {
-  return {
-    analysisId: '',
-    status: 'completed',
-    productStatus: 'completed',
-    ingredientsStatus: 'completed',
-    result,
-  };
-};
-
-const buildBarcodeCompareSource = (barcode: string): CompareProductRequestSource => ({
-  type: 'barcode',
-  barcode,
-});
-
-const buildPhotoCompareSource = (
-  photoUri: string,
-  ocr?: PhotoOcrData,
-): CompareProductRequestSource => ({
-  type: 'photo',
-  photoUri,
-  ...(ocr ? { ocr } : {}),
-});
+const BARCODE_CONFIRMATION_WINDOW_MS = 400;
 
 interface ScannerHomeScreenProps {
   routeMode?: ScannerRouteMode;
@@ -83,9 +46,6 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const barcodeMutation = useScanBarcodeMutation();
   const compareMutation = useCompareProductsMutation();
   const { openLiveComparison } = useOpenComparisonRoute();
-  const startResultSession = useScannerResultSheetStore((s) => s.startSession);
-  const hydrateResultSession = useScannerResultSheetStore((s) => s.hydrateSession);
-  const resetResultSession = useScannerResultSheetStore((s) => s.reset);
 
   const compareSessionSource = useCompareStore((s) => s.compareSessionSource);
   const isCompareMode = useCompareStore((s) => s.isCompareMode);
@@ -101,7 +61,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const wasScreenFocusedRef = useRef(true);
   const lastScanRef = useRef<{ barcode: string; timestamp: number } | null>(null);
   const scanFrameRef = useRef<View>(null);
-  const scanFrameBounds = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const scanFrameBounds = useRef<ScannerFrameBounds | null>(null);
 
   const [isLocked, setIsLocked] = useState(false);
   const [isScannerPaused, setIsScannerPaused] = useState(false);
@@ -109,26 +69,23 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const [scannerMode, setScannerMode] = useState<ScannerMode>('scanner');
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
-  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      setAppState(nextAppState);
-    });
+  const {
+    clearPendingBarcode,
+    isConfirmedBarcode,
+    pendingBarcode,
+    setPendingBarcodeConfirmation,
+  } = useBarcodeConfirmation({ confirmationWindowMs: BARCODE_CONFIRMATION_WINDOW_MS });
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (appState !== 'active') {
-      return;
-    }
-
+  const refreshPermission = useCallback(() => {
     void getPermission();
-  }, [appState, getPermission]);
+  }, [getPermission]);
+  const { isAppActive } = useScannerAppState(refreshPermission);
+
+  const resetTransientBarcodeState = useCallback(() => {
+    clearPendingBarcode();
+  }, [clearPendingBarcode]);
 
   useEffect(() => {
     if (!isRouteCompareMode || firstProduct) {
@@ -144,11 +101,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   }, [firstProduct, isRouteCompareMode, router]);
 
   const resetCompareIfActive = useCallback(() => {
-    if (!useCompareStore.getState().isCompareMode) {
-      return;
+    if (useCompareStore.getState().isCompareMode) {
+      resetCompare();
     }
-
-    resetCompare();
   }, [resetCompare]);
 
   const handleCameraPermissionPress = useCallback(() => {
@@ -161,6 +116,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   }, [permission, requestPermission]);
 
   const handleCloseScanner = useCallback(() => {
+    resetTransientBarcodeState();
     resetCompareIfActive();
 
     if (router.canGoBack()) {
@@ -169,40 +125,43 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     }
 
     router.replace('/(tabs)/scans');
-  }, [resetCompareIfActive, router]);
+  }, [resetCompareIfActive, resetTransientBarcodeState, router]);
 
   const resumeScanner = useCallback(() => {
     isTransitioningToErrorSheetRef.current = false;
     scanLockRef.current = false;
+    resetTransientBarcodeState();
     setIsLocked(false);
     setIsScannerPaused(false);
     setIsScannerErrorSheetOpen(false);
     setIsResolvingFirstProduct(false);
-  }, []);
+  }, [resetTransientBarcodeState]);
 
   const pauseScannerForErrorSheet = useCallback(() => {
     isTransitioningToErrorSheetRef.current = true;
     scanLockRef.current = true;
+    resetTransientBarcodeState();
     setIsLocked(true);
     setIsScannerPaused(true);
     setIsScannerErrorSheetOpen(true);
     setIsResolvingFirstProduct(false);
-  }, []);
-
-  const handleScannerErrorSheetDismiss = useCallback(() => {
-    resumeScanner();
-  }, [resumeScanner]);
+  }, [resetTransientBarcodeState]);
 
   const handleCancelCompare = useCallback(() => {
+    resetTransientBarcodeState();
     resetCompare();
     resumeScanner();
 
     if (shouldReturnAfterCompareCancel) {
       handleCloseScanner();
     }
-  }, [handleCloseScanner, resetCompare, resumeScanner, shouldReturnAfterCompareCancel]);
-
-  const [isScreenFocused, setIsScreenFocused] = useState(true);
+  }, [
+    handleCloseScanner,
+    resetCompare,
+    resetTransientBarcodeState,
+    resumeScanner,
+    shouldReturnAfterCompareCancel,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -217,43 +176,11 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
       return () => {
         wasScreenFocusedRef.current = false;
         setIsScreenFocused(false);
+        resetTransientBarcodeState();
         resetCompareIfActive();
       };
-    }, [resetCompareIfActive, resumeScanner]),
+    }, [resetCompareIfActive, resetTransientBarcodeState, resumeScanner]),
   );
-
-  const capturePhotoWithCamera = useCallback(async () => {
-    setIsCapturingPhoto(true);
-
-    try {
-      const picture = await cameraRef.current?.takePictureAsync({
-        quality: 1,
-        exif: false,
-        shutterSound: false,
-        skipProcessing: Platform.OS === 'android',
-      });
-
-      if (!picture?.uri || picture.width == null || picture.height == null) {
-        return null;
-      }
-
-      Vibration.vibrate(40);
-
-      return {
-        uri: picture.uri,
-        width: picture.width,
-        height: picture.height,
-      };
-    } finally {
-      setIsCapturingPhoto(false);
-    }
-  }, []);
-
-  const {
-    captureAndCompress,
-    isPending: isPhotoPending,
-    isPreparing: isPreparingPhoto,
-  } = usePhotoCapture(capturePhotoWithCamera);
 
   const handleModeChange = useCallback(
     (nextMode: ScannerMode) => {
@@ -261,77 +188,23 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         return;
       }
 
+      resetTransientBarcodeState();
       setIsTorchEnabled(false);
       setScannerMode(nextMode);
     },
-    [scannerMode],
+    [resetTransientBarcodeState, scannerMode],
   );
 
   const switchToPhotoMode = useCallback(() => {
+    resetTransientBarcodeState();
     setIsTorchEnabled(false);
     setScannerMode('photo');
     resumeScanner();
-  }, [resumeScanner]);
-
-  const handleScannerErrorSheetPhotoPress = useCallback(() => {
-    isTransitioningToErrorSheetRef.current = false;
-    setIsScannerErrorSheetOpen(false);
-    switchToPhotoMode();
-  }, [switchToPhotoMode]);
-
-  const openScannerErrorSheet = useCallback(
-    async (error: unknown, fallbackMessage: string) => {
-      pauseScannerForErrorSheet();
-
-      const errorMessage = error instanceof Error ? error.message : fallbackMessage;
-      const errorCode = error instanceof ScannerApiError ? error.code : undefined;
-      const isRetriableNotFound =
-        errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
-      const isSameProduct = errorCode === 'SAME_PRODUCT';
-
-      await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
-        payload: {
-          variant:
-            errorCode === 'NOT_FOOD'
-              ? 'not-food'
-              : isRetriableNotFound
-                ? 'not-found'
-                : isSameProduct
-                  ? 'same-product'
-                  : 'generic',
-          title:
-            errorCode === 'NOT_FOOD'
-              ? 'This is not a food product'
-              : isSameProduct
-                ? 'This is the same product'
-                : undefined,
-          message:
-            errorCode === 'NOT_FOOD'
-              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
-              : isSameProduct
-                ? 'We identified the same product in both scans. Scan a different product to compare.'
-                : errorMessage,
-          onDismiss: handleScannerErrorSheetDismiss,
-          onPhotoPress: isRetriableNotFound ? handleScannerErrorSheetPhotoPress : undefined,
-        },
-      });
-    },
-    [handleScannerErrorSheetDismiss, handleScannerErrorSheetPhotoPress, pauseScannerForErrorSheet],
-  );
-
-  const toggleTorch = useCallback(() => {
-    if (scanLockRef.current) {
-      return;
-    }
-
-    setIsTorchEnabled((current) => !current);
-  }, []);
+  }, [resetTransientBarcodeState, resumeScanner]);
 
   const openComparisonResult = useCallback(
     (result: Parameters<typeof openLiveComparison>[0]) => {
-      openLiveComparison(result, {
-        replaceCurrentRoute: isRouteCompareMode,
-      });
+      openLiveComparison(result, { replaceCurrentRoute: isRouteCompareMode });
 
       InteractionManager.runAfterInteractions(() => {
         resetCompare();
@@ -340,110 +213,28 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     [isRouteCompareMode, openLiveComparison, resetCompare],
   );
 
-  const handleResultSheetClose = useCallback(() => {
-    if (isTransitioningToErrorSheetRef.current || isScannerErrorSheetOpen) {
-      return;
-    }
-
-    resumeScanner();
-  }, [isScannerErrorSheetOpen, resumeScanner]);
-
-  const beginResultSheetSession = useCallback(
-    (previewProduct?: ProductPreview, photoUri?: string) => {
-      const sessionId = startResultSession();
-
-      void SheetManager.show(SheetsEnum.ScannerResultSheet, {
-        payload: {
-          ...(previewProduct ? { previewProduct } : {}),
-          ...(photoUri ? { photoUri } : {}),
-          onBeforeErrorSheetOpen: pauseScannerForErrorSheet,
-          onErrorSheetDismiss: handleScannerErrorSheetDismiss,
-        },
-        onClose: handleResultSheetClose,
-      });
-
-      return sessionId;
-    },
-    [
-      handleResultSheetClose,
-      handleScannerErrorSheetDismiss,
-      pauseScannerForErrorSheet,
-      startResultSession,
-    ],
-  );
-
-  const handleResultSheetError = useCallback(
-    async (error: unknown, fallbackMessage: string) => {
-      resetResultSession();
-      await SheetManager.hide(SheetsEnum.ScannerResultSheet);
-      await openScannerErrorSheet(error, fallbackMessage);
-    },
-    [openScannerErrorSheet, resetResultSession],
-  );
-
-  const runPhotoCaptureFlow = useCallback(async () => {
-    try {
-      const compareActive = useCompareStore.getState().isCompareMode;
-      const first = useCompareStore.getState().firstProduct;
-
-      if (compareActive && first) {
-        const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
-        const firstProductOcr = useCompareStore.getState().firstProductOcr;
-
-        const captured = await captureAndCompress();
-        if (!captured) {
-          resumeScanner();
-          return;
-        }
-
-        setIsScannerPaused(true);
-        setIsResolvingFirstProduct(true);
-        const result = await compareMutation.mutateAsync({
-          productA: firstPhotoUri
-            ? buildPhotoCompareSource(firstPhotoUri, firstProductOcr ?? undefined)
-            : buildBarcodeCompareSource(first.barcode),
-          productB: buildPhotoCompareSource(captured.uploadUri),
-        });
-        setIsResolvingFirstProduct(false);
-        openComparisonResult(result);
-        return;
-      }
-
-      const captured = await captureAndCompress();
-      if (!captured) {
-        resumeScanner();
-        return;
-      }
-
-      setIsScannerPaused(true);
-      const previewProduct: ProductPreview = {
-        productId: '',
-        barcode: '',
-        product_name: null,
-        brands: null,
-        image_url: captured.localUri,
-      };
-      const sessionId = beginResultSheetSession(previewProduct, captured.uploadUri);
-
-      try {
-        const result = await submitPhotoScan({ photoUri: captured.uploadUri });
-
-        hydrateResultSession(sessionId, {
-          resolvedPersonalResult: buildCompletedAnalysisJob(result),
-        });
-      } catch (error) {
-        await handleResultSheetError(error, 'Unable to identify product');
-      }
-    } catch (error) {
-      if (!useCompareStore.getState().isCompareMode) {
-        resetCompare();
-      }
-
-      await openScannerErrorSheet(error, 'Unable to identify product');
-    }
-  }, [
-    captureAndCompress,
+  const {
     beginResultSheetSession,
+    handleResultSheetError,
+    hydrateResultSession,
+    openScannerErrorSheet,
+  } = useScannerSheets({
+    isScannerErrorSheetOpen,
+    isTransitioningToErrorSheetRef,
+    pauseScannerForErrorSheet,
+    resumeScanner,
+    setIsScannerErrorSheetOpen,
+    switchToPhotoMode,
+  });
+
+  const {
+    handlePhotoPress,
+    isCapturingPhoto,
+    isPhotoPending,
+    isPreparingPhoto,
+  } = useScannerPhotoFlow({
+    beginResultSheetSession,
+    cameraRef,
     compareMutation,
     handleResultSheetError,
     hydrateResultSession,
@@ -451,125 +242,40 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     openScannerErrorSheet,
     resetCompare,
     resumeScanner,
-  ]);
+    scanLockRef,
+    scannerMode,
+    setIsLocked,
+    setIsResolvingFirstProduct,
+    setIsScannerPaused,
+  });
 
-  const handlePhotoPress = useCallback(async () => {
-    if (scanLockRef.current || scannerMode !== 'photo') {
-      return;
+  const { handleBarcodeScanned } = useScannerBarcodeFlow({
+    barcodeMutation,
+    beginResultSheetSession,
+    compareMutation,
+    handleResultSheetError,
+    hydrateResultSession,
+    isConfirmedBarcode,
+    isScannerErrorSheetOpen,
+    isScannerPaused,
+    lastScanRef,
+    openComparisonResult,
+    openScannerErrorSheet,
+    resetCompare,
+    resetTransientBarcodeState,
+    rescanCooldownMs: RESCAN_COOLDOWN_MS,
+    scanFrameBounds,
+    scanLockRef,
+    setIsLocked,
+    setIsScannerPaused,
+    setPendingBarcodeConfirmation,
+  });
+
+  const toggleTorch = useCallback(() => {
+    if (!scanLockRef.current) {
+      setIsTorchEnabled((current) => !current);
     }
-
-    scanLockRef.current = true;
-    setIsLocked(true);
-    await runPhotoCaptureFlow();
-  }, [runPhotoCaptureFlow, scannerMode]);
-
-  const submitBarcode = useCallback(
-    async (barcode: string) => {
-      const normalized = barcode.trim();
-      if (!normalized || scanLockRef.current || isScannerPaused || isScannerErrorSheetOpen) {
-        return;
-      }
-
-      const now = Date.now();
-      const prev = lastScanRef.current;
-      if (prev && prev.barcode === normalized && now - prev.timestamp < RESCAN_COOLDOWN_MS) {
-        return;
-      }
-
-      scanLockRef.current = true;
-      lastScanRef.current = { barcode: normalized, timestamp: now };
-      setIsLocked(true);
-      setIsScannerPaused(true);
-
-      try {
-        const compareActive = useCompareStore.getState().isCompareMode;
-        const first = useCompareStore.getState().firstProduct;
-
-        if (compareActive && first) {
-          const firstPhotoUri = useCompareStore.getState().firstProductPhotoUri;
-          const firstProductOcr = useCompareStore.getState().firstProductOcr;
-
-          if (!firstPhotoUri && first.barcode.trim() === normalized) {
-            await openScannerErrorSheet(
-              new ScannerApiError(
-                'We identified the same product in both scans. Scan a different product to compare.',
-                'SAME_PRODUCT',
-              ),
-              'Unable to compare products',
-            );
-            return;
-          }
-
-          const result = await compareMutation.mutateAsync({
-            productA: firstPhotoUri
-              ? buildPhotoCompareSource(firstPhotoUri, firstProductOcr ?? undefined)
-              : buildBarcodeCompareSource(first.barcode),
-            productB: buildBarcodeCompareSource(normalized),
-          });
-          openComparisonResult(result);
-          return;
-        }
-
-        const sessionId = beginResultSheetSession({
-          productId: '',
-          barcode: normalized,
-          product_name: null,
-          brands: null,
-          image_url: null,
-        });
-
-        try {
-          const result = await barcodeMutation.mutateAsync({ barcode: normalized });
-          hydrateResultSession(sessionId, {
-            resolvedPersonalResult: buildCompletedAnalysisJob(result),
-          });
-        } catch (error) {
-          await handleResultSheetError(error, 'Unable to submit barcode');
-        }
-      } catch (error) {
-        if (!useCompareStore.getState().isCompareMode) {
-          resetCompare();
-        }
-
-        await openScannerErrorSheet(error, 'Unable to submit barcode');
-      }
-    },
-    [
-      barcodeMutation,
-      beginResultSheetSession,
-      compareMutation,
-      handleResultSheetError,
-      hydrateResultSession,
-      isScannerErrorSheetOpen,
-      isScannerPaused,
-      openComparisonResult,
-      openScannerErrorSheet,
-      resetCompare,
-    ],
-  );
-
-  const handleBarcodeScanned = async ({ data, bounds }: BarcodeScanningResult) => {
-    if (scanLockRef.current || isScannerPaused || isScannerErrorSheetOpen) {
-      return;
-    }
-
-    if (Platform.OS !== 'ios' && bounds && scanFrameBounds.current) {
-      const frame = scanFrameBounds.current;
-      const centerX = bounds.origin.x + bounds.size.width / 2;
-      const centerY = bounds.origin.y + bounds.size.height / 2;
-      const inFrame =
-        centerX >= frame.x - BARCODE_DETECTION_PADDING &&
-        centerX <= frame.x + frame.w + BARCODE_DETECTION_PADDING &&
-        centerY >= frame.y - BARCODE_DETECTION_PADDING &&
-        centerY <= frame.y + frame.h + BARCODE_DETECTION_PADDING;
-
-      if (!inFrame) {
-        return;
-      }
-    }
-
-    await submitBarcode(data);
-  };
+  }, []);
 
   if (!permission) {
     return <View className="flex-1 bg-black" />;
@@ -598,21 +304,17 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     barcodeMutation.isPending ||
     compareMutation.isPending ||
     isResolvingFirstProduct;
-
-  const statusMessage = isPhotoPending
-    ? isPreparingPhoto
-      ? 'Capturing photo…'
-      : 'Identifying product…'
-    : isResolvingFirstProduct
-      ? 'Identifying products…'
-      : barcodeMutation.isPending
-        ? 'Analyzing product…'
-        : compareMutation.isPending
-          ? 'Comparing products…'
-          : 'Processing…';
-
+  const statusMessage = getScannerStatusMessage({
+    isPhotoPending,
+    isPreparingPhoto,
+    isResolvingFirstProduct,
+    isBarcodePending: barcodeMutation.isPending,
+    isComparePending: compareMutation.isPending,
+  });
+  const scannerHintMessage = pendingBarcode
+    ? 'Scan the same barcode again to confirm'
+    : 'Align the barcode inside the frame';
   const isPhotoMode = scannerMode === 'photo';
-  const isAppActive = appState === 'active';
   const showCompareBanner = isCompareMode && Boolean(firstProduct);
   const shouldSuspendCameraView =
     !isAppActive ||
@@ -620,18 +322,17 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
     isScannerErrorSheetOpen ||
     isScannerPaused ||
     (isLocked && isPhotoMode && !isCapturingPhoto);
-  const shouldRenderCameraView = !shouldSuspendCameraView;
   const showCameraBlackout =
     !isAppActive || !isScreenFocused || (isLocked && (isPhotoMode || isScannerPaused));
 
   return (
     <View className="flex-1 bg-black">
-      {shouldRenderCameraView ? (
+      {!shouldSuspendCameraView ? (
         <CameraView
           ref={cameraRef}
           active
           barcodeScannerSettings={{
-            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'],
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39'],
           }}
           enableTorch={isTorchEnabled}
           facing="back"
@@ -640,22 +341,16 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         />
       ) : null}
 
-      {showCameraBlackout ? (
-        <View pointerEvents="none" className="absolute inset-0 bg-black" />
-      ) : null}
+      {showCameraBlackout ? <View pointerEvents="none" className="absolute inset-0 bg-black" /> : null}
 
       {isLocked && isProcessing ? (
         <View className="absolute inset-0 items-center justify-center px-6">
           <View
             className="items-center rounded-[22px] px-6 py-3"
-            style={{
-              backgroundColor: COLORS.overlayStrong,
-              minWidth: 180,
-              maxWidth: 250,
-            }}
+            style={{ backgroundColor: COLORS.overlayStrong, minWidth: 180, maxWidth: 250 }}
           >
             <CustomLoader size="md" />
-            <Typography className="mt-4 text-[13px] text-center text-white">
+            <Typography className="mt-4 text-center text-[13px] text-white">
               {statusMessage}
             </Typography>
           </View>
@@ -684,9 +379,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           />
 
           <View className="flex-1 items-center px-3">
-            {!isLocked ? (
-              <ScannerModeSwitch mode={scannerMode} onChange={handleModeChange} />
-            ) : null}
+            {!isLocked ? <ScannerModeSwitch mode={scannerMode} onChange={handleModeChange} /> : null}
           </View>
 
           <TouchableOpacity
@@ -710,34 +403,27 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         </View>
 
         <View className="flex-1 items-center justify-center pb-12">
-          {!isLocked ? (
+          {!isLocked && !isPhotoMode ? (
             <View className="items-center">
-              {!isPhotoMode ? (
-                <View className="items-center">
-                  <View
-                    className="mb-5 rounded-xl px-4 py-2"
-                    style={{ backgroundColor: COLORS.overlayStrong }}
-                  >
-                    <Typography variant="bodySecondary" className="text-center text-white">
-                      Alling the barcode inside the frame
-                    </Typography>
-                  </View>
+              <View
+                className="mb-5 rounded-xl px-4 py-2"
+                style={{ backgroundColor: COLORS.overlayStrong }}
+              >
+                <Typography variant="bodySecondary" className="text-center text-white">
+                  {scannerHintMessage}
+                </Typography>
+              </View>
 
-                  <View
-                    ref={scanFrameRef}
-                    className="rounded-[32px] border-2 border-white/80 bg-white/5"
-                    style={{
-                      width: BARCODE_FRAME_WIDTH,
-                      height: BARCODE_FRAME_HEIGHT,
-                    }}
-                    onLayout={() => {
-                      scanFrameRef.current?.measureInWindow((x, y, width, height) => {
-                        scanFrameBounds.current = { x, y, w: width, h: height };
-                      });
-                    }}
-                  />
-                </View>
-              ) : null}
+              <View
+                ref={scanFrameRef}
+                className="rounded-[32px] border-2 border-white/80 bg-white/5"
+                style={{ width: BARCODE_FRAME_WIDTH, height: BARCODE_FRAME_HEIGHT }}
+                onLayout={() => {
+                  scanFrameRef.current?.measureInWindow((x, y, width, height) => {
+                    scanFrameBounds.current = { x, y, w: width, h: height };
+                  });
+                }}
+              />
             </View>
           ) : null}
         </View>

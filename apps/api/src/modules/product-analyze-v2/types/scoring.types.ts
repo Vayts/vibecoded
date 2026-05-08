@@ -21,6 +21,8 @@ export interface SafetyResult {
   reasons: string[];
   matchedAllergens: string[];
   violatedRestrictions: string[];
+  traceAllergens: string[];
+  traceRestrictions: string[];
 }
 
 export interface GoalFitResult {

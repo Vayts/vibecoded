@@ -16,20 +16,16 @@ interface ProfileDetailProps {
 }
 
 export function ProfileDetail({ profile, rawIngredients, rawIngredientsText }: ProfileDetailProps) {
-  const forLabel = `For ${profile.displayName?.toLowerCase() === 'you' ? 'you' : (profile.displayName ?? 'this profile')}`;
   const evaluationBlocks = getEvaluationBlockConfigs(profile);
 
   return (
     <View>
-      {/*<ProfileAnalysisTags*/}
-      {/*  goal={profile.analysis.goalFit.goal}*/}
-      {/*  nutritionPositives={profile.analysis.nutrition.positives}*/}
-      {/*/>*/}
       <ScoreSummary
         score={profile.analysis.overall.score}
         rating={profile.analysis.overall.rating}
         summary={profile.analysis.overall.summary}
         safetyScore={profile.analysis.safety.score}
+        safetyInfo={profile.analysis.safety}
         matchedAllergens={profile.analysis.safety.matchedAllergens}
         violatedRestrictions={profile.analysis.safety.violatedRestrictions}
         goalFitScore={profile.analysis.goalFit.score}
@@ -37,15 +33,15 @@ export function ProfileDetail({ profile, rawIngredients, rawIngredientsText }: P
         positives={profile.analysis.positives}
         negatives={profile.analysis.negatives}
       />
-      <CanIHaveThisCard can={profile.ai.canIHaveThis.can} reason={profile.ai.canIHaveThis.reason} />
+      <CanIHaveThisCard
+        can={profile.ai.canIHaveThis.can}
+        status={profile.ai.canIHaveThis.status}
+        reason={profile.ai.canIHaveThis.reason}
+        safetyInfo={profile.analysis.safety}
+      />
       <ProfileCompatibilityAccordion profile={profile} />
       {evaluationBlocks.map((block) => (
-        <EvaluationSection
-          key={block.key}
-          title={block.title}
-          items={block.items}
-          rightLabel={forLabel}
-        />
+        <EvaluationSection key={block.key} title={block.title} items={block.items} />
       ))}
       <IngredientsSection
         rawIngredients={rawIngredients}

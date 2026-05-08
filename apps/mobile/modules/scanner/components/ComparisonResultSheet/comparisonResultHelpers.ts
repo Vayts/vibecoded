@@ -4,6 +4,7 @@ import type {
   ComparedProductCore,
   ProfileCompareResult,
 } from '../../utils/profileCompareTypes';
+import { formatAllergenConflictText } from './comparisonSafetyBadges';
 
 export type DisplayChip = { iconKey?: string | null; text: string };
 
@@ -81,24 +82,10 @@ const formatRestrictionChipText = (restriction: string): string => {
   return `Not ${normalizedRestriction.toLowerCase()}-friendly`;
 };
 
-const formatAllergenChipText = (allergen: string): string => {
-  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
-
-  if (!normalizedAllergen) {
-    return 'Allergen conflicts';
-  }
-
-  if (normalizedAllergen.toLowerCase() === 'other') {
-    return 'Contains your allergen';
-  }
-
-  return `Contains ${normalizedAllergen.toLowerCase()}`;
-};
-
 export const getNoSuitableProductChips = (profileResult: ProfileCompareResult): DisplayChip[] => {
   const allergenChips = profileResult.products.flatMap((product) =>
     (product.analysis.safety?.matchedAllergens ?? []).map((allergen) =>
-      toDisplayChip(formatAllergenChipText(allergen), 'allergens'),
+      toDisplayChip(formatAllergenConflictText(allergen), 'allergens'),
     ),
   );
 

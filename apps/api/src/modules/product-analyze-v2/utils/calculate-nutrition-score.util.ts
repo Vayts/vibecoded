@@ -13,9 +13,29 @@ import {
   FALLBACK_NUTRITION_ROLE,
   type NutritionFactKey,
 } from '../constants/nutrition-role-rules.constants.js';
+import { getOilNutritionFallbackValues } from './oil-nutrition-fallback.util.js';
 
 const SAVORY_SNACK_ROLES = new Set<ProductRole>(['savory_snack']);
 const SWEET_SNACK_ROLES = new Set<ProductRole>(['sweet_snack', 'dessert', 'candy_chocolate']);
+
+function getNutritionBaselineSugar(product: NormalizedProductV2, role: ProductRole): number | null {
+  if (role !== 'water') {
+    return product.nutrition.sugarPer100g;
+  }
+
+  return product.nutrition.sugarPer100g ?? 0;
+}
+
+function getNutritionBaselineCaloriesPer100g(
+  product: NormalizedProductV2,
+  role: ProductRole,
+): number | null {
+  if (role !== 'water') {
+    return product.nutrition.caloriesPer100g;
+  }
+
+  return product.nutrition.caloriesPer100g ?? 0;
+}
 
 function getRoleSpecificPenalty(product: NormalizedProductV2, role: ProductRole): number {
   const caloriesPer100g = product.nutrition.caloriesPer100g ?? 0;
@@ -66,10 +86,19 @@ function getRoleSpecificPenalty(product: NormalizedProductV2, role: ProductRole)
   return penalty;
 }
 
-function buildAllSubScores(product: NormalizedProductV2): Record<NutritionFactKey, number | null> {
+function buildAllSubScores(
+  product: NormalizedProductV2,
+  role: ProductRole,
+): Record<NutritionFactKey, number | null> {
   const { nutrition, additives, ingredients } = product;
-  const fat = nutrition.fatPer100g ?? null;
-  const satFat = nutrition.saturatedFatPer100g ?? null;
+  const oilFallback = role === 'oil' ? getOilNutritionFallbackValues(product) : null;
+  const caloriesPer100gValue = getNutritionBaselineCaloriesPer100g(product, role);
+  const sugarPer100gValue = getNutritionBaselineSugar(product, role);
+  const fat = nutrition.fatPer100g ?? oilFallback?.fatPer100g ?? null;
+  const satFat = nutrition.saturatedFatPer100g ?? oilFallback?.saturatedFatPer100g ?? null;
+  const sodiumPer100gValue = nutrition.sodiumPer100g ?? oilFallback?.sodiumPer100g ?? null;
+  const effectiveSugarPer100gValue = sugarPer100gValue ?? oilFallback?.sugarPer100g ?? null;
+  const caloriesPerServingValue = nutrition.caloriesPerServing ?? oilFallback?.caloriesPerServing ?? null;
   const unsatRatio =
     fat !== null && fat > 0 && satFat !== null
       ? Math.max(0, Math.min(1, (fat - satFat) / fat))
@@ -78,11 +107,11 @@ function buildAllSubScores(product: NormalizedProductV2): Record<NutritionFactKe
   return {
     protein: scoreHigherIsBetter(nutrition.proteinPer100g, 0, 30),
     fiber: scoreHigherIsBetter(nutrition.fiberPer100g, 0, 10),
-    sugar: scoreLowerIsBetter(nutrition.sugarPer100g, 0, 50),
-    sodium: scoreLowerIsBetter(nutrition.sodiumPer100g, 0, 2),
-    saturatedFat: scoreLowerIsBetter(nutrition.saturatedFatPer100g, 0, 30),
-    calorieDensity: scoreLowerIsBetter(nutrition.caloriesPer100g, 0, 500),
-    caloriesPerServing: scoreLowerIsBetter(nutrition.caloriesPerServing, 0, 300),
+    sugar: scoreLowerIsBetter(effectiveSugarPer100gValue, 0, 50),
+    sodium: scoreLowerIsBetter(sodiumPer100gValue, 0, 2),
+    saturatedFat: scoreLowerIsBetter(satFat, 0, 30),
+    calorieDensity: scoreLowerIsBetter(caloriesPer100gValue, 0, 500),
+    caloriesPerServing: scoreLowerIsBetter(caloriesPerServingValue, 0, 300),
     additives: scoreLowerIsBetter(additives.length, 0, 10),
     ingredientSimplicity:
       ingredients.length > 0 && ingredients.length <= 5
@@ -105,7 +134,7 @@ export function calculateNutritionScore(
   const rule =
     NUTRITION_ROLE_RULES[effectiveRole] ?? NUTRITION_ROLE_RULES[FALLBACK_NUTRITION_ROLE]!;
   const ignoredFacts = new Set<NutritionFactKey>(rule.ignoredFacts ?? []);
-  const allSubScores = buildAllSubScores(product);
+  const allSubScores = buildAllSubScores(product, effectiveRole);
 
   // Build weighted scores excluding ignored facts
   const filteredScores: Record<string, number | null> = {};

@@ -1,36 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
-import { useEffect } from 'react';
-
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withRepeat,
-  Easing,
-} from 'react-native-reanimated';
+import { useRef } from 'react';
 
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
-import SplashMascot from '../../../../assets/icons/mascot/splash-mascot.svg';
+import LottieView from 'lottie-react-native';
+import LoaderAnim from '../../../../assets/lottie/loader.json';
 
 export function LaunchSplashScreen() {
-  const scale = useSharedValue(1);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withTiming(1.05, {
-        duration: 300,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true,
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const animation = useRef<LottieView>(null);
 
   return (
     <View
@@ -47,9 +25,17 @@ export function LaunchSplashScreen() {
         Scan. Compare. Eat smarter.
       </Typography>
 
-      <Animated.View style={animatedStyle}>
-        <SplashMascot />
-      </Animated.View>
+      <View>
+        <LottieView
+          autoPlay
+          ref={animation}
+          style={{
+            width: 250,
+            height: 250,
+          }}
+          source={LoaderAnim}
+        />
+      </View>
     </View>
   );
 }

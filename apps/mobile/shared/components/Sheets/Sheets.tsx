@@ -15,20 +15,24 @@ import type {
   ScannerResultSheetPayload,
 } from '../../../modules/scanner/types/scanner';
 import { SheetsEnum } from '../../types/sheets';
-import ExampleSheet from './BottomSheets/ExampleSheet';
 import { ScansFilterSheet } from '../../../modules/scans/components/ScansFilterSheet';
+import BasedOnYourProfileSheet from '../../../modules/scanner/components/ScannerResultSheet/BasedOnYourProfileSheet';
 
 // We extend some of the types here to give us great intellisense
 // across the app for all registered sheets.
 declare module 'react-native-actions-sheet' {
   interface Sheets {
-    [SheetsEnum.ExampleSheet]: SheetDefinition;
+    [SheetsEnum.BasedOnYourProfileSheet]: SheetDefinition<{payload: {title: string}}>;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
     [SheetsEnum.ScoreCalculationSheet]: SheetDefinition;
-    [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{ payload: CompareProductPickerSheetPayload }>;
+    [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{
+      payload: CompareProductPickerSheetPayload;
+    }>;
     [SheetsEnum.ScannerErrorSheet]: SheetDefinition<{ payload: ScannerErrorSheetPayload }>;
     [SheetsEnum.ScansFilterSheet]: SheetDefinition<{ payload: ScansFilterSheetPayload }>;
-    [SheetsEnum.ProfileScoreSelectorSheet]: SheetDefinition<{ payload: ProfileScoreSelectorSheetPayload }>;
+    [SheetsEnum.ProfileScoreSelectorSheet]: SheetDefinition<{
+      payload: ProfileScoreSelectorSheetPayload;
+    }>;
   }
 }
 
@@ -36,7 +40,7 @@ export const Sheets = () => {
   return (
     <SheetRegister
       sheets={{
-        [SheetsEnum.ExampleSheet]: ExampleSheet,
+        [SheetsEnum.BasedOnYourProfileSheet]: BasedOnYourProfileSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
         [SheetsEnum.CompareProductPickerSheet]: CompareProductPickerSheet,
         [SheetsEnum.ScoreCalculationSheet]: ScoreCalculationSheet,

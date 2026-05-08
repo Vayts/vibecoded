@@ -9,6 +9,7 @@ import { ComparisonNutritionTable } from './ComparisonNutritionTable';
 import { ComparisonProductCard } from './ComparisonProductCard';
 import { ComparisonProfileSelector } from './ComparisonProfileSelector';
 import { ComparisonVerdictCard } from './ComparisonVerdictCard';
+import { getComparisonSafetyBadges } from './comparisonSafetyBadges';
 import { getProductDisplayName } from './comparisonResultHelpers';
 import { getDisplayNutritionRows } from './comparisonNutritionRows';
 import type { ComparedProduct, ProfileCompareResult } from '../../utils/profileCompareTypes';
@@ -39,7 +40,7 @@ const isSameComparedProduct = (left: ComparedProduct, right: ComparedProduct | n
 const getBadgeLabel = (product: ComparedProduct, profile: ProfileCompareResult) => {
   if (profile.status === 'no_suitable_product') return undefined;
   if (profile.status === 'equivalent') return 'Similar fit';
-  return isSameComparedProduct(product, profile.winner) ? 'Best choice' : undefined;
+  return isSameComparedProduct(product, profile.winner) ? 'Best' : undefined;
 };
 
 const getProductTone = (product: ComparedProduct, profile: ProfileCompareResult) => {
@@ -64,6 +65,11 @@ export function ComparisonResultContent({
     leftComparedProduct && rightComparedProduct
       ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
       : [];
+  const { leftBadges, rightBadges } =
+    leftComparedProduct && rightComparedProduct
+      ? getComparisonSafetyBadges(leftComparedProduct, rightComparedProduct)
+      : { leftBadges: [], rightBadges: [] };
+
   const isNoMatch = activeProfile?.status === 'no_suitable_product';
   const shouldShowVerdict =
     activeProfile?.status === 'winner_found' && Boolean(activeProfile.winner);
@@ -83,7 +89,7 @@ export function ComparisonResultContent({
           <View className="mt-2 px-4 pb-4">
             {activeProfile && leftComparedProduct && rightComparedProduct ? (
               <View>
-                <View className="relative flex-row gap-4">
+                <View className="relative flex-row items-stretch gap-4">
                   {isNoMatch ? (
                     <View className="absolute left-0 right-0 top-0 z-20 items-center">
                       <View
@@ -108,12 +114,14 @@ export function ComparisonResultContent({
                   <ComparisonProductCard
                     product={leftComparedProduct.product}
                     score={leftComparedProduct.analysis.overall?.score ?? null}
+                    safetyBadges={leftBadges}
                     tone={getProductTone(leftComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(leftComparedProduct, activeProfile)}
                   />
                   <ComparisonProductCard
                     product={rightComparedProduct.product}
                     score={rightComparedProduct.analysis.overall?.score ?? null}
+                    safetyBadges={rightBadges}
                     tone={getProductTone(rightComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(rightComparedProduct, activeProfile)}
                   />

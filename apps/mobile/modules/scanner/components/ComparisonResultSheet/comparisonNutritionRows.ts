@@ -6,13 +6,13 @@ export type ComparisonStatusIndicator = 'positive' | 'negative' | 'neutral';
 export interface ComparisonDisplayNutritionRow {
   comparisonMark: '<' | '>' | '=' | null;
   iconKey: string | null;
-  kind: 'metric' | 'status';
+  kind: 'metric' | 'score' | 'status';
   key: string;
   label: string;
   leftStatus?: ComparisonStatusIndicator;
-  leftValue: string;
+  leftValue: string | number;
   rightStatus?: ComparisonStatusIndicator;
-  rightValue: string;
+  rightValue: string | number;
   winner: ComparisonProductKey | 'tie' | null;
 }
 
@@ -22,6 +22,13 @@ interface NutritionMetric {
   key: keyof ComparedProduct['product']['nutrition'];
   label: string;
   unit: string;
+}
+
+interface ScoreMetric {
+  key: 'safety' | 'goal-fit' | 'nutrition-fit';
+  iconKey: string;
+  label: string;
+  getValue: (product: ComparedProduct) => number | null;
 }
 
 const NUTRITION_METRICS: NutritionMetric[] = [
@@ -49,6 +56,27 @@ const NUTRITION_METRICS: NutritionMetric[] = [
     unit: 'g',
     iconKey: 'protein',
     direction: 'higher_better',
+  },
+];
+
+const SCORE_METRICS: ScoreMetric[] = [
+  {
+    key: 'safety',
+    iconKey: 'safety',
+    label: 'Safety fit',
+    getValue: (product) => product.analysis.safety?.score ?? null,
+  },
+  {
+    key: 'goal-fit',
+    iconKey: 'goal',
+    label: 'Goal fit',
+    getValue: (product) => product.analysis.goalFit?.score ?? null,
+  },
+  {
+    key: 'nutrition-fit',
+    iconKey: 'nutrition',
+    label: 'Nutrition fit',
+    getValue: (product) => product.analysis.nutrition?.score ?? null,
   },
 ];
 
@@ -105,6 +133,32 @@ export const getDisplayNutritionRows = (
   leftProduct: ComparedProduct,
   rightProduct: ComparedProduct,
 ): ComparisonDisplayNutritionRow[] => {
+  const scoreRows = SCORE_METRICS.map((metric) => {
+    const leftValue = metric.getValue(leftProduct);
+    const rightValue = metric.getValue(rightProduct);
+
+    return {
+      comparisonMark: getComparisonMark(leftValue, rightValue),
+      iconKey: metric.iconKey,
+      key: metric.key,
+      kind: 'score' as const,
+      label: metric.label,
+      leftValue: leftValue == null ? '—' : leftValue,
+      rightValue: rightValue == null ? '—' : rightValue,
+      winner: getMetricWinner(
+        {
+          key: 'proteinPer100g',
+          label: metric.label,
+          unit: '',
+          iconKey: '',
+          direction: 'higher_better',
+        },
+        leftValue,
+        rightValue,
+      ),
+    };
+  }).filter((row) => row.leftValue !== '—' || row.rightValue !== '—');
+
   const metricRows = NUTRITION_METRICS.map((metric) => {
     const leftValue = leftProduct.product.nutrition?.[metric.key] ?? null;
     const rightValue = rightProduct.product.nutrition?.[metric.key] ?? null;
@@ -122,6 +176,7 @@ export const getDisplayNutritionRows = (
   }).filter((row) => row.leftValue !== '—' || row.rightValue !== '—');
 
   return [
+    ...scoreRows,
     ...metricRows,
     {
       comparisonMark: null,
