@@ -9,12 +9,6 @@ import { formatOverallRatingColors } from '../ScannerResultSheet/evaluationHelpe
 import type { ComparisonSafetyBadge } from './comparisonSafetyBadges';
 import { getMascotByProductKey } from './comparisonMascots';
 
-import BestMascot from '../../../../assets/icons/mascot/best-mascot.svg';
-import BestMascot2 from '../../../../assets/icons/mascot/best-mascot-2.svg';
-import BestMascot3 from '../../../../assets/icons/mascot/best-mascot-3.svg';
-import BestMascot4 from '../../../../assets/icons/mascot/best-mascot-4.svg';
-import BestMascot5 from '../../../../assets/icons/mascot/best-mascot-5.svg';
-
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
   productKey?: string;
@@ -54,7 +48,11 @@ export function ComparisonProductCard({
     : isWinner
       ? COLORS.primary100
       : COLORS.gray100;
-  const badgeTextColor = isRejected ? COLORS.danger800 : isWinner ? COLORS.neutrals900 : COLORS.gray500;
+  const badgeTextColor = isRejected
+    ? COLORS.danger800
+    : isWinner
+      ? COLORS.neutrals900
+      : COLORS.gray500;
   const safetyBadgeColors = {
     negative: {
       backgroundColor: COLORS.dangerSoft,
@@ -97,7 +95,10 @@ export function ComparisonProductCard({
         </View>
       ) : null}
 
-      <View className="flex-1 rounded-[16px] border bg-white px-3 pb-4 pt-4" style={{ borderColor }}>
+      <View
+        className="flex-1 rounded-[16px] border bg-white px-3 pb-4 pt-4"
+        style={{ borderColor }}
+      >
         <View>
           {resolvedImageUrl ? (
             <Image

@@ -43,7 +43,7 @@ export function PersonalTabContent({
       <View>
         <Text className="px-4 font-bold text-lg">Analysis results</Text>
 
-        <View className="px-4 pb-4">
+        <View className="pb-4">
           <ProfileDetail
             profile={activeProfile}
             rawIngredients={resolvedIngredients}
@@ -51,9 +51,7 @@ export function PersonalTabContent({
           />
         </View>
 
-        <View className="bg-background px-4 border-t border-neutrals-200">
-          {bottomAction}
-        </View>
+        <View className="bg-background px-4 border-t border-neutrals-200">{bottomAction}</View>
       </View>
     );
   }
@@ -74,7 +72,7 @@ export function PersonalTabContent({
     <View className="px-4">
       <PersonalAnalysisLoader
         title="Analyzing product..."
-        description="We&apos;re scoring this product for your profile."
+        description="We're scoring this product for your profile."
       />
     </View>
   );
