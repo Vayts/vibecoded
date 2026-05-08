@@ -13,9 +13,13 @@ interface ProductResultHeaderProps {
   onSelect: (profileId: string) => void;
 }
 
-export function ProductResultHeader({ product, profiles, selectedProfileId, onSelect }: ProductResultHeaderProps) {
+export function ProductResultHeader({
+  product,
+  profiles,
+  selectedProfileId,
+  onSelect,
+}: ProductResultHeaderProps) {
   const resolvedImageUrl = getProductImageUri(product);
-
 
   return (
     <View className="rounded-xl bg-white pt-4">
@@ -41,15 +45,15 @@ export function ProductResultHeader({ product, profiles, selectedProfileId, onSe
               {product.brands}
             </Typography>
           ) : null}
-
-          <ProfileScoreSelector
-            className="mt-2"
-            profiles={profiles}
-            selectedProfileId={selectedProfileId}
-            onSelect={onSelect}
-          />
         </View>
       </View>
+
+      <ProfileScoreSelector
+        className="mt-2"
+        profiles={profiles}
+        selectedProfileId={selectedProfileId}
+        onSelect={onSelect}
+      />
     </View>
   );
 }

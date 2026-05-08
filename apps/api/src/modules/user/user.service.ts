@@ -72,6 +72,8 @@ const userWithProfileSelect = {
   },
 } as const;
 
+const isNonEmptyString = (value: string | null): value is string => Boolean(value?.trim());
+
 @Injectable()
 export class UserService {
   async getCurrentUser(userId: string): Promise<SerializedUser> {
@@ -160,7 +162,61 @@ export class UserService {
   }
 
   async remove(userId: string) {
-    await prisma.user.delete({ where: { id: userId } });
+    const deletedUserAssets = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          avatarUrl: true,
+          familyMembers: {
+            select: {
+              avatarUrl: true,
+            },
+          },
+          scans: {
+            select: {
+              photoImagePath: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw ApiError.notFound('User not found');
+      }
+
+      await tx.user.delete({ where: { id: userId } });
+
+      return {
+        avatarUrl: user.avatarUrl,
+        familyMemberAvatarUrls: user.familyMembers.map((member) => member.avatarUrl),
+        scanPhotoImagePaths: user.scans.map((scan) => scan.photoImagePath),
+      };
+    });
+
+    const storedObjectPaths = Array.from(
+      new Set(
+        [
+          deletedUserAssets.avatarUrl,
+          ...deletedUserAssets.familyMemberAvatarUrls,
+          ...deletedUserAssets.scanPhotoImagePaths,
+        ].filter(isNonEmptyString),
+      ),
+    );
+
+    const deletionResults = await Promise.allSettled(
+      storedObjectPaths.map(async (objectPath) => deleteStoredObject(objectPath)),
+    );
+
+    deletionResults.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.warn(
+          `[user] failed to delete stored object ${storedObjectPaths[index]}`,
+          result.reason,
+        );
+      }
+    });
+
     return { success: true };
   }
 }

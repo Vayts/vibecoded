@@ -32,6 +32,7 @@ export const COLORS = {
   neutrals900: '#1A1A1A',
 
   primary25: '#c8dcc9',
+  primary50: '#eefdee',
   primary100: '#E0F8E0',
   primary300: '#94E197',
   primary500: '#4FAF5A',

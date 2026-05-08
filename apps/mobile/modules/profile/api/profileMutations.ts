@@ -6,9 +6,9 @@ export interface UpdateProfilePayload {
   avatarUrl?: string | null;
 }
 
-const getErrorMessage = async (response: Response): Promise<string> => {
+const getErrorMessage = async (response: Response, fallback: string): Promise<string> => {
   const json = (await response.json().catch(() => null)) as { error?: string } | null;
-  return json?.error ?? 'Unable to update profile';
+  return json?.error ?? fallback;
 };
 
 export const updateProfile = async (payload: UpdateProfilePayload): Promise<AuthUser> => {
@@ -18,8 +18,18 @@ export const updateProfile = async (payload: UpdateProfilePayload): Promise<Auth
   });
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response));
+    throw new Error(await getErrorMessage(response, 'Unable to update profile'));
   }
 
   return (await response.json()) as AuthUser;
+};
+
+export const deleteAccount = async (): Promise<void> => {
+  const response = await apiFetch('/api/user', {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response, 'Unable to delete account'));
+  }
 };

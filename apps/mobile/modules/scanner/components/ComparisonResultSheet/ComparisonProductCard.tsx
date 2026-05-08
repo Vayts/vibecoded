@@ -6,11 +6,12 @@ import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorage
 import type { ComparedProductCore } from '../../utils/profileCompareTypes';
 import { useMemo } from 'react';
 import { formatOverallRatingColors } from '../ScannerResultSheet/evaluationHelpers';
-import BestMascot from '../../../../assets/icons/mascot/best-mascot.svg';
 import type { ComparisonSafetyBadge } from './comparisonSafetyBadges';
+import { getMascotByProductKey } from './comparisonMascots';
 
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
+  productKey?: string;
   score: number | null;
   safetyBadges?: ComparisonSafetyBadge[];
   badgeLabel?: string;
@@ -19,6 +20,7 @@ interface ComparisonProductCardProps {
 
 export function ComparisonProductCard({
   product,
+  productKey,
   score,
   safetyBadges = [],
   badgeLabel,
@@ -28,6 +30,8 @@ export function ComparisonProductCard({
   const isWinner = tone === 'winner';
   const isRejected = tone === 'not-suitable';
   const productName = product.name?.trim() || 'Unknown product';
+  const winnerMascot = getMascotByProductKey(productKey || productName);
+  const WinnerMascot = winnerMascot.Component;
   const colors = useMemo(() => {
     if (score == null)
       return {
@@ -44,7 +48,11 @@ export function ComparisonProductCard({
     : isWinner
       ? COLORS.primary100
       : COLORS.gray100;
-  const badgeTextColor = isRejected ? COLORS.danger800 : isWinner ? COLORS.neutrals900 : COLORS.gray500;
+  const badgeTextColor = isRejected
+    ? COLORS.danger800
+    : isWinner
+      ? COLORS.neutrals900
+      : COLORS.gray500;
   const safetyBadgeColors = {
     negative: {
       backgroundColor: COLORS.dangerSoft,
@@ -87,7 +95,10 @@ export function ComparisonProductCard({
         </View>
       ) : null}
 
-      <View className="flex-1 rounded-[16px] border bg-white px-3 pb-4 pt-4" style={{ borderColor }}>
+      <View
+        className="flex-1 rounded-[16px] border bg-white px-3 pb-4 pt-4"
+        style={{ borderColor }}
+      >
         <View>
           {resolvedImageUrl ? (
             <Image
@@ -103,8 +114,8 @@ export function ComparisonProductCard({
             </View>
           )}
           {isWinner ? (
-            <View className="absolute bottom-[98%] right-2">
-              <BestMascot />
+            <View className="absolute right-2" style={{ bottom: `${winnerMascot.bottomPercent}%` }}>
+              <WinnerMascot />
             </View>
           ) : null}
         </View>

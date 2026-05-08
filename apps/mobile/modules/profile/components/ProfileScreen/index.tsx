@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { SheetManager } from 'react-native-actions-sheet';
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,12 +14,14 @@ import { useFamilyMembersAccess } from '../../../family/hooks/useFamilyMembersAc
 import { useFamilyMembersPaywall } from '../../../family/hooks/useFamilyMembersPaywall';
 import { useOnboardingQuery } from '../../../onboarding/api/onboardingQueries';
 import { MAIN_GOAL_LABELS } from '../../../onboarding/components/options';
+import { SheetsEnum } from '../../../../shared/types/sheets';
 import { useCurrentUserQuery } from '../../api/profileQueries';
+import { useDeleteAccount } from '../../hooks/useDeleteAccount';
+import { ProfileAccountActionsSection } from './ProfileAccountActionsSection';
 import { ProfileFamilyMembersSection } from './ProfileFamilyMembersSection';
 import { ProfileSubscriptionCard } from './ProfileSubscriptionCard';
 import { ProfileGoalCard } from '../ProfileGoalCard';
 import { ProfileHeaderCard } from '../ProfileHeaderCard';
-import { ProfileLogoutButton } from '../ProfileLogoutButton';
 
 const getHealthSummary = (onboarding: ReturnType<typeof useOnboardingQuery>['data']): string => {
   if (!onboarding?.mainGoal) {
@@ -36,6 +39,7 @@ export function ProfileScreen() {
   const user = currentUserQuery.data ?? authUser;
   const onboardingQuery = useOnboardingQuery(user?.id);
   const familyMembersAccess = useFamilyMembersAccess();
+  const deleteAccountMutation = useDeleteAccount();
   const familyMembersPaywall = useFamilyMembersPaywall({
     hasAccess: familyMembersAccess.hasAccess,
     userId: user?.id,
@@ -74,6 +78,20 @@ export function ProfileScreen() {
     }
   };
 
+  const handleOpenDeleteAccountSheet = () => {
+    if (deleteAccountMutation.isPending) {
+      return;
+    }
+
+    void SheetManager.show(SheetsEnum.DeleteAccountSheet, {
+      payload: {
+        onConfirm: async () => {
+          await deleteAccountMutation.mutateAsync();
+        },
+      },
+    });
+  };
+
   if (!user) {
     return <ScreenSpinner />;
   }
@@ -81,6 +99,8 @@ export function ProfileScreen() {
   if (onboardingQuery.isLoading || familyMembersAccess.isLoading) {
     return <ScreenSpinner />;
   }
+
+  const isAccountActionPending = isLoading || deleteAccountMutation.isPending;
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -151,9 +171,11 @@ export function ProfileScreen() {
             />
           </View>
 
-          <View className="border border-neutrals-200 px-4 pt-4 bg-background flex-1 pb-[160px]">
-            <ProfileLogoutButton disabled={isLoading} onPress={handleOpenLogoutDialog} />
-          </View>
+          <ProfileAccountActionsSection
+            isPending={isAccountActionPending}
+            onDeleteAccountPress={handleOpenDeleteAccountSheet}
+            onLogoutPress={handleOpenLogoutDialog}
+          />
         </ScrollView>
       </ScreenSheet>
 
@@ -163,7 +185,7 @@ export function ProfileScreen() {
         description="You will need to sign in again to access your account."
         confirmLabel="Log out"
         errorMessage={logoutErrorMessage}
-        isPending={isLoading}
+        isPending={isAccountActionPending}
         onCancel={handleCloseLogoutDialog}
         onConfirm={() => {
           void handleConfirmLogout();

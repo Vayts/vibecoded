@@ -6,4 +6,5 @@ export enum SheetsEnum {
   ScansFilterSheet = 'scans-filter-sheet',
   ProfileScoreSelectorSheet = 'profile-score-selector-sheet',
   BasedOnYourProfileSheet = 'based-on-your-profile-sheet',
+  DeleteAccountSheet = 'delete-account-sheet',
 }
