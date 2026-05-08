@@ -34,14 +34,13 @@ const BestFitAvatarStack = memo(function BestFitAvatarStack({
       </Typography>
     );
   }
-
   const visibleProfiles = profiles.slice(0, 3);
   const extraProfilesCount = profiles.length - visibleProfiles.length;
 
   return (
     <View className="flex-row items-center justify-end">
       {visibleProfiles.map((profile, index) => {
-        const isCurrentUser = profile.profileId === 'you';
+        const isCurrentUser = profile.profileId === context.currentUserProfileId;
         const familyMember = context.familyMembersById.get(profile.profileId);
 
         return (
@@ -71,8 +70,7 @@ const BestFitAvatarStack = memo(function BestFitAvatarStack({
 
       {extraProfilesCount > 0 ? (
         <View
-          className={
-            `-ml-[8px] h-[26px] min-w-[26px] items-center justify-center rounded-full border-2 border-white px-1`}
+          className={`-ml-[8px] h-[26px] min-w-[26px] items-center justify-center rounded-full border-2 border-white px-1`}
           style={{ backgroundColor: COLORS.gray100 }}
         >
           <Typography variant="caption" className="font-semibold text-gray-700">
@@ -129,7 +127,10 @@ const ComparisonProductCard = memo(function ComparisonProductCard({
       </View>
 
       <View className="mt-3">
-        <Typography className="text-[17px] font-semibold leading-[24px] text-gray-900" numberOfLines={1}>
+        <Typography
+          className="text-[17px] font-semibold leading-[24px] text-gray-900"
+          numberOfLines={1}
+        >
           {name}
         </Typography>
         {brand ? (

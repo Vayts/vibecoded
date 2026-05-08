@@ -84,6 +84,7 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
     <View className="mt-4 border bg-accent-50 border-accent-200 overflow-hidden rounded-[20px]">
       <View className="px-4">
         {concerns.map((concern, index) => {
+          const isExpandable = concern.ingredients.length > 0;
           const isExpanded = expandedKey === concern.key;
 
           return (
@@ -91,9 +92,22 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
               <TouchableOpacity
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`${concern.title}. ${isExpanded ? 'Hide details' : 'Show details'}`}
+                accessibilityLabel={
+                  isExpandable
+                    ? `${concern.title}. ${isExpanded ? 'Hide details' : 'Show details'}`
+                    : `${concern.title}. ${concern.statusLabel}`
+                }
+                accessibilityState={{
+                  disabled: !isExpandable,
+                  expanded: isExpandable ? isExpanded : undefined,
+                }}
                 className="flex-row items-center justify-between gap-3 py-3"
+                disabled={!isExpandable}
                 onPress={() => {
+                  if (!isExpandable) {
+                    return;
+                  }
+
                   setExpandedKey((currentKey) => (currentKey === concern.key ? null : concern.key));
                 }}
               >
@@ -117,14 +131,16 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
                   </View>
                 </View>
 
-                {isExpanded ? (
-                  <ChevronUp color={COLORS.accent900} size={18} strokeWidth={2.2} />
-                ) : (
-                  <ChevronDown color={COLORS.accent900} size={18} strokeWidth={2.2} />
-                )}
+                {isExpandable ? (
+                  isExpanded ? (
+                    <ChevronUp color={COLORS.accent900} size={18} strokeWidth={2.2} />
+                  ) : (
+                    <ChevronDown color={COLORS.accent900} size={18} strokeWidth={2.2} />
+                  )
+                ) : null}
               </TouchableOpacity>
 
-              {isExpanded ? (
+              {isExpandable && isExpanded ? (
                 <View className="pb-3 pr-2">
                   {concern.ingredients.length > 0 ? (
                     <View className="flex-row flex-wrap gap-1">

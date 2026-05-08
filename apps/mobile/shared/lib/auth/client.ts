@@ -1,7 +1,12 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Platform } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import type { OnboardingResponse } from '@acme/shared';
 import { betterAuthClient } from './betterAuthClient';
+
+type AuthUserProfile = OnboardingResponse & {
+  id: string;
+};
 
 export interface AuthUser {
   id: string;
@@ -9,6 +14,7 @@ export interface AuthUser {
   email: string;
   image: string | null;
   avatarUrl: string | null;
+  profile: AuthUserProfile | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +47,7 @@ function toAuthSession(raw: Record<string, unknown>): AuthSession {
       email: user.email as string,
       image: (user.image ?? null) as string | null,
       avatarUrl: (user.avatarUrl ?? null) as string | null,
+      profile: null,
       createdAt: user.createdAt as string,
       updatedAt: user.updatedAt as string,
     },

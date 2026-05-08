@@ -59,8 +59,6 @@ const normalizeIconKey = (value: string | null): string =>
   (value ?? '').toLowerCase().replace(/[^a-z]/g, '');
 
 function MetricIcon({ iconKey }: { iconKey: string | null }) {
-  console.log(iconKey);
-
   if (!iconKey) {
     return null;
   }

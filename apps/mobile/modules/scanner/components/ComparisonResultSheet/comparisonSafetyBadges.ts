@@ -9,9 +9,20 @@ export interface ComparisonSafetyBadge {
   tone: 'negative' | 'positive';
 }
 
+interface ComparisonSafetyBadgePair {
+  leftBadges: ComparisonSafetyBadge[];
+  rightBadges: ComparisonSafetyBadge[];
+}
+
+type BadgeSafetyState = 'negative' | 'positive' | 'unknown';
+interface BadgeSnapshot {
+  blocked: Set<string>;
+  states: Map<string, BadgeSafetyState>;
+}
+
 const normalizeSafetyValue = (value: string): string =>
   value.trim().toLowerCase().replace(/[_-]+/g, ' ');
-
+const toTitleCase = (value: string): string => value.replace(/\b\w/g, (char) => char.toUpperCase());
 const SAFETY_ICON_ALIASES = {
   vegan: 'VEGAN',
   vegetarian: 'VEGETARIAN',
@@ -34,15 +45,10 @@ const SAFETY_ICON_ALIASES = {
 } as const;
 
 const getSafetyIcon = (value: string): LucideIcon => {
-  const iconKey =
-    SAFETY_ICON_ALIASES[
-      value.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof SAFETY_ICON_ALIASES
-    ];
-
+  const key = value.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof SAFETY_ICON_ALIASES;
+  const iconKey = SAFETY_ICON_ALIASES[key];
   return iconKey ? RESTRICTION_ICON[iconKey] : RESTRICTION_ICON.default;
 };
-
-const toTitleCase = (value: string): string => value.replace(/\b\w/g, (char) => char.toUpperCase());
 
 const formatFreeLabel = (value: string): string => {
   const freeLabel = value.endsWith('free') ? value.replace(/\s+free$/, '-free') : `${value}-free`;
@@ -50,168 +56,168 @@ const formatFreeLabel = (value: string): string => {
 };
 
 export const formatRestrictionConflictText = (restriction: string): string => {
-  const normalizedRestriction = restriction.trim().toLowerCase().replace(/_/g, '-');
-
-  if (!normalizedRestriction) {
-    return 'Restriction conflict';
-  }
-
-  return `Not ${normalizedRestriction}`;
+  const normalized = restriction.trim().toLowerCase().replace(/_/g, '-');
+  return normalized ? `Not ${normalized}` : 'Restriction conflict';
 };
 
-const formatCompatibleRestrictionBadgeText = (restriction: string): string => {
-  const normalizedRestriction = normalizeSafetyValue(restriction);
-
-  if (!normalizedRestriction) {
-    return 'Diet-friendly';
-  }
-
-  if (normalizedRestriction.endsWith('free')) {
-    return formatFreeLabel(normalizedRestriction);
-  }
-
-  return toTitleCase(normalizedRestriction);
+const formatRestrictionSafeText = (restriction: string): string => {
+  const normalized = normalizeSafetyValue(restriction);
+  if (!normalized) return 'Diet-friendly';
+  return normalized.endsWith('free') ? formatFreeLabel(normalized) : toTitleCase(normalized);
 };
 
 export const formatAllergenConflictText = (allergen: string): string => {
-  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
-
-  if (!normalizedAllergen) {
-    return 'Allergen conflicts';
-  }
-
-  if (normalizedAllergen.toLowerCase() === 'other') {
-    return 'Contains your allergen';
-  }
-
-  return `Contains ${normalizedAllergen.toLowerCase()}`;
+  const normalized = allergen.trim().replace(/[_-]+/g, ' ');
+  if (!normalized) return 'Allergen conflicts';
+  return normalized.toLowerCase() === 'other'
+    ? 'Contains your allergen'
+    : `Contains ${normalized.toLowerCase()}`;
 };
 
-const formatTraceAllergenText = (allergen: string): string => {
-  const normalizedAllergen = allergen.trim().replace(/[_-]+/g, ' ');
-
-  if (!normalizedAllergen || normalizedAllergen.toLowerCase() === 'other') {
-    return 'May contain your allergen';
-  }
-
-  return `May contain ${normalizedAllergen.toLowerCase()}`;
+const formatAllergenSafeText = (allergen: string): string => {
+  const normalized = normalizeSafetyValue(allergen);
+  return !normalized || normalized === 'other' ? 'Allergen-safe' : formatFreeLabel(normalized);
 };
 
-const formatTraceRestrictionText = (restriction: string): string => {
-  const normalizedRestriction = restriction.trim().toLowerCase().replace(/_/g, '-');
-
-  if (!normalizedRestriction) {
-    return 'Trace diet risk';
-  }
-
-  return `Trace risk: ${normalizedRestriction}`;
-};
-
-const formatSafeAllergenBadgeText = (allergen: string): string => {
-  const normalizedAllergen = normalizeSafetyValue(allergen);
-
-  if (!normalizedAllergen || normalizedAllergen === 'other') {
-    return 'Allergen-safe';
-  }
-
-  return formatFreeLabel(normalizedAllergen);
-};
-
-const toRestrictionBadge = (
-  restriction: string,
+const toBadge = (
+  value: string,
   tone: ComparisonSafetyBadge['tone'],
+  type: 'restriction' | 'allergen',
 ): ComparisonSafetyBadge => ({
-  Icon: getSafetyIcon(restriction),
-  key: `restriction-${tone}-${restriction}`,
+  Icon: getSafetyIcon(value),
+  key: `${type}-${tone}-${value}`,
   label:
-    tone === 'positive'
-      ? formatCompatibleRestrictionBadgeText(restriction)
-      : formatRestrictionConflictText(restriction),
+    type === 'restriction'
+      ? tone === 'positive'
+        ? formatRestrictionSafeText(value)
+        : formatRestrictionConflictText(value)
+      : tone === 'positive'
+        ? formatAllergenSafeText(value)
+        : formatAllergenConflictText(value),
   tone,
 });
 
-const toAllergenBadge = (
-  allergen: string,
-  tone: ComparisonSafetyBadge['tone'],
-): ComparisonSafetyBadge => ({
-  Icon: getSafetyIcon(allergen),
-  key: `allergen-${tone}-${allergen}`,
-  label:
-    tone === 'positive'
-      ? formatSafeAllergenBadgeText(allergen)
-      : formatAllergenConflictText(allergen),
-  tone,
-});
+const createSnapshot = (
+  negatives: string[],
+  positives: string[],
+  blockedValues: string[],
+): BadgeSnapshot => {
+  const states = new Map<string, BadgeSafetyState>();
+  const blocked = new Set<string>();
+  negatives
+    .map(normalizeSafetyValue)
+    .filter(Boolean)
+    .forEach((value) => states.set(value, 'negative'));
+  blockedValues
+    .map(normalizeSafetyValue)
+    .filter(Boolean)
+    .forEach((value) => {
+      if (!states.has(value)) blocked.add(value);
+    });
+  positives
+    .map(normalizeSafetyValue)
+    .filter(Boolean)
+    .forEach((value) => {
+      if (!states.has(value) && !blocked.has(value)) states.set(value, 'positive');
+    });
+  return { blocked, states };
+};
 
-const toTraceRestrictionBadge = (restriction: string): ComparisonSafetyBadge => ({
-  Icon: getSafetyIcon(restriction),
-  key: `trace-restriction-${restriction}`,
-  label: formatTraceRestrictionText(restriction),
-  tone: 'negative',
-});
-
-const toTraceAllergenBadge = (allergen: string): ComparisonSafetyBadge => ({
-  Icon: getSafetyIcon(allergen),
-  key: `trace-allergen-${allergen}`,
-  label: formatTraceAllergenText(allergen),
-  tone: 'negative',
-});
-
-export const getComparisonSafetyBadges = (product: ComparedProduct): ComparisonSafetyBadge[] => {
-  const matchedAllergens = new Set(
-    (product.analysis.safety?.matchedAllergens ?? []).map(normalizeSafetyValue),
+const getRestrictionSnapshot = (product: ComparedProduct): BadgeSnapshot =>
+  createSnapshot(
+    product.analysis.safety?.violatedRestrictions ?? [],
+    (product.profile.ai?.restrictionDetections ?? [])
+      .filter((detection) => detection.status === 'compatible')
+      .map((detection) => detection.restriction),
+    [
+      ...(product.analysis.safety?.traceRestrictions ?? []),
+      ...(product.profile.ai?.restrictionDetections ?? [])
+        .filter((detection) => detection.status !== 'compatible')
+        .map((detection) => detection.restriction),
+    ],
   );
-  const violatedRestrictions = new Set(
-    (product.analysis.safety?.violatedRestrictions ?? []).map(normalizeSafetyValue),
-  );
-  const traceAllergens = new Set(
-    (product.analysis.safety?.traceAllergens ?? []).map(normalizeSafetyValue),
-  );
-  const traceRestrictions = new Set(
-    (product.analysis.safety?.traceRestrictions ?? []).map(normalizeSafetyValue),
+
+const getAllergenSnapshot = (product: ComparedProduct): BadgeSnapshot =>
+  createSnapshot(
+    [
+      ...(product.analysis.safety?.matchedAllergens ?? []),
+      ...(product.profile.ai?.allergenDetections ?? [])
+        .filter((detection) => detection.detected)
+        .map((detection) => detection.allergy),
+    ],
+    (product.profile.ai?.allergenDetections ?? [])
+      .filter((detection) => !detection.detected)
+      .map((detection) => detection.allergy),
+    product.analysis.safety?.traceAllergens ?? [],
   );
 
-  const badges = [
-    ...(product.analysis.safety?.violatedRestrictions ?? []).map((restriction) =>
-      toRestrictionBadge(restriction, 'negative'),
-    ),
-    ...(product.analysis.safety?.matchedAllergens ?? []).map((allergen) =>
-      toAllergenBadge(allergen, 'negative'),
-    ),
-    ...(product.analysis.safety?.traceRestrictions ?? []).map(toTraceRestrictionBadge),
-    ...(product.analysis.safety?.traceAllergens ?? []).map(toTraceAllergenBadge),
-    ...(product.profile.ai?.restrictionDetections ?? [])
-      .filter((detection) => {
-        const restriction = normalizeSafetyValue(detection.restriction);
-        return (
-          restriction &&
-          detection.status === 'compatible' &&
-          !violatedRestrictions.has(restriction) &&
-          !traceRestrictions.has(restriction)
-        );
-      })
-      .map((detection) => toRestrictionBadge(detection.restriction, 'positive')),
-    ...(product.profile.ai?.allergenDetections ?? [])
-      .filter((detection) => {
-        const allergen = normalizeSafetyValue(detection.allergy);
-        return (
-          allergen &&
-          !detection.detected &&
-          !matchedAllergens.has(allergen) &&
-          !traceAllergens.has(allergen)
-        );
-      })
-      .map((detection) => toAllergenBadge(detection.allergy, 'positive')),
-  ];
+const getComparableState = (
+  current: BadgeSafetyState,
+  opposite: BadgeSafetyState,
+  isBlocked: boolean,
+): BadgeSafetyState => {
+  if (current !== 'unknown') return current;
+  return !isBlocked && opposite === 'negative' ? 'positive' : 'unknown';
+};
 
-  const uniqueBadges = new Map<string, ComparisonSafetyBadge>();
-  badges.forEach((badge) => {
-    const badgeKey = `${badge.tone}:${badge.label.toLowerCase()}`;
-
-    if (!uniqueBadges.has(badgeKey)) {
-      uniqueBadges.set(badgeKey, badge);
-    }
+const collectBadges = (
+  left: BadgeSnapshot,
+  right: BadgeSnapshot,
+  type: 'restriction' | 'allergen',
+  leftBadges: ComparisonSafetyBadge[],
+  rightBadges: ComparisonSafetyBadge[],
+) => {
+  const keys = new Set([
+    ...left.states.keys(),
+    ...right.states.keys(),
+    ...left.blocked,
+    ...right.blocked,
+  ]);
+  keys.forEach((key) => {
+    const leftState = getComparableState(
+      left.states.get(key) ?? 'unknown',
+      right.states.get(key) ?? 'unknown',
+      left.blocked.has(key),
+    );
+    const rightState = getComparableState(
+      right.states.get(key) ?? 'unknown',
+      left.states.get(key) ?? 'unknown',
+      right.blocked.has(key),
+    );
+    if (leftState === rightState || leftState === 'unknown' || rightState === 'unknown') return;
+    leftBadges.push(toBadge(key, leftState, type));
+    rightBadges.push(toBadge(key, rightState, type));
   });
+};
 
-  return Array.from(uniqueBadges.values());
+const dedupeBadges = (badges: ComparisonSafetyBadge[]): ComparisonSafetyBadge[] => {
+  const unique = new Map<string, ComparisonSafetyBadge>();
+  badges.forEach((badge) => {
+    const key = `${badge.tone}:${badge.label.toLowerCase()}`;
+    if (!unique.has(key)) unique.set(key, badge);
+  });
+  return Array.from(unique.values());
+};
+
+export const getComparisonSafetyBadges = (
+  leftProduct: ComparedProduct,
+  rightProduct: ComparedProduct,
+): ComparisonSafetyBadgePair => {
+  const leftBadges: ComparisonSafetyBadge[] = [];
+  const rightBadges: ComparisonSafetyBadge[] = [];
+  collectBadges(
+    getRestrictionSnapshot(leftProduct),
+    getRestrictionSnapshot(rightProduct),
+    'restriction',
+    leftBadges,
+    rightBadges,
+  );
+  collectBadges(
+    getAllergenSnapshot(leftProduct),
+    getAllergenSnapshot(rightProduct),
+    'allergen',
+    leftBadges,
+    rightBadges,
+  );
+  return { leftBadges: dedupeBadges(leftBadges), rightBadges: dedupeBadges(rightBadges) };
 };

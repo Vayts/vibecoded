@@ -1,9 +1,17 @@
-import { isActiveSubscriptionStatus, UserSubscriptionResponse } from '@acme/shared';
+import {
+  isActiveSubscriptionStatus,
+  type OnboardingResponse,
+  UserSubscriptionResponse,
+} from '@acme/shared';
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';
 import { prisma } from '../product-analyze/lib/prisma';
 import { deleteStoredObject } from '../product-analyze/lib/storage';
 import { updateUserRequestSchema } from './user.schemas';
+
+export type SerializedUserProfile = OnboardingResponse & {
+  id: string;
+};
 
 export interface SerializedUser {
   id: string;
@@ -11,6 +19,7 @@ export interface SerializedUser {
   email: string;
   image: string | null;
   avatarUrl: string | null;
+  profile: SerializedUserProfile | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,6 +30,7 @@ const serializeUser = (user: {
   email: string;
   image: string | null;
   avatarUrl: string | null;
+  profile: SerializedUserProfile | null;
   createdAt: Date;
   updatedAt: Date;
 }): SerializedUser => ({
@@ -29,6 +39,7 @@ const serializeUser = (user: {
   email: user.email,
   image: user.image,
   avatarUrl: user.avatarUrl,
+  profile: user.profile,
   createdAt: user.createdAt.toISOString(),
   updatedAt: user.updatedAt.toISOString(),
 });
@@ -43,12 +54,30 @@ const userSelect = {
   updatedAt: true,
 } as const;
 
+const profileSelect = {
+  id: true,
+  mainGoal: true,
+  restrictions: true,
+  allergies: true,
+  otherAllergiesText: true,
+  nutritionPriorities: true,
+  legacyDietType: true,
+  onboardingCompleted: true,
+} as const;
+
+const userWithProfileSelect = {
+  ...userSelect,
+  profile: {
+    select: profileSelect,
+  },
+} as const;
+
 @Injectable()
 export class UserService {
   async getCurrentUser(userId: string): Promise<SerializedUser> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: userSelect,
+      select: userWithProfileSelect,
     });
 
     if (!user) {
@@ -91,7 +120,7 @@ export class UserService {
 
     const updated = await prisma.user.update({
       where: { id: userId },
-      select: userSelect,
+      select: userWithProfileSelect,
       data,
     });
 

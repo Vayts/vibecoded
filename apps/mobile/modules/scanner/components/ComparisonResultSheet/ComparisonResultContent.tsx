@@ -65,8 +65,10 @@ export function ComparisonResultContent({
     leftComparedProduct && rightComparedProduct
       ? getDisplayNutritionRows(leftComparedProduct, rightComparedProduct)
       : [];
-
-  console.log(JSON.stringify(displayRows, null, 2));
+  const { leftBadges, rightBadges } =
+    leftComparedProduct && rightComparedProduct
+      ? getComparisonSafetyBadges(leftComparedProduct, rightComparedProduct)
+      : { leftBadges: [], rightBadges: [] };
 
   const isNoMatch = activeProfile?.status === 'no_suitable_product';
   const shouldShowVerdict =
@@ -112,14 +114,14 @@ export function ComparisonResultContent({
                   <ComparisonProductCard
                     product={leftComparedProduct.product}
                     score={leftComparedProduct.analysis.overall?.score ?? null}
-                    safetyBadges={getComparisonSafetyBadges(leftComparedProduct)}
+                    safetyBadges={leftBadges}
                     tone={getProductTone(leftComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(leftComparedProduct, activeProfile)}
                   />
                   <ComparisonProductCard
                     product={rightComparedProduct.product}
                     score={rightComparedProduct.analysis.overall?.score ?? null}
-                    safetyBadges={getComparisonSafetyBadges(rightComparedProduct)}
+                    safetyBadges={rightBadges}
                     tone={getProductTone(rightComparedProduct, activeProfile)}
                     badgeLabel={getBadgeLabel(rightComparedProduct, activeProfile)}
                   />

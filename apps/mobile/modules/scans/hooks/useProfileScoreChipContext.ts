@@ -6,6 +6,7 @@ import { useCurrentUserQuery } from '../../profile/api/profileQueries';
 
 export interface ProfileScoreChipContext {
   currentUser: { avatarUrl: string | null; fallbackImageUrl: string | null } | null;
+  currentUserProfileId: string | null;
   familyMembersById: Map<string, { avatarUrl: string | null }>;
 }
 
@@ -15,6 +16,7 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
   const familyMembersQuery = useFamilyMembersQuery();
 
   const currentUser = currentUserQuery.data ?? authUser ?? null;
+  const currentUserProfileId = currentUserQuery.data?.profile?.id ?? authUser?.profile?.id ?? null;
   const currentUserContext = useMemo(
     () =>
       currentUser
@@ -28,7 +30,10 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
   const familyMembersById = useMemo(
     () =>
       new Map(
-        (familyMembersQuery.data?.items ?? []).map((member) => [member.id, { avatarUrl: member.avatarUrl ?? null }]),
+        (familyMembersQuery.data?.items ?? []).map((member) => [
+          member.id,
+          { avatarUrl: member.avatarUrl ?? null },
+        ]),
       ),
     [familyMembersQuery.data?.items],
   );
@@ -36,8 +41,9 @@ export const useProfileScoreChipContext = (): ProfileScoreChipContext => {
   return useMemo(
     () => ({
       currentUser: currentUserContext,
+      currentUserProfileId,
       familyMembersById,
     }),
-    [currentUserContext, familyMembersById],
+    [currentUserContext, currentUserProfileId, familyMembersById],
   );
 };
