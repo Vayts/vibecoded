@@ -65,7 +65,8 @@ export function ProfileScoreSelector({
     return null;
   }
 
-  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId) ?? profiles[0];
+  const selectedProfile =
+    profiles.find((profile) => profile.id === selectedProfileId) ?? profiles[0];
 
   const handlePress = () => {
     void SheetManager.show(SheetsEnum.ProfileScoreSelectorSheet, {
@@ -81,24 +82,27 @@ export function ProfileScoreSelector({
     <TouchableOpacity
       accessibilityRole="button"
       activeOpacity={0.7}
-      className={`min-h-[32px] self-start flex-row items-center rounded-[8px] w-fit border px-2 py-1 ${className ?? ''}`.trim()}
+      className={`min-h-[44px] self-start flex-row items-center rounded-[8px] w-full border px-2 py-1 ${className ?? ''}`.trim()}
       style={{ borderColor: COLORS.neutrals200 }}
       onPress={handlePress}
     >
-      <UserAvatar
-        imageUrl={selectedProfile.imageUrl}
-        fallbackImageUrl={selectedProfile.fallbackImageUrl}
-        name={selectedProfile.name}
-        size="xss"
-      />
+      <View className="mr-2 flex-row flex-1 items-center gap-2 flex-shrink">
+        <UserAvatar
+          imageUrl={selectedProfile.imageUrl}
+          fallbackImageUrl={selectedProfile.fallbackImageUrl}
+          name={selectedProfile.name}
+          size="xss"
+        />
 
-      <View className="ml-1 flex-row items-center gap-2 flex-shrink">
-        <Typography numberOfLines={1} className="text-neutrals-900 text-[14px] line-clamp-1 flex-shrink">
+        <Typography
+          numberOfLines={1}
+          className="text-neutrals-900 text-[14px] line-clamp-1 flex-shrink"
+        >
           {selectedProfile.name}
         </Typography>
-
-        <ChevronDown strokeWidth={1} size={18}/>
       </View>
+
+      <ChevronDown strokeWidth={1} size={18} />
     </TouchableOpacity>
   );
 }

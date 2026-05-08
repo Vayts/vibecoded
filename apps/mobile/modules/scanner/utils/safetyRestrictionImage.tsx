@@ -23,10 +23,14 @@ import MascotTreeNuts from '../../../assets/icons/mascot/restrictions/tree.svg';
 import MascotPork from '../../../assets/icons/mascot/restrictions/pork.svg';
 import MascotDefault from '../../../assets/icons/mascot/restrictions/default.svg';
 import MascotWarning from '../../../assets/icons/mascot/restrictions/warning.svg';
+import MascotVegan from '../../../assets/icons/mascot/restrictions/vegan.svg';
+import MascotVegetarian from '../../../assets/icons/mascot/restrictions/vegeterian.svg';
+import PaleoMascot from '../../../assets/icons/mascot/restrictions/paleo.svg';
+import NutsMascot from '../../../assets/icons/mascot/restrictions/nuts.svg';
+import KetoMascot from '../../../assets/icons/mascot/restrictions/keto.svg';
 import MascotGood from '../../../assets/icons/mascot/restrictions/good.svg';
 import { SvgProps } from 'react-native-svg';
 import { FC } from 'react';
-
 
 interface SafetyRestrictionImageInfo {
   violatedRestrictions: string[];
@@ -62,6 +66,11 @@ const CAN_I_IMAGES: Record<string, FC<SvgProps>> = {
   pork: MascotPork,
   warning: MascotWarning,
   good: MascotGood,
+  vegan: MascotVegan,
+  vegetarian: MascotVegetarian,
+  paleo: PaleoMascot,
+  nuts: NutsMascot,
+  keto: KetoMascot,
 };
 
 const CAN_I_IMAGES_ALIASES: Record<string, FC<SvgProps>> = {
@@ -70,7 +79,7 @@ const CAN_I_IMAGES_ALIASES: Record<string, FC<SvgProps>> = {
   EGGS: CAN_I_IMAGES.eggs,
   GLUTEN_FREE: CAN_I_IMAGES.gluten,
   GLUTEN: CAN_I_IMAGES.gluten,
-  NUT_FREE: CAN_I_IMAGES.treeNuts,
+  NUT_FREE: CAN_I_IMAGES.nuts,
   PEANUTS: CAN_I_IMAGES.peanuts,
   SESAME: CAN_I_IMAGES.sesame,
   SHELLFISH: CAN_I_IMAGES.shellfish,
@@ -79,7 +88,8 @@ const CAN_I_IMAGES_ALIASES: Record<string, FC<SvgProps>> = {
   PALEO: CAN_I_IMAGES.paleo,
   PORK_FREE: CAN_I_IMAGES.pork,
   VEGAN: CAN_I_IMAGES.pork,
-  VEGETARIAN: CAN_I_IMAGES.pork,
+  KETO: CAN_I_IMAGES.keto,
+  VEGETARIAN: CAN_I_IMAGES.vegetarian,
   warning: CAN_I_IMAGES.warning,
   default: CAN_I_IMAGES.default,
   good: CAN_I_IMAGES.good,
@@ -134,7 +144,10 @@ export const getSafetyRestrictionImage = (
   return IMAGE_ALIASES[safetyValue.trim()] ?? RESTRICTION_IMAGES.default;
 };
 
-export const getCanIRestrictionImage = (safetyInfo: SafetyRestrictionImageInfo, status?: 'yes' | 'no' | 'warning'): FC<SvgProps> => {
+export const getCanIRestrictionImage = (
+  safetyInfo: SafetyRestrictionImageInfo,
+  status?: 'yes' | 'no' | 'warning',
+): FC<SvgProps> => {
   const safetyValue = getFirstPrioritySafetyValue(safetyInfo);
   const priorityGroups = [
     ...safetyInfo.violatedRestrictions,
@@ -155,5 +168,3 @@ export const getCanIRestrictionImage = (safetyInfo: SafetyRestrictionImageInfo, 
 
   return CAN_I_IMAGES_ALIASES[safetyValue.trim()] ?? CAN_I_IMAGES.default;
 };
-
-

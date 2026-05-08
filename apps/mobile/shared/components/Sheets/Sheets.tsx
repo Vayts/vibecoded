@@ -1,5 +1,9 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
+import {
+  DeleteAccountSheet,
+  type DeleteAccountSheetPayload,
+} from '../../../modules/profile/components/DeleteAccountSheet';
 import { CompareProductPickerSheet } from '../../../modules/scanner/components/CompareProductPickerSheet';
 import { ProfileScoreSelectorSheet } from '../../../modules/scanner/components/ProfileScoreSelectorSheet';
 import { ScoreCalculationSheet } from '../../../modules/scanner/components/ScoreCalculationSheet';
@@ -22,7 +26,8 @@ import BasedOnYourProfileSheet from '../../../modules/scanner/components/Scanner
 // across the app for all registered sheets.
 declare module 'react-native-actions-sheet' {
   interface Sheets {
-    [SheetsEnum.BasedOnYourProfileSheet]: SheetDefinition<{payload: {title: string}}>;
+    [SheetsEnum.BasedOnYourProfileSheet]: SheetDefinition<{ payload: { title: string } }>;
+    [SheetsEnum.DeleteAccountSheet]: SheetDefinition<{ payload: DeleteAccountSheetPayload }>;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
     [SheetsEnum.ScoreCalculationSheet]: SheetDefinition;
     [SheetsEnum.CompareProductPickerSheet]: SheetDefinition<{
@@ -41,6 +46,7 @@ export const Sheets = () => {
     <SheetRegister
       sheets={{
         [SheetsEnum.BasedOnYourProfileSheet]: BasedOnYourProfileSheet,
+        [SheetsEnum.DeleteAccountSheet]: DeleteAccountSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,
         [SheetsEnum.CompareProductPickerSheet]: CompareProductPickerSheet,
         [SheetsEnum.ScoreCalculationSheet]: ScoreCalculationSheet,
