@@ -6,11 +6,18 @@ import { resolveStorageUri } from '../../../../shared/lib/storage/resolveStorage
 import type { ComparedProductCore } from '../../utils/profileCompareTypes';
 import { useMemo } from 'react';
 import { formatOverallRatingColors } from '../ScannerResultSheet/evaluationHelpers';
-import BestMascot from '../../../../assets/icons/mascot/best-mascot.svg';
 import type { ComparisonSafetyBadge } from './comparisonSafetyBadges';
+import { getMascotByProductKey } from './comparisonMascots';
+
+import BestMascot from '../../../../assets/icons/mascot/best-mascot.svg';
+import BestMascot2 from '../../../../assets/icons/mascot/best-mascot-2.svg';
+import BestMascot3 from '../../../../assets/icons/mascot/best-mascot-3.svg';
+import BestMascot4 from '../../../../assets/icons/mascot/best-mascot-4.svg';
+import BestMascot5 from '../../../../assets/icons/mascot/best-mascot-5.svg';
 
 interface ComparisonProductCardProps {
   product: ComparedProductCore;
+  productKey?: string;
   score: number | null;
   safetyBadges?: ComparisonSafetyBadge[];
   badgeLabel?: string;
@@ -19,6 +26,7 @@ interface ComparisonProductCardProps {
 
 export function ComparisonProductCard({
   product,
+  productKey,
   score,
   safetyBadges = [],
   badgeLabel,
@@ -28,6 +36,8 @@ export function ComparisonProductCard({
   const isWinner = tone === 'winner';
   const isRejected = tone === 'not-suitable';
   const productName = product.name?.trim() || 'Unknown product';
+  const winnerMascot = getMascotByProductKey(productKey || productName);
+  const WinnerMascot = winnerMascot.Component;
   const colors = useMemo(() => {
     if (score == null)
       return {
@@ -103,8 +113,8 @@ export function ComparisonProductCard({
             </View>
           )}
           {isWinner ? (
-            <View className="absolute bottom-[98%] right-2">
-              <BestMascot />
+            <View className="absolute right-2" style={{ bottom: `${winnerMascot.bottomPercent}%` }}>
+              <WinnerMascot />
             </View>
           ) : null}
         </View>

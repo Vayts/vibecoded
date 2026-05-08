@@ -113,6 +113,12 @@ export function ComparisonResultContent({
 
                   <ComparisonProductCard
                     product={leftComparedProduct.product}
+                    productKey={
+                      leftComparedProduct.productId ||
+                      leftComparedProduct.barcode ||
+                      leftComparedProduct.product.name ||
+                      undefined
+                    }
                     score={leftComparedProduct.analysis.overall?.score ?? null}
                     safetyBadges={leftBadges}
                     tone={getProductTone(leftComparedProduct, activeProfile)}
@@ -120,6 +126,12 @@ export function ComparisonResultContent({
                   />
                   <ComparisonProductCard
                     product={rightComparedProduct.product}
+                    productKey={
+                      rightComparedProduct.productId ||
+                      rightComparedProduct.barcode ||
+                      rightComparedProduct.product.name ||
+                      undefined
+                    }
                     score={rightComparedProduct.analysis.overall?.score ?? null}
                     safetyBadges={rightBadges}
                     tone={getProductTone(rightComparedProduct, activeProfile)}

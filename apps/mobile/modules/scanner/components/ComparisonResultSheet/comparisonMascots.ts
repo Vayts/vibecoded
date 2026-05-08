@@ -11,8 +11,8 @@ interface ComparisonMascotVariant {
 
 const MASCOT_VARIANTS: ComparisonMascotVariant[] = [
   { Component: BestMascot, bottomPercent: 98 },
-  { Component: BestMascot2, bottomPercent: 96 },
-  { Component: BestMascot3, bottomPercent: 95 },
+  { Component: BestMascot2, bottomPercent: 98 },
+  { Component: BestMascot3, bottomPercent: 98 },
   { Component: BestMascot4, bottomPercent: 94 },
   { Component: BestMascot5, bottomPercent: 93 },
 ];
