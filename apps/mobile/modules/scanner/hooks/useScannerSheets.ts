@@ -5,6 +5,15 @@ import { ScannerApiError } from '../api/scannerMutations';
 import { useScannerResultSheetStore } from '../stores/scannerResultSheetStore';
 import { SheetsEnum } from '../../../shared/types/sheets';
 
+const NOT_FOOD_MESSAGE =
+  'The photo does not appear to show a food or drink product. Please scan a food item instead.';
+const INSUFFICIENT_PRODUCT_DATA_TITLE = 'Not enough information about product';
+const INSUFFICIENT_PRODUCT_DATA_MESSAGE =
+  'We found this barcode, but there is not enough product data to analyze it safely. ' +
+  'Try another product or take a clear photo of the label.';
+const SAME_PRODUCT_MESSAGE =
+  'We identified the same product in both scans. Scan a different product to compare.';
+
 export type BeginResultSheetSession = (
   previewProduct?: ProductPreview,
   photoUri?: string,
@@ -50,39 +59,43 @@ export const useScannerSheets = ({
       const isRetriableNotFound =
         errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
       const isSameProduct = errorCode === 'SAME_PRODUCT';
+      const isInsufficientData = errorCode === 'INSUFFICIENT_PRODUCT_DATA';
+      const offersPhotoAction = isRetriableNotFound || isInsufficientData;
 
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
           variant:
             errorCode === 'NOT_FOOD'
               ? 'not-food'
-              : isRetriableNotFound
-                ? 'not-found'
-                : isSameProduct
-                  ? 'same-product'
-                  : 'generic',
+              : isInsufficientData
+                ? 'insufficient-data'
+                : isRetriableNotFound
+                  ? 'not-found'
+                  : isSameProduct
+                    ? 'same-product'
+                    : 'generic',
           title:
             errorCode === 'NOT_FOOD'
               ? 'This is not a food product'
-              : isSameProduct
-                ? 'This is the same product'
-                : undefined,
+              : isInsufficientData
+                ? INSUFFICIENT_PRODUCT_DATA_TITLE
+                : isSameProduct
+                  ? 'This is the same product'
+                  : undefined,
           message:
             errorCode === 'NOT_FOOD'
-              ? 'The photo does not appear to show a food or drink product. Please scan a food item instead.'
-              : isSameProduct
-                ? 'We identified the same product in both scans. Scan a different product to compare.'
-                : errorMessage,
+              ? NOT_FOOD_MESSAGE
+              : isInsufficientData
+                ? INSUFFICIENT_PRODUCT_DATA_MESSAGE
+                : isSameProduct
+                  ? SAME_PRODUCT_MESSAGE
+                  : errorMessage,
           onDismiss: handleScannerErrorSheetDismiss,
-          onPhotoPress: isRetriableNotFound ? handleScannerErrorSheetPhotoPress : undefined,
+          onPhotoPress: offersPhotoAction ? handleScannerErrorSheetPhotoPress : undefined,
         },
       });
     },
-    [
-      handleScannerErrorSheetDismiss,
-      handleScannerErrorSheetPhotoPress,
-      pauseScannerForErrorSheet,
-    ],
+    [handleScannerErrorSheetDismiss, handleScannerErrorSheetPhotoPress, pauseScannerForErrorSheet],
   );
 
   const handleResultSheetClose = useCallback(() => {
@@ -133,4 +146,3 @@ export const useScannerSheets = ({
     openScannerErrorSheet,
   };
 };
-

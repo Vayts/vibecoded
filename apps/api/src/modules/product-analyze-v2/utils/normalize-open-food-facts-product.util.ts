@@ -2,6 +2,66 @@ import type { NormalizedProduct } from '@acme/shared';
 import type { NormalizedProductV2 } from '../types/normalized-product.types.js';
 import { parseServingSize, calculateCaloriesPerServing } from './serving-size.util.js';
 
+const UNKNOWN_CATEGORY_MARKERS = [
+  'unknown',
+  'all-products',
+  'agribalyse',
+  'ciqual',
+  'categories-unknown',
+];
+
+const normalizeDigits = (value: string): string => value.replace(/\D/g, '').replace(/^0+/, '');
+
+const hasUsefulText = (value: string | null, barcode: string): boolean => {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    return false;
+  }
+
+  if (/^[\d\s-]+$/.test(trimmed)) {
+    return false;
+  }
+
+  const valueDigits = normalizeDigits(trimmed);
+  const barcodeDigits = normalizeDigits(barcode);
+  return !valueDigits || !barcodeDigits || valueDigits !== barcodeDigits;
+};
+
+const hasUsefulImage = (value: string | null): boolean => {
+  const trimmed = value?.trim() ?? '';
+  return trimmed.length > 0 && trimmed !== '/' && trimmed !== '/null';
+};
+
+const hasUsefulCategory = (categories: string[]): boolean => {
+  return categories.some((category) => {
+    const normalized = category.trim().toLowerCase();
+    return (
+      normalized.length > 0 &&
+      !UNKNOWN_CATEGORY_MARKERS.some((marker) => normalized.includes(marker))
+    );
+  });
+};
+
+const hasUsefulNutrition = (nutrition: NormalizedProductV2['nutrition']): boolean => {
+  return Object.values(nutrition).some(
+    (value) => typeof value === 'number' && Number.isFinite(value),
+  );
+};
+
+export function hasEnoughProductInformation(product: NormalizedProductV2): boolean {
+  return (
+    hasUsefulText(product.name, product.barcode) ||
+    hasUsefulText(product.brand, product.barcode) ||
+    hasUsefulImage(product.imageUrl) ||
+    product.ingredients.length > 0 ||
+    product.allergens.length > 0 ||
+    product.traces.length > 0 ||
+    product.additives.length > 0 ||
+    hasUsefulCategory(product.categories) ||
+    hasUsefulNutrition(product.nutrition)
+  );
+}
+
 export function normalizeOpenFoodFactsProduct(
   barcode: string,
   raw: NormalizedProduct,

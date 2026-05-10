@@ -9,7 +9,10 @@ import {
 } from '../../../product-analyze/services/openfoodfacts-client.js';
 import { createProduct } from '../../../product-analyze/repositories/productRepository.js';
 import { findProductIdByBarcode } from '../../../product-analyze/repositories/scanRepository.js';
-import { normalizeOpenFoodFactsProduct } from '../../utils/normalize-open-food-facts-product.util.js';
+import {
+  hasEnoughProductInformation,
+  normalizeOpenFoodFactsProduct,
+} from '../../utils/normalize-open-food-facts-product.util.js';
 import { calculateSafetyScore } from '../../utils/calculate-safety-score.util.js';
 import { calculateGoalFitScore } from '../../utils/calculate-goal-fit-score.util.js';
 import { calculateNutritionScore } from '../../utils/calculate-nutrition-score.util.js';
@@ -1470,6 +1473,30 @@ function isAnalyzeBarcodeV2Response(value: unknown): value is AnalyzeBarcodeV2Re
   );
 }
 
+function hasEnoughCachedProductInformation(
+  response: AnalyzeBarcodeV2Response,
+  barcode: string,
+): boolean {
+  return hasEnoughProductInformation({
+    barcode,
+    name: response.product.name,
+    brand: response.product.brand,
+    imageUrl: response.product.imageUrl,
+    ingredients: response.product.ingredients,
+    allergens: response.product.allergens,
+    traces: response.product.traces,
+    additives: response.product.additives,
+    categories: [],
+    servingSizeText: null,
+    servingSizeGrams: null,
+    servingSizeMl: null,
+    nutrition: {
+      ...response.product.nutrition,
+      saltPer100g: null,
+    },
+  });
+}
+
 function canReuseAnalysis(createdAt: Date, preferencesUpdatedAt: Date | null): boolean {
   return !preferencesUpdatedAt || createdAt > preferencesUpdatedAt;
 }
@@ -1507,7 +1534,8 @@ export async function findReusableAnalyzedProductByBarcode(input: {
   const reusableScan = scans.find(
     (scan) =>
       canReuseAnalysis(scan.createdAt, user.analysisPreferencesUpdatedAt) &&
-      isAnalyzeBarcodeV2Response(scan.multiProfileResult),
+      isAnalyzeBarcodeV2Response(scan.multiProfileResult) &&
+      hasEnoughCachedProductInformation(scan.multiProfileResult, input.barcode),
   );
 
   if (!reusableScan || !isAnalyzeBarcodeV2Response(reusableScan.multiProfileResult)) {
@@ -1565,6 +1593,14 @@ async function analyzeFreshProductByBarcode(input: {
   console.log(
     `[ProductAnalyzeV2] Product normalized — ingredients=${product.ingredients.length} allergens=${product.allergens.length}`,
   );
+
+  if (!hasEnoughProductInformation(product)) {
+    console.warn(`[ProductAnalyzeV2] Product data insufficient — barcode=${barcode}`);
+    throw ApiError.unprocessable(
+      'Not enough information about product',
+      'INSUFFICIENT_PRODUCT_DATA',
+    );
+  }
 
   await createProduct(rawProduct);
   const productId = await findProductIdByBarcode(rawProduct.code);
