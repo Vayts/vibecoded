@@ -84,13 +84,10 @@ const roundTo1 = (value: number | null | undefined): number | null =>
 const sanitizeList = (values: string[]): string[] =>
   values.map((value) => value.trim()).filter((value) => value.length > 0);
 
-const hasMeaningfulNutrition = (product: NormalizedProduct): boolean => {
+const hasKnownNutrition = (product: NormalizedProduct): boolean => {
   const n = product.nutrition;
-  return Boolean(
-    (n.energy_kcal_100g != null && n.energy_kcal_100g > 0) ||
-    (n.proteins_100g != null && n.proteins_100g > 0) ||
-    (n.fat_100g != null && n.fat_100g > 0) ||
-    (n.carbohydrates_100g != null && n.carbohydrates_100g > 0),
+  return Object.values(n).some(
+    (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0,
   );
 };
 
@@ -107,6 +104,7 @@ const sanitizeNutritionValues = (
     keys.map((key) => {
       const value = raw[key];
       if (value == null) return [key, null];
+      if (value < 0) return [key, null];
       if (overCount >= 3) return [key, value / 10];
       return [key, value > PER_100G_MAX[key] ? null : value];
     }),
@@ -160,7 +158,7 @@ export const normalizeTavilyProductResultV2 = (input: {
     },
   });
 
-  return parsed.success && hasMeaningfulNutrition(parsed.data)
+  return parsed.success && hasKnownNutrition(parsed.data)
     ? withCanonicalProductImage(parsed.data)
     : null;
 };
