@@ -69,6 +69,9 @@ export const useScannerBarcodeFlow = ({
   const submitBarcode = useCallback(
     async (barcode: string) => {
       const normalized = barcode.trim();
+
+      console.log(normalized);
+
       if (!normalized || scanLockRef.current || isScannerPaused || isScannerErrorSheetOpen) {
         return;
       }
@@ -199,5 +202,3 @@ export const useScannerBarcodeFlow = ({
     submitBarcode,
   };
 };
-
-

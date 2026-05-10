@@ -254,7 +254,7 @@ export const lookupBarcode = async (
 
   const product = response.product;
 
-  if (response.status !== 'success' || !product) {
+  if (!product) {
     recordMiss(barcode);
     return null;
   }

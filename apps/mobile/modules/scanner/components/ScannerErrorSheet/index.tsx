@@ -8,7 +8,7 @@ import { SheetsEnum } from '../../../../shared/types/sheets';
 import ErrorMascot from '../../../../assets/icons/mascot/error-mascot.svg';
 
 export interface ScannerErrorSheetPayload {
-  variant?: 'generic' | 'not-found' | 'not-food' | 'same-product';
+  variant?: 'generic' | 'not-found' | 'not-food' | 'same-product' | 'insufficient-data';
   title?: string;
   message: string;
   onDismiss?: () => void;
@@ -26,7 +26,8 @@ export function ScannerErrorSheet() {
   const isNotFound = variant === 'not-found';
   const isNotFood = variant === 'not-food';
   const isSameProduct = variant === 'same-product';
-  const hasPhotoAction = Boolean(onPhotoPress);
+  const isInsufficientData = variant === 'insufficient-data';
+  const showsPhotoActions = (isNotFound || isInsufficientData) && Boolean(onPhotoPress);
   const actionTakenRef = useRef(false);
 
   const resolvedTitle = isNotFound
@@ -35,9 +36,11 @@ export function ScannerErrorSheet() {
       ? 'This is not a food product'
       : isSameProduct
         ? (title ?? 'This is the same product')
-        : (title ?? 'Something went wrong');
+        : isInsufficientData
+          ? (title ?? 'Not enough information about product')
+          : (title ?? 'Something went wrong');
   const resolvedMessage =
-    isNotFound && hasPhotoAction
+    isNotFound && showsPhotoActions
       ? 'We couldn’t find this product by barcode. Try scanning the barcode again or take a photo of the product instead.'
       : message;
 
@@ -73,7 +76,7 @@ export function ScannerErrorSheet() {
 
         <Text className="text-[14px] mb-6 text-center text-gray-500">{resolvedMessage}</Text>
 
-        {isNotFound && hasPhotoAction ? (
+        {showsPhotoActions ? (
           <View className="w-full gap-3">
             <TouchableOpacity
               accessibilityLabel="Use photo instead"

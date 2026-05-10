@@ -129,7 +129,7 @@ export const validateScannedBarcode = (input: {
 
   switch (input.type) {
     case 'ean13':
-      if (normalizedBarcode.length !== 13) {
+      if (normalizedBarcode.length !== 12 && normalizedBarcode.length !== 13) {
         return invalid('INVALID_LENGTH', GENERIC_INVALID_BARCODE_MESSAGE);
       }
       return isValidGtin(normalizedBarcode)
