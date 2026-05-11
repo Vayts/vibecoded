@@ -1,7 +1,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 
-const AI_MODEL = 'gpt-5.4-nano';
+const AI_MODEL = 'gpt-5.4-mini';
 
 const translationOutputSchema = z.object({
   ingredientsEnglish: z.array(z.string()),

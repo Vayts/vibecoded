@@ -38,7 +38,6 @@ const buildProduct = (overrides: Partial<NormalizedProduct> = {}): NormalizedPro
   },
   ...overrides,
 });
-
 describe('photo product refresh', () => {
   it('refreshes when fresh photo lookup brings different nutrition and ingredients', () => {
     const existing = buildProduct();
@@ -90,23 +89,22 @@ describe('photo product refresh', () => {
       },
     });
 
-    expect(mergePhotoProduct(existing, fresh)).toEqual(
-      expect.objectContaining({
-        code: 'stable-existing-code',
-        image_url: 'https://cdn.example.com/existing.jpg',
-        ingredients: ['pasteurised Grade A whole milk', 'cream', 'live active bacterial cultures'],
-        nutrition: expect.objectContaining({
-          energy_kcal_100g: 170,
-          proteins_100g: 11,
-          fat_100g: 8,
-          saturated_fat_100g: 5,
-          carbohydrates_100g: 18,
-          sugars_100g: 17,
-          sodium_100g: 135,
-          salt_100g: 0.3,
-        }),
-      }),
-    );
+    const merged = mergePhotoProduct(existing, fresh);
+
+    expect(merged.code).toBe('stable-existing-code');
+    expect(merged.image_url).toBe('https://cdn.example.com/existing.jpg');
+    expect(merged.ingredients).toEqual([
+      'pasteurised Grade A whole milk',
+      'cream',
+      'live active bacterial cultures',
+    ]);
+    expect(merged.nutrition.energy_kcal_100g).toBe(170);
+    expect(merged.nutrition.proteins_100g).toBe(11);
+    expect(merged.nutrition.fat_100g).toBe(8);
+    expect(merged.nutrition.saturated_fat_100g).toBe(5);
+    expect(merged.nutrition.carbohydrates_100g).toBe(18);
+    expect(merged.nutrition.sugars_100g).toBe(17);
+    expect(merged.nutrition.sodium_100g).toBe(135);
+    expect(merged.nutrition.salt_100g).toBe(0.3);
   });
 });
-

@@ -279,6 +279,7 @@ export const findByBarcode = async (barcode: string): Promise<NormalizedProduct 
 export const findByCanonicalProductText = async (
   productName?: string | null,
   brand?: string | null,
+  quantity?: string | null,
 ): Promise<NormalizedProduct | null> => {
   const sanitizedProductName = sanitizeProductText(productName);
   const sanitizedBrand = sanitizeProductText(brand);
@@ -310,6 +311,7 @@ export const findByCanonicalProductText = async (
       {
         productName,
         brand,
+        quantity,
       },
       {
         productName: candidate.product_name,

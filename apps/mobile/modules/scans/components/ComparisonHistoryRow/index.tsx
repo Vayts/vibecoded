@@ -109,7 +109,7 @@ const ComparisonProductCard = memo(function ComparisonProductCard({
         elevation: 3,
       }}
     >
-      <View className="h-[68px] overflow-hidden rounded-[10px] bg-gray-100">
+      <View className="h-[100px] overflow-hidden rounded-[10px] bg-gray-100">
         {uri ? (
           <ExpoImage
             source={{ uri }}

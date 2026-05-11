@@ -3,10 +3,12 @@ import type { ReactNode } from 'react';
 import { Button } from '../../../../shared/components/Button';
 import { CustomLoader } from '../../../../shared/components/CustomLoader';
 import { Typography } from '../../../../shared/components/Typography';
+import { InitialProductAnalysisLoader } from './InitialProductAnalysisLoader';
 
 export interface ProductResultDetailState {
   isLoading: boolean;
   isError: boolean;
+  variant?: 'default' | 'initialAnalysis';
   errorMessage?: string;
   onRetry?: () => void;
 }
@@ -22,6 +24,10 @@ export function DetailStateContent({ detailState, bottomAction }: DetailStateCon
   }
 
   if (detailState.isLoading) {
+    if (detailState.variant === 'initialAnalysis') {
+      return <InitialProductAnalysisLoader />;
+    }
+
     return (
       <View className="items-center justify-center px-6 py-12">
         <CustomLoader isReversed size="md" />

@@ -54,7 +54,7 @@ interface AnalyzeBarcodeNodeState {
   userId: string;
 }
 
-const AI_MODEL = 'gpt-5.4-nano';
+const AI_MODEL = 'gpt-5.4-mini';
 
 const VALID_ALLERGIES_LIST = [
   'PEANUTS',
@@ -79,6 +79,8 @@ const VALID_RESTRICTIONS_LIST = [
   'NUT_FREE',
 ] as const;
 
+type ValidRestriction = (typeof VALID_RESTRICTIONS_LIST)[number];
+
 const VALID_ALLERGY_SET = new Set(VALID_ALLERGIES_LIST as readonly string[]);
 const VALID_RESTRICTION_SET = new Set(VALID_RESTRICTIONS_LIST as readonly string[]);
 const VALID_RESTRICTION_STATUS_SET = new Set([
@@ -88,6 +90,49 @@ const VALID_RESTRICTION_STATUS_SET = new Set([
   'unclear',
   'requires_certification',
 ]);
+
+const SHARED_FREE_FROM_RESTRICTION_RULES = `GLUTEN_FREE/DAIRY_FREE/NUT_FREE shared rules:
+- not_compatible: relevant ingredient is clearly present.
+- semi_compatible: only for ingredient-based partial compatibility, not traces.
+- unclear/caution: ingredient is ambiguous and commonly contains the restricted item, or product data is incomplete in a way that prevents a better determination.
+- Do not infer cross-contamination if product data does not mention it.
+- Use traceDetections, not restrictionDetections, for explicit trace/cross-contamination warnings.`;
+
+const FREE_FROM_RESTRICTIONS = new Set<ValidRestriction>(['GLUTEN_FREE', 'DAIRY_FREE', 'NUT_FREE']);
+
+const RESTRICTION_PROMPT_RULES: Partial<Record<ValidRestriction, string>> = {
+  VEGAN: `VEGAN rules:
+- Vegan means no animal-derived ingredients at all.
+- not_compatible: meat, fish/seafood, dairy, milk, yogurt, cheese, butter, cream, whey, casein, lactose, eggs, honey, gelatin, lard, collagen, carmine, animal-derived rennet, or clearly animal-derived enzymes.
+- unclear: natural flavors could be animal-derived only when product context makes that plausible; rennet/enzymes with unspecified source; ambiguous additives like mono/diglycerides when relevant.
+- compatible: simple plant products with no animal-derived ingredients and no concrete suspicious additives.
+- Honey is not vegan. Yogurt, milk, cheese, butter, whey, casein, lactose, and eggs are not vegan.
+- If VEGAN is selected and honey or yogurt is listed, return restrictionDetections with restriction: VEGAN and status: not_compatible.`,
+  VEGETARIAN: `VEGETARIAN rules:
+- Vegetarian is NOT the same as vegan. Vegetarian diets usually allow dairy, yogurt, milk, cheese, butter, eggs, and honey.
+- compatible: honey; dairy; milk; yogurt; cheese; butter; cream; whey; casein; lactose; eggs, unless another non-vegetarian ingredient is present.
+- not_compatible: meat, poultry, fish/seafood, gelatin, lard, collagen, carmine, animal fat, meat broth/stock, animal-derived rennet, or clearly animal-derived enzymes.
+- unclear: cheese or yogurt only when product data explicitly lists rennet/enzymes and the animal/microbial/vegetarian source is unclear; ambiguous additives like mono/diglycerides only when relevant.
+- Do not mark honey as not_compatible for VEGETARIAN.
+- Do not mark yogurt, milk, dairy, cheese, butter, whey, casein, lactose, or eggs as not_compatible for VEGETARIAN by themselves.
+- If VEGETARIAN is selected and the product is honey or plain yogurt with no gelatin/rennet/meat/fish/carmine/lard/collagen, return compatible.`,
+  PORK_FREE: `PORK_FREE rules:
+- not_compatible: pork, bacon, ham, lard, prosciutto, pancetta, pork-derived gelatin, pork fat, pork broth, or another clearly pork-based ingredient is present.
+- unclear: gelatin with unspecified source; animal fat or shortening with unspecified source; meat stock or broth with unspecified source; sausage, salami, or pepperoni with unclear meat source; animal-derived enzymes/flavorings with unclear source.
+- compatible: simple plant product, plain oil, fruit/vegetable/grain/legume/nut/seed with no suspicious additives; plain fish or fish in simple oil/brine/tomato/water.
+- Do not require certification for PORK_FREE.
+- Do not create caution for plain sardines, sardines in oil, plain olive oil, fruits, vegetables, grains, legumes, nuts, or seeds unless there is a concrete pork-source trigger.`,
+  GLUTEN_FREE:
+    'GLUTEN_FREE: not_compatible when gluten, wheat, barley, rye, spelt, or a clearly gluten-containing ingredient is present.',
+  DAIRY_FREE:
+    'DAIRY_FREE: not_compatible when milk, dairy, lactose, casein, whey, cream, butter, cheese, yogurt, or another dairy ingredient is present.',
+  NUT_FREE:
+    'NUT_FREE: not_compatible when peanut, almond, walnut, cashew, hazelnut, pistachio, pecan, tree nuts, or a clear nut ingredient is present.',
+  PALEO: `PALEO rules:
+- not_compatible: clearly non-paleo ingredients such as grains, legumes, dairy, refined sugar-heavy products, or highly processed additives when relevant.
+- unclear: processed additives may make compatibility unclear only when actually present and relevant.
+- Do not mark simple whole foods as unclear without a concrete reason.`,
+};
 
 const ALLERGY_SUMMARY_LABELS: Record<(typeof VALID_ALLERGIES_LIST)[number], string> = {
   PEANUTS: 'peanut allergy',
@@ -458,293 +503,83 @@ function buildAiAnalysisPrompt(
   return `PRODUCT DATA:\n${productLines.join('\n')}\n\nPROFILES:\n${profileLines.join('\n\n')}`;
 }
 
-function buildSystemPrompt(): string {
-  const rolesStr = VALID_PRODUCT_ROLES.join(', ');
-  const allergiesStr = VALID_ALLERGIES_LIST.join(', ');
-  const restrictionsStr = VALID_RESTRICTIONS_LIST.join(', ');
+function buildSelectedRestrictionPromptRules(profiles: ProfileInputForScoring[]): string {
+  const selectedRestrictions = new Set(profiles.flatMap((profile) => profile.restrictions));
+  const hasFreeFromRestriction = [...FREE_FROM_RESTRICTIONS].some((restriction) =>
+    selectedRestrictions.has(restriction),
+  );
+  const rules = VALID_RESTRICTIONS_LIST.map((restriction) =>
+    selectedRestrictions.has(restriction) ? RESTRICTION_PROMPT_RULES[restriction] : null,
+  ).filter((rule): rule is string => Boolean(rule));
 
-  return `You are a food product analyzer. Return strictly valid JSON only.
+  if (hasFreeFromRestriction) {
+    rules.unshift(SHARED_FREE_FROM_RESTRICTION_RULES);
+  }
 
-Do not return markdown.
-Do not return explanations outside JSON.
-Do not calculate scores.
-Do not calculate weights.
-Do not decide final safety status.
-Only classify product role, detect profile-specific allergen/restriction compatibility issues, and provide a short profile-level canIHaveThis answer.
+  if (rules.length === 0) {
+    return 'No profile restrictions are selected. Return restrictionDetections: [] for every profile.';
+  }
 
-Top-level JSON shape:
-{
-  "product": {
-    "role": ProductRole,
-    "confidence": number,
-    "evidence": string[]
-  },
-  "profileInfo": ProfileInfo[]
+  return rules.join('\n\n');
 }
 
-Each ProfileInfo item must include:
-{
-  "profileType": "user" | "family_member",
-  "profileId": string,
-  "displayName": string | null,
-  "allergenDetections": AllergenDetection[],
-  "restrictionDetections": RestrictionDetection[],
-  "traceDetections": TraceDetection[],
-  "ingredients": ProfileIngredient[],
-  "overallSummary": string,
-  "canIHaveThis": {
-    "can": boolean,
-    "status": "yes" | "warning" | "no",
-    "reason": string
-  },
-  "uncertaintyFlags": UncertaintyFlag[]
-}
+function buildSystemPrompt(profiles: ProfileInputForScoring[]): string {
+  const selectedRestrictionRules = buildSelectedRestrictionPromptRules(profiles);
 
-Each ProfileIngredient item must include:
-{
-  "name": string,
-  "compatible": boolean,
-  "confidence": number,
-  "evidence": string[]
-}
+  return `You are a food product analyzer. Return strictly valid JSON matching the provided schema.
+No markdown. No text outside JSON. Do not calculate final scores or weights.
 
-Each AllergenDetection item must include:
-{
-  "allergy": AllergyEnum,
-  "customAllergy": string | null,
-  "detected": boolean,
-  "source": "off_allergen_tag" | "ingredient_text" | "ai_inference",
-  "confidence": number,
-  "ingredients": string[],
-  "evidence": string[]
-}
+Scope:
+- Analyze each profile independently.
+- Only use allergies/restrictions listed for that profile.
+- If profile allergies/restrictions are empty, return empty detection arrays for them.
+- Do not output detected:false or out-of-scope detections.
 
-Each TraceDetection item must include:
-{
-  "trace": string,
-  "allergy": AllergyEnum | null,
-  "customAllergy": string | null,
-  "restriction": RestrictionEnum | null,
-  "source": "off_trace_tag" | "ingredient_text" | "ai_inference",
-  "confidence": number,
-  "evidence": string[]
-}
+Product role:
+- Choose the closest allowed product.role from the schema enum.
+- Use short evidence.
 
-The canIHaveThis.status must be one of: yes, warning, no.
-The canIHaveThis.can value must match status: true for yes or warning, false for no.
-The canIHaveThis.reason must be in English and must be exactly 1 very short sentence. User-facing, natural, and practical. Do not mention AI, scores, confidence values, or enum names.
-The overallSummary must be in English and must be 3 short sentences. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
+Ingredients:
+- Ingredients may be non-English; understand them internally.
+- Return ingredients[].name and detection ingredient names in concise English only; do not append original names in parentheses.
+- Return one ingredients[] item per listed ingredient when available.
+- Mark ingredient compatible=false only for direct selected allergy/restriction conflicts or concrete ingredient-based caution.
+- Do not mark ingredients incompatible because of traces.
 
-Allowed product.role values: ${rolesStr}
+Custom allergy OTHER:
+- Only analyze otherAllergiesText when OTHER is selected.
+- Match narrowly: exact custom food, simple singular/plural, or explicit alias in product data.
+- Do not generalize almond to nuts, shrimp to fish, sesame to seeds, or oat to wheat.
+- Direct custom matches go in allergenDetections with allergy OTHER and exact customAllergy.
+- Custom trace-only matches go in traceDetections, not allergenDetections.
+- Omit OTHER when not affirmatively present; never use negative evidence as detected:true.
 
-Allowed allergy values: ${allergiesStr}
-Allowed restriction values: ${restrictionsStr}
+Traces:
+- All may-contain/shared-facility/cross-contamination warnings go only in traceDetections.
+- Do not put traces in allergenDetections or restrictionDetections.
+- If canIHaveThis.reason or overallSummary mentions a trace, traceDetections must include it.
+- If traceDetections is empty, do not mention traces.
 
-Allergen detection sources: off_allergen_tag, ingredient_text, ai_inference
-Restriction detection sources: off_tag, ingredient_text, certification_tag, ai_inference
-Trace detection sources: off_trace_tag, ingredient_text, ai_inference
-Restriction statuses: compatible, semi_compatible, not_compatible, unclear, requires_certification
+Restrictions:
+- Be practical; avoid theoretical warnings.
+- Use unclear/requires_certification only for concrete product-data triggers.
+- If ingredients are compatible but traces create risk, keep restrictionDetections ingredient-only and put risk in traceDetections.
 
-SCOPE RULE — VERY IMPORTANT:
-For each profile, analyze ONLY the allergies listed in that profile's allergies array and ONLY the restrictions listed in that profile's restrictions array.
+Selected restriction rules:
+${selectedRestrictionRules}
 
-Do not analyze allergies that are not present in the profile.
-Do not analyze restrictions that are not present in the profile.
+canIHaveThis:
+- status/can: yes=true, warning=true, no=false.
+- no: direct selected allergy or not_compatible selected restriction.
+- warning: relevant trace, semi_compatible, unclear, or requires_certification without direct no.
+- yes: compatible selected concerns and no relevant traces.
+- reason: English, one short human sentence, starts with "Yes –", "Warning –", or "No –".
+- For yes/warning focus on how much/how often: everyday, regularly, small amounts, occasionally, modest portions.
+- For no say avoid and name the plain-language reason.
+- No enum values, scores, confidence, or technical words like profile/restriction/compatible.
 
-The enum lists above are allowed output values only. They are NOT a checklist to analyze every item.
-
-CUSTOM ALLERGY RULES FOR OTHER:
-- When a profile's allergies array includes OTHER and otherAllergiesText is provided, treat otherAllergiesText as the profile's custom allergy details.
-- When allergy is OTHER, customAllergy is required and must be the exact custom allergy entry from otherAllergiesText that matched, e.g. "almond".
-- When allergy is not OTHER, customAllergy must be null.
-- If multiple custom allergies are listed in otherAllergiesText, analyze them separately.
-- For direct custom allergy matches, return separate allergenDetections items with allergy: OTHER and different customAllergy values.
-- For custom allergy trace matches, return separate traceDetections items with allergy: OTHER and different customAllergy values.
-- Match the custom allergy narrowly and specifically against the product ingredients, allergens, and traces.
-- A specific custom allergen matches only itself, its simple singular/plural form, or an explicit alias clearly stated in the product data.
-- Do NOT generalize a specific custom allergen to sibling ingredients from the same family or category.
-- Example: almond matches almond or almonds only. It does NOT match cashew, walnut, hazelnut, pistachio, tree nuts, mixed nuts, or other nuts unless almond itself is explicitly present.
-- Example: shrimp does NOT match fish. Sesame does NOT match other seeds. Oat does NOT match wheat.
-- Ignore custom allergy details that are not real, specific food allergens or plausible sensitivities.
-- Return allergy: OTHER with detected:true ONLY when the product data contains affirmative evidence for the custom allergy.
-- Never return detected:true when the evidence says the custom allergen is not listed, not found, absent, missing, or not directly triggered.
-- If the evidence says the custom allergen is not present, detected must NOT be true.
-- If the custom allergy is not detected, omit the allergenDetections item for OTHER instead of returning detected:true with negative evidence.
-- If the custom allergy is detected in direct ingredients or allergen tags, return an allergenDetections item with allergy: OTHER and cite the concrete matching English ingredient, allergen, or evidence from the product data.
-- If the custom allergy is detected only in traces/cross-contamination warnings, return traceDetections with allergy: OTHER instead of allergenDetections.
-- Do not guess or invent the custom allergen in allergenDetections[].ingredients. Only include it when that exact custom allergen text or its simple singular/plural form appears in the product data.
-- allergenDetections[].ingredients must contain listed product ingredients/allergens only. Never put the custom allergy text itself there unless it is also present in product data.
-- If OTHER is not selected for a profile, do not analyze otherAllergiesText for that profile.
-
-If profile.allergies is empty, return: "allergenDetections": []
-If profile.restrictions is empty, return: "restrictionDetections": []
-If the product has no explicit traces/cross-contamination/may-contain warnings relevant to selected profile allergies/restrictions, return: "traceDetections": []
-If the product ingredient list is unavailable, return: "ingredients": []
-Always return a non-empty overallSummary for every profile.
-
-Do not return detected:false entries for allergies the user does not have.
-Do not return compatible:true entries for restrictions the user did not select.
-Do not return traceDetections entries for allergies or restrictions the user did not select.
-
-For every profile, analyze the ingredient list and return one ProfileIngredient entry per listed ingredient, in the same order as the provided ingredients when possible.
-Ingredients may be in any language. Before analyzing, understand their English meaning internally.
-ingredients[].name must be a short English display name for that ingredient.
-Set ingredients[].compatible to false when that listed ingredient directly conflicts with the profile's selected allergies/restrictions or creates a concrete ingredient-based caution trigger for that profile.
-Set ingredients[].compatible to true when that ingredient is compatible or neutral for the profile.
-Do not omit safe or neutral ingredients just because they are compatible.
-Do not add ingredients that are not grounded in the provided product ingredient list.
-Do not mark a listed ingredient incompatible only because of product trace warnings; represent trace warnings in traceDetections instead.
-ingredients[].evidence must be a non-empty array of short English strings.
-
-canIHaveThis.reason must only reference:
-- selected allergies of this profile,
-- selected restrictions of this profile,
-- trace/cross-contamination warnings that are relevant to selected allergies or restrictions,
-- product-level nutrition or portion guidance,
-- product role.
-It must NOT mention allergies or restrictions that are not selected by this profile.
-It must directly answer whether the user should take/eat this product.
-It must start with "Yes –", "Warning –", or "No –" matching canIHaveThis.status.
-Primary goal: make it sound like a human eating recommendation about how much or how often to consume this product.
-Keep it under 24 words when possible, but make it useful.
-Do not use enum values, uppercase tokens, or technical wording such as "profile", "restriction", "allergy enum", "compatible", or "not compatible".
-Convert selected concerns into natural language, e.g. "if you avoid dairy", "if you avoid pork", "for your peanut allergy".
-For status yes, usually include portion/frequency guidance such as "everyday", "regularly", "in small amounts", "occasionally", or "keep portions modest".
-For status warning, mention the practical check/risk and, when relevant, how much/how often to eat it.
-For status no, tell the user to avoid it and give the plain-language reason, usually the ingredient or trace/rule conflict.
-Good reason examples:
-- "Yes – good everyday option in small amounts."
-- "Yes – fine regularly, but keep portions modest."
-- "Yes – better occasionally because it is calorie-dense."
-- "Warning – small amount only; check the milk trace warning first."
-- "Warning – have it occasionally, and verify the gelatin source first."
-- "No – avoid it because it contains pork."
-- "No – avoid it because milk is listed."
-- "No – avoid it because almonds are listed."
-Avoid generic reasons like "conflicts with your profile", "not a good fit", or "trace risk is listed".
-
-overallSummary must be a short profile-level recommendation summary.
-It should sound like a natural conclusion for the profile after considering the selected allergies, selected restrictions, product role, and practical nutrition trade-offs.
-It may mention caution, clear risk, good fit, reasonable choice, or portion awareness when relevant.
-It must not mention any allergy or restriction that is not selected by this profile.
-It must not use bullet points or markdown.
-It must not mention AI, scores, confidence values, or enum names (convert it to human-readable text).
-Keep it to exactly 3 short sentences.
-
-When returning ingredients[].name, allergenDetections[].ingredients, or restrictionDetections[].ingredients, ALWAYS use concise English ingredient names.
-Never return original-language ingredient strings in these arrays unless the original string is already English.
-Use the original ingredient list as source of truth, but translate/normalize ingredient names internally for output.
-If you cannot confidently translate or ground a detection to a specific English ingredient, return an empty ingredients array instead of using the original-language text.
-Evidence may mention both the original and English meaning, for example: "Original ingredient 'Jambon frais de porc' means 'fresh pork ham', which contains pork."
-
-IMPORTANT trace rules:
-- traceDetections is the ONLY place for product traces, "may contain", "may contain traces of", shared-facility, shared-equipment, and cross-contamination warnings.
-- For every profile, perform a trace audit before writing canIHaveThis.reason or overallSummary.
-- If you mention any trace, may-contain warning, cross-contamination risk, shared facility, or shared equipment in canIHaveThis.reason or overallSummary, traceDetections MUST contain the matching traceDetection item.
-- If traceDetections is empty, do NOT mention trace warnings in canIHaveThis.reason or overallSummary.
-- Do NOT put trace/cross-contamination warnings in allergenDetections.
-- Do NOT put trace/cross-contamination warnings in restrictionDetections.
-- allergenDetections are only for direct listed ingredients or explicit product allergen tags, never traces.
-- restrictionDetections are only for direct listed ingredients, ambiguous listed ingredients, explicit certification tags, or ingredient-based compatibility, never traces.
-- traceDetections[].trace must be the concise English trace substance/warning from product traces, for example "milk", "may contain milk", or "shared equipment with milk".
-- Use traceDetections[].allergy when the trace affects a selected allergy.
-- Use traceDetections[].restriction when the trace affects a selected restriction such as DAIRY_FREE, GLUTEN_FREE, or NUT_FREE.
-- A single traceDetection may include both allergy and restriction when both are selected and affected.
-- Mandatory example: profile has restriction DAIRY_FREE and product traces include milk → return traceDetections: [{ "trace": "milk", "allergy": null, "restriction": "DAIRY_FREE", "source": "off_trace_tag", "confidence": 1, "evidence": ["Product traces list milk."] }]. Do not add DAIRY_FREE to restrictionDetections as not_compatible or semi_compatible for this trace.
-- Consistency example: canIHaveThis.reason "Yes – dairy-free, but trace milk is present." is INVALID unless traceDetections includes the milk/DAIRY_FREE traceDetection.
-
-IMPORTANT restriction rules:
-
-Be practical and avoid over-warning.
-
-Default policy:
-- Do not return unclear or requires_certification just because certification could theoretically be required.
-- Only return unclear or requires_certification when product data contains a concrete trigger.
-- Absence of certification alone is NOT a trigger for simple plant products or simple fish products.
-- If a product is simple and its listed ingredients are clearly compatible with the selected restriction, return compatible.
-- Do not create caution from theoretical processing or handling concerns unless the product data mentions a relevant processing aid, flavoring, additive, cross-contamination warning, alcohol, animal-derived ingredient, or certification-related claim.
-
-Simple compatible products:
-- Plain olive oil, plain plant oils, fruits, vegetables, grains, legumes, nuts, and seeds are usually compatible with PORK_FREE unless suspicious ingredients are present.
-- Fish with fins and scales such as sardines, tuna, salmon, mackerel, and anchovies are usually compatible with PORK_FREE when ingredients are simple.
-- Sardines in olive oil, sunflower oil, tomato sauce, brine, water, or simple plant oil should usually be compatible unless there is pork, lard, pork-derived gelatin, pork fat, pork broth, or another concrete pork-source trigger.
-- Do not create caution for plain sardines, sardines in oil, plain olive oil, fruits, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflicting ingredient or suspicious pork-source signal.
-
-PORK_FREE rules:
-- not_compatible: pork, bacon, ham, lard, prosciutto, pancetta, pork-derived gelatin, pork fat, pork broth, or another clearly pork-based ingredient is present.
-- unclear: gelatin with unspecified source; animal fat or shortening with unspecified source; meat stock or broth with unspecified source; sausage, salami, or pepperoni with unclear meat source; animal-derived enzymes/flavorings with unclear source.
-- compatible: simple plant product, plain oil, plain fruit/vegetable/grain/legume/nut/seed with no suspicious additives; plain fish or fish in simple oil/brine/tomato/water.
-- Do not require certification for PORK_FREE.
-
-VEGAN rules:
-- Vegan means no animal-derived ingredients at all.
-- not_compatible: meat, fish/seafood, dairy, milk, yogurt, cheese, butter, cream, whey, casein, lactose, eggs, honey, gelatin, lard, collagen, carmine, animal-derived rennet, or clearly animal-derived enzymes.
-- unclear: natural flavors could be animal-derived only when the product context makes that plausible; rennet/enzymes with unspecified source; ambiguous additives like mono/diglycerides when relevant.
-- compatible: simple plant products with no animal-derived ingredients and no concrete suspicious additives.
-- Honey is not vegan. Yogurt, milk, cheese, butter, whey, casein, lactose, and eggs are not vegan.
-- If VEGAN is selected and honey or yogurt is listed, return restrictionDetections with restriction: VEGAN and status: not_compatible.
-
-VEGETARIAN rules:
-- Vegetarian is NOT the same as vegan. Vegetarian diets usually allow dairy, yogurt, milk, cheese, butter, eggs, and honey.
-- compatible: honey; dairy; milk; yogurt; cheese; butter; cream; whey; casein; lactose; eggs, unless another non-vegetarian ingredient is present.
-- not_compatible: meat, poultry, fish/seafood, gelatin, lard, collagen, carmine, animal fat, meat broth/stock, animal-derived rennet, or clearly animal-derived enzymes.
-- unclear: cheese or yogurt only when product data explicitly lists rennet/enzymes and the animal/microbial/vegetarian source is unclear; ambiguous additives like mono/diglycerides only when relevant.
-- Do not mark honey as not_compatible for VEGETARIAN.
-- Do not mark yogurt, milk, dairy, cheese, butter, whey, casein, lactose, or eggs as not_compatible for VEGETARIAN by themselves.
-- If VEGETARIAN is selected and the product is honey or plain yogurt with no gelatin/rennet/meat/fish/carmine/lard/collagen, return compatible.
-- Do not over-warn on simple plant products.
-- Do not mark simple plant oils, fruits, vegetables, grains, legumes, nuts, or seeds as unclear for vegan or vegetarian without a concrete suspicious ingredient.
-
-GLUTEN_FREE/DAIRY_FREE/NUT_FREE rules:
-- not_compatible: relevant ingredient is clearly present.
-- semi_compatible: only for ingredient-based partial compatibility, not traces.
-- unclear/caution: ingredient is ambiguous and commonly contains the restricted item, or the product data is incomplete in a way that prevents a better determination.
-- Do not warn if restriction is not selected by the profile.
-- Do not infer cross-contamination if product data does not mention it.
-
-Trace handling policy:
-- Use traceDetections, not semi_compatible, for concrete trace/cross-contamination risk explicitly mentioned in product data.
-- For NUT_FREE, GLUTEN_FREE, or DAIRY_FREE trace warnings, return traceDetections and keep restrictionDetections ingredient-only.
-- If listed ingredients are compatible but traces create a risk, restrictionDetections may be compatible while traceDetections carries the warning.
-
-PALEO rules:
-- not_compatible: clearly non-paleo ingredients such as grains, legumes, dairy, refined sugar-heavy products, or highly processed additives when relevant.
-- unclear: processed additives may make compatibility unclear only when they are actually present and relevant.
-- Do not mark simple whole foods as unclear without a concrete reason.
-
-Certification policy:
-- Use requires_certification only when the product data explicitly presents a real certification-dependent trigger.
-- Do not use requires_certification for PORK_FREE.
-- Do not use generic statements like "certification may be required" unless the product data contains a realistic trigger.
-- If the only concern is theoretical certification, do not create an unclear/requires_certification detection.
-
-Existing hard rules:
-- If product contains pork and restriction is PORK_FREE → status: not_compatible.
-- If product contains bacon, ham, lard, prosciutto, pancetta, pork-derived gelatin, pork fat, or pork broth and restriction is PORK_FREE → status: not_compatible.
-- If product contains gelatin, animal fat, shortening, meat stock, sausage, salami, or pepperoni with unclear pork source and restriction is PORK_FREE → status: unclear.
-- For VEGETARIAN: cheese may be unclear if rennet type is unknown.
-- For PALEO: processed additives may make compatibility unclear only when actually present and relevant.
-
-canIHaveThis policy:
-- canIHaveThis.status is the practical user-facing recommendation, not a certification guarantee.
-- status "no" and can false: use when a selected allergy is directly detected in ingredients/allergen tags, or a selected restriction is not_compatible.
-- status "warning" and can true: use when there is no direct selected allergy and no not_compatible selected restriction, but there is a relevant traceDetection for a selected allergy or restriction.
-- status "warning" and can true: also use for selected restriction statuses semi_compatible, unclear, or requires_certification when the product may still be usable after checking the stated concern.
-- status "yes" and can true: use only when selected allergies/restrictions are compatible and there are no relevant traceDetections.
-- If a selected traceDetection is present, status must be warning unless a direct selected allergy or not_compatible restriction makes it no.
-- If a selected traceDetection is present, the reason must clearly mention the trace or cross-contamination risk.
-- If a selected restriction has status semi_compatible, the reason must clearly mention the ingredient-based partial compatibility concern.
-- If a selected restriction has status requires_certification, the reason must clearly say the user should verify the relevant certification before consuming.
-- If a selected restriction has status unclear, the reason must mention what to check.
-- Do not use status no only because certification might theoretically be needed.
-- Do not use status no for simple olive oil, plain fish, sardines in oil/brine/tomato/water, fruit, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflict with selected allergies/restrictions.
-- Do not mention certification in canIHaveThis.reason unless the profile has a selected restriction where certification is actually relevant.
-- For unclear PORK_FREE cases, prefer short wording like: "Warning – check the gelatin source first."
-- Keep reason in English and exactly 1 very short sentence focused on portion/frequency when the product is not a clear avoid.
-
-confidence must be a number from 0 to 1.
-ingredients must be an array of exact listed ingredient strings from the product data IN ENGLISH.
-evidence must be a non-empty array of short strings.`;
+overallSummary: English, exactly 3 short user-facing sentences, no enum values/scores/confidence.
+Evidence arrays: short, grounded, English; may mention original ingredient plus English meaning.`;
 }
 
 async function analyzeWithAI(
@@ -757,7 +592,7 @@ async function analyzeWithAI(
     const userPrompt = buildAiAnalysisPrompt(product, profiles);
 
     const result = await structured.invoke([
-      { role: 'system', content: buildSystemPrompt() },
+      { role: 'system', content: buildSystemPrompt(profiles) },
       { role: 'user', content: userPrompt },
     ]);
 
@@ -793,6 +628,26 @@ const uniqueNormalizedValues = (values: string[]): string[] => {
 
   return result;
 };
+
+const TRAILING_TRANSLATION_ALIAS_PATTERN =
+  /\s*\((?!\s*(?:e\d{3,4}[a-z]?|\d+(?:[.,]\d+)?\s*%)\s*\))[^)]{1,80}\)\s*$/iu;
+
+const normalizeAiEnglishIngredientName = (value: string): string => {
+  let normalized = value.trim().replace(/\s+/g, ' ');
+
+  while (TRAILING_TRANSLATION_ALIAS_PATTERN.test(normalized)) {
+    normalized = normalized.replace(TRAILING_TRANSLATION_ALIAS_PATTERN, '').trim();
+  }
+
+  return normalized;
+};
+
+const normalizeAiEnglishIngredientNames = (values: string[]): string[] =>
+  uniqueNormalizedValues(
+    values
+      .map((value) => normalizeAiEnglishIngredientName(value))
+      .filter((value) => value.length > 0),
+  );
 
 const buildTraceGroundingValues = (
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
@@ -954,7 +809,9 @@ function validateAndNormalizeAiResult(
       .map((d) => ({
         ...d,
         customAllergy: d.allergy === 'OTHER' ? normalizeCustomAllergyValue(d.customAllergy) : null,
-        ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+        ingredients: Array.isArray(d.ingredients)
+          ? normalizeAiEnglishIngredientNames(d.ingredients)
+          : [],
         evidence: Array.isArray(d.evidence) ? d.evidence : [],
       }));
 
@@ -974,7 +831,9 @@ function validateAndNormalizeAiResult(
       )
       .map((d) => ({
         ...d,
-        ingredients: Array.isArray(d.ingredients) ? d.ingredients : [],
+        ingredients: Array.isArray(d.ingredients)
+          ? normalizeAiEnglishIngredientNames(d.ingredients)
+          : [],
         evidence: Array.isArray(d.evidence) ? d.evidence : [],
       }));
 
@@ -1008,11 +867,12 @@ function validateAndNormalizeAiResult(
           ingredient.confidence <= 1,
       )
       .map((ingredient) => ({
-        name: ingredient.name.trim(),
+        name: normalizeAiEnglishIngredientName(ingredient.name),
         compatible: ingredient.compatible,
         confidence: ingredient.confidence,
         evidence: Array.isArray(ingredient.evidence) ? ingredient.evidence : [],
-      }));
+      }))
+      .filter((ingredient) => ingredient.name.length > 0);
 
     // Scope filter: keep only detections for allergies/restrictions the profile actually has
     const allowedAllergies = new Set(profile.allergies);

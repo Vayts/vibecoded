@@ -6,12 +6,11 @@ import CrossIcon from '../../../../assets/icons/cross.svg';
 import CheckIcon from '../../../../assets/icons/check.svg';
 import WarningIcon from '../../../../assets/icons/warning.svg';
 import { useMemo } from 'react';
-import {
-  getCanIRestrictionImage,
-} from '../../utils/safetyRestrictionImage';
+import { getCanIRestrictionImage } from '../../utils/safetyRestrictionImage';
 
 interface CanIHaveThisCardProps {
   can: boolean;
+  productId?: string;
   status?: ScannerCanIHaveThisStatus;
   reason: string;
   safetyInfo: {
@@ -30,10 +29,19 @@ const getCanIHaveThisIcon = (status: ScannerCanIHaveThisStatus) => {
   return status === 'yes' ? CheckIcon : CrossIcon;
 };
 
-export function CanIHaveThisCard({ can, status, reason, safetyInfo }: CanIHaveThisCardProps) {
+export function CanIHaveThisCard({
+  can,
+  productId,
+  status,
+  reason,
+  safetyInfo,
+}: CanIHaveThisCardProps) {
   const resolvedStatus: ScannerCanIHaveThisStatus = status ?? (can ? 'yes' : 'no');
   const Icon = getCanIHaveThisIcon(resolvedStatus);
-  const CanIIcon = useMemo(() => getCanIRestrictionImage(safetyInfo, status), [safetyInfo, status]);
+  const CanIIcon = useMemo(
+    () => getCanIRestrictionImage(safetyInfo, status, productId),
+    [productId, safetyInfo, status],
+  );
 
   return (
     <View className="mt-4 rounded-[20px] border flex-row gap-3 px-4 py-4 border-neutral-200 relative">
@@ -47,7 +55,7 @@ export function CanIHaveThisCard({ can, status, reason, safetyInfo }: CanIHaveTh
         <Typography className="mt-1 text-[12px] flex-shrink text-neutrals-800">{reason}</Typography>
       </View>
       <View className="absolute bottom-2 right-2">
-        {CanIIcon ? <CanIIcon height={80} width={80}/> : null}
+        {CanIIcon ? <CanIIcon height={80} width={80} /> : null}
       </View>
     </View>
   );

@@ -532,6 +532,7 @@ export const identifyProductByPhoto = async (
         (await findByCanonicalProductText(
           winner.product.product_name,
           winner.product.brands,
+          winner.product.quantity,
         ));
 
       if (existingProduct) {

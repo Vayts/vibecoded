@@ -12,11 +12,17 @@ import { ScoreSummary } from './ScoreSummary';
 
 interface ProfileDetailProps {
   profile: ScannerProfileResult;
+  productId?: string;
   rawIngredients: string[];
   rawIngredientsText: string | null;
 }
 
-export function ProfileDetail({ profile, rawIngredients, rawIngredientsText }: ProfileDetailProps) {
+export function ProfileDetail({
+  profile,
+  productId,
+  rawIngredients,
+  rawIngredientsText,
+}: ProfileDetailProps) {
   const evaluationBlocks = getEvaluationBlockConfigs(profile);
 
   return (
@@ -38,6 +44,7 @@ export function ProfileDetail({ profile, rawIngredients, rawIngredientsText }: P
         />
         <CanIHaveThisCard
           can={profile.ai.canIHaveThis.can}
+          productId={productId}
           status={profile.ai.canIHaveThis.status}
           reason={profile.ai.canIHaveThis.reason}
           safetyInfo={profile.analysis.safety}

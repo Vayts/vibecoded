@@ -23,12 +23,21 @@ import MascotTreeNuts from '../../../assets/icons/mascot/restrictions/tree.svg';
 import MascotPork from '../../../assets/icons/mascot/restrictions/pork.svg';
 import MascotDefault from '../../../assets/icons/mascot/restrictions/default.svg';
 import MascotWarning from '../../../assets/icons/mascot/restrictions/warning.svg';
+import MascotWarning1 from '../../../assets/icons/mascot/restrictions/warning-1.svg';
+import MascotWarning2 from '../../../assets/icons/mascot/restrictions/warning-2.svg';
+import MascotWarning3 from '../../../assets/icons/mascot/restrictions/warning-3.svg';
+import MascotWarning4 from '../../../assets/icons/mascot/restrictions/warning-4.svg';
+import MascotWarning5 from '../../../assets/icons/mascot/restrictions/warning-5.svg';
 import MascotVegan from '../../../assets/icons/mascot/restrictions/vegan.svg';
 import MascotVegetarian from '../../../assets/icons/mascot/restrictions/vegeterian.svg';
 import PaleoMascot from '../../../assets/icons/mascot/restrictions/paleo.svg';
 import NutsMascot from '../../../assets/icons/mascot/restrictions/nuts.svg';
 import KetoMascot from '../../../assets/icons/mascot/restrictions/keto.svg';
 import MascotGood from '../../../assets/icons/mascot/restrictions/good.svg';
+import MascotGood1 from '../../../assets/icons/mascot/restrictions/good-1.svg';
+import MascotGood2 from '../../../assets/icons/mascot/restrictions/good-2.svg';
+import MascotGood3 from '../../../assets/icons/mascot/restrictions/good-3.svg';
+import MascotGood4 from '../../../assets/icons/mascot/restrictions/good-4.svg';
 import { SvgProps } from 'react-native-svg';
 import { FC } from 'react';
 
@@ -72,6 +81,21 @@ const CAN_I_IMAGES: Record<string, FC<SvgProps>> = {
   nuts: NutsMascot,
   keto: KetoMascot,
 };
+
+const WARNING_IMAGE_VARIANTS: Array<FC<SvgProps>> = [
+  MascotWarning1,
+  MascotWarning2,
+  MascotWarning3,
+  MascotWarning4,
+  MascotWarning5,
+];
+
+const GOOD_IMAGE_VARIANTS: Array<FC<SvgProps>> = [
+  MascotGood1,
+  MascotGood2,
+  MascotGood3,
+  MascotGood4,
+];
 
 const CAN_I_IMAGES_ALIASES: Record<string, FC<SvgProps>> = {
   DAIRY_FREE: CAN_I_IMAGES.dairy,
@@ -132,6 +156,40 @@ const getFirstPrioritySafetyValue = (safetyInfo: SafetyRestrictionImageInfo): st
   return null;
 };
 
+const getStableVariantIndex = (value: string, variantsCount: number): number => {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash % variantsCount;
+};
+
+const getWarningRestrictionImage = (productId?: string): FC<SvgProps> => {
+  const normalizedProductId = productId?.trim();
+
+  if (!normalizedProductId) {
+    return CAN_I_IMAGES_ALIASES.warning;
+  }
+
+  return WARNING_IMAGE_VARIANTS[
+    getStableVariantIndex(normalizedProductId, WARNING_IMAGE_VARIANTS.length)
+  ];
+};
+
+const getGoodRestrictionImage = (productId?: string): FC<SvgProps> => {
+  const normalizedProductId = productId?.trim();
+
+  if (!normalizedProductId) {
+    return CAN_I_IMAGES_ALIASES.good;
+  }
+
+  return GOOD_IMAGE_VARIANTS[
+    getStableVariantIndex(normalizedProductId, GOOD_IMAGE_VARIANTS.length)
+  ];
+};
+
 export const getSafetyRestrictionImage = (
   safetyInfo: SafetyRestrictionImageInfo,
 ): ImageSourcePropType => {
@@ -147,6 +205,7 @@ export const getSafetyRestrictionImage = (
 export const getCanIRestrictionImage = (
   safetyInfo: SafetyRestrictionImageInfo,
   status?: 'yes' | 'no' | 'warning',
+  productId?: string,
 ): FC<SvgProps> => {
   const safetyValue = getFirstPrioritySafetyValue(safetyInfo);
   const priorityGroups = [
@@ -156,10 +215,10 @@ export const getCanIRestrictionImage = (
     ...safetyInfo.traceAllergens,
   ];
 
-  if (status === 'warning') return CAN_I_IMAGES_ALIASES.warning;
+  if (status === 'warning') return getWarningRestrictionImage(productId);
 
-  if (priorityGroups.length === 0) {
-    return CAN_I_IMAGES_ALIASES.good;
+  if (priorityGroups.length === 0 && status === 'yes') {
+    return getGoodRestrictionImage(productId);
   }
 
   if (!safetyValue) {

@@ -181,6 +181,7 @@ export function ProductResultContent({
                 onComparePress={handleComparePress}
               />
             }
+            productId={resolvedProductId}
             personalResult={personalData}
             isError={personalError}
             onRetry={personalRetry}
