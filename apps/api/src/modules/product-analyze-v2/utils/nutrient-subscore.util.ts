@@ -95,7 +95,7 @@ export function buildNutrientSubScores(
             caloriesPer100g: caloriesPer100gValue,
           },
         })
-      : oilFallback?.caloriesPerServing ?? getCaloriesPerServingValue(product);
+      : (oilFallback?.caloriesPerServing ?? getCaloriesPerServingValue(product));
   const usedServingSize = shouldUseServingSize(product, roleConfig);
   const fatPer100gValue = product.nutrition.fatPer100g ?? oilFallback?.fatPer100g ?? null;
   const saturatedFatPer100gValue =

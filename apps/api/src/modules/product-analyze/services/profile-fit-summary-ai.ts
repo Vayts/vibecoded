@@ -72,8 +72,6 @@ const RESTRICTION_LABELS: Record<RestrictionValue, string> = {
 const ALLERGY_LABELS: Record<AllergyValue, string> = {
   PEANUTS: 'peanuts',
   TREE_NUTS: 'tree nuts',
-  GLUTEN: 'gluten',
-  DAIRY: 'dairy',
   SOY: 'soy',
   EGGS: 'eggs',
   SHELLFISH: 'shellfish',

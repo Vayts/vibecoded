@@ -33,8 +33,6 @@ export const LEGACY_DIET_TYPE_VALUES = [
 export const ALLERGY_VALUES = [
   'PEANUTS',
   'TREE_NUTS',
-  'GLUTEN',
-  'DAIRY',
   'SOY',
   'EGGS',
   'SHELLFISH',

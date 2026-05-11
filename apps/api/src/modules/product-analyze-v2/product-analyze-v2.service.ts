@@ -30,6 +30,40 @@ const analyzeBarcodeRequestSchema = z.object({
 
 @Injectable()
 export class ProductAnalyzeV2Service {
+  private async getFavouriteState(userId: string, productId?: string): Promise<boolean | undefined> {
+    if (!productId) {
+      return undefined;
+    }
+
+    const favorite = await prisma.favorite.findUnique({
+      where: {
+        userId_productId: {
+          userId,
+          productId,
+        },
+      },
+      select: { id: true },
+    });
+
+    return Boolean(favorite);
+  }
+
+  private async buildResultMetadata(input: {
+    userId: string;
+    barcode: string;
+    scanId?: string;
+    productId?: string;
+  }): Promise<Pick<AnalyzeBarcodeV2Response, 'scanId' | 'productId' | 'isFavourite'>> {
+    const resolvedProductId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
+    const isFavourite = await this.getFavouriteState(input.userId, resolvedProductId);
+
+    return {
+      ...(input.scanId ? { scanId: input.scanId } : {}),
+      ...(resolvedProductId ? { productId: resolvedProductId } : {}),
+      ...(isFavourite !== undefined ? { isFavourite } : {}),
+    };
+  }
+
   private async persistScanResult(input: PersistProductAnalyzeV2ScanInput): Promise<string> {
     const productId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
     const mainProfile =
@@ -71,17 +105,27 @@ export class ProductAnalyzeV2Service {
       throw ApiError.unprocessable('Analysis failed to produce a result', 'ANALYSIS_FAILED');
     }
 
-    if (!finalState.analyzedProduct?.reusedExistingAnalysis) {
-      await this.persistScanResult({
+    const scanId = finalState.analyzedProduct?.reusedExistingAnalysis
+      ? finalState.analyzedProduct.scanId
+      : await this.persistScanResult({
         userId,
         barcode,
         source: 'barcode',
         result: finalState.result,
         productId: finalState.analyzedProduct?.productId,
       });
-    }
 
-    return finalState.result;
+    const metadata = await this.buildResultMetadata({
+      userId,
+      barcode,
+      scanId,
+      productId: finalState.analyzedProduct?.productId,
+    });
+
+    return {
+      ...finalState.result,
+      ...metadata,
+    };
   }
 
   async compareProducts(
@@ -120,7 +164,7 @@ export class ProductAnalyzeV2Service {
       logContext: `photo code=${resolvedContext.product.code}`,
     });
 
-    await this.persistScanResult({
+    const scanId = await this.persistScanResult({
       userId,
       barcode: resolvedContext.product.code,
       source: 'photo',
@@ -128,10 +172,17 @@ export class ProductAnalyzeV2Service {
       productId: resolvedContext.productId,
     });
 
+    const metadata = await this.buildResultMetadata({
+      userId,
+      barcode: resolvedContext.product.code,
+      scanId,
+      productId: resolvedContext.productId,
+    });
+
     return {
       ...result,
       barcode: resolvedContext.product.code,
-      ...(resolvedContext.productId ? { productId: resolvedContext.productId } : {}),
+      ...metadata,
     };
   }
 }

@@ -10,6 +10,10 @@ import {
 } from '../../product-analyze/repositories/productRepository.js';
 import { findProductIdByBarcode } from '../../product-analyze/repositories/scanRepository.js';
 import { attachPhotoImagePathV2 } from '../utils/attach-photo-image-path.util.js';
+import {
+  mergePhotoProduct,
+  shouldRefreshPhotoProduct,
+} from '../utils/photo-product-refresh.util.js';
 import { extractTextFromPhotoV2 } from './photo-ocr.service.js';
 import searchPhotoProductNutritionWithTavilyV2 from './tavily-photo-product-search.service.js';
 import type { AnalyzePhotoV2Input, PhotoOcrPayloadV2 } from '../types/analyze-photo-v2.types.js';
@@ -56,17 +60,42 @@ const resolveOcr = async (input: AnalyzePhotoV2Input): Promise<PhotoOcrPayloadV2
     throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
   }
 
+  if (!ocr.isPackagedProduct) {
+    throw ApiError.unprocessable(
+      'We need a packaged food product with a visible label or nutrition facts to analyze this photo',
+      'PACKAGED_PRODUCT_REQUIRED',
+    );
+  }
+
   return ocr;
 };
 
 const reuseOrCreateProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
   const existingByBarcode = await findByBarcode(product.code);
   if (existingByBarcode) {
+    if (shouldRefreshPhotoProduct(existingByBarcode, product)) {
+      console.log(
+        `[ProductAnalyzeV2:photo] Refreshing existing barcode match code=${existingByBarcode.code}`,
+      );
+      return createProduct(mergePhotoProduct(existingByBarcode, product));
+    }
+
     return existingByBarcode;
   }
 
-  const existingByText = await findByCanonicalProductText(product.product_name, product.brands);
+  const existingByText = await findByCanonicalProductText(
+    product.product_name,
+    product.brands,
+    product.quantity,
+  );
   if (existingByText) {
+    if (shouldRefreshPhotoProduct(existingByText, product)) {
+      console.log(
+        `[ProductAnalyzeV2:photo] Refreshing existing canonical match code=${existingByText.code}`,
+      );
+      return createProduct(mergePhotoProduct(existingByText, product));
+    }
+
     return existingByText;
   }
 

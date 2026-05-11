@@ -12,8 +12,6 @@ import { clampScore } from './nutrient-score.util.js';
 const VALID_ALLERGIES = new Set([
   'PEANUTS',
   'TREE_NUTS',
-  'GLUTEN',
-  'DAIRY',
   'SOY',
   'EGGS',
   'SHELLFISH',

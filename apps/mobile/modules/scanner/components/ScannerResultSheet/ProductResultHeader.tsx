@@ -20,6 +20,16 @@ export function ProductResultHeader({
   onSelect,
 }: ProductResultHeaderProps) {
   const resolvedImageUrl = getProductImageUri(product);
+  const productName = product.product_name?.trim() || '';
+  const englishProductName = product.product_name_english?.trim() || '';
+  const resolvedProductName = productName || englishProductName || 'Unknown product';
+
+  console.log(product);
+
+  const shouldShowEnglishName =
+    productName.length > 0 &&
+    englishProductName.length > 0 &&
+    englishProductName.toLowerCase() !== productName.toLowerCase();
 
   return (
     <View className="rounded-xl bg-white pt-4">
@@ -38,8 +48,13 @@ export function ProductResultHeader({
 
         <View className="flex-1">
           <Typography variant="sectionTitle" className="text-neutrals-900 pr-5">
-            {product.product_name ?? 'Unknown product'}
+            {resolvedProductName}
           </Typography>
+          {shouldShowEnglishName ? (
+            <Typography variant="bodySecondary" className="mt-1 text-neutrals-700">
+              English: {englishProductName}
+            </Typography>
+          ) : null}
           {product.brands ? (
             <Typography variant="bodySecondary" className="mt-1 text-neutrals-900">
               {product.brands}

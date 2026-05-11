@@ -9,6 +9,7 @@ import { getActiveProfile } from './productResultPreviewHelpers';
 
 interface PersonalTabContentProps {
   bottomAction?: ReactNode;
+  productId?: string;
   personalResult?: PersonalAnalysisJob;
   isError: boolean;
   onRetry: () => void;
@@ -19,6 +20,7 @@ interface PersonalTabContentProps {
 
 export function PersonalTabContent({
   bottomAction,
+  productId,
   personalResult,
   isError,
   onRetry,
@@ -37,7 +39,6 @@ export function PersonalTabContent({
       return <PersonalAnalysisFallback onRetry={onRetry} />;
     }
     const resolvedIngredients = analysisResult?.product.ingredients ?? rawIngredients;
-    const resolvedIngredientsText = rawIngredientsText;
 
     return (
       <View>
@@ -46,8 +47,9 @@ export function PersonalTabContent({
         <View className="pb-4">
           <ProfileDetail
             profile={activeProfile}
+            productId={productId}
             rawIngredients={resolvedIngredients}
-            rawIngredientsText={resolvedIngredientsText}
+            rawIngredientsText={rawIngredientsText}
           />
         </View>
 

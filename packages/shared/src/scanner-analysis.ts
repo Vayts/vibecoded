@@ -134,6 +134,7 @@ export type ScannerProfileResult = z.infer<typeof scannerProfileResultSchema>;
 export const scannerProductAnalysisResultSchema = z.object({
   product: z.object({
     name: z.string().nullable(),
+    englishName: z.string().nullable().optional(),
     brand: z.string().nullable(),
     imageUrl: z.string().nullable(),
     ingredients: z.array(z.string()),

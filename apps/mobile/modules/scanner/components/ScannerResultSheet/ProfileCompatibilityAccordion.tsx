@@ -36,13 +36,69 @@ const getRestrictionStatusLabel = (status: string): string => {
   return 'Compatible';
 };
 
+const getStatusPriority = (statusLabel: string): number => {
+  if (statusLabel === 'Detected') return 4;
+  if (statusLabel === 'Not compatible') return 3;
+  if (statusLabel === 'Trace risk') return 2;
+  if (statusLabel === 'Needs verification') return 1;
+  if (statusLabel === 'Unclear') return 0;
+  return -1;
+};
+
+const dedupeValues = (values: string[]): string[] => {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const normalizedValue = value.trim();
+
+    if (!normalizedValue || seen.has(normalizedValue)) return false;
+    seen.add(normalizedValue);
+    return true;
+  });
+};
+
+const mergeConcernItems = (items: CompatibilityAccordionItem[]): CompatibilityAccordionItem[] => {
+  const merged = new Map<string, CompatibilityAccordionItem & { statusPriority: number }>();
+
+  for (const item of items) {
+    const statusPriority = getStatusPriority(item.statusLabel);
+    const existing = merged.get(item.key);
+
+    if (!existing) {
+      merged.set(item.key, {
+        ...item,
+        ingredients: dedupeValues(item.ingredients),
+        evidence: dedupeValues(item.evidence),
+        statusPriority,
+      });
+      continue;
+    }
+
+    merged.set(item.key, {
+      ...existing,
+      statusLabel:
+        statusPriority > existing.statusPriority ? item.statusLabel : existing.statusLabel,
+      ingredients: dedupeValues([...existing.ingredients, ...item.ingredients]),
+      evidence: dedupeValues([...existing.evidence, ...item.evidence]),
+      statusPriority: Math.max(existing.statusPriority, statusPriority),
+    });
+  }
+
+  return [...merged.values()].map((item) => ({
+    key: item.key,
+    title: item.title,
+    statusLabel: item.statusLabel,
+    ingredients: item.ingredients,
+    evidence: item.evidence,
+  }));
+};
+
 export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityAccordionProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const concerns = useMemo(() => {
     const restrictionItems = profile.ai.restrictionDetections
       .filter((detection) => detection.status !== 'compatible')
       .map<CompatibilityAccordionItem>((detection) => ({
-        key: `restriction-${detection.restriction}`,
+        key: `concern-${detection.restriction}`,
         title: normalizeLabel(detection.restriction),
         statusLabel: getRestrictionStatusLabel(detection.status),
         ingredients: detection.ingredients,
@@ -52,7 +108,7 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
     const allergenItems = profile.ai.allergenDetections
       .filter((detection) => detection.detected)
       .map<CompatibilityAccordionItem>((detection) => ({
-        key: `allergen-${detection.allergy}`,
+        key: `concern-${detection.allergy}`,
         title: normalizeLabel(detection.allergy),
         statusLabel: 'Detected',
         ingredients: detection.ingredients,
@@ -60,11 +116,11 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
       }));
 
     const traceItems = profile.ai.traceDetections.map<CompatibilityAccordionItem>(
-      (detection, index) => {
+      (detection) => {
         const target = detection.restriction ?? detection.allergy ?? detection.trace;
 
         return {
-          key: `trace-${target}-${index}`,
+          key: `concern-${target}`,
           title: normalizeLabel(target),
           statusLabel: 'Trace risk',
           ingredients: detection.trace.trim() ? [detection.trace.trim()] : [],
@@ -73,7 +129,7 @@ export function ProfileCompatibilityAccordion({ profile }: ProfileCompatibilityA
       },
     );
 
-    return [...restrictionItems, ...allergenItems, ...traceItems];
+    return mergeConcernItems([...restrictionItems, ...allergenItems, ...traceItems]);
   }, [profile]);
 
   if (concerns.length === 0) {

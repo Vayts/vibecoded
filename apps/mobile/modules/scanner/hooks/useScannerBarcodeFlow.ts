@@ -1,4 +1,9 @@
-import type { CompareProductsResponse, PersonalAnalysisJob } from '@acme/shared';
+import type {
+  BarcodeLookupResponse,
+  CompareProductsResponse,
+  PersonalAnalysisJob,
+} from '@acme/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import type { BarcodeScanningResult } from 'expo-camera';
 import { useCallback, type MutableRefObject } from 'react';
 import { Platform } from 'react-native';
@@ -10,10 +15,12 @@ import {
   buildBarcodeCompareSource,
   buildBarcodePreviewProduct,
   buildCompletedAnalysisJob,
+  buildCompletedBarcodeLookupResponse,
   buildPhotoCompareSource,
 } from '../utils/scannerResultBuilders';
 import type { useCompareProductsMutation, useScanBarcodeMutation } from './useScannerMutations';
 import type { BeginResultSheetSession } from './useScannerSheets';
+import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 interface LastScan {
   barcode: string;
@@ -27,7 +34,10 @@ interface UseScannerBarcodeFlowInput {
   handleResultSheetError: (error: unknown, fallbackMessage: string) => Promise<void>;
   hydrateResultSession: (
     sessionId: number,
-    payload: { resolvedPersonalResult?: PersonalAnalysisJob },
+    payload: {
+      result?: BarcodeLookupResponse;
+      resolvedPersonalResult?: PersonalAnalysisJob;
+    },
   ) => void;
   isScannerErrorSheetOpen: boolean;
   isScannerPaused: boolean;
@@ -66,6 +76,7 @@ export const useScannerBarcodeFlow = ({
   setIsScannerPaused,
   setPendingBarcodeConfirmation,
 }: UseScannerBarcodeFlowInput) => {
+  const queryClient = useQueryClient();
   const submitBarcode = useCallback(
     async (barcode: string) => {
       const normalized = barcode.trim();
@@ -128,8 +139,14 @@ export const useScannerBarcodeFlow = ({
         try {
           const result = await barcodeMutation.mutateAsync({ barcode: normalized });
           hydrateResultSession(sessionId, {
+            result: buildCompletedBarcodeLookupResponse({
+              barcode: normalized,
+              source: 'openfoodfacts',
+              result,
+            }),
             resolvedPersonalResult: buildCompletedAnalysisJob(result),
           });
+          void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
         } catch (error) {
           await handleResultSheetError(error, 'Unable to submit barcode');
         }
@@ -152,6 +169,7 @@ export const useScannerBarcodeFlow = ({
       lastScanRef,
       openComparisonResult,
       openScannerErrorSheet,
+      queryClient,
       resetCompare,
       resetTransientBarcodeState,
       rescanCooldownMs,
@@ -197,8 +215,5 @@ export const useScannerBarcodeFlow = ({
     ],
   );
 
-  return {
-    handleBarcodeScanned,
-    submitBarcode,
-  };
+  return { handleBarcodeScanned, submitBarcode };
 };

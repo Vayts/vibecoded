@@ -1,4 +1,9 @@
-import type { CompareProductsResponse, PersonalAnalysisJob } from '@acme/shared';
+import type {
+  BarcodeLookupResponse,
+  CompareProductsResponse,
+  PersonalAnalysisJob,
+} from '@acme/shared';
+import { useQueryClient } from '@tanstack/react-query';
 import type { CameraView } from 'expo-camera';
 import { useCallback, useState, type MutableRefObject } from 'react';
 import { Platform, Vibration } from 'react-native';
@@ -7,6 +12,7 @@ import { useCompareStore } from '../stores/compareStore';
 import {
   buildBarcodeCompareSource,
   buildCompletedAnalysisJob,
+  buildCompletedBarcodeLookupResponse,
   buildPhotoCompareSource,
   buildPhotoPreviewProduct,
 } from '../utils/scannerResultBuilders';
@@ -14,6 +20,7 @@ import type { ScannerMode } from '../components/ScannerHomeScreen/ScannerModeSwi
 import { usePhotoCapture } from './usePhotoCapture';
 import type { useCompareProductsMutation } from './useScannerMutations';
 import type { BeginResultSheetSession } from './useScannerSheets';
+import { SCAN_HISTORY_QUERY_KEY } from '../../scans/hooks/useScanHistoryQuery';
 
 interface UseScannerPhotoFlowInput {
   beginResultSheetSession: BeginResultSheetSession;
@@ -22,7 +29,10 @@ interface UseScannerPhotoFlowInput {
   handleResultSheetError: (error: unknown, fallbackMessage: string) => Promise<void>;
   hydrateResultSession: (
     sessionId: number,
-    payload: { resolvedPersonalResult?: PersonalAnalysisJob },
+    payload: {
+      result?: BarcodeLookupResponse;
+      resolvedPersonalResult?: PersonalAnalysisJob;
+    },
   ) => void;
   openComparisonResult: (result: CompareProductsResponse) => void;
   openScannerErrorSheet: (error: unknown, fallbackMessage: string) => Promise<void>;
@@ -51,6 +61,7 @@ export const useScannerPhotoFlow = ({
   setIsResolvingFirstProduct,
   setIsScannerPaused,
 }: UseScannerPhotoFlowInput) => {
+  const queryClient = useQueryClient();
   const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
 
   const capturePhotoWithCamera = useCallback(async () => {
@@ -128,8 +139,14 @@ export const useScannerPhotoFlow = ({
       try {
         const result = await submitPhotoScan({ photoUri: captured.uploadUri });
         hydrateResultSession(sessionId, {
+          result: buildCompletedBarcodeLookupResponse({
+            barcode: result.barcode,
+            source: 'photo',
+            result,
+          }),
           resolvedPersonalResult: buildCompletedAnalysisJob(result),
         });
+        void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
       } catch (error) {
         await handleResultSheetError(error, 'Unable to identify product');
       }
@@ -148,6 +165,7 @@ export const useScannerPhotoFlow = ({
     hydrateResultSession,
     openComparisonResult,
     openScannerErrorSheet,
+    queryClient,
     resetCompare,
     resumeScanner,
     setIsResolvingFirstProduct,

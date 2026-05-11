@@ -30,7 +30,7 @@ export function ScannerResultSheet() {
   const detailState =
     !isLoadingInitialResult || scanId || resolvedResult
       ? undefined
-      : { isLoading: true, isError: false };
+      : { isLoading: true, isError: false, variant: 'initialAnalysis' as const };
   const maxSheetHeight = windowHeight * MAX_SHEET_HEIGHT_RATIO;
 
   return (

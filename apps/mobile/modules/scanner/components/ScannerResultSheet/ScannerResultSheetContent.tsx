@@ -4,6 +4,7 @@ import type {
   ProductPreview,
   ScanHistoryItem,
 } from '@acme/shared';
+import type { ProductResultDetailState } from './DetailStateContent';
 import { ProductResultContent } from './ProductResultContent';
 import { ScanDetailLoader } from './ScanDetailLoader';
 
@@ -14,10 +15,7 @@ interface ScannerResultSheetContentProps {
   previewProduct?: ProductPreview;
   result?: BarcodeLookupResponse;
   resolvedPersonalResult?: PersonalAnalysisJob;
-  detailState?: {
-    isLoading: boolean;
-    isError: boolean;
-  };
+  detailState?: ProductResultDetailState;
   onBeforeErrorSheetOpen?: () => void;
   onErrorSheetDismiss?: () => void;
 }
@@ -37,7 +35,7 @@ export function ScannerResultSheetContent({
     return <ScanDetailLoader scanId={scanId} previewItem={item} previewProduct={previewProduct} />;
   }
 
-  if (result || previewProduct || item) {
+  if (result || previewProduct || item || detailState?.isLoading || detailState?.isError) {
     return (
       <ProductResultContent
         previewItem={item}

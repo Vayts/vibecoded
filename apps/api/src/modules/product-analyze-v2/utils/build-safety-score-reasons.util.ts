@@ -11,8 +11,6 @@ import {
 const ALLERGY_LABELS: Record<string, string> = {
   PEANUTS: 'Peanuts',
   TREE_NUTS: 'Tree nuts',
-  GLUTEN: 'Gluten',
-  DAIRY: 'Dairy',
   SOY: 'Soy',
   EGGS: 'Eggs',
   SHELLFISH: 'Shellfish',

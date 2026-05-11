@@ -98,7 +98,8 @@ function buildAllSubScores(
   const satFat = nutrition.saturatedFatPer100g ?? oilFallback?.saturatedFatPer100g ?? null;
   const sodiumPer100gValue = nutrition.sodiumPer100g ?? oilFallback?.sodiumPer100g ?? null;
   const effectiveSugarPer100gValue = sugarPer100gValue ?? oilFallback?.sugarPer100g ?? null;
-  const caloriesPerServingValue = nutrition.caloriesPerServing ?? oilFallback?.caloriesPerServing ?? null;
+  const caloriesPerServingValue =
+    nutrition.caloriesPerServing ?? oilFallback?.caloriesPerServing ?? null;
   const unsatRatio =
     fat !== null && fat > 0 && satFat !== null
       ? Math.max(0, Math.min(1, (fat - satFat) / fat))

@@ -1,11 +1,21 @@
 import { z } from 'zod';
 import type { AnalyzeBarcodeV2Response } from './analyze-product-v2.types.js';
 
-export const photoOcrPayloadV2Schema = z.object({
+const photoOcrPayloadV2BaseShape = {
   allText: z.string(),
   productName: z.string().nullable(),
   brand: z.string().nullable(),
   isFoodProduct: z.boolean(),
+};
+
+export const photoOcrStructuredPayloadV2Schema = z.object({
+  ...photoOcrPayloadV2BaseShape,
+  isPackagedProduct: z.boolean().nullable(),
+});
+
+export const photoOcrPayloadV2Schema = z.object({
+  ...photoOcrPayloadV2BaseShape,
+  isPackagedProduct: z.boolean().nullable().optional(),
 });
 
 export interface UploadedPhotoFileV2 {
@@ -23,5 +33,4 @@ export interface AnalyzePhotoV2Input {
 export type PhotoOcrPayloadV2 = z.infer<typeof photoOcrPayloadV2Schema>;
 export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response & {
   barcode: string;
-  productId?: string;
 };
