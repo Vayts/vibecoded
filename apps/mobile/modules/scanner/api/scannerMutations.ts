@@ -3,12 +3,19 @@ import {
   scannerProductAnalysisResultSchema,
   compareProductsResponseSchema,
   type BarcodeLookupRequest,
-  type ScannerProductAnalysisResult,
   type CompareProductsResponse,
 } from '@acme/shared';
 import { z } from 'zod';
 import { apiFetch } from '../../../shared/lib/client/client';
 import type { PhotoOcrData } from '../types/scanner';
+
+const scannerAnalysisResponseSchema = scannerProductAnalysisResultSchema.extend({
+  scanId: z.string().optional(),
+  productId: z.string().optional(),
+  isFavourite: z.boolean().optional(),
+});
+
+export type ScannerAnalysisResponse = z.infer<typeof scannerAnalysisResponseSchema>;
 
 interface ApiErrorPayload {
   error?: string;
@@ -40,7 +47,7 @@ const throwScannerApiError = async (
 
 export const submitBarcodeScan = async (
   payload: BarcodeLookupRequest,
-): Promise<ScannerProductAnalysisResult> => {
+): Promise<ScannerAnalysisResponse> => {
   const parsedPayload = barcodeLookupRequestSchema.parse(payload);
 
   const response = await apiFetch('/product-analyze-v2/barcode', {
@@ -53,7 +60,7 @@ export const submitBarcodeScan = async (
   }
 
   const json = await response.json();
-  return scannerProductAnalysisResultSchema.parse(json);
+  return scannerAnalysisResponseSchema.parse(json);
 };
 
 export type CompareProductRequestSource =
@@ -164,9 +171,8 @@ interface ReactNativeFile {
   type: string;
 }
 
-const photoScanResponseSchema = scannerProductAnalysisResultSchema.extend({
+const photoScanResponseSchema = scannerAnalysisResponseSchema.extend({
   barcode: z.string(),
-  productId: z.string().optional(),
 });
 
 export type PhotoScanResponse = z.infer<typeof photoScanResponseSchema>;

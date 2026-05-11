@@ -8,7 +8,13 @@ import { SheetsEnum } from '../../../../shared/types/sheets';
 import ErrorMascot from '../../../../assets/icons/mascot/error-mascot.svg';
 
 export interface ScannerErrorSheetPayload {
-  variant?: 'generic' | 'not-found' | 'not-food' | 'same-product' | 'insufficient-data';
+  variant?:
+    | 'generic'
+    | 'not-found'
+    | 'not-food'
+    | 'same-product'
+    | 'insufficient-data'
+    | 'packaging-required';
   title?: string;
   message: string;
   onDismiss?: () => void;
@@ -27,6 +33,7 @@ export function ScannerErrorSheet() {
   const isNotFood = variant === 'not-food';
   const isSameProduct = variant === 'same-product';
   const isInsufficientData = variant === 'insufficient-data';
+  const isPackagingRequired = variant === 'packaging-required';
   const showsPhotoActions = (isNotFound || isInsufficientData) && Boolean(onPhotoPress);
   const actionTakenRef = useRef(false);
 
@@ -34,6 +41,8 @@ export function ScannerErrorSheet() {
     ? (title ?? 'Product not found')
     : isNotFood
       ? 'This is not a food product'
+      : isPackagingRequired
+        ? (title ?? 'We need a packaged product')
       : isSameProduct
         ? (title ?? 'This is the same product')
         : isInsufficientData
@@ -106,14 +115,24 @@ export function ScannerErrorSheet() {
           </View>
         ) : (
           <TouchableOpacity
-            accessibilityLabel="Try again"
+            accessibilityLabel={
+              isSameProduct
+                ? 'Scan another product'
+                : isPackagingRequired
+                  ? 'Take another photo'
+                  : 'Try again'
+            }
             accessibilityRole="button"
             activeOpacity={0.7}
             className="w-full flex-row rounded-[16px] items-center justify-center gap-2 bg-primary-500 py-4"
             onPress={handleClose}
           >
             <Typography variant="button" className="text-white">
-              {isSameProduct ? 'Scan another product' : 'Try again'}
+              {isSameProduct
+                ? 'Scan another product'
+                : isPackagingRequired
+                  ? 'Take another photo'
+                  : 'Try again'}
             </Typography>
           </TouchableOpacity>
         )}

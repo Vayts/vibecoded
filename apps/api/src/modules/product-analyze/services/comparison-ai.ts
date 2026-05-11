@@ -360,8 +360,6 @@ const RESTRICTION_LABELS: Record<string, string> = {
 const ALLERGY_LABELS: Record<string, string> = {
   PEANUTS: 'peanuts',
   TREE_NUTS: 'tree nuts',
-  GLUTEN: 'gluten',
-  DAIRY: 'dairy',
   SOY: 'soy',
   EGGS: 'eggs',
   SHELLFISH: 'shellfish',

@@ -41,7 +41,9 @@ export interface AnalyzeBarcodeV2ProfileResult {
 
 export interface AnalyzeBarcodeV2Response {
   product: {
+    isFoodProduct: boolean;
     name: string | null;
+    englishName: string | null;
     brand: string | null;
     imageUrl: string | null;
     ingredients: string[];
@@ -61,6 +63,9 @@ export interface AnalyzeBarcodeV2Response {
     };
   };
   profiles: AnalyzeBarcodeV2ProfileResult[];
+  productId?: string;
+  scanId?: string;
+  isFavourite?: boolean;
 }
 
 export interface CompareProductV2Result extends AnalyzeBarcodeV2Response {

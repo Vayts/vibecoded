@@ -58,6 +58,7 @@ const productImagesSchema = z.object({
 const productCoreSchema = z.object({
   code: z.string(),
   product_name: z.string().nullable(),
+  product_name_english: z.string().nullable().optional(),
   brands: z.string().nullable(),
   image_url: z.string().nullable(),
   ingredients_text: z.string().nullable(),

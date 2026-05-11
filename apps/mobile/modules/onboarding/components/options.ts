@@ -62,8 +62,6 @@ export const RESTRICTION_OPTIONS: Array<{
 export const ALLERGY_OPTIONS: Array<{ value: Allergy; label: string }> = [
   { value: 'PEANUTS', label: 'Peanuts' },
   { value: 'TREE_NUTS', label: 'Tree nuts' },
-  { value: 'GLUTEN', label: 'Gluten' },
-  { value: 'DAIRY', label: 'Lactose / dairy' },
   { value: 'SOY', label: 'Soy' },
   { value: 'EGGS', label: 'Eggs' },
   { value: 'SHELLFISH', label: 'Shellfish' },

@@ -64,12 +64,13 @@ export function ProductResultContent({
         productId: '',
         barcode: '',
         product_name: personalData.result.product.name,
+        product_name_english: personalData.result.product.englishName,
         brands: personalData.result.product.brand,
         image_url: personalData.result.product.imageUrl,
         nutriscore_grade: undefined,
       }
     : undefined;
-  const hasHandledNotFoodRef = useRef(false);
+  const hasHandledScannerErrorRef = useRef(false);
   const personalError =
     hasServerAnalysisId &&
     !personalData?.result &&
@@ -85,28 +86,40 @@ export function ProductResultContent({
     previewProduct?.nutriscore_grade ??
     previewHistoryProduct?.nutriscore_grade ??
     null;
+  const personalErrorCode = personalData?.error?.code;
+  const isPersonalNotFood = personalErrorCode === 'NOT_FOOD';
+  const isPersonalPackagingRequired = personalErrorCode === 'PACKAGED_PRODUCT_REQUIRED';
 
   useEffect(() => {
-    if (personalData?.error?.code !== 'NOT_FOOD' || hasHandledNotFoodRef.current) {
+    if (
+      (!isPersonalNotFood && !isPersonalPackagingRequired) ||
+      hasHandledScannerErrorRef.current
+    ) {
       return;
     }
 
-    hasHandledNotFoodRef.current = true;
+    hasHandledScannerErrorRef.current = true;
     onBeforeErrorSheetOpen?.();
 
     void (async () => {
       await SheetManager.hide(SheetsEnum.ScannerResultSheet);
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
         payload: {
-          variant: 'not-food',
-          title: 'This is not a food product',
-          message:
-            'The scanned item does not appear to be a food or drink product. Please scan a food item instead.',
+          variant: isPersonalNotFood ? 'not-food' : 'packaging-required',
+          title: isPersonalNotFood ? 'This is not a food product' : 'We need a packaged product',
+          message: isPersonalNotFood
+            ? 'The scanned item does not appear to be a food or drink product. Please scan a food item instead.'
+            : 'Take a photo of a packaged food or drink with a visible label, ingredients, or nutrition facts panel.',
           onDismiss: onErrorSheetDismiss,
         },
       });
     })();
-  }, [onBeforeErrorSheetOpen, onErrorSheetDismiss, personalData?.error?.code]);
+  }, [
+    isPersonalNotFood,
+    isPersonalPackagingRequired,
+    onBeforeErrorSheetOpen,
+    onErrorSheetDismiss,
+  ]);
 
   if (result?.success === false) {
     return <NotFoundContent result={result} />;

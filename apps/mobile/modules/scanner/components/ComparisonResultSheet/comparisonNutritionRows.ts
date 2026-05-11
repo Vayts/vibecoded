@@ -1,5 +1,6 @@
 import type { ComparisonProductKey } from '@acme/shared';
 import type { ComparedProduct } from '../../utils/profileCompareTypes';
+import { getVisibleNutrition, type VisibleNutritionKey } from '../../utils/visibleNutrition';
 
 export type ComparisonStatusIndicator = 'positive' | 'negative' | 'neutral';
 
@@ -19,7 +20,7 @@ export interface ComparisonDisplayNutritionRow {
 interface NutritionMetric {
   direction: 'higher_better' | 'lower_better';
   iconKey: string;
-  key: keyof ComparedProduct['product']['nutrition'];
+  key: VisibleNutritionKey;
   label: string;
   unit: string;
 }
@@ -133,6 +134,9 @@ export const getDisplayNutritionRows = (
   leftProduct: ComparedProduct,
   rightProduct: ComparedProduct,
 ): ComparisonDisplayNutritionRow[] => {
+  const leftNutrition = getVisibleNutrition(leftProduct.product.nutrition);
+  const rightNutrition = getVisibleNutrition(rightProduct.product.nutrition);
+
   const scoreRows = SCORE_METRICS.map((metric) => {
     const leftValue = metric.getValue(leftProduct);
     const rightValue = metric.getValue(rightProduct);
@@ -160,8 +164,8 @@ export const getDisplayNutritionRows = (
   }).filter((row) => row.leftValue !== '—' || row.rightValue !== '—');
 
   const metricRows = NUTRITION_METRICS.map((metric) => {
-    const leftValue = leftProduct.product.nutrition?.[metric.key] ?? null;
-    const rightValue = rightProduct.product.nutrition?.[metric.key] ?? null;
+    const leftValue = leftNutrition[metric.key];
+    const rightValue = rightNutrition[metric.key];
 
     return {
       comparisonMark: getComparisonMark(leftValue, rightValue),

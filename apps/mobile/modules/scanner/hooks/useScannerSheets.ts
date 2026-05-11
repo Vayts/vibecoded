@@ -13,6 +13,9 @@ const INSUFFICIENT_PRODUCT_DATA_MESSAGE =
   'Try another product or take a clear photo of the label.';
 const SAME_PRODUCT_MESSAGE =
   'We identified the same product in both scans. Scan a different product to compare.';
+const PACKAGING_REQUIRED_TITLE = 'We need a packaged product';
+const PACKAGING_REQUIRED_MESSAGE =
+  'Take a photo of a packaged food or drink with a visible label, ingredients, or nutrition facts panel.';
 
 export type BeginResultSheetSession = (
   previewProduct?: ProductPreview,
@@ -60,6 +63,7 @@ export const useScannerSheets = ({
         errorCode === 'PRODUCT_NOT_FOUND' || errorMessage.toLowerCase().includes('not found');
       const isSameProduct = errorCode === 'SAME_PRODUCT';
       const isInsufficientData = errorCode === 'INSUFFICIENT_PRODUCT_DATA';
+      const isPackagingRequired = errorCode === 'PACKAGED_PRODUCT_REQUIRED';
       const offersPhotoAction = isRetriableNotFound || isInsufficientData;
 
       await SheetManager.show(SheetsEnum.ScannerErrorSheet, {
@@ -67,6 +71,8 @@ export const useScannerSheets = ({
           variant:
             errorCode === 'NOT_FOOD'
               ? 'not-food'
+              : isPackagingRequired
+                ? 'packaging-required'
               : isInsufficientData
                 ? 'insufficient-data'
                 : isRetriableNotFound
@@ -77,6 +83,8 @@ export const useScannerSheets = ({
           title:
             errorCode === 'NOT_FOOD'
               ? 'This is not a food product'
+              : isPackagingRequired
+                ? PACKAGING_REQUIRED_TITLE
               : isInsufficientData
                 ? INSUFFICIENT_PRODUCT_DATA_TITLE
                 : isSameProduct
@@ -85,6 +93,8 @@ export const useScannerSheets = ({
           message:
             errorCode === 'NOT_FOOD'
               ? NOT_FOOD_MESSAGE
+              : isPackagingRequired
+                ? PACKAGING_REQUIRED_MESSAGE
               : isInsufficientData
                 ? INSUFFICIENT_PRODUCT_DATA_MESSAGE
                 : isSameProduct

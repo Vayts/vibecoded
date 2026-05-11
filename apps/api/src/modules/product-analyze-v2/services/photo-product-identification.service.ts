@@ -60,6 +60,13 @@ const resolveOcr = async (input: AnalyzePhotoV2Input): Promise<PhotoOcrPayloadV2
     throw ApiError.unprocessable('This product does not appear to be a food item', 'NOT_FOOD');
   }
 
+  if (!ocr.isPackagedProduct) {
+    throw ApiError.unprocessable(
+      'We need a packaged food product with a visible label or nutrition facts to analyze this photo',
+      'PACKAGED_PRODUCT_REQUIRED',
+    );
+  }
+
   return ocr;
 };
 

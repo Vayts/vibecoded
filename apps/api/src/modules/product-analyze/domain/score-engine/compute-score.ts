@@ -1256,21 +1256,6 @@ const evaluateRestrictions = (
   return reasons;
 };
 
-// ============================================================
-// Allergen scoring
-// ============================================================
-
-const ALLERGY_LABELS: Record<string, string> = {
-  PEANUTS: 'Peanuts',
-  TREE_NUTS: 'Tree nuts',
-  GLUTEN: 'Gluten',
-  DAIRY: 'Dairy',
-  SOY: 'Soy',
-  EGGS: 'Eggs',
-  SHELLFISH: 'Shellfish',
-  SESAME: 'Sesame',
-};
-
 const ALLERGY_TO_DIET_KEY: Record<
   string,
   keyof ProductFacts['dietCompatibility'] | null

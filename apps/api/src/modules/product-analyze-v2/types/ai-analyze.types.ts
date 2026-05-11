@@ -93,6 +93,8 @@ export type AiProfileInfo = {
 
 export type AiProductAnalyzeV2Result = {
   product: {
+    isFoodProduct: boolean;
+    englishName: string | null;
     role: ProductRole;
     confidence: number;
     evidence: string[];

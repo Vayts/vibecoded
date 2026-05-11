@@ -90,6 +90,8 @@ const getAllergenName = (allergy: string, customAllergy?: string | null): string
   return customValue || allergy;
 };
 export const buildProfileSafetyBadges = (profile: ScannerProfileResult): ProfileSafetyBadge[] => {
+  console.log(profile.ai.allergenDetections);
+  
   const badges = new Map<string, ProfileSafetyBadge>();
   profile.ai.restrictionDetections.forEach((detection) => {
     if (detection.status === 'compatible') {
