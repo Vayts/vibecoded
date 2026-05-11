@@ -1,5 +1,5 @@
 import type { NormalizedProduct } from '@acme/shared';
-import type { MainGoal, SafetyResult } from '../../types/scoring.types.js';
+import type { MainGoal } from '../../types/scoring.types.js';
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { prisma } from '../../../product-analyze/lib/prisma.js';
@@ -40,10 +40,6 @@ import type {
   AiProductAnalyzeV2Result,
 } from '../../types/ai-analyze.types.js';
 import { ApiError } from '../../../../shared/errors/api-error.js';
-import {
-  translateIngredientsToEnglish,
-  type TranslatedIngredients,
-} from '../../utils/translate-ingredients.util.js';
 
 export interface AnalyzedProductByBarcodeResult {
   barcode: string;
@@ -58,7 +54,7 @@ interface AnalyzeBarcodeNodeState {
   userId: string;
 }
 
-const AI_MODEL = 'gpt-5.4-mini';
+const AI_MODEL = 'gpt-5.4-nano';
 
 const VALID_ALLERGIES_LIST = [
   'PEANUTS',
@@ -233,7 +229,12 @@ const profileInfoSchema = z.object({
   canIHaveThis: z.object({
     can: z.boolean(),
     status: canIHaveThisStatusSchema,
-    reason: z.string().min(1),
+    reason: z
+      .string()
+      .min(1)
+      .describe(
+        'Natural user-facing eating guidance. Must start with Yes –, Warning –, or No –. For yes/warning, focus on how much or how often to eat it. For no, say avoid it and explain why in human text. Do not use enum values.',
+      ),
   }),
   uncertaintyFlags: z
     .array(
@@ -407,20 +408,9 @@ function withResolvedCanIHaveThisStatuses(
 function buildAiAnalysisPrompt(
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
   profiles: ProfileInputForScoring[],
-  translatedIngredients: TranslatedIngredients,
 ): string {
-  const hasTranslation =
-    translatedIngredients.ingredientsEnglish.length > 0 &&
-    translatedIngredients.ingredientsOriginal.join(', ') !==
-      translatedIngredients.ingredientsEnglish.join(', ');
-
-  const ingredientsDisplay = translatedIngredients.ingredientsEnglish.length
-    ? translatedIngredients.ingredientsEnglish.join(', ')
-    : translatedIngredients.ingredientsOriginal.join(', ') || 'Not listed';
-
-  const ingredientsLine = hasTranslation
-    ? `Ingredients (English — use these exact English names in allergenDetections.ingredients and restrictionDetections.ingredients, and use concise English names in ingredients[].name; never put traces here): ${ingredientsDisplay}\nIngredients (original — reference only, do not copy these strings into output): ${translatedIngredients.ingredientsOriginal.join(', ')}`
-    : `Ingredients: ${ingredientsDisplay}`;
+  const ingredientsDisplay = product.ingredients.join(', ') || 'Not listed';
+  const ingredientsLine = `Ingredients as provided (may be non-English; use this list as source of truth, understand/translate internally, and return concise English ingredient names in output): ${ingredientsDisplay}`;
 
   const productLines: string[] = [
     `Product name: ${product.name ?? 'Unknown'}`,
@@ -434,9 +424,15 @@ function buildAiAnalysisPrompt(
 
   const n = product.nutrition;
   if (n.caloriesPer100g !== null) productLines.push(`Calories per 100g: ${n.caloriesPer100g} kcal`);
+  if (n.caloriesPerServing !== null)
+    productLines.push(`Calories per serving: ${n.caloriesPerServing} kcal`);
   if (n.proteinPer100g !== null) productLines.push(`Protein per 100g: ${n.proteinPer100g}g`);
   if (n.fatPer100g !== null) productLines.push(`Fat per 100g: ${n.fatPer100g}g`);
   if (n.carbsPer100g !== null) productLines.push(`Carbohydrates per 100g: ${n.carbsPer100g}g`);
+  if (n.sugarPer100g !== null) productLines.push(`Sugar per 100g: ${n.sugarPer100g}g`);
+  if (n.saturatedFatPer100g !== null)
+    productLines.push(`Saturated fat per 100g: ${n.saturatedFatPer100g}g`);
+  if (n.sodiumPer100g !== null) productLines.push(`Sodium per 100g: ${n.sodiumPer100g}g`);
 
   const profileLines: string[] = profiles.map((p, i) => {
     const selectedConcerns = [...p.allergies, ...p.restrictions].join(', ') || 'none';
@@ -536,7 +532,7 @@ Each TraceDetection item must include:
 
 The canIHaveThis.status must be one of: yes, warning, no.
 The canIHaveThis.can value must match status: true for yes or warning, false for no.
-The canIHaveThis.reason must be in English and must be exactly 1 very short sentence. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
+The canIHaveThis.reason must be in English and must be exactly 1 very short sentence. User-facing, natural, and practical. Do not mention AI, scores, confidence values, or enum names.
 The overallSummary must be in English and must be 3 short sentences. User-facing and practical. Do not mention AI, scores, confidence values, or enum names.
 
 Allowed product.role values: ${rolesStr}
@@ -590,7 +586,8 @@ Do not return detected:false entries for allergies the user does not have.
 Do not return compatible:true entries for restrictions the user did not select.
 Do not return traceDetections entries for allergies or restrictions the user did not select.
 
-For every profile, analyze the ingredient list and return one ProfileIngredient entry per listed ingredient, in the same order as the provided English ingredients when possible.
+For every profile, analyze the ingredient list and return one ProfileIngredient entry per listed ingredient, in the same order as the provided ingredients when possible.
+Ingredients may be in any language. Before analyzing, understand their English meaning internally.
 ingredients[].name must be a short English display name for that ingredient.
 Set ingredients[].compatible to false when that listed ingredient directly conflicts with the profile's selected allergies/restrictions or creates a concrete ingredient-based caution trigger for that profile.
 Set ingredients[].compatible to true when that ingredient is compatible or neutral for the profile.
@@ -608,19 +605,23 @@ canIHaveThis.reason must only reference:
 It must NOT mention allergies or restrictions that are not selected by this profile.
 It must directly answer whether the user should take/eat this product.
 It must start with "Yes –", "Warning –", or "No –" matching canIHaveThis.status.
-Keep it under 20 words when possible.
-Prefer very short recommendation patterns such as:
-- "Yes – good everyday option."
-- "Yes – fine in small amounts."
-- "Yes – okay occasionally, but keep portions modest."
-- "Warning – may contain traces relevant to your profile."
-- "Warning – trace allergen risk is listed."
-- "Warning – check the may-contain warning first."
-- "No – it conflicts with your profile."
-- "No – better avoid this one."
-- "No – not a good fit for your needs."
-When the product is generally fine but calorie-dense or nutritionally heavy, prefer short portion guidance such as "in small amounts", "occasionally", or "keep portions modest".
-When the product is clearly unsuitable, prefer a short No-answer instead of a long explanation.
+Primary goal: make it sound like a human eating recommendation about how much or how often to consume this product.
+Keep it under 24 words when possible, but make it useful.
+Do not use enum values, uppercase tokens, or technical wording such as "profile", "restriction", "allergy enum", "compatible", or "not compatible".
+Convert selected concerns into natural language, e.g. "if you avoid dairy", "if you avoid pork", "for your peanut allergy".
+For status yes, usually include portion/frequency guidance such as "everyday", "regularly", "in small amounts", "occasionally", or "keep portions modest".
+For status warning, mention the practical check/risk and, when relevant, how much/how often to eat it.
+For status no, tell the user to avoid it and give the plain-language reason, usually the ingredient or trace/rule conflict.
+Good reason examples:
+- "Yes – good everyday option in small amounts."
+- "Yes – fine regularly, but keep portions modest."
+- "Yes – better occasionally because it is calorie-dense."
+- "Warning – small amount only; check the milk trace warning first."
+- "Warning – have it occasionally, and verify the gelatin source first."
+- "No – avoid it because it contains pork."
+- "No – avoid it because milk is listed."
+- "No – avoid it because almonds are listed."
+Avoid generic reasons like "conflicts with your profile", "not a good fit", or "trace risk is listed".
 
 overallSummary must be a short profile-level recommendation summary.
 It should sound like a natural conclusion for the profile after considering the selected allergies, selected restrictions, product role, and practical nutrition trade-offs.
@@ -630,11 +631,11 @@ It must not use bullet points or markdown.
 It must not mention AI, scores, confidence values, or enum names (convert it to human-readable text).
 Keep it to exactly 3 short sentences.
 
-When returning allergenDetections[].ingredients or restrictionDetections[].ingredients, ALWAYS use English-only ingredient names.
-Never return original-language ingredient strings in these arrays.
-Prefer exact phrases from the provided "Ingredients (English ...)" line.
-If you cannot ground a detection to a specific English ingredient phrase, return an empty ingredients array instead of using the original-language text.
-Evidence may mention both the original and English ingredient, for example: "Original ingredient 'Jambon frais de porc' translates to 'fresh pork ham', which contains pork."
+When returning ingredients[].name, allergenDetections[].ingredients, or restrictionDetections[].ingredients, ALWAYS use concise English ingredient names.
+Never return original-language ingredient strings in these arrays unless the original string is already English.
+Use the original ingredient list as source of truth, but translate/normalize ingredient names internally for output.
+If you cannot confidently translate or ground a detection to a specific English ingredient, return an empty ingredients array instead of using the original-language text.
+Evidence may mention both the original and English meaning, for example: "Original ingredient 'Jambon frais de porc' means 'fresh pork ham', which contains pork."
 
 IMPORTANT trace rules:
 - traceDetections is the ONLY place for product traces, "may contain", "may contain traces of", shared-facility, shared-equipment, and cross-contamination warnings.
@@ -675,11 +676,24 @@ PORK_FREE rules:
 - compatible: simple plant product, plain oil, plain fruit/vegetable/grain/legume/nut/seed with no suspicious additives; plain fish or fish in simple oil/brine/tomato/water.
 - Do not require certification for PORK_FREE.
 
-VEGAN/VEGETARIAN rules:
-- not_compatible: meat, fish/seafood, dairy for vegan, eggs for vegan, animal-derived gelatin, or clearly animal-derived enzymes.
+VEGAN rules:
+- Vegan means no animal-derived ingredients at all.
+- not_compatible: meat, fish/seafood, dairy, milk, yogurt, cheese, butter, cream, whey, casein, lactose, eggs, honey, gelatin, lard, collagen, carmine, animal-derived rennet, or clearly animal-derived enzymes.
 - unclear: natural flavors could be animal-derived only when the product context makes that plausible; rennet/enzymes with unspecified source; ambiguous additives like mono/diglycerides when relevant.
+- compatible: simple plant products with no animal-derived ingredients and no concrete suspicious additives.
+- Honey is not vegan. Yogurt, milk, cheese, butter, whey, casein, lactose, and eggs are not vegan.
+- If VEGAN is selected and honey or yogurt is listed, return restrictionDetections with restriction: VEGAN and status: not_compatible.
+
+VEGETARIAN rules:
+- Vegetarian is NOT the same as vegan. Vegetarian diets usually allow dairy, yogurt, milk, cheese, butter, eggs, and honey.
+- compatible: honey; dairy; milk; yogurt; cheese; butter; cream; whey; casein; lactose; eggs, unless another non-vegetarian ingredient is present.
+- not_compatible: meat, poultry, fish/seafood, gelatin, lard, collagen, carmine, animal fat, meat broth/stock, animal-derived rennet, or clearly animal-derived enzymes.
+- unclear: cheese or yogurt only when product data explicitly lists rennet/enzymes and the animal/microbial/vegetarian source is unclear; ambiguous additives like mono/diglycerides only when relevant.
+- Do not mark honey as not_compatible for VEGETARIAN.
+- Do not mark yogurt, milk, dairy, cheese, butter, whey, casein, lactose, or eggs as not_compatible for VEGETARIAN by themselves.
+- If VEGETARIAN is selected and the product is honey or plain yogurt with no gelatin/rennet/meat/fish/carmine/lard/collagen, return compatible.
 - Do not over-warn on simple plant products.
-- Do not mark simple plant oils, fruits, vegetables, grains, legumes, nuts, or seeds as unclear for vegan/vegetarian without a concrete suspicious ingredient.
+- Do not mark simple plant oils, fruits, vegetables, grains, legumes, nuts, or seeds as unclear for vegan or vegetarian without a concrete suspicious ingredient.
 
 GLUTEN_FREE/DAIRY_FREE/NUT_FREE rules:
 - not_compatible: relevant ingredient is clearly present.
@@ -726,7 +740,7 @@ canIHaveThis policy:
 - Do not use status no for simple olive oil, plain fish, sardines in oil/brine/tomato/water, fruit, vegetables, grains, legumes, nuts, or seeds unless there is a concrete conflict with selected allergies/restrictions.
 - Do not mention certification in canIHaveThis.reason unless the profile has a selected restriction where certification is actually relevant.
 - For unclear PORK_FREE cases, prefer short wording like: "Warning – check the gelatin source first."
-- Keep reason in English and exactly 1 very short sentence.
+- Keep reason in English and exactly 1 very short sentence focused on portion/frequency when the product is not a clear avoid.
 
 confidence must be a number from 0 to 1.
 ingredients must be an array of exact listed ingredient strings from the product data IN ENGLISH.
@@ -736,12 +750,11 @@ evidence must be a non-empty array of short strings.`;
 async function analyzeWithAI(
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
   profiles: ProfileInputForScoring[],
-  translatedIngredients: TranslatedIngredients,
 ): Promise<AiAnalyzeV2Output | null> {
   try {
     const model = new ChatOpenAI({ modelName: AI_MODEL });
     const structured = model.withStructuredOutput(aiAnalyzeV2OutputSchema);
-    const userPrompt = buildAiAnalysisPrompt(product, profiles, translatedIngredients);
+    const userPrompt = buildAiAnalysisPrompt(product, profiles);
 
     const result = await structured.invoke([
       { role: 'system', content: buildSystemPrompt() },
@@ -882,8 +895,7 @@ function validateAndNormalizeAiResult(
   raw: AiAnalyzeV2Output | null,
   profiles: ProfileInputForScoring[],
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
-): { result: ValidatedAiAnalyzeV2Result; unscopedReasonProfileIds: Set<string> } {
-  const unscopedReasonProfileIds = new Set<string>();
+): ValidatedAiAnalyzeV2Result {
   const traceGroundingValues = buildTraceGroundingValues(product);
 
   const fallbackResult: ValidatedAiAnalyzeV2Result = {
@@ -903,7 +915,7 @@ function validateAndNormalizeAiResult(
     !Array.isArray(raw.product.evidence) ||
     !Array.isArray(raw.profileInfo)
   ) {
-    return { result: fallbackResult, unscopedReasonProfileIds };
+    return fallbackResult;
   }
 
   const validatedProfileInfo: AiProfileInfoWithIngredients[] = profiles.map((profile) => {
@@ -1048,7 +1060,6 @@ function validateAndNormalizeAiResult(
           restriction: d.restriction,
         })),
       });
-      unscopedReasonProfileIds.add(profile.profileId);
     }
 
     return {
@@ -1066,15 +1077,12 @@ function validateAndNormalizeAiResult(
   });
 
   return {
-    result: {
-      product: {
-        role: raw.product.role as ProductRole,
-        confidence: raw.product.confidence,
-        evidence: raw.product.evidence,
-      },
-      profileInfo: validatedProfileInfo,
+    product: {
+      role: raw.product.role as ProductRole,
+      confidence: raw.product.confidence,
+      evidence: raw.product.evidence,
     },
-    unscopedReasonProfileIds,
+    profileInfo: validatedProfileInfo,
   };
 }
 
@@ -1213,44 +1221,6 @@ function buildProfileResult(
   };
 }
 
-function buildSafetyBasedCanIHaveThis(
-  safety: SafetyResult,
-): AiProfileInfoWithIngredients['canIHaveThis'] {
-  if (safety.status === 'avoid') {
-    return {
-      can: false,
-      status: 'no',
-      reason: safety.reasons[0] ?? 'No, this product does not appear suitable for your profile.',
-    };
-  }
-  if (
-    safety.status === 'caution' &&
-    safety.matchedAllergens.length === 0 &&
-    safety.violatedRestrictions.length === 0 &&
-    safety.traceAllergens.length > 0
-  ) {
-    return {
-      can: true,
-      status: 'warning',
-      reason: safety.reasons[0] ?? 'This may contain traces of an allergen in your profile.',
-    };
-  }
-  if (safety.status === 'caution') {
-    return {
-      can: false,
-      status: 'no',
-      reason:
-        safety.reasons[0] ?? 'You may need to be cautious with this product based on your profile.',
-    };
-  }
-  return {
-    can: true,
-    status: 'yes',
-    reason:
-      'Yes, this appears suitable for your selected preferences. Check portion size and nutrition details if relevant.',
-  };
-}
-
 export async function analyzeNormalizedProductForUser(input: {
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>;
   userId: string;
@@ -1329,34 +1299,27 @@ export async function analyzeNormalizedProductForUser(input: {
     `[ProductAnalyzeV2] Main profile — goal=${mainProfile.mainGoal} restrictions=${mainProfile.restrictions.length} allergies=${mainProfile.allergies.length}`,
   );
 
-  // 5. Translate ingredients to English for better AI analysis
-  const translatedIngredients = await translateIngredientsToEnglish(product.ingredients, null);
-
-  // 6. Classify product role and detect profile allergens/restrictions via AI (once per product+profiles)
+  // 5. Classify product role and detect profile allergens/restrictions via AI (once per product+profiles)
   console.log(
     `[ProductAnalyzeV2] Running AI analysis — ${logContext} profiles=${allProfiles.length}`,
   );
-  const rawAiOutput = await analyzeWithAI(product, allProfiles, translatedIngredients);
-  const { result: aiResult, unscopedReasonProfileIds } = validateAndNormalizeAiResult(
-    rawAiOutput,
-    allProfiles,
-    product,
-  );
+  const rawAiOutput = await analyzeWithAI(product, allProfiles);
+  const aiResult = validateAndNormalizeAiResult(rawAiOutput, allProfiles, product);
 
   console.log(`[ProductAnalyzeV2] Ai result], ${JSON.stringify(aiResult, null, 2)}`);
 
-  // 7. Resolve product role from AI result
+  // 6. Resolve product role from AI result
   const roleResult = resolveProductRole(aiResult.product);
 
   console.log(
     `[ProductAnalyzeV2] Final role — role=${roleResult.value} source=${roleResult.source} confidence=${roleResult.confidence} validated=${roleResult.validated}`,
   );
 
-  // 8. Calculate nutrition score once (product-level)
+  // 7. Calculate nutrition score once (product-level)
   const nutritionResult = calculateNutritionScore(product, roleResult.value);
   console.log(`[ProductAnalyzeV2] Nutrition score — score=${nutritionResult.score}`);
 
-  // 9. Calculate scores for main profile using AI profile info
+  // 8. Calculate scores for main profile using AI profile info
   const mainAiProfileInfo =
     aiResult.profileInfo.find(
       (p) => p.profileId === mainProfile.profileId && p.profileType === 'user',
@@ -1373,18 +1336,7 @@ export async function analyzeNormalizedProductForUser(input: {
     `[ProductAnalyzeV2] Main profile scores — safety=${mainProfileAnalysis.safety.score} goalFit=${mainProfileAnalysis.goalFit.score} overall=${mainProfileAnalysis.overall.score}`,
   );
 
-  // Override canIHaveThis reason if AI returned out-of-scope detections for main profile
-  if (unscopedReasonProfileIds.has(mainProfile.profileId)) {
-    const overriddenCanIHaveThis = buildSafetyBasedCanIHaveThis(mainProfileAnalysis.safety);
-    const aiProfileForDebug = aiResult.profileInfo.find(
-      (p) => p.profileId === mainProfile.profileId && p.profileType === 'user',
-    );
-    if (aiProfileForDebug) {
-      aiProfileForDebug.canIHaveThis = overriddenCanIHaveThis;
-    }
-  }
-
-  // 10. Calculate scores for family members if subscription is active
+  // 9. Calculate scores for family members if subscription is active
   const profileResults: AnalyzeBarcodeV2ProfileResult[] = [
     buildProfileResult(mainProfile, mainProfileAnalysis, mainAiProfileInfo),
   ];
@@ -1406,21 +1358,10 @@ export async function analyzeNormalizedProductForUser(input: {
       `[ProductAnalyzeV2] Family member "${memberProfile.displayName}" — overall=${memberAnalysis.overall.score}`,
     );
 
-    // Override canIHaveThis reason if AI returned out-of-scope detections for this member
-    if (unscopedReasonProfileIds.has(memberProfile.profileId)) {
-      const overriddenCanIHaveThis = buildSafetyBasedCanIHaveThis(memberAnalysis.safety);
-      const aiProfileForDebug = aiResult.profileInfo.find(
-        (p) => p.profileId === memberProfile.profileId && p.profileType === 'family_member',
-      );
-      if (aiProfileForDebug) {
-        aiProfileForDebug.canIHaveThis = overriddenCanIHaveThis;
-      }
-    }
-
     profileResults.push(buildProfileResult(memberProfile, memberAnalysis, memberAiProfileInfo));
   }
 
-  // 11. Build response
+  // 10. Build response
   const response: AnalyzeBarcodeV2Response = {
     product: {
       name: product.name,
