@@ -50,7 +50,7 @@ export const submitBarcodeScan = async (
 ): Promise<ScannerAnalysisResponse> => {
   const parsedPayload = barcodeLookupRequestSchema.parse(payload);
 
-  const response = await apiFetch('/product-analyze-v2/barcode', {
+  const response = await apiFetch('/product-analysis/barcode', {
     method: 'POST',
     body: JSON.stringify(parsedPayload),
   });
@@ -147,7 +147,7 @@ export const compareProducts = async (
         barcodeB: payload.barcode2.trim(),
       });
 
-  const response = await apiFetch('/product-analyze-v2/compare', {
+  const response = await apiFetch('/product-analysis/compare', {
     method: 'POST',
     body: requestBody,
   });
@@ -195,7 +195,7 @@ const buildPhotoFormData = (payload: PhotoScanRequest): FormData => {
 };
 
 export const submitPhotoScan = async (payload: PhotoScanRequest): Promise<PhotoScanResponse> => {
-  const response = await apiFetch('/product-analyze-v2/photo', {
+  const response = await apiFetch('/product-analysis/photo', {
     method: 'POST',
     body: buildPhotoFormData(payload),
   });

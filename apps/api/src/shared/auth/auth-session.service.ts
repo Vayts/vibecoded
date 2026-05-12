@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import type { Request } from 'express';
-import { auth } from '../../modules/product-analyze/lib/auth';
-import { prisma } from '../../modules/product-analyze/lib/prisma';
+import { prisma } from '../lib/prisma';
+import { auth } from './auth';
 import { ApiError } from '../errors/api-error';
 
 @Injectable()

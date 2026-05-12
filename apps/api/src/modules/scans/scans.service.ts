@@ -18,9 +18,9 @@ import {
   resolveCanonicalProductImageUrl,
 } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
-import { prisma } from '../product-analyze/lib/prisma';
-import { productFactsAiOutputSchema } from '../product-analyze/domain/product-facts/schema';
-import { toBarcodeLookupProduct } from '../product-analyze/utils/analysis-response.utils';
+import { prisma } from '../../shared/lib/prisma';
+import { productFactsAiOutputSchema } from '../product-domain/domain/product-facts/schema';
+import { toBarcodeLookupProduct } from '../product-domain/utils/analysis-response.utils';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;

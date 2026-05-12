@@ -33,7 +33,7 @@ export async function searchPhotoProductNutritionWithTavilyV2(
     [input.brand, input.productName].filter(Boolean).join(' ') || input.allText.slice(0, 300);
   const client = tavily({
     apiKey: process.env.TAVILY_API_KEY,
-    clientSource: 'acme-product-analyze-v2-photo',
+    clientSource: 'acme-product-analysis-photo',
   });
   const searchResult = await client.search(
     `Find nutrition facts per 100g, ingredients and product details for this food product: ${searchQuery}`,
@@ -70,7 +70,7 @@ export async function searchPhotoProductNutritionWithTavilyV2(
   });
   const structuredModel = model.withStructuredOutput(tavilyStructuredProductV2Schema, {
     method: 'jsonSchema',
-    name: 'product_analyze_v2_tavily_product_nutrition',
+    name: 'product_analysis_tavily_product_nutrition',
   }) as StructuredInvoker<TavilyStructuredProductV2>;
   const result = await structuredModel.invoke([
     { role: 'system', content: TAVILY_PRODUCT_NORMALIZATION_PROMPT_V2 },

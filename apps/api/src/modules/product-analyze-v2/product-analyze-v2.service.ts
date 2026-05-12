@@ -21,8 +21,8 @@ import {
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
-import { prisma } from '../product-analyze/lib/prisma.js';
-import { findProductIdByBarcode } from '../product-analyze/repositories/scanRepository.js';
+import { prisma } from '../../shared/lib/prisma.js';
+import { findProductIdByBarcode } from '../product-domain/repositories/scanRepository.js';
 
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
@@ -30,7 +30,10 @@ const analyzeBarcodeRequestSchema = z.object({
 
 @Injectable()
 export class ProductAnalyzeV2Service {
-  private async getFavouriteState(userId: string, productId?: string): Promise<boolean | undefined> {
+  private async getFavouriteState(
+    userId: string,
+    productId?: string,
+  ): Promise<boolean | undefined> {
     if (!productId) {
       return undefined;
     }
@@ -54,7 +57,8 @@ export class ProductAnalyzeV2Service {
     scanId?: string;
     productId?: string;
   }): Promise<Pick<AnalyzeBarcodeV2Response, 'scanId' | 'productId' | 'isFavourite'>> {
-    const resolvedProductId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
+    const resolvedProductId =
+      input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
     const isFavourite = await this.getFavouriteState(input.userId, resolvedProductId);
 
     return {
@@ -108,12 +112,12 @@ export class ProductAnalyzeV2Service {
     const scanId = finalState.analyzedProduct?.reusedExistingAnalysis
       ? finalState.analyzedProduct.scanId
       : await this.persistScanResult({
-        userId,
-        barcode,
-        source: 'barcode',
-        result: finalState.result,
-        productId: finalState.analyzedProduct?.productId,
-      });
+          userId,
+          barcode,
+          source: 'barcode',
+          result: finalState.result,
+          productId: finalState.analyzedProduct?.productId,
+        });
 
     const metadata = await this.buildResultMetadata({
       userId,

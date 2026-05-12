@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import type { UploadedPhotoFile } from '../scanner-photo/scanner-photo.schemas';
 import { ApiError } from '../../shared/errors/api-error';
-import { processProductImage } from '../product-analyze/lib/image-processing';
-import { uploadAvatarImage } from '../product-analyze/lib/storage';
+import { processProductImage } from '../../shared/lib/image-processing';
+import { uploadAvatarImage } from '../../shared/lib/storage';
+import type { UploadedImageFile } from '../../shared/utils/upload';
 
 @Injectable()
 export class StorageService {
-  async uploadAvatar(file?: UploadedPhotoFile) {
+  async uploadAvatar(file?: UploadedImageFile) {
     if (!file?.buffer || file.buffer.length === 0) {
       throw ApiError.badRequest('Avatar file is required', 'VALIDATION_ERROR');
     }

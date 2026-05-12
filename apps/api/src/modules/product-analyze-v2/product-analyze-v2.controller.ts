@@ -26,7 +26,7 @@ interface CompareProductsV2UploadedFiles {
   photoB?: UploadedPhotoFileV2[];
 }
 
-@Controller('product-analyze-v2')
+@Controller('product-analysis')
 export class ProductAnalyzeV2Controller {
   constructor(
     private readonly authSessionService: AuthSessionService,

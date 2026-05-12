@@ -5,8 +5,8 @@ import {
 } from '@acme/shared';
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';
-import { prisma } from '../product-analyze/lib/prisma';
-import { deleteStoredObject } from '../product-analyze/lib/storage';
+import { prisma } from '../../shared/lib/prisma';
+import { deleteStoredObject } from '../../shared/lib/storage';
 import { updateUserRequestSchema } from './user.schemas';
 
 export type SerializedUserProfile = OnboardingResponse & {

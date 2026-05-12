@@ -1,12 +1,12 @@
 import type { NormalizedProduct } from '@acme/shared';
 import type { MainGoal } from '../../types/scoring.types.js';
-import { prisma } from '../../../product-analyze/lib/prisma.js';
+import { prisma } from '../../../../shared/lib/prisma.js';
 import {
   lookupBarcode,
   OpenFoodFactsLookupError,
-} from '../../../product-analyze/services/openfoodfacts-client.js';
-import { createProduct } from '../../../product-analyze/repositories/productRepository.js';
-import { findProductIdByBarcode } from '../../../product-analyze/repositories/scanRepository.js';
+} from '../../../product-domain/services/openfoodfacts-client.js';
+import { createProduct } from '../../../product-domain/repositories/productRepository.js';
+import { findProductIdByBarcode } from '../../../product-domain/repositories/scanRepository.js';
 import {
   hasEnoughProductInformation,
   normalizeOpenFoodFactsProduct,

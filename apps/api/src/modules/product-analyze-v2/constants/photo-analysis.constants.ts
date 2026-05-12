@@ -1,5 +1,4 @@
-export const MAX_PHOTO_UPLOAD_SIZE = 5 * 1024 * 1024;
-export const MAX_PHOTO_BASE64_SIZE = 10 * 1024 * 1024;
+export { MAX_PHOTO_BASE64_SIZE, MAX_PHOTO_UPLOAD_SIZE } from '../../../shared/utils/upload.js';
 
 export const PHOTO_FILE_REQUIRED_ERROR = 'photo file is required';
 export const INVALID_OCR_FIELD_ERROR = 'Invalid ocr field';

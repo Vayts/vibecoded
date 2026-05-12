@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { UploadedImageFile } from '../../../shared/utils/upload.js';
 import type { AnalyzeBarcodeV2Response } from './analyze-product-v2.types.js';
 
 const photoOcrPayloadV2BaseShape = {
@@ -18,11 +19,7 @@ export const photoOcrPayloadV2Schema = z.object({
   isPackagedProduct: z.boolean().nullable().optional(),
 });
 
-export interface UploadedPhotoFileV2 {
-  buffer: Buffer;
-  size: number;
-  mimetype: string;
-}
+export type UploadedPhotoFileV2 = UploadedImageFile;
 
 export interface AnalyzePhotoV2Input {
   imageBase64: string;

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { FamilyMember } from '@prisma/client';
 import { ApiError } from '../../shared/errors/api-error';
-import { prisma } from '../product-analyze/lib/prisma';
+import { prisma } from '../../shared/lib/prisma';
 import {
   hasAnalysisRelevantFamilyMemberChanges,
   touchUserAnalysisPreferencesUpdatedAt,
-} from '../product-analyze/services/analysis-cache';
+} from '../../shared/services/analysis-preferences';
 import { requireActiveFamilyMembersSubscription } from '../user/subscription-access';
 import { MAX_FAMILY_MEMBERS } from './family-members.constants';
 import {
