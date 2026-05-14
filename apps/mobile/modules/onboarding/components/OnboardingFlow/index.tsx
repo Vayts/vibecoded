@@ -112,7 +112,13 @@ export function OnboardingFlow() {
   ) : step > 0 ? (
     <View className="gap-3">
       <Button fullWidth label="Continue" onPress={handleContinue} />
-      <Button fullWidth label="Skip for now" variant="secondary" onPress={handleContinue} />
+      <Button
+        fullWidth
+        disabled={!isCurrentStepValid}
+        label="Skip for now"
+        variant="secondary"
+        onPress={handleContinue}
+      />
     </View>
   ) : (
     <Button

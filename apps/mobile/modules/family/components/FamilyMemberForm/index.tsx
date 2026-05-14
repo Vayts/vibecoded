@@ -8,6 +8,7 @@ import {
   isNameStepValid,
   FAMILY_MEMBER_STEP_COUNT,
 } from '../../stores/familyMemberFormStore';
+import { getOtherAllergyValidationError } from '../../../../shared/lib/validation/otherAllergy';
 import { FamilyMemberStepContent } from './steps';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,8 +63,16 @@ export function FamilyMemberForm({
 
   const isLastStep = step === FAMILY_MEMBER_STEP_COUNT - 1;
   const isAvatarStep = step === 1;
+  const isAllergiesStep = step === 4;
+  const otherAllergyError = getOtherAllergyValidationError(draft);
   const canContinue =
-    step === 0 ? isNameStepValid(draft) : isAvatarStep ? Boolean(draft.avatarUrl) : true;
+    step === 0
+      ? isNameStepValid(draft)
+      : isAvatarStep
+        ? Boolean(draft.avatarUrl)
+        : isAllergiesStep
+          ? otherAllergyError === null
+          : true;
 
   const handleContinue = () => {
     if (step === 0) {
@@ -89,6 +98,12 @@ export function FamilyMemberForm({
       setErrorMessage('Please enter a name up to 30 characters.');
       return;
     }
+
+    if (otherAllergyError) {
+      setErrorMessage(otherAllergyError);
+      return;
+    }
+
     setErrorMessage(null);
     try {
       await onSubmit(toPayload());
@@ -139,6 +154,7 @@ export function FamilyMemberForm({
         <Button
           fullWidth
           label="Skip for now"
+          disabled={!canContinue}
           onPress={canContinue ? handleContinue : undefined}
           variant="secondary"
         />

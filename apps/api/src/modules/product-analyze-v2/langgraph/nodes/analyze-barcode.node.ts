@@ -32,6 +32,7 @@ import {
   resolveProductRole,
 } from './analyze-barcode/profile-results.js';
 import { findReusableAnalyzedProductByBarcode as findReusableAnalyzedProductByBarcodeFromCache } from './analyze-barcode/cache-reuse.js';
+import { normalizeProfileInput } from '../../utils/normalize-profile-input.util.js';
 
 export interface AnalyzedProductByBarcodeResult {
   barcode: string;
@@ -105,7 +106,7 @@ export async function analyzeNormalizedProductForUser(input: {
   );
 
   // 4. Build profile inputs
-  const mainProfile: ProfileInputForScoring = {
+  const mainProfile = normalizeProfileInput({
     profileId: user.profile?.id ?? userId,
     profileType: 'user',
     displayName: user.name ?? null,
@@ -113,18 +114,20 @@ export async function analyzeNormalizedProductForUser(input: {
     restrictions: user.profile?.restrictions ?? [],
     allergies: user.profile?.allergies ?? [],
     otherAllergiesText: user.profile?.otherAllergiesText ?? null,
-  };
+  });
 
   const familyProfiles: ProfileInputForScoring[] = familyEnabled
-    ? user.familyMembers.map((member) => ({
-        profileId: member.id,
-        profileType: 'family_member' as const,
-        displayName: member.name,
-        mainGoal: (member.mainGoal as MainGoal | null) ?? null,
-        restrictions: member.restrictions ?? [],
-        allergies: member.allergies ?? [],
-        otherAllergiesText: member.otherAllergiesText ?? null,
-      }))
+    ? user.familyMembers.map((member) =>
+        normalizeProfileInput({
+          profileId: member.id,
+          profileType: 'family_member' as const,
+          displayName: member.name,
+          mainGoal: (member.mainGoal as MainGoal | null) ?? null,
+          restrictions: member.restrictions ?? [],
+          allergies: member.allergies ?? [],
+          otherAllergiesText: member.otherAllergiesText ?? null,
+        }),
+      )
     : [];
 
   const allProfiles: ProfileInputForScoring[] = [mainProfile, ...familyProfiles];

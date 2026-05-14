@@ -54,34 +54,61 @@ export const legacyDietTypeSchema = z.enum(LEGACY_DIET_TYPE_VALUES);
 export const allergySchema = z.enum(ALLERGY_VALUES);
 export const nutritionPrioritySchema = z.enum(NUTRITION_PRIORITY_VALUES);
 
+export const OTHER_ALLERGY_DETAILS_REQUIRED_MESSAGE =
+  'Please describe the other allergy';
+export const OTHER_ALLERGY_DETAILS_UNEXPECTED_MESSAGE =
+  'Other allergy details are only allowed when Other is selected';
+
 const nullableMainGoalSchema = z.union([mainGoalSchema, z.null()]);
 const nullableLegacyDietTypeSchema = z.union([legacyDietTypeSchema, z.null()]);
 
-const nullableOtherAllergiesTextSchema = z
+export const otherAllergiesTextSchema = z
   .union([z.string(), z.null(), z.undefined()])
   .transform((value) => (typeof value === 'string' ? value.trim() : null))
   .refine((value) => value === null || value.length <= 120, {
     message: 'otherAllergiesText must be 120 characters or fewer',
   });
 
+export const validateOtherAllergiesSelection = (
+  value: {
+    allergies?: readonly string[];
+    otherAllergiesText?: string | null;
+  },
+  ctx: z.RefinementCtx,
+): void => {
+  const hasProvidedAllergies = Array.isArray(value.allergies);
+  const hasOtherAllergy = value.allergies?.includes('OTHER') ?? false;
+  const hasCustomOtherAllergy = typeof value.otherAllergiesText === 'string'
+    ? value.otherAllergiesText.trim().length > 0
+    : value.otherAllergiesText !== null && value.otherAllergiesText !== undefined;
+
+  if (hasOtherAllergy && !hasCustomOtherAllergy) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['otherAllergiesText'],
+      message: OTHER_ALLERGY_DETAILS_REQUIRED_MESSAGE,
+    });
+  }
+
+  if (hasProvidedAllergies && !hasOtherAllergy && hasCustomOtherAllergy) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['otherAllergiesText'],
+      message: OTHER_ALLERGY_DETAILS_UNEXPECTED_MESSAGE,
+    });
+  }
+};
+
 export const onboardingRequestSchema = z
   .object({
     mainGoal: mainGoalSchema,
     restrictions: z.array(restrictionSchema),
     allergies: z.array(allergySchema),
-    otherAllergiesText: nullableOtherAllergiesTextSchema,
+    otherAllergiesText: otherAllergiesTextSchema,
     nutritionPriorities: z.array(nutritionPrioritySchema),
   })
   .strict()
-  .superRefine((value, ctx) => {
-    if (!value.allergies.includes('OTHER') && value.otherAllergiesText !== null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['otherAllergiesText'],
-        message: 'otherAllergiesText is only allowed when allergies includes OTHER',
-      });
-    }
-  });
+  .superRefine(validateOtherAllergiesSelection);
 
 export type OnboardingRequest = z.infer<typeof onboardingRequestSchema>;
 

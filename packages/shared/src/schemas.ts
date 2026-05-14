@@ -6,6 +6,8 @@ import {
   restrictionSchema,
   allergySchema,
   nutritionPrioritySchema,
+  otherAllergiesTextSchema,
+  validateOtherAllergiesSelection,
 } from './onboarding';
 import {
   analysisJobStatusSchema,
@@ -186,18 +188,24 @@ export const familyMemberSchema = z.object({
 });
 export type FamilyMember = z.infer<typeof familyMemberSchema>;
 
-export const createFamilyMemberRequestSchema = z.object({
+const familyMemberRequestBaseSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(50, 'Name must be 50 characters or fewer'),
   avatarUrl: z.string().trim().min(1, 'Avatar URL is invalid').nullable().optional(),
   mainGoal: mainGoalSchema.nullable().optional(),
   restrictions: z.array(restrictionSchema).optional().default([]),
   allergies: z.array(allergySchema).optional().default([]),
-  otherAllergiesText: z.string().nullable().optional(),
+  otherAllergiesText: otherAllergiesTextSchema,
   nutritionPriorities: z.array(nutritionPrioritySchema).optional().default([]),
 });
+
+export const createFamilyMemberRequestSchema = familyMemberRequestBaseSchema.superRefine(
+  validateOtherAllergiesSelection,
+);
 export type CreateFamilyMemberRequest = z.infer<typeof createFamilyMemberRequestSchema>;
 
-export const updateFamilyMemberRequestSchema = createFamilyMemberRequestSchema.partial();
+export const updateFamilyMemberRequestSchema = familyMemberRequestBaseSchema
+  .partial()
+  .superRefine(validateOtherAllergiesSelection);
 export type UpdateFamilyMemberRequest = z.infer<typeof updateFamilyMemberRequestSchema>;
 
 export const familyMembersResponseSchema = z.object({

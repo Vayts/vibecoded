@@ -22,12 +22,14 @@ import { useOnboardingStore } from '../../../onboarding/stores/onboarding/store'
 interface HealthPreferenceEditorScreenProps {
   title: string;
   description: string;
+  isSaveDisabled?: boolean;
   children: React.ReactNode;
 }
 
 export function HealthPreferenceEditorScreen({
   title,
   description,
+  isSaveDisabled = false,
   children,
 }: HealthPreferenceEditorScreenProps) {
   const router = useRouter();
@@ -117,6 +119,7 @@ export function HealthPreferenceEditorScreen({
         <View className="pb-0">
           <Button
             fullWidth
+            disabled={isSaveDisabled}
             label="Save changes"
             loading={submitMutation.isPending}
             onPress={() => {
