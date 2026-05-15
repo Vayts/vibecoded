@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Animated, {
   cancelAnimation,
@@ -11,6 +11,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Typography } from '../../../../../shared/components/Typography';
 import SearchMascot from '../../../../../assets/icons/mascot/search-mascot.svg';
+import LoaderAnim from '../../../../../assets/lottie/searching.json';
+import LottieView from 'lottie-react-native';
 
 const ANALYSIS_MESSAGES = [
   'Finding your product…',
@@ -30,6 +32,7 @@ export function InitialProductAnalysisLoader() {
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
   const mascotScale = useSharedValue(1);
+  const animation = useRef<LottieView>(null);
 
   const mascotAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: mascotScale.value }],
@@ -102,9 +105,15 @@ export function InitialProductAnalysisLoader() {
       accessibilityRole="progressbar"
       className="items-center justify-center px-6 py-12"
     >
-      <Animated.View style={mascotAnimatedStyle}>
-        <SearchMascot height={100} />
-      </Animated.View>
+      <LottieView
+        autoPlay
+        ref={animation}
+        style={{
+          width: 250,
+          height: 250,
+        }}
+        source={LoaderAnim}
+      />
 
       <Animated.View className="mt-5 min-h-[48px] justify-center" style={animatedTextStyle}>
         <Typography variant="sectionTitle" className="text-center leading-7 text-gray-900">

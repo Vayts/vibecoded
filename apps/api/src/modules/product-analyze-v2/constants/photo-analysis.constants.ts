@@ -7,5 +7,6 @@ export const INVALID_PHOTO_FILE_ERROR = 'Invalid photo file';
 
 export const PRODUCT_ANALYZE_V2_AI_MODELS = {
   vision: 'gpt-5.4-mini',
+  geminiVision: 'gemini-3.1-flash-lite', // gemini-2.5-flash-lite TODO
   reason: 'gpt-5.4-mini',
 } as const;

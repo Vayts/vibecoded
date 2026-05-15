@@ -1,3 +1,4 @@
+import type { ProductLookupResponse } from '@acme/shared';
 import {
   Body,
   Controller,
@@ -7,7 +8,7 @@ import {
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service.js';
 import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
@@ -26,6 +27,11 @@ interface CompareProductsV2UploadedFiles {
   photoB?: UploadedPhotoFileV2[];
 }
 
+interface PackagePhotosUploadResponse {
+  success: true;
+  photoCount: number;
+}
+
 @Controller('product-analysis')
 export class ProductAnalyzeV2Controller {
   constructor(
@@ -40,6 +46,15 @@ export class ProductAnalyzeV2Controller {
   ): Promise<AnalyzeBarcodeV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.analyzeBarcode(body, userId);
+  }
+
+  @Post('barcode/lookup')
+  async lookupBarcode(
+    @Body() body: unknown,
+    @Req() request: Request,
+  ): Promise<ProductLookupResponse> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.productAnalyzeV2Service.lookupBarcode(body, userId);
   }
 
   @Post('compare')
@@ -74,5 +89,20 @@ export class ProductAnalyzeV2Controller {
   ): Promise<AnalyzePhotoV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.analyzePhoto(body, userId, file);
+  }
+
+  @Post('package-photos')
+  @UseInterceptors(
+    FilesInterceptor('photos', 3, {
+      limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
+    }),
+  )
+  async uploadPackagePhotos(
+    @Body() body: unknown,
+    @UploadedFiles() files: UploadedPhotoFileV2[] | undefined,
+    @Req() request: Request,
+  ): Promise<PackagePhotosUploadResponse> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.productAnalyzeV2Service.uploadPackagePhotos(body, userId, files);
   }
 }

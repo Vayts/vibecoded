@@ -244,7 +244,6 @@ export const lookupBarcode = async (barcode: string): Promise<NormalizedProduct 
   } catch (err) {
     if (err instanceof OpenFoodFactsLookupError && err.code === 'TIMEOUT') {
       console.warn(`[OFF] ⏱ Timeout (${OFF_TIMEOUT_MS}ms) for barcode=${barcode}`);
-      return null;
     }
 
     throw err;

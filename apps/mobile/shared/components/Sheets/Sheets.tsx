@@ -1,6 +1,16 @@
 import React from 'react';
 import { SheetDefinition, SheetRegister } from 'react-native-actions-sheet';
 import {
+  BarcodeScannerErrorSheet,
+} from '../../../modules/barcode-scanner/components/BarcodeScannerErrorSheet';
+import {
+  BarcodeScannerLookupSheet,
+} from '../../../modules/barcode-scanner/components/BarcodeScannerLookupSheet';
+import type {
+  BarcodeScannerErrorSheetPayload,
+  BarcodeScannerLookupSheetPayload,
+} from '../../../modules/barcode-scanner/types/barcodeScanner';
+import {
   DeleteAccountSheet,
   type DeleteAccountSheetPayload,
 } from '../../../modules/profile/components/DeleteAccountSheet';
@@ -26,6 +36,12 @@ import BasedOnYourProfileSheet from '../../../modules/scanner/components/Scanner
 // across the app for all registered sheets.
 declare module 'react-native-actions-sheet' {
   interface Sheets {
+    [SheetsEnum.BarcodeScannerLookupSheet]: SheetDefinition<{
+      payload: BarcodeScannerLookupSheetPayload;
+    }>;
+    [SheetsEnum.BarcodeScannerErrorSheet]: SheetDefinition<{
+      payload: BarcodeScannerErrorSheetPayload;
+    }>;
     [SheetsEnum.BasedOnYourProfileSheet]: SheetDefinition<{ payload: { title: string } }>;
     [SheetsEnum.DeleteAccountSheet]: SheetDefinition<{ payload: DeleteAccountSheetPayload }>;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
@@ -45,6 +61,8 @@ export const Sheets = () => {
   return (
     <SheetRegister
       sheets={{
+        [SheetsEnum.BarcodeScannerLookupSheet]: BarcodeScannerLookupSheet,
+        [SheetsEnum.BarcodeScannerErrorSheet]: BarcodeScannerErrorSheet,
         [SheetsEnum.BasedOnYourProfileSheet]: BasedOnYourProfileSheet,
         [SheetsEnum.DeleteAccountSheet]: DeleteAccountSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,

@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
+import type { ProductLookupResponse } from '@acme/shared';
 import { z } from 'zod';
 import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
 import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
 import { parsePhotoRequestV2 } from './utils/parse-photo-request-v2.util.js';
+import { resolveBarcodeProductContext } from './utils/resolve-barcode-product.util.js';
 import {
   type CompareProductsV2UploadedFiles,
   compareProductsV2,
   type PersistProductAnalyzeV2ScanInput,
 } from './services/compare-products-v2.service.js';
+import { extractPackageProductData } from './services/package-photo-extraction.service.js';
+import { createPackagePhotoTraceContext } from './services/package-photo-tracing.util.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -30,6 +34,8 @@ const analyzeBarcodeRequestSchema = z.object({
 
 @Injectable()
 export class ProductAnalyzeV2Service {
+  private readonly logger = new Logger(ProductAnalyzeV2Service.name);
+
   private async getFavouriteState(
     userId: string,
     productId?: string,
@@ -132,6 +138,31 @@ export class ProductAnalyzeV2Service {
     };
   }
 
+  async lookupBarcode(body: unknown, userId: string): Promise<ProductLookupResponse> {
+    const parsed = analyzeBarcodeRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
+    }
+
+    const { barcode } = parsed.data;
+    console.log(`[ProductAnalyzeV2Service] lookupBarcode — barcode=${barcode} userId=${userId}`);
+
+    const resolvedProduct = await resolveBarcodeProductContext({ barcode });
+
+    return {
+      success: true,
+      product: {
+        productId: resolvedProduct.productId ?? '',
+        barcode,
+        product_name: resolvedProduct.product.name,
+        product_name_english: null,
+        brands: resolvedProduct.product.brand,
+        image_url: resolvedProduct.product.imageUrl,
+        nutriscore_grade: null,
+      },
+    };
+  }
+
   async compareProducts(
     body: unknown,
     userId: string,
@@ -187,6 +218,46 @@ export class ProductAnalyzeV2Service {
       ...result,
       barcode: resolvedContext.product.code,
       ...metadata,
+    };
+  }
+
+  async uploadPackagePhotos(
+    body: unknown,
+    userId: string,
+    files: UploadedPhotoFileV2[] = [],
+  ): Promise<{ success: true; photoCount: number }> {
+    const metadata =
+      typeof body === 'object' && body !== null && 'metadata' in body
+        ? (body as { metadata?: unknown }).metadata
+        : undefined;
+
+    this.logger.log(
+      `uploadPackagePhotos — userId=${userId} photoCount=${files.length} metadata=${
+        typeof metadata === 'string' ? metadata : 'none'
+      }`,
+    );
+
+    files.forEach((file, index) => {
+      this.logger.log(
+        `uploadPackagePhotos file[${index}] — size=${file.size} mimetype=${file.mimetype}`,
+      );
+    });
+
+    const extraction = await extractPackageProductData(
+      files,
+      createPackagePhotoTraceContext({
+        endpoint: 'package-photos',
+        files,
+        metadata,
+        provider: 'gemini',
+        userId,
+      }),
+    );
+    this.logger.log(`uploadPackagePhotos extraction — ${JSON.stringify(extraction)}`);
+
+    return {
+      success: true,
+      photoCount: files.length,
     };
   }
 }

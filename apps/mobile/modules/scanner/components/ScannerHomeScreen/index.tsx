@@ -30,6 +30,7 @@ import {
 import { getScannerStatusMessage } from '../../utils/scannerResultBuilders';
 import { ScannerBottomBar } from './ScannerBottomBar';
 import { ScannerModeSwitch, type ScannerMode } from './ScannerModeSwitch';
+import { ScannerPhotoGuide } from './ScannerPhotoGuide';
 import { ScannerPermissionState } from '../ScannerPermissionState';
 
 const RESCAN_COOLDOWN_MS = 1500;
@@ -37,9 +38,15 @@ const BARCODE_CONFIRMATION_WINDOW_MS = 400;
 
 interface ScannerHomeScreenProps {
   routeMode?: ScannerRouteMode;
+  initialMode?: ScannerMode;
+  showModeSwitch?: boolean;
 }
 
-export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenProps) {
+export function ScannerHomeScreen({
+  routeMode = 'default',
+  initialMode = 'scanner',
+  showModeSwitch = true,
+}: ScannerHomeScreenProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
@@ -66,7 +73,7 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
   const [isLocked, setIsLocked] = useState(false);
   const [isScannerPaused, setIsScannerPaused] = useState(false);
   const [isScannerErrorSheetOpen, setIsScannerErrorSheetOpen] = useState(false);
-  const [scannerMode, setScannerMode] = useState<ScannerMode>('scanner');
+  const [scannerMode, setScannerMode] = useState<ScannerMode>(initialMode);
   const [isTorchEnabled, setIsTorchEnabled] = useState(false);
   const [isResolvingFirstProduct, setIsResolvingFirstProduct] = useState(false);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
@@ -379,7 +386,9 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
           />
 
           <View className="flex-1 items-center px-3">
-            {!isLocked ? <ScannerModeSwitch mode={scannerMode} onChange={handleModeChange} /> : null}
+            {!isLocked && showModeSwitch ? (
+              <ScannerModeSwitch mode={scannerMode} onChange={handleModeChange} />
+            ) : null}
           </View>
 
           <TouchableOpacity
@@ -403,6 +412,8 @@ export function ScannerHomeScreen({ routeMode = 'default' }: ScannerHomeScreenPr
         </View>
 
         <View className="flex-1 items-center justify-center pb-12">
+          {!isLocked && isPhotoMode ? <ScannerPhotoGuide /> : null}
+
           {!isLocked && !isPhotoMode ? (
             <View className="items-center">
               <View

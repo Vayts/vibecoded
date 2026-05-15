@@ -48,6 +48,14 @@ const hasUsefulNutrition = (nutrition: NormalizedProductV2['nutrition']): boolea
   );
 };
 
+export function hasRequiredOpenFoodFactsBarcodeData(product: NormalizedProductV2): boolean {
+  return (
+    hasUsefulText(product.name, product.barcode) &&
+    hasUsefulText(product.brand, product.barcode) &&
+    hasUsefulNutrition(product.nutrition)
+  );
+}
+
 export function hasEnoughProductInformation(product: NormalizedProductV2): boolean {
   return (
     hasUsefulText(product.name, product.barcode) ||
