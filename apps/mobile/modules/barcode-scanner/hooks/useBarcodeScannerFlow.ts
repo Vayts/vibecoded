@@ -114,7 +114,7 @@ export const useBarcodeScannerFlow = ({
 
         const { code, message } = getBarcodeScannerErrorDetails(error, 'Unable to submit barcode');
 
-        if (code === 'PRODUCT_NOT_FOUND') {
+        if (code === 'PRODUCT_NOT_FOUND' || code === 'OFF_UPSTREAM_ERROR') {
           await openLookupSheet({
             variant: 'not-found',
             barcode: normalized,
@@ -123,11 +123,7 @@ export const useBarcodeScannerFlow = ({
         }
 
         await openErrorSheet({
-          title: code === 'OFF_UPSTREAM_ERROR' ? 'Service error' : undefined,
-          message:
-            code === 'OFF_UPSTREAM_ERROR'
-              ? 'We couldn’t check this barcode right now. Please try again in a moment.'
-              : message,
+          message,
         });
       }
     },
@@ -190,8 +186,3 @@ export const useBarcodeScannerFlow = ({
     submitBarcode,
   };
 };
-
-
-
-
-
