@@ -5,6 +5,7 @@ import { ApiError } from '../../../shared/errors/api-error.js';
 import { PRODUCT_ANALYZE_V2_AI_MODELS } from '../constants/photo-analysis.constants.js';
 import {
   packagePhotoCoverageResultSchema,
+  type PackagePhotoCoverageCode,
   type PackagePhotoCoverageResult,
   type UploadedPhotoFileV2,
 } from '../types/analyze-photo-v2.types.js';
@@ -38,13 +39,12 @@ Rules:
 - Return only one of these coverage codes: 0, 1, 2, or 3.
 Return valid JSON only`;
 
-const COVERAGE_USER_PROMPT =
-  'Check this back-of-package photo and return the numeric coverage code.';
+const COVERAGE_USER_PROMPT = 'Check this package photo and return the numeric coverage code.';
 
 const buildPhotoContent = (photo: ReturnType<typeof toPackagePhotoInputs>[number]) => [
   {
     type: 'text',
-    text: 'Back of package photo',
+    text: 'Package photo',
   },
   {
     type: 'image_url',
@@ -52,17 +52,15 @@ const buildPhotoContent = (photo: ReturnType<typeof toPackagePhotoInputs>[number
   },
 ];
 
-const normalizeCoverageResult = (
-  result: PackagePhotoCoverageResult,
-): PackagePhotoCoverageResult => {
-  return { coverage: result.coverage };
+const normalizeCoverageResult = (result: PackagePhotoCoverageResult): PackagePhotoCoverageCode => {
+  return result.coverage;
 };
 
 const tracedCheckPackagePhotoCoverage = traceable(
   async (
     file: UploadedPhotoFileV2,
     traceContext: CoverageTraceContext,
-  ): Promise<PackagePhotoCoverageResult> => {
+  ): Promise<PackagePhotoCoverageCode> => {
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
@@ -123,6 +121,6 @@ const tracedCheckPackagePhotoCoverage = traceable(
 export async function checkPackagePhotoCoverageWithGemini(
   file: UploadedPhotoFileV2,
   traceContext: CoverageTraceContext,
-): Promise<PackagePhotoCoverageResult> {
+): Promise<PackagePhotoCoverageCode> {
   return tracedCheckPackagePhotoCoverage(file, traceContext);
 }

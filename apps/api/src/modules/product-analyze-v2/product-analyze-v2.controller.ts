@@ -15,7 +15,7 @@ import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
 import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
 import type {
   AnalyzePhotoV2Response,
-  PackagePhotoCoverageResult,
+  PackagePhotoCoverageCode,
   PackagePhotoExtractionResult,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
@@ -104,7 +104,7 @@ export class ProductAnalyzeV2Controller {
     @Body() body: unknown,
     @UploadedFile() file: UploadedPhotoFileV2 | undefined,
     @Req() request: Request,
-  ): Promise<PackagePhotoCoverageResult> {
+  ): Promise<PackagePhotoCoverageCode> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.checkPackagePhotoCoverage(body, userId, file);
   }

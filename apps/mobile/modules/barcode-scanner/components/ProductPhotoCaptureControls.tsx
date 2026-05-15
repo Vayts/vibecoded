@@ -8,6 +8,7 @@ import type { ProductPhotoStep } from '../types/productPhotoCapture';
 interface ProductPhotoCaptureControlsProps {
   isCapturing: boolean;
   isSubmitting: boolean;
+  processingLabel?: string;
   step: ProductPhotoStep;
   onCapture: () => void;
   onSkipOptional: () => void;
@@ -16,11 +17,13 @@ interface ProductPhotoCaptureControlsProps {
 export function ProductPhotoCaptureControls({
   isCapturing,
   isSubmitting,
+  processingLabel,
   step,
   onCapture,
   onSkipOptional,
 }: ProductPhotoCaptureControlsProps) {
   const isDisabled = isCapturing || isSubmitting;
+  const submittingLabel = processingLabel ?? 'Uploading…';
 
   return (
     <View className="items-center gap-4">
@@ -34,7 +37,7 @@ export function ProductPhotoCaptureControls({
           onPress={onSkipOptional}
         >
           <Typography variant="buttonSmall" className="text-white">
-            {isSubmitting ? 'Uploading…' : 'Skip — previous photo includes both'}
+            {isSubmitting ? submittingLabel : 'Skip — previous photo includes both'}
           </Typography>
         </TouchableOpacity>
       ) : null}
@@ -55,7 +58,7 @@ export function ProductPhotoCaptureControls({
       </TouchableOpacity>
 
       <Typography variant="buttonSmall" className="text-center text-white">
-        {isSubmitting ? 'Uploading…' : isCapturing ? 'Capturing…' : step.captureLabel}
+        {isSubmitting ? submittingLabel : isCapturing ? 'Capturing…' : step.captureLabel}
       </Typography>
     </View>
   );

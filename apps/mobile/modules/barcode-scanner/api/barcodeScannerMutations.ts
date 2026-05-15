@@ -37,9 +37,12 @@ const packagePhotosUploadResponseSchema = z.object({
   extraction: packagePhotoExtractionSchema,
 });
 
-const packagePhotoCoverageResponseSchema = z.object({
-  coverage: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
-});
+const packagePhotoCoverageResponseSchema = z.union([
+  z.literal(0),
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+]);
 
 export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosUploadResponseSchema>;
 export type PackagePhotoExtraction = z.infer<typeof packagePhotoExtractionSchema>;
