@@ -27,19 +27,16 @@ const COVERAGE_PROMPT = `You check whether one package photo visibly contains nu
 
 Return one JSON object with only this field:
 - coverage: number
-
 Coverage codes:
 - 0: neither nutrition facts nor ingredients are visible/readable.
 - 1: both nutrition facts and ingredients are visible/readable.
 - 2: ingredients are visible/readable, but nutrition facts are missing/unreadable.
 - 3: nutrition facts are visible/readable, but ingredients are missing/unreadable.
-
 Rules:
 - Do not extract product data. Only classify panel coverage.
 - Treat blurry, glared, cropped, or unreadable panels as missing.
 - Return only one of these coverage codes: 0, 1, 2, or 3.
-
-Return valid JSON only.`;
+Return valid JSON only`;
 
 const COVERAGE_USER_PROMPT =
   'Check this back-of-package photo and return the numeric coverage code.';
