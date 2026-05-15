@@ -1,16 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
+import type { ProductLookupResponse } from '@acme/shared';
 import { z } from 'zod';
 import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
 import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
 import { parsePhotoRequestV2 } from './utils/parse-photo-request-v2.util.js';
+import { resolveBarcodeProductContext } from './utils/resolve-barcode-product.util.js';
 import {
   type CompareProductsV2UploadedFiles,
   compareProductsV2,
   type PersistProductAnalyzeV2ScanInput,
 } from './services/compare-products-v2.service.js';
+import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
+import { extractPackageProductData } from './services/package-photo-extraction.service.js';
+import { createPackagePhotoTraceContext } from './services/package-photo-tracing.util.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -18,11 +23,13 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
+  type PackagePhotoExtractionResult,
+  type PackagePhotoCoverageResult,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
-import { prisma } from '../product-analyze/lib/prisma.js';
-import { findProductIdByBarcode } from '../product-analyze/repositories/scanRepository.js';
+import { prisma } from '../../shared/lib/prisma.js';
+import { findProductIdByBarcode } from '../product-domain/repositories/scanRepository.js';
 
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
@@ -30,7 +37,12 @@ const analyzeBarcodeRequestSchema = z.object({
 
 @Injectable()
 export class ProductAnalyzeV2Service {
-  private async getFavouriteState(userId: string, productId?: string): Promise<boolean | undefined> {
+  private readonly logger = new Logger(ProductAnalyzeV2Service.name);
+
+  private async getFavouriteState(
+    userId: string,
+    productId?: string,
+  ): Promise<boolean | undefined> {
     if (!productId) {
       return undefined;
     }
@@ -54,7 +66,8 @@ export class ProductAnalyzeV2Service {
     scanId?: string;
     productId?: string;
   }): Promise<Pick<AnalyzeBarcodeV2Response, 'scanId' | 'productId' | 'isFavourite'>> {
-    const resolvedProductId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
+    const resolvedProductId =
+      input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
     const isFavourite = await this.getFavouriteState(input.userId, resolvedProductId);
 
     return {
@@ -108,12 +121,12 @@ export class ProductAnalyzeV2Service {
     const scanId = finalState.analyzedProduct?.reusedExistingAnalysis
       ? finalState.analyzedProduct.scanId
       : await this.persistScanResult({
-        userId,
-        barcode,
-        source: 'barcode',
-        result: finalState.result,
-        productId: finalState.analyzedProduct?.productId,
-      });
+          userId,
+          barcode,
+          source: 'barcode',
+          result: finalState.result,
+          productId: finalState.analyzedProduct?.productId,
+        });
 
     const metadata = await this.buildResultMetadata({
       userId,
@@ -125,6 +138,31 @@ export class ProductAnalyzeV2Service {
     return {
       ...finalState.result,
       ...metadata,
+    };
+  }
+
+  async lookupBarcode(body: unknown, userId: string): Promise<ProductLookupResponse> {
+    const parsed = analyzeBarcodeRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
+    }
+
+    const { barcode } = parsed.data;
+    console.log(`[ProductAnalyzeV2Service] lookupBarcode — barcode=${barcode} userId=${userId}`);
+
+    const resolvedProduct = await resolveBarcodeProductContext({ barcode });
+
+    return {
+      success: true,
+      product: {
+        productId: resolvedProduct.productId ?? '',
+        barcode,
+        product_name: resolvedProduct.product.name,
+        product_name_english: null,
+        brands: resolvedProduct.product.brand,
+        image_url: resolvedProduct.product.imageUrl,
+        nutriscore_grade: null,
+      },
     };
   }
 
@@ -184,5 +222,67 @@ export class ProductAnalyzeV2Service {
       barcode: resolvedContext.product.code,
       ...metadata,
     };
+  }
+
+  async uploadPackagePhotos(
+    body: unknown,
+    userId: string,
+    files: UploadedPhotoFileV2[] = [],
+  ): Promise<{ success: true; photoCount: number; extraction: PackagePhotoExtractionResult }> {
+    const metadata =
+      typeof body === 'object' && body !== null && 'metadata' in body
+        ? (body as { metadata?: unknown }).metadata
+        : undefined;
+
+    this.logger.log(
+      `uploadPackagePhotos — userId=${userId} photoCount=${files.length} metadata=${
+        typeof metadata === 'string' ? metadata : 'none'
+      }`,
+    );
+
+    files.forEach((file, index) => {
+      this.logger.log(
+        `uploadPackagePhotos file[${index}] — size=${file.size} mimetype=${file.mimetype}`,
+      );
+    });
+
+    const extraction = await extractPackageProductData(
+      files,
+      createPackagePhotoTraceContext({
+        endpoint: 'package-photos',
+        files,
+        metadata,
+        provider: 'gemini',
+        userId,
+      }),
+    );
+    this.logger.log(`uploadPackagePhotos extraction — ${JSON.stringify(extraction)}`);
+
+    return {
+      extraction,
+      success: true,
+      photoCount: files.length,
+    };
+  }
+
+  async checkPackagePhotoCoverage(
+    body: unknown,
+    userId: string,
+    file?: UploadedPhotoFileV2,
+  ): Promise<PackagePhotoCoverageResult> {
+    if (!file) {
+      throw ApiError.badRequest('photo file is required');
+    }
+
+    const metadata =
+      typeof body === 'object' && body !== null && 'metadata' in body
+        ? (body as { metadata?: unknown }).metadata
+        : undefined;
+
+    this.logger.log(
+      `checkPackagePhotoCoverage — userId=${userId} size=${file.size} mimetype=${file.mimetype}`,
+    );
+
+    return checkPackagePhotoCoverageWithGemini(file, { metadata, userId });
   }
 }

@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 
 import { ApiError } from '../../shared/errors/api-error';
-import { prisma } from '../product-analyze/lib/prisma';
+import { prisma } from '../../shared/lib/prisma';
 
 export const FAMILY_MEMBERS_SUBSCRIPTION_ERROR = {
   code: 'SUBSCRIPTION_REQUIRED',

@@ -1,11 +1,6 @@
 import type { ScanDetailResponse, ScanHistoryResponse, SharedScanFilters } from '@acme/shared';
-import {
-  ANALYSIS_SOCKET_EVENTS,
-  type PersonalAnalysisSocketEventPayload,
-} from '@acme/shared';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef } from 'react';
-import { analysisSocket } from '../../../shared/lib/socket/analysisSocket';
+import { useMemo } from 'react';
 import { fetchScanDetail, fetchScanHistory } from '../api/scansApi';
 
 export const SCAN_HISTORY_QUERY_KEY = ['scans', 'history'] as const;
@@ -36,19 +31,9 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const useScanDetailQuery = (scanId: string | undefined) => {
   const queryClient = useQueryClient();
-  const hasInvalidatedRef = useRef(false);
-  const previousStatusRef = useRef<ScanDetailResponse['personalAnalysisStatus'] | undefined>(
-    undefined,
-  );
-
   const queryKey = useMemo(() => ['scans', 'detail', scanId] as const, [scanId]);
 
-  useEffect(() => {
-    hasInvalidatedRef.current = false;
-    previousStatusRef.current = undefined;
-  }, [scanId]);
-
-  const query = useQuery({
+  return useQuery({
     queryKey,
     enabled: Boolean(scanId),
     staleTime: 0,
@@ -64,81 +49,4 @@ export const useScanDetailQuery = (scanId: string | undefined) => {
       return data;
     },
   });
-
-  useEffect(() => {
-    const analysisId = query.data?.analysisId;
-    if (!analysisId || query.data?.personalAnalysisStatus !== 'pending') {
-      return;
-    }
-
-    const handleAnalysisEvent = (payload: PersonalAnalysisSocketEventPayload) => {
-      if (payload.analysisId !== analysisId) {
-        return;
-      }
-
-      queryClient.setQueryData<ScanDetailResponse | undefined>(
-        queryKey,
-        (current) => {
-        if (!current) {
-          return current;
-        }
-
-        return {
-          ...current,
-          analysisId: payload.analysisId,
-          personalAnalysisStatus: payload.status,
-          analysisResult: payload.result ?? current.analysisResult,
-        };
-        },
-      );
-
-      if (
-        !hasInvalidatedRef.current &&
-        (payload.status === 'completed' || payload.status === 'failed')
-      ) {
-        hasInvalidatedRef.current = true;
-        void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
-      }
-    };
-
-    const disposers = [
-      analysisSocket.on(ANALYSIS_SOCKET_EVENTS.subscribed, handleAnalysisEvent),
-      analysisSocket.on(
-        ANALYSIS_SOCKET_EVENTS.ingredientsStarted,
-        handleAnalysisEvent,
-      ),
-      analysisSocket.on(
-        ANALYSIS_SOCKET_EVENTS.ingredientsCompleted,
-        handleAnalysisEvent,
-      ),
-      analysisSocket.on(
-        ANALYSIS_SOCKET_EVENTS.ingredientsFailed,
-        handleAnalysisEvent,
-      ),
-    ];
-
-    analysisSocket.subscribe(analysisId);
-
-    return () => {
-      disposers.forEach((dispose) => dispose());
-      analysisSocket.unsubscribe(analysisId);
-    };
-  }, [query.data?.analysisId, query.data?.personalAnalysisStatus, queryClient, queryKey]);
-
-  useEffect(() => {
-    const status = query.data?.personalAnalysisStatus;
-
-    if (
-      !hasInvalidatedRef.current &&
-      previousStatusRef.current === 'pending' &&
-      (status === 'completed' || status === 'failed')
-    ) {
-      hasInvalidatedRef.current = true;
-      void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
-    }
-
-    previousStatusRef.current = status;
-  }, [query.data?.personalAnalysisStatus, queryClient]);
-
-  return query;
 };

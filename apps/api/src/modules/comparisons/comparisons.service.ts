@@ -9,7 +9,7 @@ import type {
 import { compareProductsResponseSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
-import { prisma } from '../product-analyze/lib/prisma';
+import { prisma } from '../../shared/lib/prisma';
 
 const DEFAULT_PAGE_SIZE = 20;
 const FILTERED_BATCH_MULTIPLIER = 3;

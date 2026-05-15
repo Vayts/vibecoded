@@ -9,7 +9,7 @@ import type {
 } from '../types/analyze-product-v2.types.js';
 import type { UploadedPhotoFileV2 } from '../types/analyze-photo-v2.types.js';
 import { ApiError } from '../../../shared/errors/api-error.js';
-import { prisma } from '../../product-analyze/lib/prisma.js';
+import { prisma } from '../../../shared/lib/prisma.js';
 import { buildCompareProfileResults } from '../utils/build-compare-profile-results.util.js';
 import { parsePhotoRequestV2 } from '../utils/parse-photo-request-v2.util.js';
 

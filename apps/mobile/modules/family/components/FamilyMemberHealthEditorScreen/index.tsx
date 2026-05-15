@@ -21,6 +21,7 @@ interface FamilyMemberHealthEditorScreenProps {
   buildPayload: () => UpdateFamilyMemberRequest;
   title: string;
   description: string;
+  isSubmitDisabled?: boolean;
   children: React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export function FamilyMemberHealthEditorScreen({
   buildPayload,
   title,
   description,
+  isSubmitDisabled = false,
   children,
 }: FamilyMemberHealthEditorScreenProps) {
   const router = useRouter();
@@ -138,6 +140,7 @@ export function FamilyMemberHealthEditorScreen({
         >
           <Button
             fullWidth
+            disabled={isSubmitDisabled}
             label="Submit"
             loading={updateMutation.isPending}
             onPress={() => {

@@ -1,5 +1,9 @@
 import type { CreateFamilyMemberRequest, FamilyMember } from '@acme/shared';
 import type { MainGoal, Restriction, Allergy, NutritionPriority } from '../../onboarding/stores/onboarding/types';
+import {
+  getOtherAllergyValidationError,
+  normalizeOtherAllergyText,
+} from '../../../shared/lib/validation/otherAllergy';
 import { create } from 'zustand';
 
 export interface FamilyMemberDraft {
@@ -124,15 +128,19 @@ export const useFamilyMemberFormStore = create<FamilyMemberFormStore>((set, get)
 
   toPayload: () => {
     const { draft } = get();
+    const otherAllergyError = getOtherAllergyValidationError(draft);
+
+    if (otherAllergyError) {
+      throw new Error(otherAllergyError);
+    }
+
     return {
       name: draft.name.trim(),
       avatarUrl: draft.avatarUrl,
       mainGoal: draft.mainGoal ?? undefined,
       restrictions: draft.restrictions,
       allergies: draft.allergies,
-      otherAllergiesText: draft.allergies.includes('OTHER')
-        ? draft.otherAllergiesText.trim() || null
-        : null,
+      otherAllergiesText: normalizeOtherAllergyText(draft),
       nutritionPriorities: draft.nutritionPriorities,
     };
   },

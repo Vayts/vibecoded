@@ -2,6 +2,7 @@ import { View } from 'react-native';
 
 import { Input } from '../../../../shared/components/Input';
 import { Typography } from '../../../../shared/components/Typography';
+import { getOtherAllergyValidationError } from '../../../../shared/lib/validation/otherAllergy';
 import { selectOnboardingDraft } from '../../stores/onboarding/selectors';
 import { useOnboardingStore } from '../../stores/onboarding/store';
 import {
@@ -56,6 +57,7 @@ export function AllergiesField() {
   const toggleAllergy = useOnboardingStore((state) => state.toggleAllergy);
   const setOtherAllergiesText = useOnboardingStore((state) => state.setOtherAllergiesText);
   const hasOther = draft.allergies.includes('OTHER');
+  const otherAllergyError = getOtherAllergyValidationError(draft);
 
   return (
     <>
@@ -76,6 +78,7 @@ export function AllergiesField() {
         <View className="mt-5">
           <Input
             label="Other allergy details"
+            error={otherAllergyError ?? undefined}
             maxLength={120}
             onChangeText={setOtherAllergiesText}
             placeholder="Tell us what to watch for"

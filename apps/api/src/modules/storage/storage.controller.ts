@@ -12,9 +12,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 import { AuthSessionService } from '../../shared/auth/auth-session.service';
 import { ApiError } from '../../shared/errors/api-error';
-import { getStoredObject } from '../product-analyze/lib/storage';
-import { MAX_PHOTO_UPLOAD_SIZE } from '../scanner-photo/scanner-photo.constants';
-import type { UploadedPhotoFile } from '../scanner-photo/scanner-photo.schemas';
+import { getStoredObject } from '../../shared/lib/storage';
+import { MAX_PHOTO_UPLOAD_SIZE, type UploadedImageFile } from '../../shared/utils/upload';
 import { StorageService } from './storage.service';
 
 const IMAGE_FILENAME_PATTERN = /^[\w.-]+$/;
@@ -48,7 +47,7 @@ export class StorageController {
       limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
     }),
   )
-  async uploadAvatar(@UploadedFile() file: UploadedPhotoFile | undefined, @Req() request: Request) {
+  async uploadAvatar(@UploadedFile() file: UploadedImageFile | undefined, @Req() request: Request) {
     await this.authSessionService.requireUserId(request);
     return this.storageService.uploadAvatar(file);
   }

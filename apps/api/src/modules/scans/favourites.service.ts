@@ -5,8 +5,8 @@ import { addFavouriteRequestSchema } from '@acme/shared';
 import { ApiError } from '../../shared/errors/api-error';
 import { resolveCanonicalProductImageUrl } from '../../shared/utils/product-image';
 import { buildProductSearchFilter, normalizeSearchQuery } from '../../shared/utils/product-search';
-import { prisma } from '../product-analyze/lib/prisma';
-import { productFactsAiOutputSchema } from '../product-analyze/domain/product-facts/schema';
+import { prisma } from '../../shared/lib/prisma';
+import { productFactsAiOutputSchema } from '../product-domain/domain/product-facts/schema';
 import { buildHistoryAnalysisSummary, matchesSharedScanFilters } from './scan-history-analysis';
 
 const DEFAULT_PAGE_SIZE = 20;

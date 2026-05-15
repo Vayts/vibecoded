@@ -1,16 +1,6 @@
-import type { NormalizedProduct } from '@acme/shared';
 import type { MainGoal } from '../../types/scoring.types.js';
-import { prisma } from '../../../product-analyze/lib/prisma.js';
-import {
-  lookupBarcode,
-  OpenFoodFactsLookupError,
-} from '../../../product-analyze/services/openfoodfacts-client.js';
-import { createProduct } from '../../../product-analyze/repositories/productRepository.js';
-import { findProductIdByBarcode } from '../../../product-analyze/repositories/scanRepository.js';
-import {
-  hasEnoughProductInformation,
-  normalizeOpenFoodFactsProduct,
-} from '../../utils/normalize-open-food-facts-product.util.js';
+import { prisma } from '../../../../shared/lib/prisma.js';
+import { normalizeOpenFoodFactsProduct } from '../../utils/normalize-open-food-facts-product.util.js';
 import { calculateNutritionScore } from '../../utils/calculate-nutrition-score.util.js';
 import type { ProfileInputForScoring } from '../../types/scoring.types.js';
 import type {
@@ -32,6 +22,8 @@ import {
   resolveProductRole,
 } from './analyze-barcode/profile-results.js';
 import { findReusableAnalyzedProductByBarcode as findReusableAnalyzedProductByBarcodeFromCache } from './analyze-barcode/cache-reuse.js';
+import { normalizeProfileInput } from '../../utils/normalize-profile-input.util.js';
+import { resolveBarcodeProductContext } from '../../utils/resolve-barcode-product.util.js';
 
 export interface AnalyzedProductByBarcodeResult {
   barcode: string;
@@ -105,7 +97,7 @@ export async function analyzeNormalizedProductForUser(input: {
   );
 
   // 4. Build profile inputs
-  const mainProfile: ProfileInputForScoring = {
+  const mainProfile = normalizeProfileInput({
     profileId: user.profile?.id ?? userId,
     profileType: 'user',
     displayName: user.name ?? null,
@@ -113,18 +105,20 @@ export async function analyzeNormalizedProductForUser(input: {
     restrictions: user.profile?.restrictions ?? [],
     allergies: user.profile?.allergies ?? [],
     otherAllergiesText: user.profile?.otherAllergiesText ?? null,
-  };
+  });
 
   const familyProfiles: ProfileInputForScoring[] = familyEnabled
-    ? user.familyMembers.map((member) => ({
-        profileId: member.id,
-        profileType: 'family_member' as const,
-        displayName: member.name,
-        mainGoal: (member.mainGoal as MainGoal | null) ?? null,
-        restrictions: member.restrictions ?? [],
-        allergies: member.allergies ?? [],
-        otherAllergiesText: member.otherAllergiesText ?? null,
-      }))
+    ? user.familyMembers.map((member) =>
+        normalizeProfileInput({
+          profileId: member.id,
+          profileType: 'family_member' as const,
+          displayName: member.name,
+          mainGoal: (member.mainGoal as MainGoal | null) ?? null,
+          restrictions: member.restrictions ?? [],
+          allergies: member.allergies ?? [],
+          otherAllergiesText: member.otherAllergiesText ?? null,
+        }),
+      )
     : [];
 
   const allProfiles: ProfileInputForScoring[] = [mainProfile, ...familyProfiles];
@@ -259,51 +253,11 @@ async function analyzeFreshProductByBarcode(input: {
 
   console.log(`[ProductAnalyzeV2] Starting barcode analysis — barcode=${barcode} userId=${userId}`);
 
-  // 1. Fetch product from Open Food Facts
-  console.log(`[ProductAnalyzeV2] Fetching product from OpenFoodFacts — barcode=${barcode}`);
-  let rawProduct: NormalizedProduct | null;
-  try {
-    rawProduct = await lookupBarcode(barcode);
-  } catch (err) {
-    console.log(JSON.stringify(err, null, 2));
-
-    if (err instanceof OpenFoodFactsLookupError) {
-      console.error(
-        `[ProductAnalyzeV2] OFF lookup error — code=${err.code} message=${err.message}`,
-      );
-      throw ApiError.badGateway(
-        'Product data service is temporarily unavailable',
-        'OFF_UPSTREAM_ERROR',
-      );
-    }
-    throw err;
-  }
-
-  if (!rawProduct) {
-    console.warn(`[ProductAnalyzeV2] Product not found — barcode=${barcode}`);
-    throw ApiError.notFound('Product not found for this barcode', 'PRODUCT_NOT_FOUND');
-  }
-
+  const resolvedProduct = await resolveBarcodeProductContext({ barcode });
+  const product = resolvedProduct.product;
   console.log(
-    `[ProductAnalyzeV2] Product fetched — name="${rawProduct.product_name ?? 'unknown'}"`,
+    `[ProductAnalyzeV2] Product resolved — source=${resolvedProduct.source} name="${product.name ?? 'unknown'}"`,
   );
-
-  // 2. Normalize product to V2 format
-  const product = normalizeOpenFoodFactsProduct(barcode, rawProduct);
-  console.log(
-    `[ProductAnalyzeV2] Product normalized — ingredients=${product.ingredients.length} allergens=${product.allergens.length}`,
-  );
-
-  if (!hasEnoughProductInformation(product)) {
-    console.warn(`[ProductAnalyzeV2] Product data insufficient — barcode=${barcode}`);
-    throw ApiError.unprocessable(
-      'Not enough information about product',
-      'INSUFFICIENT_PRODUCT_DATA',
-    );
-  }
-
-  await createProduct(rawProduct);
-  const productId = await findProductIdByBarcode(rawProduct.code);
   const result = await analyzeNormalizedProductForUser({
     product,
     userId,
@@ -314,7 +268,7 @@ async function analyzeFreshProductByBarcode(input: {
     barcode,
     result,
     reusedExistingAnalysis: false,
-    ...(productId ? { productId } : {}),
+    ...(resolvedProduct.productId ? { productId: resolvedProduct.productId } : {}),
   };
 }
 

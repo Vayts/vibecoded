@@ -1,4 +1,4 @@
-import { prisma } from '../../../../product-analyze/lib/prisma.js';
+import { prisma } from '../../../../../shared/lib/prisma.js';
 import type { AnalyzeBarcodeV2Response } from '../../../types/analyze-product-v2.types.js';
 import { hasEnoughProductInformation } from '../../../utils/normalize-open-food-facts-product.util.js';
 import { ApiError } from '../../../../../shared/errors/api-error.js';

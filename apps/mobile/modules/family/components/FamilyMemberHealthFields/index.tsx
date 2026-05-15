@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
 import { Input } from '../../../../shared/components/Input';
+import { getOtherAllergyValidationError } from '../../../../shared/lib/validation/otherAllergy';
 import { SelectableChip } from '../../../onboarding/components/SelectableChip';
 import {
   ALLERGY_OPTIONS,
@@ -53,6 +54,7 @@ export function FamilyMemberAllergiesField() {
   const draft = useFamilyMemberFormStore((state) => state.draft);
   const toggleAllergy = useFamilyMemberFormStore((state) => state.toggleAllergy);
   const setOtherAllergiesText = useFamilyMemberFormStore((state) => state.setOtherAllergiesText);
+  const otherAllergyError = getOtherAllergyValidationError(draft);
 
   return (
     <View>
@@ -73,6 +75,7 @@ export function FamilyMemberAllergiesField() {
         <View className="mt-5">
           <Input
             label="Other allergy details"
+            error={otherAllergyError ?? undefined}
             maxLength={120}
             onChangeText={setOtherAllergiesText}
             placeholder="Tell us what to watch for"

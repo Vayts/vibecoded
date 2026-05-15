@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { Injectable, Logger } from '@nestjs/common';
-import { prisma } from '../../product-analyze/lib/prisma';
+import { prisma } from '../../../shared/lib/prisma';
 import type { RevenueCatWebhookDto, RevenueCatWebhookEventDto } from './dto/revenuecat-webhook.dto';
 
 const ACTIVE_REVENUECAT_EVENTS = new Set([

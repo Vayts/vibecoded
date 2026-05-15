@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
-import { auth } from '../product-analyze/lib/auth';
+import { auth } from '../../shared/auth/auth';
 
 const METHODS_WITHOUT_BODY = new Set(['GET', 'HEAD']);
 

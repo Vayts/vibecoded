@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ApiError } from '../../shared/errors/api-error';
-import { getUserOnboarding, upsertUserOnboarding } from '../product-analyze/services/onboarding';
+import { getUserOnboarding, upsertUserOnboarding } from './services/onboarding';
 import { onboardingRequestSchema } from './me.schemas';
 
 @Injectable()

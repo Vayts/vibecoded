@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { Typography } from '../../../../shared/components/Typography';
 import { COLORS } from '../../../../shared/constants/colors';
 import LottieView from 'lottie-react-native';
-import LoaderAnim from '../../../../assets/lottie/loader.json';
+import LoaderAnim from '../../../../assets/lottie/searching.json';
 
 export function LaunchSplashScreen() {
   const animation = useRef<LottieView>(null);

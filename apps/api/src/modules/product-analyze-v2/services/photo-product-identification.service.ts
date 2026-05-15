@@ -1,14 +1,14 @@
 import type { NormalizedProduct } from '@acme/shared';
 import { ApiError } from '../../../shared/errors/api-error.js';
+import { processProductImage } from '../../../shared/lib/image-processing.js';
+import { uploadProductImage } from '../../../shared/lib/storage.js';
 import { resolveCanonicalProductImageUrl } from '../../../shared/utils/product-image.js';
-import { processProductImage } from '../../product-analyze/lib/image-processing.js';
-import { uploadProductImage } from '../../product-analyze/lib/storage.js';
 import {
   createProduct,
   findByBarcode,
   findByCanonicalProductText,
-} from '../../product-analyze/repositories/productRepository.js';
-import { findProductIdByBarcode } from '../../product-analyze/repositories/scanRepository.js';
+} from '../../product-domain/repositories/productRepository.js';
+import { findProductIdByBarcode } from '../../product-domain/repositories/scanRepository.js';
 import { attachPhotoImagePathV2 } from '../utils/attach-photo-image-path.util.js';
 import {
   mergePhotoProduct,
