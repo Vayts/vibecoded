@@ -4,12 +4,11 @@ import { Vibration } from 'react-native';
 import type {
   CapturedProductPhoto,
   PackagePhotoMissingField,
+  ProductPhotoCaptureFlow,
   ProductPhotoStep,
   ProductPhotoStepKey,
 } from '../types/productPhotoCapture';
 import { createMissingPanelStep, PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
-
-type ProductPhotoCaptureMode = 'camera' | 'preview';
 
 const isCapturedPhoto = (
   photo: CapturedProductPhoto | undefined,
@@ -38,14 +37,12 @@ const toOrderedCapturedPhotos = (
   return steps.map((step) => photosByStep[step.key]).filter(isCapturedPhoto);
 };
 
-export const useProductPhotoCaptureFlow = () => {
+export const useProductPhotoCaptureFlow = (): ProductPhotoCaptureFlow => {
   const cameraRef = useRef<CameraView | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [capturedByStep, setCapturedByStep] = useState<Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>>({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [mode, setMode] = useState<ProductPhotoCaptureMode>('camera');
-  const [pendingPhoto, setPendingPhoto] = useState<CapturedProductPhoto | null>(null);
   const [steps, setSteps] = useState<ProductPhotoStep[]>(PRODUCT_PHOTO_STEPS);
 
   const currentStep = steps[activeStepIndex] ?? steps[0];
@@ -54,9 +51,9 @@ export const useProductPhotoCaptureFlow = () => {
     [capturedByStep, steps],
   );
 
-  const capturePhoto = useCallback(async () => {
+  const capturePhoto = useCallback(async (): Promise<CapturedProductPhoto | null> => {
     if (isCapturing) {
-      return;
+      return null;
     }
 
     setErrorMessage(null);
@@ -73,24 +70,20 @@ export const useProductPhotoCaptureFlow = () => {
 
       if (!captured) {
         setErrorMessage('Could not capture the photo. Please try again.');
-        return;
+        return null;
       }
 
-      setPendingPhoto(captured);
-      setMode('preview');
+      return captured;
     } catch {
       setErrorMessage('Camera is not ready yet. Please try again.');
+      return null;
     } finally {
       setIsCapturing(false);
     }
   }, [currentStep, isCapturing]);
 
-  const acceptPendingPhoto = useCallback((): CapturedProductPhoto[] | null => {
-    if (!pendingPhoto) {
-      return null;
-    }
-
-    const nextCapturedByStep = { ...capturedByStep, [pendingPhoto.step]: pendingPhoto };
+  const acceptCapturedPhoto = useCallback((photo: CapturedProductPhoto): CapturedProductPhoto[] | null => {
+    const nextCapturedByStep = { ...capturedByStep, [photo.step]: photo };
 
     setCapturedByStep(nextCapturedByStep);
 
@@ -98,43 +91,25 @@ export const useProductPhotoCaptureFlow = () => {
       return toOrderedCapturedPhotos(nextCapturedByStep, steps);
     }
 
-    setPendingPhoto(null);
     setActiveStepIndex((current) => current + 1);
-    setMode('camera');
     return null;
-  }, [activeStepIndex, capturedByStep, pendingPhoto, steps]);
-
-  const retakePendingPhoto = useCallback(() => {
-    if (pendingPhoto) {
-      setCapturedByStep((current) => {
-        const next = { ...current };
-        delete next[pendingPhoto.step];
-        return next;
-      });
-    }
-
-    setPendingPhoto(null);
-    setMode('camera');
-  }, [pendingPhoto]);
+  }, [activeStepIndex, capturedByStep, steps]);
 
   const skipOptionalStep = useCallback((): CapturedProductPhoto[] | null => {
     if (!currentStep?.isOptional) {
       return null;
     }
 
-    setPendingPhoto(null);
     return capturedPhotos;
   }, [capturedPhotos, currentStep]);
 
   const requestMissingPanelStep = useCallback((missing: PackagePhotoMissingField[]) => {
     setSteps([...PRODUCT_PHOTO_STEPS, createMissingPanelStep(missing)]);
-    setPendingPhoto(null);
     setActiveStepIndex(PRODUCT_PHOTO_STEPS.length);
-    setMode('camera');
   }, []);
 
   return {
-    acceptPendingPhoto,
+    acceptCapturedPhoto,
     activeStepIndex,
     cameraRef,
     capturePhoto,
@@ -142,10 +117,7 @@ export const useProductPhotoCaptureFlow = () => {
     currentStep,
     errorMessage,
     isCapturing,
-    mode,
-    pendingPhoto,
     requestMissingPanelStep,
-    retakePendingPhoto,
     skipOptionalStep,
     totalSteps: steps.length,
   };

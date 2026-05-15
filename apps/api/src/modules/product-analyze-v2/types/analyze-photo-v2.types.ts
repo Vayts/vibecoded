@@ -66,8 +66,10 @@ export const geminiPackagePhotoExtractionResultSchema = z.object({
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 
+export const packagePhotoCoverageCodeSchema = z.number().int().min(0).max(3);
+
 export const packagePhotoCoverageResultSchema = z.object({
-  coverage: z.number().int().min(0).max(3),
+  coverage: packagePhotoCoverageCodeSchema,
 });
 
 export type UploadedPhotoFileV2 = UploadedImageFile;
@@ -83,6 +85,7 @@ export type GeminiPackagePhotoExtractionResult = z.infer<
   typeof geminiPackagePhotoExtractionResultSchema
 >;
 export type PackagePhotoExtractionResult = z.infer<typeof packagePhotoExtractionResultSchema>;
+export type PackagePhotoCoverageCode = z.infer<typeof packagePhotoCoverageCodeSchema>;
 export type PackagePhotoCoverageResult = z.infer<typeof packagePhotoCoverageResultSchema>;
 export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response & {
   barcode: string;

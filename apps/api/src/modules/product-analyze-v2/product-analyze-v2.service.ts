@@ -23,8 +23,8 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
+  type PackagePhotoCoverageCode,
   type PackagePhotoExtractionResult,
-  type PackagePhotoCoverageResult,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
@@ -269,7 +269,7 @@ export class ProductAnalyzeV2Service {
     body: unknown,
     userId: string,
     file?: UploadedPhotoFileV2,
-  ): Promise<PackagePhotoCoverageResult> {
+  ): Promise<PackagePhotoCoverageCode> {
     if (!file) {
       throw ApiError.badRequest('photo file is required');
     }
