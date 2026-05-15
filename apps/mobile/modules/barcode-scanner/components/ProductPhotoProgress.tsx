@@ -1,27 +1,28 @@
 import React from 'react';
 import { View } from 'react-native';
 import type { CapturedProductPhoto } from '../types/productPhotoCapture';
-import { PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
 
 interface ProductPhotoProgressProps {
   activeStepIndex: number;
   capturedPhotos: CapturedProductPhoto[];
+  totalSteps: number;
 }
 
 export function ProductPhotoProgress({
   activeStepIndex,
   capturedPhotos,
+  totalSteps,
 }: ProductPhotoProgressProps) {
-  const capturedSteps = new Set(capturedPhotos.map((photo) => photo.step));
+  const capturedCount = capturedPhotos.length;
 
   return (
     <View className="mt-2 flex-row gap-1.5">
-      {PRODUCT_PHOTO_STEPS.map((step, index) => {
+      {Array.from({ length: totalSteps }).map((_, index) => {
         const isActive = index === activeStepIndex;
-        const isCaptured = capturedSteps.has(step.key);
+        const isCaptured = index < capturedCount;
 
         return (
-          <View key={step.key} className="flex-1">
+          <View key={index} className="flex-1">
             <View
               className={`h-1 rounded-full ${
                 isActive || isCaptured ? 'bg-white' : 'bg-white/25'

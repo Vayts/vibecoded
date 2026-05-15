@@ -1,4 +1,4 @@
-import type { ProductPhotoStep } from '../types/productPhotoCapture';
+import type { PackagePhotoMissingField, ProductPhotoStep } from '../types/productPhotoCapture';
 
 export const PRODUCT_PHOTO_STEPS: ProductPhotoStep[] = [
   {
@@ -11,21 +11,41 @@ export const PRODUCT_PHOTO_STEPS: ProductPhotoStep[] = [
     isOptional: false,
   },
   {
-    key: 'nutritionIngredients',
-    title: 'Nutrition facts + ingredients',
-    shortTitle: 'Facts',
-    description: 'Capture the nutrition facts and ingredients together if they are on the same side.',
-    helperText: 'Make sure small text is sharp. Move closer if the panel is hard to read.',
-    captureLabel: 'Capture facts',
+    key: 'back',
+    title: 'Back of package',
+    shortTitle: 'Back',
+    description: 'Take a clear photo of the back side. We’ll check if it includes nutrition and ingredients.',
+    helperText: 'Keep the full back side visible and make small text sharp.',
+    captureLabel: 'Capture back',
     isOptional: false,
   },
-  {
-    key: 'extraPanel',
-    title: 'Extra side if needed',
-    shortTitle: 'Extra',
-    description: 'Optional: add another photo only if ingredients or nutrition facts are elsewhere.',
-    helperText: 'Skip this step when the previous photo already includes everything.',
-    captureLabel: 'Capture extra side',
-    isOptional: true,
-  },
 ];
+
+export const createMissingPanelStep = (missing: PackagePhotoMissingField[]): ProductPhotoStep => {
+  const needsBoth = missing.includes('nutritionFacts') && missing.includes('ingredients');
+  const needsNutrition = missing.includes('nutritionFacts');
+
+  if (needsBoth) {
+    return {
+      key: 'missingPanel',
+      title: 'Nutrition facts + ingredients',
+      shortTitle: 'Missing',
+      description: 'We still need a readable photo of the nutrition facts and ingredients.',
+      helperText: 'Find the side with the missing panels and keep the small text sharp.',
+      captureLabel: 'Capture missing panels',
+      isOptional: false,
+    };
+  }
+
+  return {
+    key: 'missingPanel',
+    title: needsNutrition ? 'Nutrition facts' : 'Ingredients list',
+    shortTitle: needsNutrition ? 'Nutrition' : 'Ingredients',
+    description: needsNutrition
+      ? 'We still need a readable photo of the nutrition facts panel.'
+      : 'We still need a readable photo of the ingredients list.',
+    helperText: 'Move close enough to make small text readable and avoid glare.',
+    captureLabel: needsNutrition ? 'Capture nutrition' : 'Capture ingredients',
+    isOptional: false,
+  };
+};

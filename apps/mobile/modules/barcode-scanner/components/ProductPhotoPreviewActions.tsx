@@ -8,12 +8,14 @@ interface ProductPhotoPreviewActionsProps {
   isSubmitting: boolean;
   onRetake: () => void;
   onUsePhoto: () => void;
+  usePhotoLabel?: string;
 }
 
 export function ProductPhotoPreviewActions({
   isSubmitting,
   onRetake,
   onUsePhoto,
+  usePhotoLabel,
 }: ProductPhotoPreviewActionsProps) {
   return (
     <View className="flex-row gap-3">
@@ -45,7 +47,7 @@ export function ProductPhotoPreviewActions({
       >
         <Check color={COLORS.white} size={20} />
         <Typography variant="button" className="text-white">
-          {isSubmitting ? 'Uploading…' : 'Use photo'}
+          {isSubmitting ? (usePhotoLabel ?? 'Uploading…') : 'Use photo'}
         </Typography>
       </TouchableOpacity>
     </View>

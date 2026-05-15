@@ -15,6 +15,7 @@ import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
 import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
 import type {
   AnalyzePhotoV2Response,
+  PackagePhotoCoverageResult,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import type {
@@ -89,6 +90,21 @@ export class ProductAnalyzeV2Controller {
   ): Promise<AnalyzePhotoV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.analyzePhoto(body, userId, file);
+  }
+
+  @Post('package-photos/coverage')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
+    }),
+  )
+  async checkPackagePhotoCoverage(
+    @Body() body: unknown,
+    @UploadedFile() file: UploadedPhotoFileV2 | undefined,
+    @Req() request: Request,
+  ): Promise<PackagePhotoCoverageResult> {
+    const userId = await this.authSessionService.requireUserId(request);
+    return this.productAnalyzeV2Service.checkPackagePhotoCoverage(body, userId, file);
   }
 
   @Post('package-photos')

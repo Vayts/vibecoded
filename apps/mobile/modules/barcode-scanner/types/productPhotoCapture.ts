@@ -1,4 +1,5 @@
-export type ProductPhotoStepKey = 'front' | 'nutritionIngredients' | 'extraPanel';
+export type ProductPhotoStepKey = 'front' | 'back' | 'missingPanel';
+export type PackagePhotoMissingField = 'nutritionFacts' | 'ingredients';
 
 export interface ProductPhotoStep {
   key: ProductPhotoStepKey;

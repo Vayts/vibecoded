@@ -10,15 +10,23 @@ import { ProductPhotoCaptureControls } from '../components/ProductPhotoCaptureCo
 import { ProductPhotoPreviewActions } from '../components/ProductPhotoPreviewActions';
 import { ProductPhotoProgress } from '../components/ProductPhotoProgress';
 import { ProductPhotoStepHint } from '../components/ProductPhotoStepHint';
-import { usePackagePhotosUploadMutation } from '../hooks/useBarcodeScannerMutations';
+import {
+  usePackagePhotoCoverageMutation,
+  usePackagePhotosUploadMutation,
+} from '../hooks/useBarcodeScannerMutations';
 import { useProductPhotoCaptureFlow } from '../hooks/useProductPhotoCaptureFlow';
-import type { CapturedProductPhoto } from '../types/productPhotoCapture';
+import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
+
+const FALLBACK_MISSING_FIELDS: PackagePhotoMissingField[] = ['nutritionFacts', 'ingredients'];
+const NUTRITION_MISSING_FIELDS: PackagePhotoMissingField[] = ['nutritionFacts'];
+const INGREDIENTS_MISSING_FIELDS: PackagePhotoMissingField[] = ['ingredients'];
 
 export function PhotoCapturePage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const flow = useProductPhotoCaptureFlow();
+  const coverageMutation = usePackagePhotoCoverageMutation();
   const packagePhotosMutation = usePackagePhotosUploadMutation();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
@@ -42,7 +50,45 @@ export function PhotoCapturePage() {
   };
 
   const handleUsePhoto = () => {
-    void uploadPackagePhotos(flow.acceptPendingPhoto());
+    void (async () => {
+      const pendingPhoto = flow.pendingPhoto;
+      const acceptedPhotos = flow.acceptPendingPhoto();
+
+      if (!acceptedPhotos?.length || !pendingPhoto) {
+        return;
+      }
+
+      if (pendingPhoto.step !== 'back') {
+        await uploadPackagePhotos(acceptedPhotos);
+        return;
+      }
+
+      setSubmissionError(null);
+
+      try {
+        const coverage = await coverageMutation.mutateAsync(pendingPhoto);
+
+        if (coverage.coverage === 1) {
+          await uploadPackagePhotos(acceptedPhotos);
+          return;
+        }
+
+        if (coverage.coverage === 0) {
+          setSubmissionError(
+            'We couldn’t read nutrition facts or ingredients. Please retake the back photo.',
+          );
+          flow.retakePendingPhoto();
+          return;
+        }
+
+        flow.requestMissingPanelStep(
+          coverage.coverage === 2 ? NUTRITION_MISSING_FIELDS : INGREDIENTS_MISSING_FIELDS,
+        );
+      } catch {
+        setSubmissionError('We need one more photo to finish reading the package.');
+        flow.requestMissingPanelStep(FALLBACK_MISSING_FIELDS);
+      }
+    })();
   };
 
   const handleSkipOptionalStep = () => {
@@ -72,6 +118,7 @@ export function PhotoCapturePage() {
 
   const previewUri = flow.pendingPhoto?.uri;
   const errorMessage = submissionError ?? flow.errorMessage;
+  const isProcessing = packagePhotosMutation.isPending || coverageMutation.isPending;
 
   return (
     <View className="flex-1 bg-black">
@@ -110,6 +157,7 @@ export function PhotoCapturePage() {
           <ProductPhotoProgress
             activeStepIndex={flow.activeStepIndex}
             capturedPhotos={flow.capturedPhotos}
+            totalSteps={flow.totalSteps}
           />
           {errorMessage ? (
             <Typography variant="bodySecondary" className="mt-2 text-center text-white">
@@ -122,14 +170,15 @@ export function PhotoCapturePage() {
 
         {flow.mode === 'preview' ? (
           <ProductPhotoPreviewActions
-            isSubmitting={packagePhotosMutation.isPending}
+            isSubmitting={isProcessing}
             onRetake={flow.retakePendingPhoto}
             onUsePhoto={handleUsePhoto}
+            usePhotoLabel={coverageMutation.isPending ? 'Checking…' : undefined}
           />
         ) : (
           <ProductPhotoCaptureControls
             isCapturing={flow.isCapturing}
-            isSubmitting={packagePhotosMutation.isPending}
+            isSubmitting={isProcessing}
             step={flow.currentStep}
             onCapture={flow.capturePhoto}
             onSkipOptional={handleSkipOptionalStep}

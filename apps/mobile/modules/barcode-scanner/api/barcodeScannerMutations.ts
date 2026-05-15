@@ -14,7 +14,12 @@ const packagePhotosUploadResponseSchema = z.object({
   photoCount: z.number().int().nonnegative(),
 });
 
+const packagePhotoCoverageResponseSchema = z.object({
+  coverage: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+});
+
 export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosUploadResponseSchema>;
+export type PackagePhotoCoverageResponse = z.infer<typeof packagePhotoCoverageResponseSchema>;
 
 interface ReactNativeFile {
   uri: string;
@@ -94,6 +99,39 @@ const buildPackagePhotosFormData = (photos: CapturedProductPhoto[]): FormData =>
   );
 
   return formData;
+};
+
+const buildPackagePhotoCoverageFormData = (photo: CapturedProductPhoto): FormData => {
+  const formData = new FormData();
+  const photoFile: ReactNativeFile = {
+    uri: photo.uri,
+    name: `package-photo-coverage-${photo.step}.jpg`,
+    type: 'image/jpeg',
+  };
+
+  formData.append('photo', photoFile as unknown as Blob);
+  formData.append(
+    'metadata',
+    JSON.stringify({ height: photo.height, step: photo.step, width: photo.width }),
+  );
+
+  return formData;
+};
+
+export const submitPackagePhotoCoverage = async (
+  photo: CapturedProductPhoto,
+): Promise<PackagePhotoCoverageResponse> => {
+  const response = await apiFetch('/product-analysis/package-photos/coverage', {
+    method: 'POST',
+    body: buildPackagePhotoCoverageFormData(photo),
+  });
+
+  if (!response.ok) {
+    await throwBarcodeScannerApiError(response, 'Unable to check product photo');
+  }
+
+  const json = await response.json();
+  return packagePhotoCoverageResponseSchema.parse(json);
 };
 
 export const submitPackagePhotos = async (

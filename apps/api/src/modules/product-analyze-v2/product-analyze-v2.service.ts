@@ -13,6 +13,7 @@ import {
   compareProductsV2,
   type PersistProductAnalyzeV2ScanInput,
 } from './services/compare-products-v2.service.js';
+import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
 import { extractPackageProductData } from './services/package-photo-extraction.service.js';
 import { createPackagePhotoTraceContext } from './services/package-photo-tracing.util.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
@@ -22,6 +23,7 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
+  type PackagePhotoCoverageResult,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
@@ -259,5 +261,26 @@ export class ProductAnalyzeV2Service {
       success: true,
       photoCount: files.length,
     };
+  }
+
+  async checkPackagePhotoCoverage(
+    body: unknown,
+    userId: string,
+    file?: UploadedPhotoFileV2,
+  ): Promise<PackagePhotoCoverageResult> {
+    if (!file) {
+      throw ApiError.badRequest('photo file is required');
+    }
+
+    const metadata =
+      typeof body === 'object' && body !== null && 'metadata' in body
+        ? (body as { metadata?: unknown }).metadata
+        : undefined;
+
+    this.logger.log(
+      `checkPackagePhotoCoverage — userId=${userId} size=${file.size} mimetype=${file.mimetype}`,
+    );
+
+    return checkPackagePhotoCoverageWithGemini(file, { metadata, userId });
   }
 }
