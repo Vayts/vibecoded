@@ -23,6 +23,7 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
+  type PackagePhotoExtractionResult,
   type PackagePhotoCoverageResult,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
@@ -227,7 +228,7 @@ export class ProductAnalyzeV2Service {
     body: unknown,
     userId: string,
     files: UploadedPhotoFileV2[] = [],
-  ): Promise<{ success: true; photoCount: number }> {
+  ): Promise<{ success: true; photoCount: number; extraction: PackagePhotoExtractionResult }> {
     const metadata =
       typeof body === 'object' && body !== null && 'metadata' in body
         ? (body as { metadata?: unknown }).metadata
@@ -258,6 +259,7 @@ export class ProductAnalyzeV2Service {
     this.logger.log(`uploadPackagePhotos extraction — ${JSON.stringify(extraction)}`);
 
     return {
+      extraction,
       success: true,
       photoCount: files.length,
     };

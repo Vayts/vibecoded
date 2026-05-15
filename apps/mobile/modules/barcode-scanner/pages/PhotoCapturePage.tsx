@@ -14,6 +14,7 @@ import {
   usePackagePhotoCoverageMutation,
   usePackagePhotosUploadMutation,
 } from '../hooks/useBarcodeScannerMutations';
+import { usePackagePhotoResultSheet } from '../hooks/usePackagePhotoResultSheet';
 import { useProductPhotoCaptureFlow } from '../hooks/useProductPhotoCaptureFlow';
 import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
 
@@ -28,6 +29,7 @@ export function PhotoCapturePage() {
   const flow = useProductPhotoCaptureFlow();
   const coverageMutation = usePackagePhotoCoverageMutation();
   const packagePhotosMutation = usePackagePhotosUploadMutation();
+  const { showPackagePhotoResult } = usePackagePhotoResultSheet();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const closePhotoGuide = () => {
@@ -42,8 +44,8 @@ export function PhotoCapturePage() {
     setSubmissionError(null);
 
     try {
-      await packagePhotosMutation.mutateAsync(photos);
-      router.back();
+      const result = await packagePhotosMutation.mutateAsync(photos);
+      await showPackagePhotoResult(result.extraction, () => router.back());
     } catch (error) {
       setSubmissionError(error instanceof Error ? error.message : 'Unable to upload product photos');
     }

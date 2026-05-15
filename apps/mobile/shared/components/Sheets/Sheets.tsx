@@ -11,6 +11,10 @@ import type {
   BarcodeScannerLookupSheetPayload,
 } from '../../../modules/barcode-scanner/types/barcodeScanner';
 import {
+  PackagePhotoResultSheet,
+  type PackagePhotoResultSheetPayload,
+} from '../../../modules/barcode-scanner/components/PackagePhotoResultSheet';
+import {
   DeleteAccountSheet,
   type DeleteAccountSheetPayload,
 } from '../../../modules/profile/components/DeleteAccountSheet';
@@ -42,6 +46,9 @@ declare module 'react-native-actions-sheet' {
     [SheetsEnum.BarcodeScannerErrorSheet]: SheetDefinition<{
       payload: BarcodeScannerErrorSheetPayload;
     }>;
+    [SheetsEnum.PackagePhotoResultSheet]: SheetDefinition<{
+      payload: PackagePhotoResultSheetPayload;
+    }>;
     [SheetsEnum.BasedOnYourProfileSheet]: SheetDefinition<{ payload: { title: string } }>;
     [SheetsEnum.DeleteAccountSheet]: SheetDefinition<{ payload: DeleteAccountSheetPayload }>;
     [SheetsEnum.ScannerResultSheet]: SheetDefinition<{ payload: ScannerResultSheetPayload }>;
@@ -63,6 +70,7 @@ export const Sheets = () => {
       sheets={{
         [SheetsEnum.BarcodeScannerLookupSheet]: BarcodeScannerLookupSheet,
         [SheetsEnum.BarcodeScannerErrorSheet]: BarcodeScannerErrorSheet,
+        [SheetsEnum.PackagePhotoResultSheet]: PackagePhotoResultSheet,
         [SheetsEnum.BasedOnYourProfileSheet]: BasedOnYourProfileSheet,
         [SheetsEnum.DeleteAccountSheet]: DeleteAccountSheet,
         [SheetsEnum.ScannerResultSheet]: ScannerResultSheet,

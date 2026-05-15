@@ -65,9 +65,11 @@ const summarizeFiles = (files: UploadedPhotoFileV2[]) => {
 
 const summarizeExtractionResult = (result: PackagePhotoExtractionResult) => ({
   ingredients: result.ingredients,
+  ingredientsEnglish: result.ingredientsEnglish,
   ingredientsCount: result.ingredients.length,
   productBrand: result.productBrand,
   productName: result.productName,
+  productNameEnglish: result.productNameEnglish,
   productRole: result.productRole,
   nutrition: result.nutrition,
   nutritionFieldCount: Object.values(result.nutrition).filter((value) => value !== null).length,

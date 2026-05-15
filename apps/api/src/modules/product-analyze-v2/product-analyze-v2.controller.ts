@@ -16,6 +16,7 @@ import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
 import type {
   AnalyzePhotoV2Response,
   PackagePhotoCoverageResult,
+  PackagePhotoExtractionResult,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import type {
@@ -31,6 +32,7 @@ interface CompareProductsV2UploadedFiles {
 interface PackagePhotosUploadResponse {
   success: true;
   photoCount: number;
+  extraction: PackagePhotoExtractionResult;
 }
 
 @Controller('product-analysis')

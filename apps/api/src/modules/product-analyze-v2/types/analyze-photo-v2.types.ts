@@ -48,17 +48,21 @@ export const geminiPackagePhotoNutritionSchema = z.object({
 
 export const packagePhotoExtractionResultSchema = z.object({
   productName: z.string().nullable(),
+  productNameEnglish: z.string().nullable(),
   productBrand: z.string().nullable(),
   productRole: z.enum(VALID_PRODUCT_ROLES).nullable(),
   ingredients: z.array(z.string()),
+  ingredientsEnglish: z.array(z.string().nullable()),
   nutrition: packagePhotoNutritionSchema,
 });
 
 export const geminiPackagePhotoExtractionResultSchema = z.object({
   productName: z.string().optional().default(''),
+  productNameEnglish: z.string().optional().default(''),
   productBrand: z.string().optional().default(''),
   productRole: z.enum(VALID_PRODUCT_ROLES).optional(),
   ingredients: z.array(z.string()).default([]),
+  ingredientsEnglish: z.array(z.string()).default([]),
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 

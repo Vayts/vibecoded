@@ -28,9 +28,11 @@ Return only facts that are directly visible in the images. Do not use outside kn
 
 Return one JSON object with exactly these fields:
 - productName: exact visible product name.
+- productNameEnglish: natural concise English translation of productName. If productName is already English, return the same name. Return null or omit only when productName is missing.
 - productBrand: exact visible brand.
 - productRole: choose exactly one product role from this list when the product type is clear: ${PRODUCT_ROLE_LIST}. Return null, or omit it for providers that do not support null in structured output, when the product role is not clear from the photos.
 - ingredients: array of visible ingredients. Split into individual items only when clearly readable.
+- ingredientsEnglish: English translations for ingredients, in exactly the same order as ingredients. If an ingredient is already English, return the same ingredient in English.
 - nutrition: object with only these keys:
   - fat_100g
   - salt_100g
@@ -44,6 +46,7 @@ Return one JSON object with exactly these fields:
 
 Rules:
 - Return ingredients as an empty array when they are not visible or cannot be separated reliably.
+- ingredientsEnglish must have the same length and order as ingredients.
 - Nutrition values must be taken only from rows explicitly shown per 100 g.
 - Ignore values shown only per serving, per portion, or per 100 ml.
 - If a value is not visible, return null, or omit it for providers that do not support null in structured output.
@@ -51,7 +54,7 @@ Rules:
 Return valid JSON only.`;
 
 export const PACKAGE_PHOTO_EXTRACTION_USER_PROMPT =
-  'Extract productName, productBrand, productRole, ingredients, and nutrition per 100 grams only from these package photos.';
+  'Extract productName, productNameEnglish, productBrand, productRole, ingredients, ingredientsEnglish, and nutrition per 100 grams only from these package photos.';
 
 export const toPackagePhotoInputs = (files: UploadedPhotoFileV2[]): PackagePhotoInput[] => {
   if (files.length === 0) {
@@ -97,10 +100,28 @@ const normalizeProductRole = (
   return value ?? null;
 };
 
-const toTrimmedUniqueList = (values: string[]): string[] => {
-  return values
-    .map((value) => value.trim())
-    .filter((value, index, list) => value.length > 0 && list.indexOf(value) === index);
+const normalizeIngredients = (
+  ingredients: string[],
+  translations: (string | null | undefined)[],
+) => {
+  const seen = new Set<string>();
+  const normalizedIngredients: string[] = [];
+  const normalizedTranslations: (string | null)[] = [];
+
+  ingredients.forEach((ingredient, index) => {
+    const normalizedIngredient = ingredient.trim();
+
+    if (!normalizedIngredient || seen.has(normalizedIngredient)) {
+      return;
+    }
+
+    const normalizedTranslation = translations[index]?.trim();
+    seen.add(normalizedIngredient);
+    normalizedIngredients.push(normalizedIngredient);
+    normalizedTranslations.push(normalizedTranslation ? normalizedTranslation : null);
+  });
+
+  return { ingredients: normalizedIngredients, ingredientsEnglish: normalizedTranslations };
 };
 
 const normalizeNutritionValue = (value: number | null | undefined): number | null => {
@@ -123,20 +144,30 @@ const normalizeNutrition = (
 
 export const normalizePackagePhotoExtractionResult = (
   result: PackagePhotoExtractionResult,
-): PackagePhotoExtractionResult => ({
-  productName: toNullableTrimmedText(result.productName),
-  productBrand: toNullableTrimmedText(result.productBrand),
-  productRole: normalizeProductRole(result.productRole),
-  ingredients: toTrimmedUniqueList(result.ingredients),
-  nutrition: normalizeNutrition(result.nutrition),
-});
+): PackagePhotoExtractionResult => {
+  const ingredients = normalizeIngredients(result.ingredients, result.ingredientsEnglish);
+
+  return {
+    productName: toNullableTrimmedText(result.productName),
+    productNameEnglish: toNullableTrimmedText(result.productNameEnglish),
+    productBrand: toNullableTrimmedText(result.productBrand),
+    productRole: normalizeProductRole(result.productRole),
+    ...ingredients,
+    nutrition: normalizeNutrition(result.nutrition),
+  };
+};
 
 export const normalizeGeminiPackagePhotoExtractionResult = (
   result: GeminiPackagePhotoExtractionResult,
-): PackagePhotoExtractionResult => ({
-  productName: toNullableTrimmedOptionalText(result.productName),
-  productBrand: toNullableTrimmedOptionalText(result.productBrand),
-  productRole: normalizeProductRole(result.productRole),
-  ingredients: toTrimmedUniqueList(result.ingredients),
-  nutrition: normalizeNutrition(result.nutrition),
-});
+): PackagePhotoExtractionResult => {
+  const ingredients = normalizeIngredients(result.ingredients, result.ingredientsEnglish);
+
+  return {
+    productName: toNullableTrimmedOptionalText(result.productName),
+    productNameEnglish: toNullableTrimmedOptionalText(result.productNameEnglish),
+    productBrand: toNullableTrimmedOptionalText(result.productBrand),
+    productRole: normalizeProductRole(result.productRole),
+    ...ingredients,
+    nutrition: normalizeNutrition(result.nutrition),
+  };
+};

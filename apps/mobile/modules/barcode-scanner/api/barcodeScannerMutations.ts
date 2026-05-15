@@ -9,9 +9,32 @@ import type { CapturedProductPhoto } from '../types/productPhotoCapture';
 
 export type BarcodeScannerLookupResponse = z.infer<typeof productLookupResponseSchema>;
 
+const packagePhotoNutritionSchema = z.object({
+  fat_100g: z.number().nullable(),
+  salt_100g: z.number().nullable(),
+  fiber_100g: z.number().nullable(),
+  sodium_100g: z.number().nullable(),
+  sugars_100g: z.number().nullable(),
+  proteins_100g: z.number().nullable(),
+  energy_kcal_100g: z.number().nullable(),
+  carbohydrates_100g: z.number().nullable(),
+  saturated_fat_100g: z.number().nullable(),
+});
+
+const packagePhotoExtractionSchema = z.object({
+  productName: z.string().nullable(),
+  productNameEnglish: z.string().nullable(),
+  productBrand: z.string().nullable(),
+  productRole: z.string().nullable(),
+  ingredients: z.array(z.string()),
+  ingredientsEnglish: z.array(z.string().nullable()),
+  nutrition: packagePhotoNutritionSchema,
+});
+
 const packagePhotosUploadResponseSchema = z.object({
   success: z.literal(true),
   photoCount: z.number().int().nonnegative(),
+  extraction: packagePhotoExtractionSchema,
 });
 
 const packagePhotoCoverageResponseSchema = z.object({
@@ -19,6 +42,7 @@ const packagePhotoCoverageResponseSchema = z.object({
 });
 
 export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosUploadResponseSchema>;
+export type PackagePhotoExtraction = z.infer<typeof packagePhotoExtractionSchema>;
 export type PackagePhotoCoverageResponse = z.infer<typeof packagePhotoCoverageResponseSchema>;
 
 interface ReactNativeFile {
