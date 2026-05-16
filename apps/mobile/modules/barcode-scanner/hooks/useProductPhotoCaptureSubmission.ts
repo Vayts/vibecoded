@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import type {
-  CapturedProductPhoto,
-  PackagePhotoMissingField,
-  ProductPhotoCaptureFlow,
-} from '../types/productPhotoCapture';
+import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
 import { usePackagePhotoResultSheet } from './usePackagePhotoResultSheet';
 import {
   usePackagePhotoCoverageMutation,
@@ -17,6 +13,12 @@ type PackagePhotoExtraction = Parameters<
   ReturnType<typeof usePackagePhotoResultSheet>['showPackagePhotoResult']
 >[0];
 
+interface ProductPhotoCaptureFlow {
+  acceptCapturedPhoto: (photo: CapturedProductPhoto) => CapturedProductPhoto[] | null;
+  capturePhoto: () => Promise<CapturedProductPhoto | null>;
+  requestMissingPanelStep: (missing: PackagePhotoMissingField[]) => void;
+  skipOptionalStep: () => CapturedProductPhoto[] | null;
+}
 
 const hasNutritionFacts = (coverage: PackagePhotoCoverageCode | null) =>
   coverage === 1 || coverage === 3;

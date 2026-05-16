@@ -186,3 +186,8 @@ export const useBarcodeScannerFlow = ({
     submitBarcode,
   };
 };
+
+
+
+
+

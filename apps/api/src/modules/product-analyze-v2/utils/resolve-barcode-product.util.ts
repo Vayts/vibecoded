@@ -62,7 +62,11 @@ export async function resolveBarcodeProductContext(input: {
   try {
     openFoodFactsProduct = await lookupBarcode(input.barcode);
   } catch (error) {
-    if (error instanceof OpenFoodFactsLookupError) {
+    console.log(error)
+      throw ApiError.badGateway(
+        'Product data service is temporarily unavailable',
+        'OFF_UPSTREAM_ERROR',
+      );
       throw createNotFoundError();
     }
 

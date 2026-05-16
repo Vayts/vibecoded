@@ -4,7 +4,6 @@ import { Vibration } from 'react-native';
 import type {
   CapturedProductPhoto,
   PackagePhotoMissingField,
-  ProductPhotoCaptureFlow,
   ProductPhotoStep,
   ProductPhotoStepKey,
 } from '../types/productPhotoCapture';
@@ -37,7 +36,7 @@ const toOrderedCapturedPhotos = (
   return steps.map((step) => photosByStep[step.key]).filter(isCapturedPhoto);
 };
 
-export const useProductPhotoCaptureFlow = (): ProductPhotoCaptureFlow => {
+export const useProductPhotoCaptureFlow = () => {
   const cameraRef = useRef<CameraView | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [capturedByStep, setCapturedByStep] = useState<Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>>({});
