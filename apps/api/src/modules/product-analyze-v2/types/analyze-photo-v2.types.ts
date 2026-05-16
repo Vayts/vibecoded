@@ -34,17 +34,29 @@ export const packagePhotoNutritionSchema = z.object({
   saturated_fat_100g: nullableNutritionValueSchema,
 });
 
-export const geminiPackagePhotoNutritionSchema = z.object({
-  fat_100g: z.number().optional(),
-  salt_100g: z.number().optional(),
-  fiber_100g: z.number().optional(),
-  sodium_100g: z.number().optional(),
-  sugars_100g: z.number().optional(),
-  proteins_100g: z.number().optional(),
-  energy_kcal_100g: z.number().optional(),
-  carbohydrates_100g: z.number().optional(),
-  saturated_fat_100g: z.number().optional(),
-});
+export const geminiPackagePhotoNutritionSchema = z
+  .object({
+    fat_100g: z.number().optional().describe('Total fat in grams per 100 g.'),
+    salt_100g: z
+      .number()
+      .optional()
+      .describe(
+        'Salt in grams per 100 g. If salt is missing but sodium is visible, use sodium_100g * 2.5.',
+      ),
+    fiber_100g: z.number().optional().describe('Dietary fiber in grams per 100 g.'),
+    sodium_100g: z
+      .number()
+      .optional()
+      .describe('Sodium in grams per 100 g. Convert visible milligrams to grams.'),
+    sugars_100g: z.number().optional().describe('Total sugars in grams per 100 g.'),
+    proteins_100g: z.number().optional().describe('Protein in grams per 100 g.'),
+    energy_kcal_100g: z.number().optional().describe('Energy in kcal per 100 g.'),
+    carbohydrates_100g: z.number().optional().describe('Total carbohydrates in grams per 100 g.'),
+    saturated_fat_100g: z.number().optional().describe('Saturated fat in grams per 100 g.'),
+  })
+  .describe(
+    'Nutrition values normalized to per 100 g. Use visible per-100g values directly, or convert visible per-serving values when serving size grams are visible.',
+  );
 
 export const packagePhotoExtractionResultSchema = z.object({
   productName: z.string().nullable(),
@@ -57,12 +69,22 @@ export const packagePhotoExtractionResultSchema = z.object({
 });
 
 export const geminiPackagePhotoExtractionResultSchema = z.object({
-  productName: z.string().optional().default(''),
-  productNameEnglish: z.string().optional().default(''),
-  productBrand: z.string().optional().default(''),
-  productRole: z.enum(VALID_PRODUCT_ROLES).optional(),
-  ingredients: z.array(z.string()).default([]),
-  ingredientsEnglish: z.array(z.string()).default([]),
+  productName: z.string().optional().default('').describe('Exact visible product name.'),
+  productNameEnglish: z
+    .string()
+    .optional()
+    .default('')
+    .describe('Natural concise English translation of productName.'),
+  productBrand: z.string().optional().default('').describe('Exact visible product brand.'),
+  productRole: z.enum(VALID_PRODUCT_ROLES).optional().describe('Best matching product type.'),
+  ingredients: z
+    .array(z.string())
+    .default([])
+    .describe('Visible ingredient list split into items.'),
+  ingredientsEnglish: z
+    .array(z.string())
+    .default([])
+    .describe('English translations of ingredients in exactly the same order.'),
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 

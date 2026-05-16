@@ -24,7 +24,7 @@ export const PACKAGE_PHOTO_EXTRACTION_PROMPT = `You extract structured food prod
 
 Use all provided images together. The photos may show the front label, nutrition facts, ingredients, or an extra side of the same package.
 
-Return only facts that are directly visible in the images. Do not use outside knowledge. Do not infer missing nutrition values. Do not convert per-serving values into per-100g values.
+Return only facts that are directly visible in the images. Do not use outside knowledge. Do not infer missing nutrition values. You may calculate per-100g nutrition only when both the nutrient value and the serving size weight in grams are directly visible on the package.
 
 Return one JSON object with exactly these fields:
 - productName: exact visible product name.
@@ -47,9 +47,15 @@ Return one JSON object with exactly these fields:
 Rules:
 - Return ingredients as an empty array when they are not visible or cannot be separated reliably.
 - ingredientsEnglish must have the same length and order as ingredients.
-- Nutrition values must be taken only from rows explicitly shown per 100 g.
-- Ignore values shown only per serving, per portion, or per 100 ml.
-- If a value is not visible, return null, or omit it for providers that do not support null in structured output.
+- Nutrition values must always be returned as per 100 g.
+- If the package explicitly shows a per-100 g column, use those values directly.
+- If the package only shows per-serving or per-portion values, convert them to per 100 g only when the serving size weight in grams is visible. Formula: value_per_100g = value_per_serving / serving_size_grams * 100.
+- Convert milligrams to grams for gram-based fields. Example: sodium 300 mg per 30 g serving => sodium_100g = 1.
+- If salt is not shown but sodium is visible or calculated, calculate salt_100g = sodium_100g * 2.5.
+- Do not use percent daily values for nutrition extraction.
+- Ignore values shown only per 100 ml.
+- If a specific nutrition value is not visible and cannot be calculated from visible values, return null, or omit it for providers that do not support null in structured output.
+- If a readable nutrition facts panel is visible, do not omit the nutrition object.
 
 Return valid JSON only.`;
 
@@ -80,11 +86,6 @@ export const toPackagePhotoInputs = (files: UploadedPhotoFileV2[]): PackagePhoto
       mimetype: file.mimetype,
     };
   });
-};
-
-const toNullableTrimmedText = (value: string | null): string | null => {
-  const normalized = value?.trim();
-  return normalized ? normalized : null;
 };
 
 const toNullableTrimmedOptionalText = (value?: string): string | null => {
@@ -141,21 +142,6 @@ const normalizeNutrition = (
   carbohydrates_100g: normalizeNutritionValue(nutrition?.carbohydrates_100g),
   saturated_fat_100g: normalizeNutritionValue(nutrition?.saturated_fat_100g),
 });
-
-export const normalizePackagePhotoExtractionResult = (
-  result: PackagePhotoExtractionResult,
-): PackagePhotoExtractionResult => {
-  const ingredients = normalizeIngredients(result.ingredients, result.ingredientsEnglish);
-
-  return {
-    productName: toNullableTrimmedText(result.productName),
-    productNameEnglish: toNullableTrimmedText(result.productNameEnglish),
-    productBrand: toNullableTrimmedText(result.productBrand),
-    productRole: normalizeProductRole(result.productRole),
-    ...ingredients,
-    nutrition: normalizeNutrition(result.nutrition),
-  };
-};
 
 export const normalizeGeminiPackagePhotoExtractionResult = (
   result: GeminiPackagePhotoExtractionResult,
