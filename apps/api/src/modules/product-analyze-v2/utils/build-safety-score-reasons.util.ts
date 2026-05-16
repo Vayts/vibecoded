@@ -29,9 +29,9 @@ const RESTRICTION_LABELS: Record<string, string> = {
 };
 
 const isValidAllergy = (value: string): value is keyof typeof ALLERGY_LABELS =>
-  Object.prototype.hasOwnProperty.call(ALLERGY_LABELS, value);
+  Object.hasOwn(ALLERGY_LABELS, value);
 const isValidRestriction = (value: string): value is keyof typeof RESTRICTION_LABELS =>
-  Object.prototype.hasOwnProperty.call(RESTRICTION_LABELS, value);
+  Object.hasOwn(RESTRICTION_LABELS, value);
 
 interface NegativeReasonInput {
   category: ScoreReasonCategory;
