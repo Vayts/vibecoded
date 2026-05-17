@@ -18,9 +18,9 @@ export default function Index() {
   useEffect(() => {
     Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
     if (Platform.OS === 'ios') {
-      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+      Purchases.configure({ apiKey: process.env.REVENUE_CAT_IOS_PUBLIC_API_KEY });
     } else if (Platform.OS === 'android') {
-      Purchases.configure({ apiKey: 'appl_QLTGfogYIgXoAWiuHsRhgxnWtyx' });
+      Purchases.configure({ apiKey: process.env.REVENUE_CAT_IOS_PUBLIC_API_KEY });
     }
   }, []);
 
