@@ -1,4 +1,5 @@
 import type {
+  PackagePhotoCoverageCode,
   PackagePhotoExtractionResult,
   PackagePhotoMissingField,
   UploadedPhotoFileV2,
@@ -120,12 +121,41 @@ export const extractAndMergePackagePhotos = async (
   return mergePackagePhotoExtractions(extractions);
 };
 
+const hasPackagePhotoIngredients = (extraction: PackagePhotoExtractionResult): boolean => {
+  return extraction.ingredients.length > 0;
+};
+
+const hasPackagePhotoNutritionFacts = (extraction: PackagePhotoExtractionResult): boolean => {
+  return NUTRITION_KEYS.some((key) => extraction.nutrition[key] !== null);
+};
+
+export const getPackagePhotoCoverageCode = (
+  extraction: PackagePhotoExtractionResult,
+): PackagePhotoCoverageCode => {
+  const hasIngredients = hasPackagePhotoIngredients(extraction);
+  const hasNutritionFacts = hasPackagePhotoNutritionFacts(extraction);
+
+  if (hasIngredients && hasNutritionFacts) {
+    return 1;
+  }
+
+  if (hasIngredients) {
+    return 2;
+  }
+
+  if (hasNutritionFacts) {
+    return 3;
+  }
+
+  return 0;
+};
+
 export const getMissingPackagePhotoFields = (
   extraction: PackagePhotoExtractionResult,
 ): PackagePhotoMissingField[] => {
   const missingFields: PackagePhotoMissingField[] = [];
-  const hasIngredients = extraction.ingredients.length > 0;
-  const hasNutritionFacts = NUTRITION_KEYS.some((key) => extraction.nutrition[key] !== null);
+  const hasIngredients = hasPackagePhotoIngredients(extraction);
+  const hasNutritionFacts = hasPackagePhotoNutritionFacts(extraction);
 
   if (!hasIngredients) {
     missingFields.push('ingredients');

@@ -12,7 +12,10 @@ import {
   type CompareProductsV2UploadedFiles,
   compareProductsV2,
 } from './services/compare-products-v2.service.js';
-import { uploadPackagePhotosV2 } from './services/package-photo-analysis-flow.service.js';
+import {
+  checkPackagePhotosCoverageV2,
+  uploadPackagePhotosV2,
+} from './services/package-photo-analysis-flow.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -20,6 +23,7 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
+  type PackagePhotosCoverageResponse,
   type PackagePhotosV2Response,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
@@ -168,6 +172,18 @@ export class ProductAnalyzeV2Service {
       files,
       persistScanResult: persistProductAnalyzeV2Scan,
       buildResultMetadata: buildProductAnalyzeV2ResultMetadata,
+    });
+  }
+
+  checkPackagePhotosCoverage(
+    body: unknown,
+    userId: string,
+    files: UploadedPhotoFileV2[] = [],
+  ): Promise<PackagePhotosCoverageResponse> {
+    return checkPackagePhotosCoverageV2({
+      body,
+      userId,
+      files,
     });
   }
 }

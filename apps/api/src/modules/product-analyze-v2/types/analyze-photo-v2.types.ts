@@ -108,4 +108,13 @@ export interface PackagePhotosNeedsMoreResponse {
   message: string;
 }
 
+export type PackagePhotoCoverageCode = 0 | 1 | 2 | 3;
+
+export interface PackagePhotosCoverageResponse {
+  status: 'complete' | 'needs_more_photos';
+  coverage: PackagePhotoCoverageCode;
+  missingFields: PackagePhotoMissingField[];
+  message?: string;
+}
+
 export type PackagePhotosV2Response = AnalyzePhotoV2Response | PackagePhotosNeedsMoreResponse;

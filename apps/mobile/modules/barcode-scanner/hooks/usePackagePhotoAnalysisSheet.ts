@@ -73,7 +73,13 @@ export const usePackagePhotoAnalysisSheet = ({ onCompleted }: PackagePhotoAnalys
     void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
   };
 
+  const closeAnalysisSheet = async () => {
+    shouldCompleteOnCloseRef.current = false;
+    await SheetManager.hide(SheetsEnum.ScannerResultSheet);
+  };
+
   return {
+    closeAnalysisSheet,
     hydrateAnalysisSheet,
     openAnalysisSheet,
   };

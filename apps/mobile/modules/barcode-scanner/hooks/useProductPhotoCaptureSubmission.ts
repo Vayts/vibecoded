@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
-import { usePackagePhotosUploadMutation } from './useBarcodeScannerMutations';
+import {
+  usePackagePhotosCoverageMutation,
+  usePackagePhotosUploadMutation,
+} from './useBarcodeScannerMutations';
 import { usePackagePhotoAnalysisSheet } from './usePackagePhotoAnalysisSheet';
 import type { PackagePhotosUploadResponse } from '../api/barcodeScannerMutations';
 
@@ -28,14 +31,17 @@ export const useProductPhotoCaptureSubmission = ({
   flow,
   onCompleted,
 }: ProductPhotoCaptureSubmissionOptions) => {
+  const coverageMutation = usePackagePhotosCoverageMutation();
   const packagePhotosMutation = usePackagePhotosUploadMutation();
-  const { hydrateAnalysisSheet, openAnalysisSheet } = usePackagePhotoAnalysisSheet({ onCompleted });
+  const { closeAnalysisSheet, hydrateAnalysisSheet, openAnalysisSheet } = usePackagePhotoAnalysisSheet({
+    onCompleted,
+  });
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const uploadPackagePhotos = async (photos: CapturedProductPhoto[] | null) => {
     const normalizedBarcode = barcode.trim();
 
-    if (!photos?.length || packagePhotosMutation.isPending) {
+    if (!photos?.length || coverageMutation.isPending || packagePhotosMutation.isPending) {
       return;
     }
 
@@ -46,21 +52,39 @@ export const useProductPhotoCaptureSubmission = ({
 
     setSubmissionError(null);
 
+    let didOpenAnalysisSheet = false;
+
     try {
+      const coverage = await coverageMutation.mutateAsync({
+        barcode: normalizedBarcode,
+        photos,
+      });
+
+      if (coverage.status === 'needs_more_photos') {
+        flow.requestMissingFieldsStep(coverage.missingFields);
+        setSubmissionError(coverage.message ?? 'Add one more clear product photo.');
+        return;
+      }
+
+      const sessionId = openAnalysisSheet(normalizedBarcode, photos);
+      didOpenAnalysisSheet = true;
       const result = await packagePhotosMutation.mutateAsync({
         barcode: normalizedBarcode,
         photos,
       });
 
       if (isNeedsMorePhotosResponse(result)) {
+        await closeAnalysisSheet();
         flow.requestMissingFieldsStep(result.missingFields);
         setSubmissionError(result.message);
         return;
       }
 
-      const sessionId = openAnalysisSheet(normalizedBarcode, photos);
       hydrateAnalysisSheet(sessionId, result);
     } catch (error) {
+      if (didOpenAnalysisSheet) {
+        await closeAnalysisSheet();
+      }
       setSubmissionError(
         error instanceof Error ? error.message : 'Unable to upload product photos',
       );
@@ -87,7 +111,7 @@ export const useProductPhotoCaptureSubmission = ({
   return {
     handleCapturePhoto,
     handleSkipOptionalStep,
-    isProcessing: packagePhotosMutation.isPending,
+    isProcessing: coverageMutation.isPending || packagePhotosMutation.isPending,
     submissionError,
   };
 };

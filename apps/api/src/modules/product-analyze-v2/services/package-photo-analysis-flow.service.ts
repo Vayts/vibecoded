@@ -9,6 +9,7 @@ import {
 import { analyzeNormalizedProductForUser } from '../langgraph/nodes/analyze-barcode.node.js';
 import type { AnalyzeBarcodeV2Response } from '../types/analyze-product-v2.types.js';
 import type {
+  PackagePhotosCoverageResponse,
   PackagePhotosV2Response,
   UploadedPhotoFileV2,
 } from '../types/analyze-photo-v2.types.js';
@@ -21,6 +22,7 @@ import { formatLogContext } from '../utils/product-analyze-v2-logger.util.js';
 import {
   buildMissingPackagePhotoMessage,
   extractAndMergePackagePhotos,
+  getPackagePhotoCoverageCode,
   getMissingPackagePhotoFields,
 } from './package-photo-extraction-merge.service.js';
 import { attachFrontPackagePhotoImage } from './package-photo-image.service.js';
@@ -54,6 +56,54 @@ const logUploadedFiles = (files: UploadedPhotoFileV2[]): void => {
     logger.log(`uploadPackagePhotos file[${index}] — size=${file.size} mimetype=${file.mimetype}`);
   });
 };
+
+interface PackagePhotoCoverageInput {
+  body: unknown;
+  userId: string;
+  files: UploadedPhotoFileV2[];
+}
+
+export async function checkPackagePhotosCoverageV2(
+  input: PackagePhotoCoverageInput,
+): Promise<PackagePhotosCoverageResponse> {
+  const parsed = packagePhotosRequestSchema.safeParse(input.body);
+  if (!parsed.success) {
+    throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
+  }
+
+  const { barcode, metadata } = parsed.data;
+  logger.log(
+    `checkPackagePhotosCoverage ${formatLogContext({
+      barcode,
+      photoCount: input.files.length,
+      hasMetadata: metadata !== undefined,
+    })}`,
+  );
+  logUploadedFiles(input.files);
+
+  const extraction = await extractAndMergePackagePhotos({
+    files: input.files,
+    metadata,
+    userId: input.userId,
+  });
+  const missingFields = getMissingPackagePhotoFields(extraction);
+  const coverage = getPackagePhotoCoverageCode(extraction);
+
+  if (missingFields.length > 0) {
+    return {
+      status: 'needs_more_photos',
+      coverage,
+      missingFields,
+      message: buildMissingPackagePhotoMessage(missingFields),
+    };
+  }
+
+  return {
+    status: 'complete',
+    coverage,
+    missingFields,
+  };
+}
 
 export async function uploadPackagePhotosV2(
   input: PackagePhotoFlowInput,

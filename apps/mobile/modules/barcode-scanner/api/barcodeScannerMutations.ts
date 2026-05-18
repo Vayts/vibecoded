@@ -23,12 +23,20 @@ const packagePhotosNeedsMoreResponseSchema = z.object({
   message: z.string(),
 });
 
+const packagePhotoCoverageResponseSchema = z.object({
+  status: z.enum(['complete', 'needs_more_photos']),
+  coverage: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+  missingFields: z.array(z.enum(['ingredients', 'nutritionFacts'])),
+  message: z.string().optional(),
+});
+
 const packagePhotosResponseSchema = z.union([
   packagePhotosNeedsMoreResponseSchema,
   packagePhotosUploadResponseSchema,
 ]);
 
 export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosResponseSchema>;
+export type PackagePhotoCoverageResponse = z.infer<typeof packagePhotoCoverageResponseSchema>;
 
 interface ReactNativeFile {
   uri: string;
@@ -134,4 +142,21 @@ export const submitPackagePhotos = async (input: {
 
   const json = await response.json();
   return packagePhotosResponseSchema.parse(json);
+};
+
+export const submitPackagePhotosCoverage = async (input: {
+  barcode: string;
+  photos: CapturedProductPhoto[];
+}): Promise<PackagePhotoCoverageResponse> => {
+  const response = await apiFetch('/product-analysis/package-photos/coverage', {
+    method: 'POST',
+    body: buildPackagePhotosFormData(input),
+  });
+
+  if (!response.ok) {
+    await throwBarcodeScannerApiError(response, 'Unable to check product photo coverage');
+  }
+
+  const json = await response.json();
+  return packagePhotoCoverageResponseSchema.parse(json);
 };
