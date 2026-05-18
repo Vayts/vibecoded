@@ -32,6 +32,8 @@ export interface ProductPhotoCaptureFlow {
   errorMessage: string | null;
   isCapturing: boolean;
   requestMissingFieldsStep: (missing: PackagePhotoMissingField[]) => void;
+  savedStepTitle: string | null;
   skipOptionalStep: () => CapturedProductPhoto[] | null;
+  steps: ProductPhotoStep[];
   totalSteps: number;
 }

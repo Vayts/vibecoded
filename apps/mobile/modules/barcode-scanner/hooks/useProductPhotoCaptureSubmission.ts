@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
+import type { CapturedProductPhoto, ProductPhotoCaptureFlow } from '../types/productPhotoCapture';
 import {
   usePackagePhotosCoverageMutation,
   usePackagePhotosUploadMutation,
@@ -7,12 +7,10 @@ import {
 import { usePackagePhotoAnalysisSheet } from './usePackagePhotoAnalysisSheet';
 import type { PackagePhotosUploadResponse } from '../api/barcodeScannerMutations';
 
-interface ProductPhotoCaptureFlow {
-  acceptCapturedPhoto: (photo: CapturedProductPhoto) => CapturedProductPhoto[] | null;
-  capturePhoto: () => Promise<CapturedProductPhoto | null>;
-  requestMissingFieldsStep: (missing: PackagePhotoMissingField[]) => void;
-  skipOptionalStep: () => CapturedProductPhoto[] | null;
-}
+type ProductPhotoCaptureSubmissionFlow = Pick<
+  ProductPhotoCaptureFlow,
+  'acceptCapturedPhoto' | 'capturePhoto' | 'requestMissingFieldsStep' | 'skipOptionalStep'
+>;
 
 const isNeedsMorePhotosResponse = (
   response: PackagePhotosUploadResponse,
@@ -22,7 +20,7 @@ const isNeedsMorePhotosResponse = (
 
 interface ProductPhotoCaptureSubmissionOptions {
   barcode: string;
-  flow: ProductPhotoCaptureFlow;
+  flow: ProductPhotoCaptureSubmissionFlow;
   onCompleted: () => void;
 }
 
@@ -33,9 +31,10 @@ export const useProductPhotoCaptureSubmission = ({
 }: ProductPhotoCaptureSubmissionOptions) => {
   const coverageMutation = usePackagePhotosCoverageMutation();
   const packagePhotosMutation = usePackagePhotosUploadMutation();
-  const { closeAnalysisSheet, hydrateAnalysisSheet, openAnalysisSheet } = usePackagePhotoAnalysisSheet({
-    onCompleted,
-  });
+  const { closeAnalysisSheet, hydrateAnalysisSheet, openAnalysisSheet } =
+    usePackagePhotoAnalysisSheet({
+      onCompleted,
+    });
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const uploadPackagePhotos = async (photos: CapturedProductPhoto[] | null) => {

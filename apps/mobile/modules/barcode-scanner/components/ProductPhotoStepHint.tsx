@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, View } from 'react-native';
 import { Typography } from '../../../shared/components/Typography';
 import { COLORS } from '../../../shared/constants/colors';
 import type { ProductPhotoStep } from '../types/productPhotoCapture';
@@ -15,10 +15,31 @@ export function ProductPhotoStepHint({
   step,
   totalSteps,
 }: ProductPhotoStepHintProps) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(8);
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        duration: 180,
+        toValue: 1,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        duration: 180,
+        toValue: 0,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, step.key, translateY]);
+
   return (
-    <View
+    <Animated.View
       className="rounded-[18px] px-3 py-3"
-      style={{ backgroundColor: COLORS.overlayStrong }}
+      style={{ backgroundColor: COLORS.overlayStrong, opacity, transform: [{ translateY }] }}
     >
       <View className="flex-row items-center gap-2">
         <Typography variant="caption" className="text-white/70">
@@ -39,7 +60,6 @@ export function ProductPhotoStepHint({
       <Typography variant="bodySecondary" className="mt-1.5 text-white/85" numberOfLines={2}>
         {step.description}
       </Typography>
-    </View>
+    </Animated.View>
   );
 }
-

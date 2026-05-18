@@ -8,6 +8,7 @@ import { Typography } from '../../../shared/components/Typography';
 import { BarcodeScannerPermissionState } from '../components/BarcodeScannerPermissionState';
 import { ProductPhotoCaptureControls } from '../components/ProductPhotoCaptureControls';
 import { ProductPhotoProgress } from '../components/ProductPhotoProgress';
+import { ProductPhotoSavedOverlay } from '../components/ProductPhotoSavedOverlay';
 import { ProductPhotoStepHint } from '../components/ProductPhotoStepHint';
 import { useProductPhotoCaptureSubmission } from '../hooks/useProductPhotoCaptureSubmission';
 import { useProductPhotoCaptureFlow } from '../hooks/useProductPhotoCaptureFlow';
@@ -84,7 +85,7 @@ export function PhotoCapturePage() {
           <ProductPhotoProgress
             activeStepIndex={flow.activeStepIndex}
             completedStepCount={flow.completedStepCount}
-            totalSteps={flow.totalSteps}
+            steps={flow.steps}
           />
           {errorMessage ? (
             <Typography variant="bodySecondary" className="mt-2 text-center text-white">
@@ -94,6 +95,8 @@ export function PhotoCapturePage() {
         </View>
 
         <View className="flex-1" />
+
+        <ProductPhotoSavedOverlay stepTitle={flow.savedStepTitle} />
 
         <ProductPhotoCaptureControls
           isCapturing={flow.isCapturing}
