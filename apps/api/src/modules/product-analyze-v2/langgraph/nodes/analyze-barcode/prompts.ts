@@ -117,7 +117,8 @@ Product role:
 - Return product.englishName only when the original product name is clearly non-English and you can translate it confidently into natural concise English.
 - If the product name is already English, mostly English, just a brand, or not confidently translatable, return product.englishName=null.
 - Translate the product name only, not the brand.
-- Choose the closest allowed product.role from the schema enum.
+- Choose exactly one allowed product.role from the schema enum.
+- Never invent a new role label, paraphrase a role, or return a near-synonym such as whole_food.
 - Use short evidence.
 
 Non-food handling:
@@ -222,8 +223,9 @@ Task:
 - If there are no relevant direct conflicts and no relevant warnings, canIHaveThis should normally be yes.
 - Keep the advice practical, human, and slightly polished like a premium nutrition guide.
 - canIHaveThis.reason must be exactly 2 short English sentences.
-- Sentence 1 must start with Yes –, Warning –, or No – and give the clear permission verdict.
-- Sentence 2 must give grounded eating guidance based on the product role, ingredients, traces, and nutrition facts, such as breakfast, snack, occasional treat, balanced meal, or portion guidance.
+- Sentence 1 must start with Yes –, Warning –, or No – and give only the permission verdict.
+- Sentence 2 must give concise eating guidance based on product role, ingredients, traces, and nutrition facts.
+- Maximum 25 words total.
 - Only mention breakfast, snack, meal, treat, or portion size when the provided product facts support it.
 - Keep the copy varied and avoid repetitive templates.
 - Do not repeat the same concern in both sentences.

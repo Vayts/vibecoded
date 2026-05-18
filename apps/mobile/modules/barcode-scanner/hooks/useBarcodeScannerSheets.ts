@@ -42,7 +42,10 @@ export const useBarcodeScannerSheets = ({
             input.variant === 'not-found'
               ? () => {
                   InteractionManager.runAfterInteractions(() => {
-                    router.push('/scanner/photo');
+                    router.push({
+                      pathname: '/scanner/photo',
+                      params: { barcode: input.barcode },
+                    });
                   });
                 }
               : undefined,

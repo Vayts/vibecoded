@@ -39,7 +39,10 @@ const buildPhotoContent = (photos: ReturnType<typeof toPackagePhotoInputs>) => {
   ]);
 };
 
-const tracedExtractPackageProductDataWithGemini = traceable(
+export const extractPackageProductDataWithGemini: (
+  files: UploadedPhotoFileV2[],
+  traceContext: PackagePhotoTraceContext,
+) => Promise<PackagePhotoExtractionResult> = traceable(
   async (
     files: UploadedPhotoFileV2[],
     traceContext: PackagePhotoTraceContext,
@@ -88,10 +91,3 @@ const tracedExtractPackageProductDataWithGemini = traceable(
   },
   createPackagePhotoTraceableConfig('gemini'),
 );
-
-export async function extractPackageProductDataWithGemini(
-  files: UploadedPhotoFileV2[],
-  traceContext: PackagePhotoTraceContext,
-): Promise<PackagePhotoExtractionResult> {
-  return tracedExtractPackageProductDataWithGemini(files, traceContext);
-}

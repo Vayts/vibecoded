@@ -6,6 +6,9 @@ import {
   photoOcrPayloadV2Schema,
   type PhotoOcrPayloadV2,
 } from '../types/analyze-photo-v2.types.js';
+import { createProductAnalyzeV2Logger } from '../utils/product-analyze-v2-logger.util.js';
+
+const logger = createProductAnalyzeV2Logger('photo-ocr');
 
 interface StructuredInvoker<T> {
   invoke(input: unknown): Promise<T>;
@@ -35,7 +38,7 @@ export async function extractTextFromPhotoV2(
   imageBase64: string,
 ): Promise<PhotoOcrPayloadV2 | null> {
   if (!process.env.OPENAI_API_KEY) {
-    console.error('[ProductAnalyzeV2:photo-ocr] OPENAI_API_KEY is not set');
+    logger.error('OPENAI_API_KEY is not set');
     return null;
   }
 

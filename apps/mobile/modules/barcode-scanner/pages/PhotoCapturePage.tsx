@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { View } from 'react-native';
@@ -8,16 +8,23 @@ import { Typography } from '../../../shared/components/Typography';
 import { BarcodeScannerPermissionState } from '../components/BarcodeScannerPermissionState';
 import { ProductPhotoCaptureControls } from '../components/ProductPhotoCaptureControls';
 import { ProductPhotoProgress } from '../components/ProductPhotoProgress';
+import { ProductPhotoSavedOverlay } from '../components/ProductPhotoSavedOverlay';
 import { ProductPhotoStepHint } from '../components/ProductPhotoStepHint';
 import { useProductPhotoCaptureSubmission } from '../hooks/useProductPhotoCaptureSubmission';
 import { useProductPhotoCaptureFlow } from '../hooks/useProductPhotoCaptureFlow';
 
 export function PhotoCapturePage() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ barcode?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const flow = useProductPhotoCaptureFlow();
-  const submission = useProductPhotoCaptureSubmission({ flow, onCompleted: () => router.back() });
+  const barcode = Array.isArray(params.barcode) ? params.barcode[0] : params.barcode;
+  const submission = useProductPhotoCaptureSubmission({
+    barcode: barcode ?? '',
+    flow,
+    onCompleted: () => router.back(),
+  });
 
   const closePhotoGuide = () => {
     router.back();
@@ -77,8 +84,8 @@ export function PhotoCapturePage() {
           />
           <ProductPhotoProgress
             activeStepIndex={flow.activeStepIndex}
-            capturedPhotos={flow.capturedPhotos}
-            totalSteps={flow.totalSteps}
+            completedStepCount={flow.completedStepCount}
+            steps={flow.steps}
           />
           {errorMessage ? (
             <Typography variant="bodySecondary" className="mt-2 text-center text-white">
@@ -89,10 +96,11 @@ export function PhotoCapturePage() {
 
         <View className="flex-1" />
 
+        <ProductPhotoSavedOverlay stepTitle={flow.savedStepTitle} />
+
         <ProductPhotoCaptureControls
           isCapturing={flow.isCapturing}
           isSubmitting={submission.isProcessing}
-          processingLabel={submission.isCheckingCoverage ? 'Checking…' : undefined}
           step={flow.currentStep}
           onCapture={submission.handleCapturePhoto}
           onSkipOptional={submission.handleSkipOptionalStep}

@@ -1,20 +1,17 @@
 import type { CameraCapturedPicture, CameraView } from 'expo-camera';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Vibration } from 'react-native';
 import type {
   CapturedProductPhoto,
   PackagePhotoMissingField,
   ProductPhotoStep,
-  ProductPhotoStepKey,
 } from '../types/productPhotoCapture';
-import { createMissingPanelStep, PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
+import { createMissingFieldsStep, PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
 
-const isCapturedPhoto = (
-  photo: CapturedProductPhoto | undefined,
-): photo is CapturedProductPhoto => Boolean(photo);
+const SAVED_FEEDBACK_DURATION_MS = 1200;
 
 const toCapturedPhoto = (
-  step: ProductPhotoStepKey,
+  step: ProductPhotoStep['key'],
   picture: CameraCapturedPicture,
 ): CapturedProductPhoto | null => {
   if (!picture.uri || picture.width == null || picture.height == null) {
@@ -29,26 +26,44 @@ const toCapturedPhoto = (
   };
 };
 
-const toOrderedCapturedPhotos = (
-  photosByStep: Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>,
-  steps: ProductPhotoStep[],
-): CapturedProductPhoto[] => {
-  return steps.map((step) => photosByStep[step.key]).filter(isCapturedPhoto);
-};
-
 export const useProductPhotoCaptureFlow = () => {
   const cameraRef = useRef<CameraView | null>(null);
+  const savedFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [capturedByStep, setCapturedByStep] = useState<Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>>({});
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedProductPhoto[]>([]);
+  const [completedStepCount, setCompletedStepCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [savedStepTitle, setSavedStepTitle] = useState<string | null>(null);
   const [steps, setSteps] = useState<ProductPhotoStep[]>(PRODUCT_PHOTO_STEPS);
 
   const currentStep = steps[activeStepIndex] ?? steps[0];
-  const capturedPhotos = useMemo(
-    () => toOrderedCapturedPhotos(capturedByStep, steps),
-    [capturedByStep, steps],
+  const totalSteps = useMemo(() => steps.length, [steps]);
+
+  const clearSavedFeedbackTimeout = useCallback(() => {
+    if (!savedFeedbackTimeoutRef.current) {
+      return;
+    }
+
+    clearTimeout(savedFeedbackTimeoutRef.current);
+    savedFeedbackTimeoutRef.current = null;
+  }, []);
+
+  const showSavedFeedback = useCallback(
+    (stepTitle: string) => {
+      clearSavedFeedbackTimeout();
+      setSavedStepTitle(stepTitle);
+      savedFeedbackTimeoutRef.current = setTimeout(() => {
+        setSavedStepTitle(null);
+        savedFeedbackTimeoutRef.current = null;
+      }, SAVED_FEEDBACK_DURATION_MS);
+    },
+    [clearSavedFeedbackTimeout],
   );
+
+  useEffect(() => {
+    return clearSavedFeedbackTimeout;
+  }, [clearSavedFeedbackTimeout]);
 
   const capturePhoto = useCallback(async (): Promise<CapturedProductPhoto | null> => {
     if (isCapturing) {
@@ -81,18 +96,23 @@ export const useProductPhotoCaptureFlow = () => {
     }
   }, [currentStep, isCapturing]);
 
-  const acceptCapturedPhoto = useCallback((photo: CapturedProductPhoto): CapturedProductPhoto[] | null => {
-    const nextCapturedByStep = { ...capturedByStep, [photo.step]: photo };
+  const acceptCapturedPhoto = useCallback(
+    (photo: CapturedProductPhoto): CapturedProductPhoto[] | null => {
+      const nextCapturedPhotos = [...capturedPhotos, photo];
 
-    setCapturedByStep(nextCapturedByStep);
+      setCapturedPhotos(nextCapturedPhotos);
+      setCompletedStepCount((current) => Math.min(current + 1, totalSteps));
+      showSavedFeedback(currentStep.shortTitle);
 
-    if (activeStepIndex >= steps.length - 1) {
-      return toOrderedCapturedPhotos(nextCapturedByStep, steps);
-    }
+      if (activeStepIndex >= totalSteps - 1) {
+        return nextCapturedPhotos;
+      }
 
-    setActiveStepIndex((current) => current + 1);
-    return null;
-  }, [activeStepIndex, capturedByStep, steps]);
+      setActiveStepIndex((current) => current + 1);
+      return null;
+    },
+    [activeStepIndex, capturedPhotos, currentStep, showSavedFeedback, totalSteps],
+  );
 
   const skipOptionalStep = useCallback((): CapturedProductPhoto[] | null => {
     if (!currentStep?.isOptional) {
@@ -102,10 +122,16 @@ export const useProductPhotoCaptureFlow = () => {
     return capturedPhotos;
   }, [capturedPhotos, currentStep]);
 
-  const requestMissingPanelStep = useCallback((missing: PackagePhotoMissingField[]) => {
-    setSteps([...PRODUCT_PHOTO_STEPS, createMissingPanelStep(missing)]);
-    setActiveStepIndex(PRODUCT_PHOTO_STEPS.length);
-  }, []);
+  const requestMissingFieldsStep = useCallback(
+    (missing: PackagePhotoMissingField[]) => {
+      clearSavedFeedbackTimeout();
+      setSavedStepTitle(null);
+      setSteps([createMissingFieldsStep(missing)]);
+      setActiveStepIndex(0);
+      setCompletedStepCount(0);
+    },
+    [clearSavedFeedbackTimeout],
+  );
 
   return {
     acceptCapturedPhoto,
@@ -113,13 +139,14 @@ export const useProductPhotoCaptureFlow = () => {
     cameraRef,
     capturePhoto,
     capturedPhotos,
+    completedStepCount,
     currentStep,
     errorMessage,
     isCapturing,
-    requestMissingPanelStep,
+    requestMissingFieldsStep,
+    savedStepTitle,
     skipOptionalStep,
-    totalSteps: steps.length,
+    steps,
+    totalSteps,
   };
 };
-
-

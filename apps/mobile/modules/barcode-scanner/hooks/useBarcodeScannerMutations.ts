@@ -2,7 +2,7 @@ import type { ProductLookupRequest } from '@acme/shared';
 import { useMutation } from '@tanstack/react-query';
 import {
   submitBarcodeLookup,
-  submitPackagePhotoCoverage,
+  submitPackagePhotosCoverage,
   submitPackagePhotos,
   type BarcodeScannerLookupResponse,
   type PackagePhotoCoverageResponse,
@@ -17,15 +17,21 @@ export const useBarcodeScannerLookupMutation = () => {
 };
 
 export const usePackagePhotosUploadMutation = () => {
-  return useMutation<PackagePhotosUploadResponse, Error, CapturedProductPhoto[]>({
+  return useMutation<
+    PackagePhotosUploadResponse,
+    Error,
+    { barcode: string; photos: CapturedProductPhoto[] }
+  >({
     mutationFn: submitPackagePhotos,
   });
 };
 
-export const usePackagePhotoCoverageMutation = () => {
-  return useMutation<PackagePhotoCoverageResponse, Error, CapturedProductPhoto>({
-    mutationFn: submitPackagePhotoCoverage,
+export const usePackagePhotosCoverageMutation = () => {
+  return useMutation<
+    PackagePhotoCoverageResponse,
+    Error,
+    { barcode: string; photos: CapturedProductPhoto[] }
+  >({
+    mutationFn: submitPackagePhotosCoverage,
   });
 };
-
-

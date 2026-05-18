@@ -24,6 +24,12 @@ import {
   buildTraceAuditPrompt,
   buildTraceAuditSystemPrompt,
 } from './prompts.js';
+import {
+  createProductAnalyzeV2Logger,
+  getErrorStack,
+} from '../../../utils/product-analyze-v2-logger.util.js';
+
+const logger = createProductAnalyzeV2Logger('ai-passes');
 
 export async function analyzeCoreWithAI(
   product: ReturnType<typeof normalizeOpenFoodFactsProduct>,
@@ -41,7 +47,7 @@ export async function analyzeCoreWithAI(
 
     return coreAnalyzeV2OutputSchema.parse(result);
   } catch (err) {
-    console.error('[ProductAnalyzeV2] AI core analysis failed:', err);
+    logger.error('AI core analysis failed', getErrorStack(err));
     return null;
   }
 }
@@ -70,7 +76,7 @@ export async function analyzeTracesWithAI(
 
     return traceAuditOutputSchema.parse(result);
   } catch (err) {
-    console.error('[ProductAnalyzeV2] AI trace audit failed:', err);
+    logger.error('AI trace audit failed', getErrorStack(err));
     return null;
   }
 }
@@ -90,7 +96,7 @@ export async function analyzeAdviceWithAI(
 
     return adviceOutputSchema.parse(result);
   } catch (err) {
-    console.error('[ProductAnalyzeV2] AI advice pass failed:', err);
+    logger.error('AI advice pass failed', getErrorStack(err));
     return null;
   }
 }

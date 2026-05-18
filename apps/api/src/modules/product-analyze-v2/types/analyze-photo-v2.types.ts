@@ -60,39 +60,29 @@ export const geminiPackagePhotoNutritionSchema = z
 
 export const packagePhotoExtractionResultSchema = z.object({
   productName: z.string().nullable(),
-  productNameEnglish: z.string().nullable(),
   productBrand: z.string().nullable(),
   productRole: z.enum(VALID_PRODUCT_ROLES).nullable(),
   ingredients: z.array(z.string()),
-  ingredientsEnglish: z.array(z.string().nullable()),
+  traces: z.array(z.string()),
   nutrition: packagePhotoNutritionSchema,
 });
 
 export const geminiPackagePhotoExtractionResultSchema = z.object({
   productName: z.string().optional().default('').describe('Exact visible product name.'),
-  productNameEnglish: z
-    .string()
-    .optional()
-    .default('')
-    .describe('Natural concise English translation of productName.'),
   productBrand: z.string().optional().default('').describe('Exact visible product brand.'),
   productRole: z.enum(VALID_PRODUCT_ROLES).optional().describe('Best matching product type.'),
   ingredients: z
     .array(z.string())
     .default([])
     .describe('Visible ingredient list split into items.'),
-  ingredientsEnglish: z
+  traces: z
     .array(z.string())
     .default([])
-    .describe('English translations of ingredients in exactly the same order.'),
+    .describe('Normalized trace allergens found in may-contain or traces statements.'),
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 
-export const packagePhotoCoverageCodeSchema = z.number().int().min(0).max(3);
-
-export const packagePhotoCoverageResultSchema = z.object({
-  coverage: packagePhotoCoverageCodeSchema,
-});
+export const packagePhotoMissingFieldSchema = z.enum(['ingredients', 'nutritionFacts']);
 
 export type UploadedPhotoFileV2 = UploadedImageFile;
 
@@ -107,8 +97,24 @@ export type GeminiPackagePhotoExtractionResult = z.infer<
   typeof geminiPackagePhotoExtractionResultSchema
 >;
 export type PackagePhotoExtractionResult = z.infer<typeof packagePhotoExtractionResultSchema>;
-export type PackagePhotoCoverageCode = z.infer<typeof packagePhotoCoverageCodeSchema>;
-export type PackagePhotoCoverageResult = z.infer<typeof packagePhotoCoverageResultSchema>;
+export type PackagePhotoMissingField = z.infer<typeof packagePhotoMissingFieldSchema>;
 export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response & {
   barcode: string;
 };
+
+export interface PackagePhotosNeedsMoreResponse {
+  status: 'needs_more_photos';
+  missingFields: PackagePhotoMissingField[];
+  message: string;
+}
+
+export type PackagePhotoCoverageCode = 0 | 1 | 2 | 3;
+
+export interface PackagePhotosCoverageResponse {
+  status: 'complete' | 'needs_more_photos';
+  coverage: PackagePhotoCoverageCode;
+  missingFields: PackagePhotoMissingField[];
+  message?: string;
+}
+
+export type PackagePhotosV2Response = AnalyzePhotoV2Response | PackagePhotosNeedsMoreResponse;

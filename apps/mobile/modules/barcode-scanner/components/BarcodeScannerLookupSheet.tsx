@@ -6,6 +6,7 @@ import { Typography } from '../../../shared/components/Typography';
 import { COLORS } from '../../../shared/constants/colors';
 import { SheetsEnum } from '../../../shared/types/sheets';
 import type { BarcodeScannerLookupSheetPayload } from '../types/barcodeScanner';
+import { resolveStorageUri } from '../../../shared/lib/storage/resolveStorageUri';
 
 export function BarcodeScannerLookupSheet() {
   const payload = useSheetPayload(
@@ -13,6 +14,7 @@ export function BarcodeScannerLookupSheet() {
   ) as BarcodeScannerLookupSheetPayload;
   const actionTakenRef = useRef<'analyze' | 'dismiss' | 'photo' | null>(null);
   const isFound = payload.variant === 'found';
+  const imageUri = resolveStorageUri(payload.imageUrl) ?? null;
 
   const handleClose = () => {
     actionTakenRef.current = 'dismiss';
@@ -52,8 +54,8 @@ export function BarcodeScannerLookupSheet() {
         {isFound ? (
           <View className="items-center">
             <View className="h-28 w-28 items-center justify-center overflow-hidden rounded-[24px] bg-gray-100">
-              {payload.imageUrl ? (
-                <Image source={{ uri: payload.imageUrl }} className="h-full w-full" resizeMode="cover" />
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} className="h-full w-full" resizeMode="cover" />
               ) : (
                 <View className="items-center px-4">
                   <ScanBarcode color={COLORS.gray500} size={28} />
@@ -88,13 +90,13 @@ export function BarcodeScannerLookupSheet() {
 
             <Text className="mt-5 text-center text-[18px] font-bold">Product not found</Text>
             <Text className="mt-2 text-center text-[14px] leading-6 text-gray-500">
-              We don’t have this product yet. Add a few package photos so we can identify the
-              product details in the next step.
+              Scan the front label, then ingredients and nutrition facts. You can add one extra side
+              if details are split across panels.
             </Text>
 
             <View className="mt-6 w-full gap-3">
               <TouchableOpacity
-                accessibilityLabel="Add product photos"
+                accessibilityLabel="Scan product sides"
                 accessibilityRole="button"
                 activeOpacity={0.7}
                 className="w-full flex-row items-center justify-center gap-2 rounded-[16px] bg-primary-500 py-4"
@@ -102,7 +104,7 @@ export function BarcodeScannerLookupSheet() {
               >
                 <Camera color={COLORS.white} size={20} />
                 <Typography variant="button" className="text-white">
-                  Add product photos
+                  Scan product sides
                 </Typography>
               </TouchableOpacity>
 
@@ -125,6 +127,3 @@ export function BarcodeScannerLookupSheet() {
     </ActionSheet>
   );
 }
-
-
-

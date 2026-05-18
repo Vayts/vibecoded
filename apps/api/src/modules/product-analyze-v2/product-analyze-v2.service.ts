@@ -1,21 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { Prisma } from '@prisma/client';
 import type { ProductLookupResponse } from '@acme/shared';
 import { z } from 'zod';
-import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
-import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
+import {
+  analyzeNormalizedProductForUser,
+  getOrAnalyzeProductByBarcode,
+} from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
 import { parsePhotoRequestV2 } from './utils/parse-photo-request-v2.util.js';
 import { resolveBarcodeProductContext } from './utils/resolve-barcode-product.util.js';
 import {
   type CompareProductsV2UploadedFiles,
   compareProductsV2,
-  type PersistProductAnalyzeV2ScanInput,
 } from './services/compare-products-v2.service.js';
-import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
-import { extractPackageProductData } from './services/package-photo-extraction.service.js';
-import { createPackagePhotoTraceContext } from './services/package-photo-tracing.util.js';
+import {
+  checkPackagePhotosCoverageV2,
+  uploadPackagePhotosV2,
+} from './services/package-photo-analysis-flow.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -23,13 +23,16 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
-  type PackagePhotoCoverageCode,
-  type PackagePhotoExtractionResult,
+  type PackagePhotosCoverageResponse,
+  type PackagePhotosV2Response,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
-import { prisma } from '../../shared/lib/prisma.js';
-import { findProductIdByBarcode } from '../product-domain/repositories/scanRepository.js';
+import { formatLogContext } from './utils/product-analyze-v2-logger.util.js';
+import {
+  buildProductAnalyzeV2ResultMetadata,
+  persistProductAnalyzeV2Scan,
+} from './services/product-analysis-result-persistence.service.js';
 
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
@@ -39,69 +42,6 @@ const analyzeBarcodeRequestSchema = z.object({
 export class ProductAnalyzeV2Service {
   private readonly logger = new Logger(ProductAnalyzeV2Service.name);
 
-  private async getFavouriteState(
-    userId: string,
-    productId?: string,
-  ): Promise<boolean | undefined> {
-    if (!productId) {
-      return undefined;
-    }
-
-    const favorite = await prisma.favorite.findUnique({
-      where: {
-        userId_productId: {
-          userId,
-          productId,
-        },
-      },
-      select: { id: true },
-    });
-
-    return Boolean(favorite);
-  }
-
-  private async buildResultMetadata(input: {
-    userId: string;
-    barcode: string;
-    scanId?: string;
-    productId?: string;
-  }): Promise<Pick<AnalyzeBarcodeV2Response, 'scanId' | 'productId' | 'isFavourite'>> {
-    const resolvedProductId =
-      input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
-    const isFavourite = await this.getFavouriteState(input.userId, resolvedProductId);
-
-    return {
-      ...(input.scanId ? { scanId: input.scanId } : {}),
-      ...(resolvedProductId ? { productId: resolvedProductId } : {}),
-      ...(isFavourite !== undefined ? { isFavourite } : {}),
-    };
-  }
-
-  private async persistScanResult(input: PersistProductAnalyzeV2ScanInput): Promise<string> {
-    const productId = input.productId ?? (await findProductIdByBarcode(input.barcode)) ?? undefined;
-    const mainProfile =
-      input.result.profiles.find((profile) => profile.type === 'user') ?? input.result.profiles[0];
-
-    const scan = await prisma.scan.create({
-      data: {
-        userId: input.userId,
-        type: 'product',
-        productId: productId ?? null,
-        barcode: input.barcode,
-        source: input.source,
-        overallScore: mainProfile?.analysis.overall.score ?? null,
-        overallRating: mainProfile?.analysis.overall.rating ?? null,
-        personalAnalysisStatus: 'completed',
-        personalAnalysisJobId: randomUUID(),
-        evaluation: Prisma.JsonNull,
-        personalResult: input.result as unknown as Prisma.InputJsonValue,
-        multiProfileResult: input.result as unknown as Prisma.InputJsonValue,
-      },
-    });
-
-    return scan.id;
-  }
-
   async analyzeBarcode(body: unknown, userId: string): Promise<AnalyzeBarcodeV2Response> {
     const parsed = analyzeBarcodeRequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -109,34 +49,29 @@ export class ProductAnalyzeV2Service {
     }
 
     const { barcode } = parsed.data;
-    console.log(`[ProductAnalyzeV2Service] analyzeBarcode — barcode=${barcode} userId=${userId}`);
+    this.logger.log(`analyzeBarcode ${formatLogContext({ barcode })}`);
 
-    const finalState = await productAnalyzeV2Graph.invoke({ barcode, userId });
+    const analyzedProduct = await getOrAnalyzeProductByBarcode({ barcode, userId }); // cache or fresh
 
-    if (!finalState.result) {
-      console.error(`[ProductAnalyzeV2Service] Graph returned no result — barcode=${barcode}`);
-      throw ApiError.unprocessable('Analysis failed to produce a result', 'ANALYSIS_FAILED');
-    }
-
-    const scanId = finalState.analyzedProduct?.reusedExistingAnalysis
-      ? finalState.analyzedProduct.scanId
-      : await this.persistScanResult({
+    const scanId = analyzedProduct.reusedExistingAnalysis
+      ? analyzedProduct.scanId
+      : await persistProductAnalyzeV2Scan({
           userId,
           barcode,
           source: 'barcode',
-          result: finalState.result,
-          productId: finalState.analyzedProduct?.productId,
+          result: analyzedProduct.result,
+          productId: analyzedProduct.productId,
         });
 
-    const metadata = await this.buildResultMetadata({
+    const metadata = await buildProductAnalyzeV2ResultMetadata({
       userId,
       barcode,
       scanId,
-      productId: finalState.analyzedProduct?.productId,
+      productId: analyzedProduct.productId,
     });
 
     return {
-      ...finalState.result,
+      ...analyzedProduct.result,
       ...metadata,
     };
   }
@@ -148,7 +83,9 @@ export class ProductAnalyzeV2Service {
     }
 
     const { barcode } = parsed.data;
-    console.log(`[ProductAnalyzeV2Service] lookupBarcode — barcode=${barcode} userId=${userId}`);
+    this.logger.log(
+      `lookupBarcode ${formatLogContext({ barcode, authenticated: Boolean(userId) })}`,
+    );
 
     const resolvedProduct = await resolveBarcodeProductContext({ barcode });
 
@@ -175,7 +112,7 @@ export class ProductAnalyzeV2Service {
       body,
       files,
       userId,
-      persistScanResult: (input) => this.persistScanResult(input),
+      persistScanResult: persistProductAnalyzeV2Scan,
     });
   }
 
@@ -184,8 +121,8 @@ export class ProductAnalyzeV2Service {
     userId: string,
     file?: UploadedPhotoFileV2,
   ): Promise<AnalyzePhotoV2Response> {
-    const request = parsePhotoRequestV2(body, file);
-    console.log(`[ProductAnalyzeV2Service] analyzePhoto — userId=${userId}`);
+    const request = parsePhotoRequestV2(body, file); // normalize upload/body
+    this.logger.log('analyzePhoto');
 
     const resolvedContext = await resolvePhotoProductV2Context({
       imageBase64: request.imageBase64,
@@ -202,7 +139,7 @@ export class ProductAnalyzeV2Service {
       logContext: `photo code=${resolvedContext.product.code}`,
     });
 
-    const scanId = await this.persistScanResult({
+    const scanId = await persistProductAnalyzeV2Scan({
       userId,
       barcode: resolvedContext.product.code,
       source: 'photo',
@@ -210,7 +147,7 @@ export class ProductAnalyzeV2Service {
       productId: resolvedContext.productId,
     });
 
-    const metadata = await this.buildResultMetadata({
+    const metadata = await buildProductAnalyzeV2ResultMetadata({
       userId,
       barcode: resolvedContext.product.code,
       scanId,
@@ -228,61 +165,25 @@ export class ProductAnalyzeV2Service {
     body: unknown,
     userId: string,
     files: UploadedPhotoFileV2[] = [],
-  ): Promise<{ success: true; photoCount: number; extraction: PackagePhotoExtractionResult }> {
-    const metadata =
-      typeof body === 'object' && body !== null && 'metadata' in body
-        ? (body as { metadata?: unknown }).metadata
-        : undefined;
-
-    this.logger.log(
-      `uploadPackagePhotos — userId=${userId} photoCount=${files.length} metadata=${
-        typeof metadata === 'string' ? metadata : 'none'
-      }`,
-    );
-
-    files.forEach((file, index) => {
-      this.logger.log(
-        `uploadPackagePhotos file[${index}] — size=${file.size} mimetype=${file.mimetype}`,
-      );
-    });
-
-    const extraction = await extractPackageProductData(
+  ): Promise<PackagePhotosV2Response> {
+    return uploadPackagePhotosV2({
+      body,
+      userId,
       files,
-      createPackagePhotoTraceContext({
-        endpoint: 'package-photos',
-        files,
-        metadata,
-        provider: 'gemini',
-        userId,
-      }),
-    );
-    this.logger.log(`uploadPackagePhotos extraction — ${JSON.stringify(extraction)}`);
-
-    return {
-      extraction,
-      success: true,
-      photoCount: files.length,
-    };
+      persistScanResult: persistProductAnalyzeV2Scan,
+      buildResultMetadata: buildProductAnalyzeV2ResultMetadata,
+    });
   }
 
-  async checkPackagePhotoCoverage(
+  checkPackagePhotosCoverage(
     body: unknown,
     userId: string,
-    file?: UploadedPhotoFileV2,
-  ): Promise<PackagePhotoCoverageCode> {
-    if (!file) {
-      throw ApiError.badRequest('photo file is required');
-    }
-
-    const metadata =
-      typeof body === 'object' && body !== null && 'metadata' in body
-        ? (body as { metadata?: unknown }).metadata
-        : undefined;
-
-    this.logger.log(
-      `checkPackagePhotoCoverage — userId=${userId} size=${file.size} mimetype=${file.mimetype}`,
-    );
-
-    return checkPackagePhotoCoverageWithGemini(file, { metadata, userId });
+    files: UploadedPhotoFileV2[] = [],
+  ): Promise<PackagePhotosCoverageResponse> {
+    return checkPackagePhotosCoverageV2({
+      body,
+      userId,
+      files,
+    });
   }
 }

@@ -1,126 +1,92 @@
 import { useState } from 'react';
-import type { CapturedProductPhoto, PackagePhotoMissingField } from '../types/productPhotoCapture';
-import { usePackagePhotoResultSheet } from './usePackagePhotoResultSheet';
+import type { CapturedProductPhoto, ProductPhotoCaptureFlow } from '../types/productPhotoCapture';
 import {
-  usePackagePhotoCoverageMutation,
+  usePackagePhotosCoverageMutation,
   usePackagePhotosUploadMutation,
 } from './useBarcodeScannerMutations';
+import { usePackagePhotoAnalysisSheet } from './usePackagePhotoAnalysisSheet';
+import type { PackagePhotosUploadResponse } from '../api/barcodeScannerMutations';
 
-const FALLBACK_MISSING_FIELDS: PackagePhotoMissingField[] = ['nutritionFacts', 'ingredients'];
+type ProductPhotoCaptureSubmissionFlow = Pick<
+  ProductPhotoCaptureFlow,
+  'acceptCapturedPhoto' | 'capturePhoto' | 'requestMissingFieldsStep' | 'skipOptionalStep'
+>;
 
-type PackagePhotoCoverageCode = 0 | 1 | 2 | 3;
-type PackagePhotoExtraction = Parameters<
-  ReturnType<typeof usePackagePhotoResultSheet>['showPackagePhotoResult']
->[0];
-
-interface ProductPhotoCaptureFlow {
-  acceptCapturedPhoto: (photo: CapturedProductPhoto) => CapturedProductPhoto[] | null;
-  capturePhoto: () => Promise<CapturedProductPhoto | null>;
-  requestMissingPanelStep: (missing: PackagePhotoMissingField[]) => void;
-  skipOptionalStep: () => CapturedProductPhoto[] | null;
-}
-
-const hasNutritionFacts = (coverage: PackagePhotoCoverageCode | null) =>
-  coverage === 1 || coverage === 3;
-
-const hasIngredients = (coverage: PackagePhotoCoverageCode | null) =>
-  coverage === 1 || coverage === 2;
-
-const getMissingFields = (
-  frontCoverage: PackagePhotoCoverageCode | null,
-  currentCoverage: PackagePhotoCoverageCode,
-): PackagePhotoMissingField[] => {
-  const missingFields: PackagePhotoMissingField[] = [];
-
-  if (!hasNutritionFacts(frontCoverage) && !hasNutritionFacts(currentCoverage)) {
-    missingFields.push('nutritionFacts');
-  }
-
-  if (!hasIngredients(frontCoverage) && !hasIngredients(currentCoverage)) {
-    missingFields.push('ingredients');
-  }
-
-  return missingFields;
+const isNeedsMorePhotosResponse = (
+  response: PackagePhotosUploadResponse,
+): response is Extract<PackagePhotosUploadResponse, { status: 'needs_more_photos' }> => {
+  return 'status' in response && response.status === 'needs_more_photos';
 };
 
 interface ProductPhotoCaptureSubmissionOptions {
-  flow: ProductPhotoCaptureFlow;
+  barcode: string;
+  flow: ProductPhotoCaptureSubmissionFlow;
   onCompleted: () => void;
 }
 
 export const useProductPhotoCaptureSubmission = ({
+  barcode,
   flow,
   onCompleted,
 }: ProductPhotoCaptureSubmissionOptions) => {
-  const coverageMutation = usePackagePhotoCoverageMutation();
+  const coverageMutation = usePackagePhotosCoverageMutation();
   const packagePhotosMutation = usePackagePhotosUploadMutation();
-  const { showPackagePhotoResult } = usePackagePhotoResultSheet();
-  const [frontCoverage, setFrontCoverage] = useState<PackagePhotoCoverageCode | null>(null);
+  const { closeAnalysisSheet, hydrateAnalysisSheet, openAnalysisSheet } =
+    usePackagePhotoAnalysisSheet({
+      onCompleted,
+    });
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const uploadPackagePhotos = async (photos: CapturedProductPhoto[] | null) => {
-    if (!photos?.length || packagePhotosMutation.isPending) {
+    const normalizedBarcode = barcode.trim();
+
+    if (!photos?.length || coverageMutation.isPending || packagePhotosMutation.isPending) {
+      return;
+    }
+
+    if (!normalizedBarcode) {
+      setSubmissionError('Barcode is missing. Please scan the barcode again.');
       return;
     }
 
     setSubmissionError(null);
 
+    let didOpenAnalysisSheet = false;
+
     try {
-      const result = await packagePhotosMutation.mutateAsync(photos);
-      const extractionResult = result as unknown as { extraction: PackagePhotoExtraction };
-      await showPackagePhotoResult(extractionResult.extraction, onCompleted);
+      const coverage = await coverageMutation.mutateAsync({
+        barcode: normalizedBarcode,
+        photos,
+      });
+
+      if (coverage.status === 'needs_more_photos') {
+        flow.requestMissingFieldsStep(coverage.missingFields);
+        setSubmissionError(coverage.message ?? 'Add one more clear product photo.');
+        return;
+      }
+
+      const sessionId = openAnalysisSheet(normalizedBarcode, photos);
+      didOpenAnalysisSheet = true;
+      const result = await packagePhotosMutation.mutateAsync({
+        barcode: normalizedBarcode,
+        photos,
+      });
+
+      if (isNeedsMorePhotosResponse(result)) {
+        await closeAnalysisSheet();
+        flow.requestMissingFieldsStep(result.missingFields);
+        setSubmissionError(result.message);
+        return;
+      }
+
+      hydrateAnalysisSheet(sessionId, result);
     } catch (error) {
-      setSubmissionError(error instanceof Error ? error.message : 'Unable to upload product photos');
-    }
-  };
-
-  const handleFrontPhoto = async (photo: CapturedProductPhoto) => {
-    setSubmissionError(null);
-
-    try {
-      const coverage = (await coverageMutation.mutateAsync(photo)) as unknown as PackagePhotoCoverageCode;
-      setFrontCoverage(coverage);
-
-      if (coverage === 1) {
-        await uploadPackagePhotos([photo]);
-        return;
+      if (didOpenAnalysisSheet) {
+        await closeAnalysisSheet();
       }
-    } catch {
-      // Front coverage is only an optimization. If it fails, continue the normal flow.
-    }
-
-    flow.acceptCapturedPhoto(photo);
-  };
-
-  const handleBackPhoto = async (photo: CapturedProductPhoto) => {
-    setSubmissionError(null);
-
-    try {
-      const coverage = (await coverageMutation.mutateAsync(photo)) as unknown as PackagePhotoCoverageCode;
-      const hasCompleteCoverage =
-        (hasNutritionFacts(frontCoverage) || hasNutritionFacts(coverage)) &&
-        (hasIngredients(frontCoverage) || hasIngredients(coverage));
-
-      if (hasCompleteCoverage) {
-        const photos = flow.acceptCapturedPhoto(photo);
-        await uploadPackagePhotos(photos);
-        return;
-      }
-
-      if (coverage === 0 && !hasNutritionFacts(frontCoverage) && !hasIngredients(frontCoverage)) {
-        setSubmissionError(
-          'We couldn’t read nutrition facts or ingredients. Please retake the back photo.',
-        );
-        return;
-      }
-
-      const missingFields = getMissingFields(frontCoverage, coverage);
-      flow.acceptCapturedPhoto(photo);
-      flow.requestMissingPanelStep(missingFields.length ? missingFields : FALLBACK_MISSING_FIELDS);
-    } catch {
-      flow.acceptCapturedPhoto(photo);
-      setSubmissionError('We need one more photo to finish reading the package.');
-      flow.requestMissingPanelStep(FALLBACK_MISSING_FIELDS);
+      setSubmissionError(
+        error instanceof Error ? error.message : 'Unable to upload product photos',
+      );
     }
   };
 
@@ -129,16 +95,6 @@ export const useProductPhotoCaptureSubmission = ({
       const capturedPhoto = await flow.capturePhoto();
 
       if (!capturedPhoto) {
-        return;
-      }
-
-      if (capturedPhoto.step === 'front') {
-        await handleFrontPhoto(capturedPhoto);
-        return;
-      }
-
-      if (capturedPhoto.step === 'back') {
-        await handleBackPhoto(capturedPhoto);
         return;
       }
 
@@ -154,15 +110,7 @@ export const useProductPhotoCaptureSubmission = ({
   return {
     handleCapturePhoto,
     handleSkipOptionalStep,
-    isCheckingCoverage: coverageMutation.isPending,
-    isProcessing: packagePhotosMutation.isPending || coverageMutation.isPending,
+    isProcessing: coverageMutation.isPending || packagePhotosMutation.isPending,
     submissionError,
   };
 };
-
-
-
-
-
-
-

@@ -17,6 +17,13 @@ import {
 import { extractTextFromPhotoV2 } from './photo-ocr.service.js';
 import searchPhotoProductNutritionWithTavilyV2 from './tavily-photo-product-search.service.js';
 import type { AnalyzePhotoV2Input, PhotoOcrPayloadV2 } from '../types/analyze-photo-v2.types.js';
+import {
+  createProductAnalyzeV2Logger,
+  formatLogContext,
+  getErrorStack,
+} from '../utils/product-analyze-v2-logger.util.js';
+
+const logger = createProductAnalyzeV2Logger('photo-product-identification');
 
 export interface ResolvedPhotoProductV2Context {
   product: NormalizedProduct;
@@ -41,10 +48,7 @@ const ensureProductImage = async (
 
     return createProduct(attachPhotoImagePathV2(product, photoImagePath));
   } catch (error) {
-    console.error(
-      '[ProductAnalyzeV2:photo] Image processing/upload failed:',
-      error instanceof Error ? error.message : error,
-    );
+    logger.error('Image processing/upload failed', getErrorStack(error));
     return product;
   }
 };
@@ -74,8 +78,8 @@ const reuseOrCreateProduct = async (product: NormalizedProduct): Promise<Normali
   const existingByBarcode = await findByBarcode(product.code);
   if (existingByBarcode) {
     if (shouldRefreshPhotoProduct(existingByBarcode, product)) {
-      console.log(
-        `[ProductAnalyzeV2:photo] Refreshing existing barcode match code=${existingByBarcode.code}`,
+      logger.log(
+        `Refreshing existing barcode match ${formatLogContext({ code: existingByBarcode.code })}`,
       );
       return createProduct(mergePhotoProduct(existingByBarcode, product));
     }
@@ -90,8 +94,8 @@ const reuseOrCreateProduct = async (product: NormalizedProduct): Promise<Normali
   );
   if (existingByText) {
     if (shouldRefreshPhotoProduct(existingByText, product)) {
-      console.log(
-        `[ProductAnalyzeV2:photo] Refreshing existing canonical match code=${existingByText.code}`,
+      logger.log(
+        `Refreshing existing canonical match ${formatLogContext({ code: existingByText.code })}`,
       );
       return createProduct(mergePhotoProduct(existingByText, product));
     }
