@@ -4,6 +4,12 @@ import { uploadProductImage } from '../../../shared/lib/storage.js';
 import { resolveCanonicalProductImageUrl } from '../../../shared/utils/product-image.js';
 import type { UploadedPhotoFileV2 } from '../types/analyze-photo-v2.types.js';
 import { attachPhotoImagePathV2 } from '../utils/attach-photo-image-path.util.js';
+import {
+  createProductAnalyzeV2Logger,
+  getErrorStack,
+} from '../utils/product-analyze-v2-logger.util.js';
+
+const logger = createProductAnalyzeV2Logger('package-photo-image');
 
 interface PackagePhotoMetadataEntry {
   index: number;
@@ -78,10 +84,7 @@ export const attachFrontPackagePhotoImage = async (input: {
 
     return attachPhotoImagePathV2(input.product, photoImagePath);
   } catch (error) {
-    console.error(
-      '[ProductAnalyzeV2:package-photos] Image processing/upload failed:',
-      error instanceof Error ? error.message : error,
-    );
+    logger.error('Image processing/upload failed', getErrorStack(error));
     return input.product;
   }
 };

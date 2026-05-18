@@ -1,7 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
+import { createProductAnalyzeV2Logger, getErrorStack } from './product-analyze-v2-logger.util.js';
 
 const AI_MODEL = 'gpt-5.4-mini';
+const logger = createProductAnalyzeV2Logger('translate-ingredients');
 
 const translationOutputSchema = z.object({
   ingredientsEnglish: z.array(z.string()),
@@ -79,9 +81,7 @@ Return strictly valid JSON only.`,
     const parsed = translationOutputSchema.parse(result);
 
     if (parsed.ingredientsEnglish.length !== ingredientsOriginal.length) {
-      console.warn(
-        '[ProductAnalyzeV2] Ingredient translation returned wrong count, using originals',
-      );
+      logger.warn('Ingredient translation returned wrong count, using originals');
       return {
         ingredientsOriginal,
         ingredientsEnglish: ingredientsOriginal,
@@ -97,7 +97,7 @@ Return strictly valid JSON only.`,
       ingredientsTextEnglish: parsed.ingredientsTextEnglish,
     };
   } catch (err) {
-    console.error('[ProductAnalyzeV2] Ingredient translation failed, using originals:', err);
+    logger.error('Ingredient translation failed, using originals', getErrorStack(err));
     return {
       ingredientsOriginal,
       ingredientsEnglish: ingredientsOriginal,
