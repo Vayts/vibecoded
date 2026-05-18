@@ -12,6 +12,11 @@ import { findProductIdByBarcode } from '../repositories/scanRepository';
 import { lookupBarcode } from '../services/openfoodfacts-client';
 import { isFoodProduct } from '../services/is-food-product';
 
+const OPEN_FOOD_FACTS_PRODUCT_FLAGS = {
+  isAiChecked: true,
+  isVerified: true,
+} as const;
+
 export interface ResolvedProductResult {
   product: NormalizedProduct;
   productId: string;
@@ -54,7 +59,7 @@ export const resolveProduct = async (barcode: string): Promise<ResolvedProductRe
     };
   }
 
-  const savedProduct = await createProduct(product);
+  const savedProduct = await createProduct(product, OPEN_FOOD_FACTS_PRODUCT_FLAGS);
   const productId = await findProductIdByBarcode(savedProduct.code);
 
   return {

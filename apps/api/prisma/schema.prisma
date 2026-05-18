@@ -192,6 +192,8 @@ model Product {
   images              Json
   nutrition           Json
   scores              Json
+  isVerified          Boolean                      @default(false) @map("is_verified")
+  isAiChecked         Boolean                      @default(false) @map("is_ai_checked")
   createdAt           DateTime                     @default(now())
   updatedAt           DateTime                     @updatedAt
 

@@ -22,6 +22,11 @@ interface ResolvedBarcodeProductContext {
   source: 'database' | 'openfoodfacts';
 }
 
+const OPEN_FOOD_FACTS_PRODUCT_FLAGS = {
+  isAiChecked: true,
+  isVerified: true,
+} as const;
+
 const createNotFoundError = () => {
   return ApiError.notFound('Product not found for this barcode', 'PRODUCT_NOT_FOUND');
 };
@@ -38,7 +43,7 @@ const ensureProductIsAnalyzable = (product: NormalizedProductV2): void => {
 const persistOpenFoodFactsProduct = async (
   product: NormalizedProduct,
 ): Promise<string | undefined> => {
-  await createProduct(product);
+  await createProduct(product, OPEN_FOOD_FACTS_PRODUCT_FLAGS);
   return (await findProductIdByBarcode(product.code)) ?? undefined;
 };
 
