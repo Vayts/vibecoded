@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProductLookupResponse } from '@acme/shared';
 import { z } from 'zod';
-import { productAnalyzeV2Graph } from './langgraph/product-analyze-v2.graph.js';
-import { analyzeNormalizedProductForUser } from './langgraph/nodes/analyze-barcode.node.js';
+import {
+  analyzeNormalizedProductForUser,
+  getOrAnalyzeProductByBarcode,
+} from './langgraph/nodes/analyze-barcode.node.js';
 import { normalizeOpenFoodFactsProduct } from './utils/normalize-open-food-facts-product.util.js';
 import { parsePhotoRequestV2 } from './utils/parse-photo-request-v2.util.js';
 import { resolveBarcodeProductContext } from './utils/resolve-barcode-product.util.js';
@@ -10,10 +12,8 @@ import {
   type CompareProductsV2UploadedFiles,
   compareProductsV2,
 } from './services/compare-products-v2.service.js';
-import {
-  checkPackagePhotoCoverageV2,
-  uploadPackagePhotosV2,
-} from './services/package-photo-analysis-flow.service.js';
+import { uploadPackagePhotosV2 } from './services/package-photo-analysis-flow.service.js';
+import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -25,6 +25,7 @@ import {
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
+import { PHOTO_FILE_REQUIRED_ERROR } from './constants/photo-analysis.constants.js';
 import { formatLogContext } from './utils/product-analyze-v2-logger.util.js';
 import {
   buildProductAnalyzeV2ResultMetadata,
@@ -34,6 +35,11 @@ import {
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
 });
+
+const getRequestMetadata = (body: unknown): unknown =>
+  typeof body === 'object' && body !== null && 'metadata' in body
+    ? (body as { metadata?: unknown }).metadata
+    : undefined;
 
 @Injectable()
 export class ProductAnalyzeV2Service {
@@ -48,32 +54,27 @@ export class ProductAnalyzeV2Service {
     const { barcode } = parsed.data;
     this.logger.log(`analyzeBarcode ${formatLogContext({ barcode })}`);
 
-    const finalState = await productAnalyzeV2Graph.invoke({ barcode, userId });
+    const analyzedProduct = await getOrAnalyzeProductByBarcode({ barcode, userId }); // cache or fresh
 
-    if (!finalState.result) {
-      this.logger.error(`Graph returned no result ${formatLogContext({ barcode })}`);
-      throw ApiError.unprocessable('Analysis failed to produce a result', 'ANALYSIS_FAILED');
-    }
-
-    const scanId = finalState.analyzedProduct?.reusedExistingAnalysis
-      ? finalState.analyzedProduct.scanId
+    const scanId = analyzedProduct.reusedExistingAnalysis
+      ? analyzedProduct.scanId
       : await persistProductAnalyzeV2Scan({
           userId,
           barcode,
           source: 'barcode',
-          result: finalState.result,
-          productId: finalState.analyzedProduct?.productId,
+          result: analyzedProduct.result,
+          productId: analyzedProduct.productId,
         });
 
     const metadata = await buildProductAnalyzeV2ResultMetadata({
       userId,
       barcode,
       scanId,
-      productId: finalState.analyzedProduct?.productId,
+      productId: analyzedProduct.productId,
     });
 
     return {
-      ...finalState.result,
+      ...analyzedProduct.result,
       ...metadata,
     };
   }
@@ -123,7 +124,7 @@ export class ProductAnalyzeV2Service {
     userId: string,
     file?: UploadedPhotoFileV2,
   ): Promise<AnalyzePhotoV2Response> {
-    const request = parsePhotoRequestV2(body, file);
+    const request = parsePhotoRequestV2(body, file); // normalize upload/body
     this.logger.log('analyzePhoto');
 
     const resolvedContext = await resolvePhotoProductV2Context({
@@ -182,6 +183,17 @@ export class ProductAnalyzeV2Service {
     userId: string,
     file?: UploadedPhotoFileV2,
   ): Promise<PackagePhotoCoverageCode> {
-    return checkPackagePhotoCoverageV2({ body, userId, file });
+    if (!file) {
+      throw ApiError.badRequest(PHOTO_FILE_REQUIRED_ERROR);
+    }
+
+    this.logger.log(
+      `checkPackagePhotoCoverage ${formatLogContext({ size: file.size, mimetype: file.mimetype })}`,
+    );
+
+    return checkPackagePhotoCoverageWithGemini(file, {
+      metadata: getRequestMetadata(body),
+      userId,
+    });
   }
 }

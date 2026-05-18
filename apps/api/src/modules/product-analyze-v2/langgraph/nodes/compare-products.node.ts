@@ -1,9 +1,9 @@
 import {
   analyzeNormalizedProductForUser,
-  findReusableAnalyzedProductByBarcode,
   getOrAnalyzeProductByBarcode,
   type AnalyzedProductByBarcodeResult,
 } from './analyze-barcode.node.js';
+import { findReusableAnalyzedProductByBarcode } from './analyze-barcode/cache-reuse.js';
 import type { CompareProductV2Source } from '../../types/analyze-product-v2.types.js';
 import { resolvePhotoProductV2Context } from '../../services/photo-product-identification.service.js';
 import { normalizeOpenFoodFactsProduct } from '../../utils/normalize-open-food-facts-product.util.js';

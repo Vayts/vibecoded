@@ -11,7 +11,7 @@ import {
 } from './analyze-barcode/ai-passes.js';
 import { loadProductAnalyzeProfileContext } from './analyze-barcode/profile-context.js';
 import { buildAnalyzeBarcodeResponse } from './analyze-barcode/response-assembly.js';
-import { findReusableAnalyzedProductByBarcode as findReusableAnalyzedProductByBarcodeFromCache } from './analyze-barcode/cache-reuse.js';
+import { findReusableAnalyzedProductByBarcode } from './analyze-barcode/cache-reuse.js';
 import { resolveBarcodeProductContext } from '../../utils/resolve-barcode-product.util.js';
 import {
   createProductAnalyzeV2Logger,
@@ -89,13 +89,6 @@ export async function analyzeNormalizedProductForUser(input: {
   );
 
   return assembly.response;
-}
-
-export async function findReusableAnalyzedProductByBarcode(input: {
-  barcode: string;
-  userId: string;
-}): Promise<AnalyzedProductByBarcodeResult | null> {
-  return findReusableAnalyzedProductByBarcodeFromCache(input);
 }
 
 async function analyzeFreshProductByBarcode(input: {

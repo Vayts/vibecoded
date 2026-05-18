@@ -10,7 +10,6 @@ import { analyzeNormalizedProductForUser } from '../langgraph/nodes/analyze-barc
 import type { AnalyzeBarcodeV2Response } from '../types/analyze-product-v2.types.js';
 import type {
   AnalyzePhotoV2Response,
-  PackagePhotoCoverageCode,
   UploadedPhotoFileV2,
 } from '../types/analyze-photo-v2.types.js';
 import { normalizeOpenFoodFactsProduct } from '../utils/normalize-open-food-facts-product.util.js';
@@ -19,8 +18,7 @@ import {
   shouldRefreshPhotoProduct,
 } from '../utils/photo-product-refresh.util.js';
 import { formatLogContext } from '../utils/product-analyze-v2-logger.util.js';
-import { checkPackagePhotoCoverageWithGemini } from './package-photo-coverage-gemini.service.js';
-import { extractPackageProductData } from './package-photo-extraction.service.js';
+import { extractPackageProductDataWithGemini } from './package-photo-extraction-gemini.service.js';
 import { attachFrontPackagePhotoImage } from './package-photo-image.service.js';
 import { createPackagePhotoNormalizedProduct } from './package-photo-product-normalization.service.js';
 import { createPackagePhotoTraceContext } from './package-photo-tracing.util.js';
@@ -48,12 +46,6 @@ interface PackagePhotoFlowInput {
   buildResultMetadata: BuildResultMetadata;
 }
 
-const getMetadata = (body: unknown): unknown => {
-  return typeof body === 'object' && body !== null && 'metadata' in body
-    ? (body as { metadata?: unknown }).metadata
-    : undefined;
-};
-
 const logUploadedFiles = (files: UploadedPhotoFileV2[]): void => {
   files.forEach((file, index) => {
     logger.log(`uploadPackagePhotos file[${index}] — size=${file.size} mimetype=${file.mimetype}`);
@@ -78,7 +70,7 @@ export async function uploadPackagePhotosV2(
   );
   logUploadedFiles(input.files);
 
-  const extraction = await extractPackageProductData(
+  const extraction = await extractPackageProductDataWithGemini(
     input.files,
     createPackagePhotoTraceContext({
       endpoint: 'package-photos',
@@ -131,26 +123,4 @@ export async function uploadPackagePhotosV2(
   });
 
   return { ...result, barcode, ...metadataResult };
-}
-
-export async function checkPackagePhotoCoverageV2(input: {
-  body: unknown;
-  userId: string;
-  file?: UploadedPhotoFileV2;
-}): Promise<PackagePhotoCoverageCode> {
-  if (!input.file) {
-    throw ApiError.badRequest('photo file is required');
-  }
-
-  logger.log(
-    `checkPackagePhotoCoverage ${formatLogContext({
-      size: input.file.size,
-      mimetype: input.file.mimetype,
-    })}`,
-  );
-
-  return checkPackagePhotoCoverageWithGemini(input.file, {
-    metadata: getMetadata(input.body),
-    userId: input.userId,
-  });
 }

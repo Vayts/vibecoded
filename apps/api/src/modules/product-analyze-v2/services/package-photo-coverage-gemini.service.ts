@@ -52,11 +52,10 @@ const buildPhotoContent = (photo: ReturnType<typeof toPackagePhotoInputs>[number
   },
 ];
 
-const normalizeCoverageResult = (result: PackagePhotoCoverageResult): PackagePhotoCoverageCode => {
-  return result.coverage;
-};
-
-const tracedCheckPackagePhotoCoverage = traceable(
+export const checkPackagePhotoCoverageWithGemini: (
+  file: UploadedPhotoFileV2,
+  traceContext: CoverageTraceContext,
+) => Promise<PackagePhotoCoverageCode> = traceable(
   async (
     file: UploadedPhotoFileV2,
     traceContext: CoverageTraceContext,
@@ -108,7 +107,7 @@ const tracedCheckPackagePhotoCoverage = traceable(
       },
     );
 
-    return normalizeCoverageResult(packagePhotoCoverageResultSchema.parse(result));
+    return packagePhotoCoverageResultSchema.parse(result).coverage;
   },
   {
     name: 'package-photo-coverage-gemini',
@@ -117,10 +116,3 @@ const tracedCheckPackagePhotoCoverage = traceable(
     tracingEnabled: isLangSmithTracingEnabled(),
   },
 );
-
-export async function checkPackagePhotoCoverageWithGemini(
-  file: UploadedPhotoFileV2,
-  traceContext: CoverageTraceContext,
-): Promise<PackagePhotoCoverageCode> {
-  return tracedCheckPackagePhotoCoverage(file, traceContext);
-}
