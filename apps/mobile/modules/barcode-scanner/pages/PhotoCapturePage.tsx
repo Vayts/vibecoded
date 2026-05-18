@@ -83,7 +83,7 @@ export function PhotoCapturePage() {
           />
           <ProductPhotoProgress
             activeStepIndex={flow.activeStepIndex}
-            capturedPhotos={flow.capturedPhotos}
+            completedStepCount={flow.completedStepCount}
             totalSteps={flow.totalSteps}
           />
           {errorMessage ? (
@@ -98,7 +98,6 @@ export function PhotoCapturePage() {
         <ProductPhotoCaptureControls
           isCapturing={flow.isCapturing}
           isSubmitting={submission.isProcessing}
-          processingLabel={submission.isCheckingCoverage ? 'Checking…' : undefined}
           step={flow.currentStep}
           onCapture={submission.handleCapturePhoto}
           onSkipOptional={submission.handleSkipOptionalStep}

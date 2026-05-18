@@ -90,13 +90,13 @@ export function BarcodeScannerLookupSheet() {
 
             <Text className="mt-5 text-center text-[18px] font-bold">Product not found</Text>
             <Text className="mt-2 text-center text-[14px] leading-6 text-gray-500">
-              We don’t have this product yet. Add a few package photos so we can identify the
-              product details in the next step.
+              Scan the front label, then ingredients and nutrition facts. You can add one extra side
+              if details are split across panels.
             </Text>
 
             <View className="mt-6 w-full gap-3">
               <TouchableOpacity
-                accessibilityLabel="Add product photos"
+                accessibilityLabel="Scan product sides"
                 accessibilityRole="button"
                 activeOpacity={0.7}
                 className="w-full flex-row items-center justify-center gap-2 rounded-[16px] bg-primary-500 py-4"
@@ -104,7 +104,7 @@ export function BarcodeScannerLookupSheet() {
               >
                 <Camera color={COLORS.white} size={20} />
                 <Typography variant="button" className="text-white">
-                  Add product photos
+                  Scan product sides
                 </Typography>
               </TouchableOpacity>
 
@@ -127,6 +127,3 @@ export function BarcodeScannerLookupSheet() {
     </ActionSheet>
   );
 }
-
-
-

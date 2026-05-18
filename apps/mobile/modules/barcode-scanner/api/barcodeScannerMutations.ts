@@ -17,15 +17,18 @@ const packagePhotosUploadResponseSchema = scannerProductAnalysisResultSchema.ext
   isFavourite: z.boolean().optional(),
 });
 
-const packagePhotoCoverageResponseSchema = z.union([
-  z.literal(0),
-  z.literal(1),
-  z.literal(2),
-  z.literal(3),
+const packagePhotosNeedsMoreResponseSchema = z.object({
+  status: z.literal('needs_more_photos'),
+  missingFields: z.array(z.enum(['ingredients', 'nutritionFacts'])).min(1),
+  message: z.string(),
+});
+
+const packagePhotosResponseSchema = z.union([
+  packagePhotosNeedsMoreResponseSchema,
+  packagePhotosUploadResponseSchema,
 ]);
 
-export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosUploadResponseSchema>;
-export type PackagePhotoCoverageResponse = z.infer<typeof packagePhotoCoverageResponseSchema>;
+export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosResponseSchema>;
 
 interface ReactNativeFile {
   uri: string;
@@ -58,7 +61,11 @@ const throwBarcodeScannerApiError = async (
   fallbackMessage: string,
 ): Promise<never> => {
   const payload = await getErrorPayload(response);
-  throw new BarcodeScannerApiError(payload?.error ?? fallbackMessage, payload?.code, response.status);
+  throw new BarcodeScannerApiError(
+    payload?.error ?? fallbackMessage,
+    payload?.code,
+    response.status,
+  );
 };
 
 export const submitBarcodeLookup = async (
@@ -112,42 +119,10 @@ const buildPackagePhotosFormData = (input: {
   return formData;
 };
 
-const buildPackagePhotoCoverageFormData = (photo: CapturedProductPhoto): FormData => {
-  const formData = new FormData();
-  const photoFile: ReactNativeFile = {
-    uri: photo.uri,
-    name: `package-photo-coverage-${photo.step}.jpg`,
-    type: 'image/jpeg',
-  };
-
-  formData.append('photo', photoFile as unknown as Blob);
-  formData.append(
-    'metadata',
-    JSON.stringify({ height: photo.height, step: photo.step, width: photo.width }),
-  );
-
-  return formData;
-};
-
-export const submitPackagePhotoCoverage = async (
-  photo: CapturedProductPhoto,
-): Promise<PackagePhotoCoverageResponse> => {
-  const response = await apiFetch('/product-analysis/package-photos/coverage', {
-    method: 'POST',
-    body: buildPackagePhotoCoverageFormData(photo),
-  });
-
-  if (!response.ok) {
-    await throwBarcodeScannerApiError(response, 'Unable to check product photo');
-  }
-
-  const json = await response.json();
-  return packagePhotoCoverageResponseSchema.parse(json);
-};
-
-export const submitPackagePhotos = async (
-  input: { barcode: string; photos: CapturedProductPhoto[] },
-): Promise<PackagePhotosUploadResponse> => {
+export const submitPackagePhotos = async (input: {
+  barcode: string;
+  photos: CapturedProductPhoto[];
+}): Promise<PackagePhotosUploadResponse> => {
   const response = await apiFetch('/product-analysis/package-photos', {
     method: 'POST',
     body: buildPackagePhotosFormData(input),
@@ -158,7 +133,5 @@ export const submitPackagePhotos = async (
   }
 
   const json = await response.json();
-  return packagePhotosUploadResponseSchema.parse(json);
+  return packagePhotosResponseSchema.parse(json);
 };
-
-

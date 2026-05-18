@@ -9,7 +9,7 @@ import {
 import { analyzeNormalizedProductForUser } from '../langgraph/nodes/analyze-barcode.node.js';
 import type { AnalyzeBarcodeV2Response } from '../types/analyze-product-v2.types.js';
 import type {
-  AnalyzePhotoV2Response,
+  PackagePhotosV2Response,
   UploadedPhotoFileV2,
 } from '../types/analyze-photo-v2.types.js';
 import { normalizeOpenFoodFactsProduct } from '../utils/normalize-open-food-facts-product.util.js';
@@ -18,10 +18,13 @@ import {
   shouldRefreshPhotoProduct,
 } from '../utils/photo-product-refresh.util.js';
 import { formatLogContext } from '../utils/product-analyze-v2-logger.util.js';
-import { extractPackageProductDataWithGemini } from './package-photo-extraction-gemini.service.js';
+import {
+  buildMissingPackagePhotoMessage,
+  extractAndMergePackagePhotos,
+  getMissingPackagePhotoFields,
+} from './package-photo-extraction-merge.service.js';
 import { attachFrontPackagePhotoImage } from './package-photo-image.service.js';
 import { createPackagePhotoNormalizedProduct } from './package-photo-product-normalization.service.js';
-import { createPackagePhotoTraceContext } from './package-photo-tracing.util.js';
 import type { PersistProductAnalyzeV2Scan } from './compare-products-v2.service.js';
 
 const logger = new Logger('ProductAnalyzeV2PackagePhotos');
@@ -54,7 +57,7 @@ const logUploadedFiles = (files: UploadedPhotoFileV2[]): void => {
 
 export async function uploadPackagePhotosV2(
   input: PackagePhotoFlowInput,
-): Promise<AnalyzePhotoV2Response> {
+): Promise<PackagePhotosV2Response> {
   const parsed = packagePhotosRequestSchema.safeParse(input.body);
   if (!parsed.success) {
     throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
@@ -70,16 +73,11 @@ export async function uploadPackagePhotosV2(
   );
   logUploadedFiles(input.files);
 
-  const extraction = await extractPackageProductDataWithGemini(
-    input.files,
-    createPackagePhotoTraceContext({
-      endpoint: 'package-photos',
-      files: input.files,
-      metadata,
-      provider: 'gemini',
-      userId: input.userId,
-    }),
-  );
+  const extraction = await extractAndMergePackagePhotos({
+    files: input.files,
+    metadata,
+    userId: input.userId,
+  });
   logger.log(
     `uploadPackagePhotos extraction completed ${formatLogContext({
       barcode,
@@ -89,6 +87,16 @@ export async function uploadPackagePhotosV2(
       traceCount: extraction.traces.length,
     })}`,
   );
+
+  const missingFields = getMissingPackagePhotoFields(extraction);
+
+  if (missingFields.length > 0) {
+    return {
+      status: 'needs_more_photos',
+      missingFields,
+      message: buildMissingPackagePhotoMessage(missingFields),
+    };
+  }
 
   const normalizedProduct = await attachFrontPackagePhotoImage({
     files: input.files,

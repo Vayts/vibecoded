@@ -8,7 +8,6 @@ import type { ProductPhotoStep } from '../types/productPhotoCapture';
 interface ProductPhotoCaptureControlsProps {
   isCapturing: boolean;
   isSubmitting: boolean;
-  processingLabel?: string;
   step: ProductPhotoStep;
   onCapture: () => void;
   onSkipOptional: () => void;
@@ -17,19 +16,18 @@ interface ProductPhotoCaptureControlsProps {
 export function ProductPhotoCaptureControls({
   isCapturing,
   isSubmitting,
-  processingLabel,
   step,
   onCapture,
   onSkipOptional,
 }: ProductPhotoCaptureControlsProps) {
   const isDisabled = isCapturing || isSubmitting;
-  const submittingLabel = processingLabel ?? 'Uploading…';
+  const submittingLabel = 'Analyzing…';
 
   return (
     <View className="items-center gap-4">
       {step.isOptional ? (
         <TouchableOpacity
-          accessibilityLabel="Skip optional photo"
+          accessibilityLabel="Analyze without extra photo"
           accessibilityRole="button"
           activeOpacity={0.7}
           className={`rounded-full bg-black/50 px-4 py-3 ${isSubmitting ? 'opacity-40' : ''}`}
@@ -37,7 +35,7 @@ export function ProductPhotoCaptureControls({
           onPress={onSkipOptional}
         >
           <Typography variant="buttonSmall" className="text-white">
-            {isSubmitting ? submittingLabel : 'Skip — previous photo includes both'}
+            {isSubmitting ? submittingLabel : 'Analyze now'}
           </Typography>
         </TouchableOpacity>
       ) : null}
@@ -63,4 +61,3 @@ export function ProductPhotoCaptureControls({
     </View>
   );
 }
-

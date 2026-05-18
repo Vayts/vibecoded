@@ -12,11 +12,19 @@ import {
 import type { PackagePhotosUploadResponse } from '../api/barcodeScannerMutations';
 import type { CapturedProductPhoto } from '../types/productPhotoCapture';
 
+type CompletedPackagePhotosUploadResponse = Exclude<
+  PackagePhotosUploadResponse,
+  { status: 'needs_more_photos' }
+>;
+
 interface PackagePhotoAnalysisSheetOptions {
   onCompleted: () => void;
 }
 
-const buildPackagePhotoPreview = (barcode: string, photos: CapturedProductPhoto[]): ProductPreview => ({
+const buildPackagePhotoPreview = (
+  barcode: string,
+  photos: CapturedProductPhoto[],
+): ProductPreview => ({
   productId: '',
   barcode,
   product_name: null,
@@ -30,7 +38,6 @@ export const usePackagePhotoAnalysisSheet = ({ onCompleted }: PackagePhotoAnalys
   const shouldCompleteOnCloseRef = useRef(true);
   const startResultSession = useScannerResultSheetStore((state) => state.startSession);
   const hydrateResultSession = useScannerResultSheetStore((state) => state.hydrateSession);
-  const resetResultSession = useScannerResultSheetStore((state) => state.reset);
 
   const openAnalysisSheet = (barcode: string, photos: CapturedProductPhoto[]) => {
     shouldCompleteOnCloseRef.current = true;
@@ -51,7 +58,10 @@ export const usePackagePhotoAnalysisSheet = ({ onCompleted }: PackagePhotoAnalys
     return sessionId;
   };
 
-  const hydrateAnalysisSheet = (sessionId: number, result: PackagePhotosUploadResponse) => {
+  const hydrateAnalysisSheet = (
+    sessionId: number,
+    result: CompletedPackagePhotosUploadResponse,
+  ) => {
     hydrateResultSession(sessionId, {
       result: buildCompletedBarcodeLookupResponse({
         barcode: result.barcode,
@@ -63,17 +73,8 @@ export const usePackagePhotoAnalysisSheet = ({ onCompleted }: PackagePhotoAnalys
     void queryClient.invalidateQueries({ queryKey: [...SCAN_HISTORY_QUERY_KEY] });
   };
 
-  const closeAnalysisSheetAfterError = async () => {
-    shouldCompleteOnCloseRef.current = false;
-    resetResultSession();
-    await SheetManager.hide(SheetsEnum.ScannerResultSheet);
-    shouldCompleteOnCloseRef.current = true;
-  };
-
   return {
-    closeAnalysisSheetAfterError,
     hydrateAnalysisSheet,
     openAnalysisSheet,
   };
 };
-

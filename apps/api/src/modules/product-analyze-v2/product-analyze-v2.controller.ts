@@ -15,7 +15,7 @@ import { MAX_PHOTO_UPLOAD_SIZE } from './constants/photo-analysis.constants.js';
 import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
 import type {
   AnalyzePhotoV2Response,
-  PackagePhotoCoverageCode,
+  PackagePhotosV2Response,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import type {
@@ -27,6 +27,8 @@ interface CompareProductsV2UploadedFiles {
   photoA?: UploadedPhotoFileV2[];
   photoB?: UploadedPhotoFileV2[];
 }
+
+const MAX_PACKAGE_PHOTOS = 5;
 
 @Controller('product-analysis')
 export class ProductAnalyzeV2Controller {
@@ -87,24 +89,9 @@ export class ProductAnalyzeV2Controller {
     return this.productAnalyzeV2Service.analyzePhoto(body, userId, file);
   }
 
-  @Post('package-photos/coverage')
-  @UseInterceptors(
-    FileInterceptor('photo', {
-      limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
-    }),
-  )
-  async checkPackagePhotoCoverage(
-    @Body() body: unknown,
-    @UploadedFile() file: UploadedPhotoFileV2 | undefined,
-    @Req() request: Request,
-  ): Promise<PackagePhotoCoverageCode> {
-    const userId = await this.authSessionService.requireUserId(request);
-    return this.productAnalyzeV2Service.checkPackagePhotoCoverage(body, userId, file);
-  }
-
   @Post('package-photos')
   @UseInterceptors(
-    FilesInterceptor('photos', 3, {
+    FilesInterceptor('photos', MAX_PACKAGE_PHOTOS, {
       limits: { fileSize: MAX_PHOTO_UPLOAD_SIZE },
     }),
   )
@@ -112,7 +99,7 @@ export class ProductAnalyzeV2Controller {
     @Body() body: unknown,
     @UploadedFiles() files: UploadedPhotoFileV2[] | undefined,
     @Req() request: Request,
-  ): Promise<AnalyzePhotoV2Response> {
+  ): Promise<PackagePhotosV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.uploadPackagePhotos(body, userId, files);
   }

@@ -5,16 +5,11 @@ import type {
   CapturedProductPhoto,
   PackagePhotoMissingField,
   ProductPhotoStep,
-  ProductPhotoStepKey,
 } from '../types/productPhotoCapture';
-import { createMissingPanelStep, PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
-
-const isCapturedPhoto = (
-  photo: CapturedProductPhoto | undefined,
-): photo is CapturedProductPhoto => Boolean(photo);
+import { createMissingFieldsStep, PRODUCT_PHOTO_STEPS } from '../utils/productPhotoCaptureSteps';
 
 const toCapturedPhoto = (
-  step: ProductPhotoStepKey,
+  step: ProductPhotoStep['key'],
   picture: CameraCapturedPicture,
 ): CapturedProductPhoto | null => {
   if (!picture.uri || picture.width == null || picture.height == null) {
@@ -29,26 +24,17 @@ const toCapturedPhoto = (
   };
 };
 
-const toOrderedCapturedPhotos = (
-  photosByStep: Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>,
-  steps: ProductPhotoStep[],
-): CapturedProductPhoto[] => {
-  return steps.map((step) => photosByStep[step.key]).filter(isCapturedPhoto);
-};
-
 export const useProductPhotoCaptureFlow = () => {
   const cameraRef = useRef<CameraView | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
-  const [capturedByStep, setCapturedByStep] = useState<Partial<Record<ProductPhotoStepKey, CapturedProductPhoto>>>({});
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedProductPhoto[]>([]);
+  const [completedStepCount, setCompletedStepCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [steps, setSteps] = useState<ProductPhotoStep[]>(PRODUCT_PHOTO_STEPS);
 
   const currentStep = steps[activeStepIndex] ?? steps[0];
-  const capturedPhotos = useMemo(
-    () => toOrderedCapturedPhotos(capturedByStep, steps),
-    [capturedByStep, steps],
-  );
+  const totalSteps = useMemo(() => steps.length, [steps]);
 
   const capturePhoto = useCallback(async (): Promise<CapturedProductPhoto | null> => {
     if (isCapturing) {
@@ -81,18 +67,22 @@ export const useProductPhotoCaptureFlow = () => {
     }
   }, [currentStep, isCapturing]);
 
-  const acceptCapturedPhoto = useCallback((photo: CapturedProductPhoto): CapturedProductPhoto[] | null => {
-    const nextCapturedByStep = { ...capturedByStep, [photo.step]: photo };
+  const acceptCapturedPhoto = useCallback(
+    (photo: CapturedProductPhoto): CapturedProductPhoto[] | null => {
+      const nextCapturedPhotos = [...capturedPhotos, photo];
 
-    setCapturedByStep(nextCapturedByStep);
+      setCapturedPhotos(nextCapturedPhotos);
+      setCompletedStepCount((current) => Math.min(current + 1, totalSteps));
 
-    if (activeStepIndex >= steps.length - 1) {
-      return toOrderedCapturedPhotos(nextCapturedByStep, steps);
-    }
+      if (activeStepIndex >= totalSteps - 1) {
+        return nextCapturedPhotos;
+      }
 
-    setActiveStepIndex((current) => current + 1);
-    return null;
-  }, [activeStepIndex, capturedByStep, steps]);
+      setActiveStepIndex((current) => current + 1);
+      return null;
+    },
+    [activeStepIndex, capturedPhotos, totalSteps],
+  );
 
   const skipOptionalStep = useCallback((): CapturedProductPhoto[] | null => {
     if (!currentStep?.isOptional) {
@@ -102,9 +92,10 @@ export const useProductPhotoCaptureFlow = () => {
     return capturedPhotos;
   }, [capturedPhotos, currentStep]);
 
-  const requestMissingPanelStep = useCallback((missing: PackagePhotoMissingField[]) => {
-    setSteps([...PRODUCT_PHOTO_STEPS, createMissingPanelStep(missing)]);
-    setActiveStepIndex(PRODUCT_PHOTO_STEPS.length);
+  const requestMissingFieldsStep = useCallback((missing: PackagePhotoMissingField[]) => {
+    setSteps([createMissingFieldsStep(missing)]);
+    setActiveStepIndex(0);
+    setCompletedStepCount(0);
   }, []);
 
   return {
@@ -113,13 +104,12 @@ export const useProductPhotoCaptureFlow = () => {
     cameraRef,
     capturePhoto,
     capturedPhotos,
+    completedStepCount,
     currentStep,
     errorMessage,
     isCapturing,
-    requestMissingPanelStep,
+    requestMissingFieldsStep,
     skipOptionalStep,
-    totalSteps: steps.length,
+    totalSteps,
   };
 };
-
-

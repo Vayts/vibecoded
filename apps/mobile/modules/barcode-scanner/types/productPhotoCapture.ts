@@ -1,7 +1,7 @@
 import type { CameraView } from 'expo-camera';
 import type { RefObject } from 'react';
 
-export type ProductPhotoStepKey = 'front' | 'back' | 'missingPanel';
+export type ProductPhotoStepKey = 'front' | 'ingredientsNutrition' | 'extraPanel' | 'recapture';
 export type PackagePhotoMissingField = 'nutritionFacts' | 'ingredients';
 
 export interface ProductPhotoStep {
@@ -27,11 +27,11 @@ export interface ProductPhotoCaptureFlow {
   cameraRef: RefObject<CameraView | null>;
   capturePhoto: () => Promise<CapturedProductPhoto | null>;
   capturedPhotos: CapturedProductPhoto[];
+  completedStepCount: number;
   currentStep: ProductPhotoStep;
   errorMessage: string | null;
   isCapturing: boolean;
-  requestMissingPanelStep: (missing: PackagePhotoMissingField[]) => void;
+  requestMissingFieldsStep: (missing: PackagePhotoMissingField[]) => void;
   skipOptionalStep: () => CapturedProductPhoto[] | null;
   totalSteps: number;
 }
-

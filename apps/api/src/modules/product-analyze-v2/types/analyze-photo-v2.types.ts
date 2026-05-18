@@ -82,11 +82,7 @@ export const geminiPackagePhotoExtractionResultSchema = z.object({
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 
-export const packagePhotoCoverageCodeSchema = z.number().int().min(0).max(3);
-
-export const packagePhotoCoverageResultSchema = z.object({
-  coverage: packagePhotoCoverageCodeSchema,
-});
+export const packagePhotoMissingFieldSchema = z.enum(['ingredients', 'nutritionFacts']);
 
 export type UploadedPhotoFileV2 = UploadedImageFile;
 
@@ -101,8 +97,15 @@ export type GeminiPackagePhotoExtractionResult = z.infer<
   typeof geminiPackagePhotoExtractionResultSchema
 >;
 export type PackagePhotoExtractionResult = z.infer<typeof packagePhotoExtractionResultSchema>;
-export type PackagePhotoCoverageCode = z.infer<typeof packagePhotoCoverageCodeSchema>;
-export type PackagePhotoCoverageResult = z.infer<typeof packagePhotoCoverageResultSchema>;
+export type PackagePhotoMissingField = z.infer<typeof packagePhotoMissingFieldSchema>;
 export type AnalyzePhotoV2Response = AnalyzeBarcodeV2Response & {
   barcode: string;
 };
+
+export interface PackagePhotosNeedsMoreResponse {
+  status: 'needs_more_photos';
+  missingFields: PackagePhotoMissingField[];
+  message: string;
+}
+
+export type PackagePhotosV2Response = AnalyzePhotoV2Response | PackagePhotosNeedsMoreResponse;

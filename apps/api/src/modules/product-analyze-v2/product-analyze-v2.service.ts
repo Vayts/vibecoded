@@ -13,7 +13,6 @@ import {
   compareProductsV2,
 } from './services/compare-products-v2.service.js';
 import { uploadPackagePhotosV2 } from './services/package-photo-analysis-flow.service.js';
-import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
 import type {
   AnalyzeBarcodeV2Response,
@@ -21,11 +20,10 @@ import type {
 } from './types/analyze-product-v2.types.js';
 import {
   type AnalyzePhotoV2Response,
-  type PackagePhotoCoverageCode,
+  type PackagePhotosV2Response,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
-import { PHOTO_FILE_REQUIRED_ERROR } from './constants/photo-analysis.constants.js';
 import { formatLogContext } from './utils/product-analyze-v2-logger.util.js';
 import {
   buildProductAnalyzeV2ResultMetadata,
@@ -35,11 +33,6 @@ import {
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
 });
-
-const getRequestMetadata = (body: unknown): unknown =>
-  typeof body === 'object' && body !== null && 'metadata' in body
-    ? (body as { metadata?: unknown }).metadata
-    : undefined;
 
 @Injectable()
 export class ProductAnalyzeV2Service {
@@ -168,32 +161,13 @@ export class ProductAnalyzeV2Service {
     body: unknown,
     userId: string,
     files: UploadedPhotoFileV2[] = [],
-  ): Promise<AnalyzePhotoV2Response> {
+  ): Promise<PackagePhotosV2Response> {
     return uploadPackagePhotosV2({
       body,
       userId,
       files,
       persistScanResult: persistProductAnalyzeV2Scan,
       buildResultMetadata: buildProductAnalyzeV2ResultMetadata,
-    });
-  }
-
-  async checkPackagePhotoCoverage(
-    body: unknown,
-    userId: string,
-    file?: UploadedPhotoFileV2,
-  ): Promise<PackagePhotoCoverageCode> {
-    if (!file) {
-      throw ApiError.badRequest(PHOTO_FILE_REQUIRED_ERROR);
-    }
-
-    this.logger.log(
-      `checkPackagePhotoCoverage ${formatLogContext({ size: file.size, mimetype: file.mimetype })}`,
-    );
-
-    return checkPackagePhotoCoverageWithGemini(file, {
-      metadata: getRequestMetadata(body),
-      userId,
     });
   }
 }
