@@ -25,6 +25,11 @@ import {
 
 const logger = createProductAnalyzeV2Logger('photo-product-identification');
 
+const PHOTO_PRODUCT_FLAGS = {
+  isAiChecked: false,
+  isVerified: false,
+} as const;
+
 export interface ResolvedPhotoProductV2Context {
   product: NormalizedProduct;
   productId?: string;
@@ -46,7 +51,7 @@ const ensureProductImage = async (
     const processed = await processProductImage(rawBuffer);
     const photoImagePath = await uploadProductImage(processed.buffer);
 
-    return createProduct(attachPhotoImagePathV2(product, photoImagePath));
+    return createProduct(attachPhotoImagePathV2(product, photoImagePath), PHOTO_PRODUCT_FLAGS);
   } catch (error) {
     logger.error('Image processing/upload failed', getErrorStack(error));
     return product;
@@ -81,7 +86,7 @@ const reuseOrCreateProduct = async (product: NormalizedProduct): Promise<Normali
       logger.log(
         `Refreshing existing barcode match ${formatLogContext({ code: existingByBarcode.code })}`,
       );
-      return createProduct(mergePhotoProduct(existingByBarcode, product));
+      return createProduct(mergePhotoProduct(existingByBarcode, product), PHOTO_PRODUCT_FLAGS);
     }
 
     return existingByBarcode;
@@ -97,13 +102,13 @@ const reuseOrCreateProduct = async (product: NormalizedProduct): Promise<Normali
       logger.log(
         `Refreshing existing canonical match ${formatLogContext({ code: existingByText.code })}`,
       );
-      return createProduct(mergePhotoProduct(existingByText, product));
+      return createProduct(mergePhotoProduct(existingByText, product), PHOTO_PRODUCT_FLAGS);
     }
 
     return existingByText;
   }
 
-  return createProduct(product);
+  return createProduct(product, PHOTO_PRODUCT_FLAGS);
 };
 
 export const resolvePhotoProductV2Context = async (

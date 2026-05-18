@@ -11,6 +11,11 @@ import {
 import { syncProductEmbedding } from '../services/product-embedding.service';
 import { getProductImageUrl, withCanonicalProductImage } from '../../../shared/utils/product-image';
 
+export interface ProductPersistenceOptions {
+  isAiChecked?: boolean;
+  isVerified?: boolean;
+}
+
 const toNormalizedProduct = (product: {
   code: string;
   product_name: string | null;
@@ -83,6 +88,22 @@ const toProductCreateInput = (product: NormalizedProduct): Prisma.ProductUncheck
     scores: sanitizedProduct.scores as Prisma.InputJsonValue,
   };
 };
+
+const withProductCreateFlags = (
+  data: Prisma.ProductUncheckedCreateInput,
+  options?: ProductPersistenceOptions,
+): Prisma.ProductUncheckedCreateInput => ({
+  ...data,
+  ...(options?.isAiChecked !== undefined ? { isAiChecked: options.isAiChecked } : {}),
+  ...(options?.isVerified !== undefined ? { isVerified: options.isVerified } : {}),
+});
+
+const toProductUpdateFlags = (
+  options?: ProductPersistenceOptions,
+): Prisma.ProductUncheckedUpdateInput => ({
+  ...(options?.isAiChecked ? { isAiChecked: true } : {}),
+  ...(options?.isVerified ? { isVerified: true } : {}),
+});
 
 const sameStringArray = (left: string[], right: string[]): boolean => {
   return left.length === right.length && left.every((value, index) => value === right[index]);
@@ -345,13 +366,18 @@ export const findByCanonicalProductText = async (
   return normalizedProduct;
 };
 
-export const createProduct = async (product: NormalizedProduct): Promise<NormalizedProduct> => {
+export const createProduct = async (
+  product: NormalizedProduct,
+  options?: ProductPersistenceOptions,
+): Promise<NormalizedProduct> => {
   const sanitizedProduct = sanitizeNormalizedProductTextFields(product);
   const startedAt = Date.now();
   console.log(
     `[productRepository] upsert start code=${sanitizedProduct.code} name="${sanitizedProduct.product_name ?? ''}" brand="${sanitizedProduct.brands ?? ''}" imageUrl="${sanitizedProduct.image_url ?? ''}"`,
   );
   const data = toProductCreateInput(sanitizedProduct);
+  const createData = withProductCreateFlags(data, options);
+  const updateFlags = toProductUpdateFlags(options);
 
   const existing = await prisma.product.findUnique({
     where: { barcode: sanitizedProduct.code },
@@ -382,13 +408,17 @@ export const createProduct = async (product: NormalizedProduct): Promise<Normali
   const updateData: Prisma.ProductUncheckedUpdateInput = shouldClearClassificationCache
     ? {
         ...data,
+        ...updateFlags,
         classificationCache: Prisma.JsonNull,
       }
-    : data;
+    : {
+        ...data,
+        ...updateFlags,
+      };
 
   const savedProduct = await prisma.product.upsert({
     where: { barcode: sanitizedProduct.code },
-    create: data,
+    create: createData,
     update: updateData,
   });
 

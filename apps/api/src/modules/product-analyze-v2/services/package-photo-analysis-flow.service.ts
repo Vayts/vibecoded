@@ -31,6 +31,11 @@ import type { PersistProductAnalyzeV2Scan } from './compare-products-v2.service.
 
 const logger = new Logger('ProductAnalyzeV2PackagePhotos');
 
+const PACKAGE_PHOTO_PRODUCT_FLAGS = {
+  isAiChecked: false,
+  isVerified: false,
+} as const;
+
 const packagePhotosRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
   metadata: z.unknown().optional(),
@@ -156,9 +161,12 @@ export async function uploadPackagePhotosV2(
   const existingProduct = await findByBarcode(barcode);
   const savedProduct = existingProduct
     ? shouldRefreshPhotoProduct(existingProduct, normalizedProduct)
-      ? await createProduct(mergePhotoProduct(existingProduct, normalizedProduct))
+      ? await createProduct(
+          mergePhotoProduct(existingProduct, normalizedProduct),
+          PACKAGE_PHOTO_PRODUCT_FLAGS,
+        )
       : existingProduct
-    : await createProduct(normalizedProduct);
+    : await createProduct(normalizedProduct, PACKAGE_PHOTO_PRODUCT_FLAGS);
   const productId = (await findProductIdByBarcode(barcode)) ?? undefined;
   const product = normalizeOpenFoodFactsProduct(barcode, savedProduct);
   const result = await analyzeNormalizedProductForUser({
