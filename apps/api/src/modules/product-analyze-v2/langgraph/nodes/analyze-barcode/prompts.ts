@@ -117,7 +117,8 @@ Product role:
 - Return product.englishName only when the original product name is clearly non-English and you can translate it confidently into natural concise English.
 - If the product name is already English, mostly English, just a brand, or not confidently translatable, return product.englishName=null.
 - Translate the product name only, not the brand.
-- Choose the closest allowed product.role from the schema enum.
+- Choose exactly one allowed product.role from the schema enum.
+- Never invent a new role label, paraphrase a role, or return a near-synonym such as whole_food.
 - Use short evidence.
 
 Non-food handling:

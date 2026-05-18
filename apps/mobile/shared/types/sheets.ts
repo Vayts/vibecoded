@@ -1,7 +1,6 @@
 export enum SheetsEnum {
   BarcodeScannerLookupSheet = 'barcode-scanner-lookup-sheet',
   BarcodeScannerErrorSheet = 'barcode-scanner-error-sheet',
-  PackagePhotoResultSheet = 'package-photo-result-sheet',
   ScannerResultSheet = 'scanner-result-sheet',
   ScoreCalculationSheet = 'score-calculation-sheet',
   CompareProductPickerSheet = 'compare-product-picker-sheet',

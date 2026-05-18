@@ -6,6 +6,7 @@ import { Typography } from '../../../shared/components/Typography';
 import { COLORS } from '../../../shared/constants/colors';
 import { SheetsEnum } from '../../../shared/types/sheets';
 import type { BarcodeScannerLookupSheetPayload } from '../types/barcodeScanner';
+import { resolveStorageUri } from '../../../shared/lib/storage/resolveStorageUri';
 
 export function BarcodeScannerLookupSheet() {
   const payload = useSheetPayload(
@@ -13,6 +14,7 @@ export function BarcodeScannerLookupSheet() {
   ) as BarcodeScannerLookupSheetPayload;
   const actionTakenRef = useRef<'analyze' | 'dismiss' | 'photo' | null>(null);
   const isFound = payload.variant === 'found';
+  const imageUri = resolveStorageUri(payload.imageUrl) ?? null;
 
   const handleClose = () => {
     actionTakenRef.current = 'dismiss';
@@ -52,8 +54,8 @@ export function BarcodeScannerLookupSheet() {
         {isFound ? (
           <View className="items-center">
             <View className="h-28 w-28 items-center justify-center overflow-hidden rounded-[24px] bg-gray-100">
-              {payload.imageUrl ? (
-                <Image source={{ uri: payload.imageUrl }} className="h-full w-full" resizeMode="cover" />
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} className="h-full w-full" resizeMode="cover" />
               ) : (
                 <View className="items-center px-4">
                   <ScanBarcode color={COLORS.gray500} size={28} />

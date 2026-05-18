@@ -41,6 +41,8 @@ export const VALID_RESTRICTION_STATUS_SET = new Set([
   'requires_certification',
 ]);
 
+export const PRODUCT_ROLE_FALLBACK = VALID_PRODUCT_ROLES[0];
+
 export const SHARED_FREE_FROM_RESTRICTION_RULES = `GLUTEN_FREE/DAIRY_FREE/NUT_FREE shared rules:
 - not_compatible: relevant ingredient is clearly present.
 - semi_compatible: only for ingredient-based partial compatibility, not traces.
@@ -268,7 +270,12 @@ export const coreAnalyzeV2OutputSchema = z.object({
       .describe(
         'Natural English translation of the product name only when the original product name is clearly non-English. Return null when the product name is already English, mostly English, only a brand, or not confidently translatable.',
       ),
-    role: z.string().describe('One of the ProductRole values'),
+    role: z
+      .enum(VALID_PRODUCT_ROLES)
+      .catch(PRODUCT_ROLE_FALLBACK)
+      .describe(
+        `Choose exactly one allowed ProductRole value: ${VALID_PRODUCT_ROLES.join(', ')}. Never invent new labels.`,
+      ),
     confidence: z.number().min(0).max(1).describe('Confidence from 0 to 1'),
     evidence: z.array(z.string()).describe('Short evidence strings supporting the role'),
   }),
@@ -391,7 +398,7 @@ export type AiAnalyzeV2Output = {
   product: {
     isFoodProduct: boolean;
     englishName: string | null;
-    role: string;
+    role: (typeof VALID_PRODUCT_ROLES)[number];
     confidence: number;
     evidence: string[];
   };

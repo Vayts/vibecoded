@@ -15,8 +15,15 @@ import {
 } from './services/compare-products-v2.service.js';
 import { checkPackagePhotoCoverageWithGemini } from './services/package-photo-coverage-gemini.service.js';
 import { extractPackageProductData } from './services/package-photo-extraction.service.js';
+import { attachFrontPackagePhotoImage } from './services/package-photo-image.service.js';
+import { createPackagePhotoNormalizedProduct } from './services/package-photo-product-normalization.service.js';
 import { createPackagePhotoTraceContext } from './services/package-photo-tracing.util.js';
 import { resolvePhotoProductV2Context } from './services/photo-product-identification.service.js';
+import { createProduct, findByBarcode } from '../product-domain/repositories/productRepository.js';
+import {
+  mergePhotoProduct,
+  shouldRefreshPhotoProduct,
+} from './utils/photo-product-refresh.util.js';
 import type {
   AnalyzeBarcodeV2Response,
   CompareProductsV2Response,
@@ -24,7 +31,6 @@ import type {
 import {
   type AnalyzePhotoV2Response,
   type PackagePhotoCoverageCode,
-  type PackagePhotoExtractionResult,
   type UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import { ApiError } from '../../shared/errors/api-error.js';
@@ -33,6 +39,11 @@ import { findProductIdByBarcode } from '../product-domain/repositories/scanRepos
 
 const analyzeBarcodeRequestSchema = z.object({
   barcode: z.string().trim().min(1, 'Barcode is required'),
+});
+
+const packagePhotosRequestSchema = z.object({
+  barcode: z.string().trim().min(1, 'Barcode is required'),
+  metadata: z.unknown().optional(),
 });
 
 @Injectable()
@@ -228,14 +239,16 @@ export class ProductAnalyzeV2Service {
     body: unknown,
     userId: string,
     files: UploadedPhotoFileV2[] = [],
-  ): Promise<{ success: true; photoCount: number; extraction: PackagePhotoExtractionResult }> {
-    const metadata =
-      typeof body === 'object' && body !== null && 'metadata' in body
-        ? (body as { metadata?: unknown }).metadata
-        : undefined;
+  ): Promise<AnalyzePhotoV2Response> {
+    const parsed = packagePhotosRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw ApiError.badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
+    }
+
+    const { barcode, metadata } = parsed.data;
 
     this.logger.log(
-      `uploadPackagePhotos — userId=${userId} photoCount=${files.length} metadata=${
+      `uploadPackagePhotos — barcode=${barcode} userId=${userId} photoCount=${files.length} metadata=${
         typeof metadata === 'string' ? metadata : 'none'
       }`,
     );
@@ -258,10 +271,46 @@ export class ProductAnalyzeV2Service {
     );
     this.logger.log(`uploadPackagePhotos extraction — ${JSON.stringify(extraction)}`);
 
+    const normalizedProduct = await attachFrontPackagePhotoImage({
+      files,
+      metadata,
+      product: createPackagePhotoNormalizedProduct({ barcode, extraction }),
+    });
+    const existingProduct = await findByBarcode(barcode);
+    const savedProduct = existingProduct
+      ? shouldRefreshPhotoProduct(existingProduct, normalizedProduct)
+        ? await createProduct(mergePhotoProduct(existingProduct, normalizedProduct))
+        : existingProduct
+      : await createProduct(normalizedProduct);
+
+    const productId = (await findProductIdByBarcode(barcode)) ?? undefined;
+    const product = normalizeOpenFoodFactsProduct(barcode, savedProduct);
+
+    const result = await analyzeNormalizedProductForUser({
+      product,
+      userId,
+      logContext: `package photos barcode=${barcode}`,
+    });
+
+    const scanId = await this.persistScanResult({
+      userId,
+      barcode,
+      source: 'photo',
+      result,
+      productId,
+    });
+
+    const metadataResult = await this.buildResultMetadata({
+      userId,
+      barcode,
+      scanId,
+      productId,
+    });
+
     return {
-      extraction,
-      success: true,
-      photoCount: files.length,
+      ...result,
+      barcode,
+      ...metadataResult,
     };
   }
 

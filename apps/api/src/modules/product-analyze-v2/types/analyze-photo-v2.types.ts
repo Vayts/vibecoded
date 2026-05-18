@@ -60,31 +60,25 @@ export const geminiPackagePhotoNutritionSchema = z
 
 export const packagePhotoExtractionResultSchema = z.object({
   productName: z.string().nullable(),
-  productNameEnglish: z.string().nullable(),
   productBrand: z.string().nullable(),
   productRole: z.enum(VALID_PRODUCT_ROLES).nullable(),
   ingredients: z.array(z.string()),
-  ingredientsEnglish: z.array(z.string().nullable()),
+  traces: z.array(z.string()),
   nutrition: packagePhotoNutritionSchema,
 });
 
 export const geminiPackagePhotoExtractionResultSchema = z.object({
   productName: z.string().optional().default('').describe('Exact visible product name.'),
-  productNameEnglish: z
-    .string()
-    .optional()
-    .default('')
-    .describe('Natural concise English translation of productName.'),
   productBrand: z.string().optional().default('').describe('Exact visible product brand.'),
   productRole: z.enum(VALID_PRODUCT_ROLES).optional().describe('Best matching product type.'),
   ingredients: z
     .array(z.string())
     .default([])
     .describe('Visible ingredient list split into items.'),
-  ingredientsEnglish: z
+  traces: z
     .array(z.string())
     .default([])
-    .describe('English translations of ingredients in exactly the same order.'),
+    .describe('Normalized trace allergens found in may-contain or traces statements.'),
   nutrition: geminiPackagePhotoNutritionSchema.default({}),
 });
 

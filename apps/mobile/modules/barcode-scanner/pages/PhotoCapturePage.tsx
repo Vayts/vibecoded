@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { View } from 'react-native';
@@ -14,10 +14,16 @@ import { useProductPhotoCaptureFlow } from '../hooks/useProductPhotoCaptureFlow'
 
 export function PhotoCapturePage() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ barcode?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const flow = useProductPhotoCaptureFlow();
-  const submission = useProductPhotoCaptureSubmission({ flow, onCompleted: () => router.back() });
+  const barcode = Array.isArray(params.barcode) ? params.barcode[0] : params.barcode;
+  const submission = useProductPhotoCaptureSubmission({
+    barcode: barcode ?? '',
+    flow,
+    onCompleted: () => router.back(),
+  });
 
   const closePhotoGuide = () => {
     router.back();

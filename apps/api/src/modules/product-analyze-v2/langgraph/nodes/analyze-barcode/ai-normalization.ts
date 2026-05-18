@@ -1,5 +1,4 @@
 import { FALLBACK_ROLE } from '../../../constants/product-roles.constants.js';
-import type { ProductRole } from '../../../types/product-role.types.js';
 import type { ProfileInputForScoring } from '../../../types/scoring.types.js';
 import { normalizeOpenFoodFactsProduct } from '../../../utils/normalize-open-food-facts-product.util.js';
 import { normalizeTraceRestriction } from '../../../utils/trace-sensitive-restrictions.util.js';
@@ -197,7 +196,6 @@ export function validateAndNormalizeAiResult(
   if (
     !raw ||
     !raw.product ||
-    typeof raw.product.isFoodProduct !== 'boolean' ||
     !raw.product.role ||
     raw.product.confidence === undefined ||
     !Array.isArray(raw.product.evidence) ||
@@ -388,7 +386,7 @@ export function validateAndNormalizeAiResult(
     product: {
       isFoodProduct: raw.product.isFoodProduct,
       englishName: normalizeAiEnglishProductName(raw.product.englishName, product.name),
-      role: raw.product.role as ProductRole,
+      role: raw.product.role,
       confidence: raw.product.confidence,
       evidence: raw.product.evidence,
     },

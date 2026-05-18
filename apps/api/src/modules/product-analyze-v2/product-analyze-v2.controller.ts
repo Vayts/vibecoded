@@ -16,7 +16,6 @@ import { ProductAnalyzeV2Service } from './product-analyze-v2.service.js';
 import type {
   AnalyzePhotoV2Response,
   PackagePhotoCoverageCode,
-  PackagePhotoExtractionResult,
   UploadedPhotoFileV2,
 } from './types/analyze-photo-v2.types.js';
 import type {
@@ -27,12 +26,6 @@ import type {
 interface CompareProductsV2UploadedFiles {
   photoA?: UploadedPhotoFileV2[];
   photoB?: UploadedPhotoFileV2[];
-}
-
-interface PackagePhotosUploadResponse {
-  success: true;
-  photoCount: number;
-  extraction: PackagePhotoExtractionResult;
 }
 
 @Controller('product-analysis')
@@ -119,7 +112,7 @@ export class ProductAnalyzeV2Controller {
     @Body() body: unknown,
     @UploadedFiles() files: UploadedPhotoFileV2[] | undefined,
     @Req() request: Request,
-  ): Promise<PackagePhotosUploadResponse> {
+  ): Promise<AnalyzePhotoV2Response> {
     const userId = await this.authSessionService.requireUserId(request);
     return this.productAnalyzeV2Service.uploadPackagePhotos(body, userId, files);
   }

@@ -96,6 +96,8 @@ export function withResolvedCanIHaveThisStatuses(
 }
 
 export function resolveProductRole(aiProduct: AiProductAnalyzeV2Result['product']): RoleResult {
+  console.log(aiProduct, 'PRODUCT ROLE');
+
   if (PRODUCT_ROLE_SET.has(aiProduct.role) && aiProduct.confidence >= MIN_AI_CONFIDENCE) {
     return {
       value: aiProduct.role,

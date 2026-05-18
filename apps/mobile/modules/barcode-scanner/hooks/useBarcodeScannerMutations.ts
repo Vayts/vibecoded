@@ -17,7 +17,11 @@ export const useBarcodeScannerLookupMutation = () => {
 };
 
 export const usePackagePhotosUploadMutation = () => {
-  return useMutation<PackagePhotosUploadResponse, Error, CapturedProductPhoto[]>({
+  return useMutation<
+    PackagePhotosUploadResponse,
+    Error,
+    { barcode: string; photos: CapturedProductPhoto[] }
+  >({
     mutationFn: submitPackagePhotos,
   });
 };

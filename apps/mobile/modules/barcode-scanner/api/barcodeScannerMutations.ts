@@ -1,6 +1,7 @@
 import {
   productLookupRequestSchema,
   productLookupResponseSchema,
+  scannerProductAnalysisResultSchema,
   type ProductLookupRequest,
 } from '@acme/shared';
 import { apiFetch } from '../../../shared/lib/client/client';
@@ -9,32 +10,11 @@ import type { CapturedProductPhoto } from '../types/productPhotoCapture';
 
 export type BarcodeScannerLookupResponse = z.infer<typeof productLookupResponseSchema>;
 
-const packagePhotoNutritionSchema = z.object({
-  fat_100g: z.number().nullable(),
-  salt_100g: z.number().nullable(),
-  fiber_100g: z.number().nullable(),
-  sodium_100g: z.number().nullable(),
-  sugars_100g: z.number().nullable(),
-  proteins_100g: z.number().nullable(),
-  energy_kcal_100g: z.number().nullable(),
-  carbohydrates_100g: z.number().nullable(),
-  saturated_fat_100g: z.number().nullable(),
-});
-
-const packagePhotoExtractionSchema = z.object({
-  productName: z.string().nullable(),
-  productNameEnglish: z.string().nullable(),
-  productBrand: z.string().nullable(),
-  productRole: z.string().nullable(),
-  ingredients: z.array(z.string()),
-  ingredientsEnglish: z.array(z.string().nullable()),
-  nutrition: packagePhotoNutritionSchema,
-});
-
-const packagePhotosUploadResponseSchema = z.object({
-  success: z.literal(true),
-  photoCount: z.number().int().nonnegative(),
-  extraction: packagePhotoExtractionSchema,
+const packagePhotosUploadResponseSchema = scannerProductAnalysisResultSchema.extend({
+  barcode: z.string(),
+  scanId: z.string().optional(),
+  productId: z.string().optional(),
+  isFavourite: z.boolean().optional(),
 });
 
 const packagePhotoCoverageResponseSchema = z.union([
@@ -45,7 +25,6 @@ const packagePhotoCoverageResponseSchema = z.union([
 ]);
 
 export type PackagePhotosUploadResponse = z.infer<typeof packagePhotosUploadResponseSchema>;
-export type PackagePhotoExtraction = z.infer<typeof packagePhotoExtractionSchema>;
 export type PackagePhotoCoverageResponse = z.infer<typeof packagePhotoCoverageResponseSchema>;
 
 interface ReactNativeFile {
@@ -100,10 +79,13 @@ export const submitBarcodeLookup = async (
   return productLookupResponseSchema.parse(json);
 };
 
-const buildPackagePhotosFormData = (photos: CapturedProductPhoto[]): FormData => {
+const buildPackagePhotosFormData = (input: {
+  barcode: string;
+  photos: CapturedProductPhoto[];
+}): FormData => {
   const formData = new FormData();
 
-  photos.forEach((photo, index) => {
+  input.photos.forEach((photo, index) => {
     const photoFile: ReactNativeFile = {
       uri: photo.uri,
       name: `package-photo-${index + 1}-${photo.step}.jpg`,
@@ -113,10 +95,12 @@ const buildPackagePhotosFormData = (photos: CapturedProductPhoto[]): FormData =>
     formData.append('photos', photoFile as unknown as Blob);
   });
 
+  formData.append('barcode', input.barcode);
+
   formData.append(
     'metadata',
     JSON.stringify(
-      photos.map((photo, index) => ({
+      input.photos.map((photo, index) => ({
         index,
         step: photo.step,
         width: photo.width,
@@ -162,11 +146,11 @@ export const submitPackagePhotoCoverage = async (
 };
 
 export const submitPackagePhotos = async (
-  photos: CapturedProductPhoto[],
+  input: { barcode: string; photos: CapturedProductPhoto[] },
 ): Promise<PackagePhotosUploadResponse> => {
   const response = await apiFetch('/product-analysis/package-photos', {
     method: 'POST',
-    body: buildPackagePhotosFormData(photos),
+    body: buildPackagePhotosFormData(input),
   });
 
   if (!response.ok) {

@@ -233,8 +233,6 @@ export async function analyzeNormalizedProductForUser(input: {
     profiles: profileResults,
   };
 
-  console.log(JSON.stringify(response, null, 2));
-
   return response;
 }
 
